@@ -75,6 +75,7 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
   let remainingMonthlyCapacity = roundMoney(Math.max(0, monthlyCapacity));
   let protectedMonthlyNeed = 0;
   let hasUnfundedPriority = false;
+  let reserveAllocatedThisPlan = 0;
   const recommendations: MoneyPriorityRecommendation[] = [];
 
   for (const item of secure.recommendations) {
@@ -82,34 +83,37 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
     const explicitMonthlyNeed = isProtectedPriority && item.monthlyAmount && item.monthlyAmount > 0 ? item.monthlyAmount : 0;
     protectedMonthlyNeed = roundMoney(protectedMonthlyNeed + explicitMonthlyNeed);
 
-    let allocatedMonthlyAmount = 0;
-    let tradeoffs: string[] = [];
-
-    if (isProtectedPriority && remainingMonthlyCapacity > 0) {
-      const requestedThisMonth = explicitMonthlyNeed > 0
-        ? explicitMonthlyNeed
-        : Math.max(0, item.gapAmount ?? 0);
-      allocatedMonthlyAmount = roundMoney(Math.min(requestedThisMonth, remainingMonthlyCapacity));
-      remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocatedMonthlyAmount));
-
-      if (explicitMonthlyNeed > allocatedMonthlyAmount) {
-        const gap = roundMoney(explicitMonthlyNeed - allocatedMonthlyAmount);
-        tradeoffs = [`$${gap.toFixed(2)} of the required monthly pace remains unfunded at current capacity.`];
-        hasUnfundedPriority = true;
-      } else if (explicitMonthlyNeed === 0 && (item.gapAmount ?? 0) > allocatedMonthlyAmount) {
-        const balanceRemaining = roundMoney((item.gapAmount ?? 0) - allocatedMonthlyAmount);
-        tradeoffs = [`$${balanceRemaining.toFixed(2)} of this higher-priority balance remains after the current monthly allocation.`];
-        hasUnfundedPriority = true;
-      }
-    } else if (isProtectedPriority) {
-      hasUnfundedPriority = true;
-    }
-
     const category = item.id.includes("match")
       ? "employer_match"
       : item.id.includes("debt") || item.id.includes("promo")
         ? "debt"
         : "reserve";
+
+    let allocatedMonthlyAmount = 0;
+    let tradeoffs: string[] = [];
+    const rawBalanceGap = Math.max(0, item.gapAmount ?? 0);
+    const effectiveBalanceGap = category === "reserve"
+      ? Math.max(0, rawBalanceGap - reserveAllocatedThisPlan)
+      : rawBalanceGap;
+
+    if (isProtectedPriority && remainingMonthlyCapacity > 0) {
+      const requestedThisMonth = explicitMonthlyNeed > 0 ? explicitMonthlyNeed : effectiveBalanceGap;
+      allocatedMonthlyAmount = roundMoney(Math.min(requestedThisMonth, remainingMonthlyCapacity));
+      remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocatedMonthlyAmount));
+      if (category === "reserve") reserveAllocatedThisPlan = roundMoney(reserveAllocatedThisPlan + allocatedMonthlyAmount);
+
+      if (explicitMonthlyNeed > allocatedMonthlyAmount) {
+        const gap = roundMoney(explicitMonthlyNeed - allocatedMonthlyAmount);
+        tradeoffs = [`$${gap.toFixed(2)} of the required monthly pace remains unfunded at current capacity.`];
+        hasUnfundedPriority = true;
+      } else if (explicitMonthlyNeed === 0 && effectiveBalanceGap > allocatedMonthlyAmount) {
+        const balanceRemaining = roundMoney(effectiveBalanceGap - allocatedMonthlyAmount);
+        tradeoffs = [`$${balanceRemaining.toFixed(2)} of this higher-priority balance remains after the current monthly allocation.`];
+        hasUnfundedPriority = true;
+      }
+    } else if (isProtectedPriority && (explicitMonthlyNeed > 0 || effectiveBalanceGap > 0)) {
+      hasUnfundedPriority = true;
+    }
 
     recommendations.push({
       id: item.id, rank: 0, stage: "secure", state: item.state, urgency: item.urgency, title: item.title,
