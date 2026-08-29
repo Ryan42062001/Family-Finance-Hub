@@ -117,6 +117,26 @@ test("a small Secure balance gap can be completed before residual capacity flows
   assert.ok(totalMonthlyAllocated(result) <= 1500);
 });
 
+test("deductible and full emergency reserve do not double-allocate the same reserve need", () => {
+  const raw = baseRaw();
+  raw.income = [{
+    id: "i1", owner_person_id: "p1", name: "Salary", monthly_amount: 12000,
+    monthly_gross_amount: 7000, is_active: true, is_variable: false,
+  }];
+  raw.accounts = [{ id: "a1", name: "Emergency Fund", account_type: "savings", balance: 0, cash_purpose: "protected_reserve" }];
+  raw.goals = [];
+  raw.retirementAccounts = [{
+    id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
+    monthly_employee_contribution: 840, monthly_employer_contribution: 0, match_status: "fully_captured",
+  }];
+  const result = runMoneyPriorityEngine(raw, "2026-08-29");
+  const deductible = result.recommendations.find((item) => item.id === "secure-deductible-gap");
+  const emergency = result.recommendations.find((item) => item.id === "secure-full-emergency-fund");
+  assert.equal(deductible?.allocations[0]?.monthlyAmount, 1000);
+  assert.equal(emergency?.allocations[0]?.monthlyAmount, 6500);
+  assert.equal((deductible?.allocations[0]?.monthlyAmount ?? 0) + (emergency?.allocations[0]?.monthlyAmount ?? 0), 7500);
+});
+
 test("custom policy propagates through Secure and Optimize instead of silently using defaults", () => {
   const raw = baseRaw();
   raw.goals = [];
