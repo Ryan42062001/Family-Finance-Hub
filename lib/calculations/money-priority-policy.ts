@@ -5,6 +5,17 @@ export type MoneyPriorityPolicy = {
   highInterestDebtApr: number;
   payoffFavoredDebtApr: number;
   grayZoneDebtApr: number;
+  debtDecision: {
+    accelerateStartingApr: number;
+    retirementNearYears: number;
+    longInvestmentHorizonYears: number;
+    severeDebtBurdenTakeHome: number;
+    nearPayoffMonths: number;
+  };
+  optimizeDebt: {
+    mortgagePayoffFavoredApr: number;
+    mortgageInvestingFavoredApr: number;
+  };
   emergencyReserveMonthsByRisk: Record<EmergencyRiskTier, number>;
   retirementBenchmark: {
     healthyLower: number;
@@ -24,6 +35,17 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
   highInterestDebtApr: 0.10,
   payoffFavoredDebtApr: 0.06,
   grayZoneDebtApr: 0.04,
+  debtDecision: {
+    accelerateStartingApr: 0.08,
+    retirementNearYears: 10,
+    longInvestmentHorizonYears: 25,
+    severeDebtBurdenTakeHome: 0.20,
+    nearPayoffMonths: 12,
+  },
+  optimizeDebt: {
+    mortgagePayoffFavoredApr: 0.06,
+    mortgageInvestingFavoredApr: 0.04,
+  },
   emergencyReserveMonthsByRisk: {
     low: 3,
     moderate: 4,
