@@ -25,6 +25,7 @@ button, .secondary-button {
 }
 button { background: var(--accent); color: white; }
 .secondary-button { display: inline-flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); }
+.danger-button { background: #f9e8e8; color: #8a2d2d; padding: 0.55rem 0.7rem; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; }
 .sidebar {
@@ -69,9 +70,18 @@ button { background: var(--accent); color: white; }
 .data-form label { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.86rem; font-weight: 700; }
 .data-form input, .data-form select { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--text); padding: 0.75rem; font: inherit; }
 .data-form button { grid-column: 1 / -1; }
+.checkbox-label { display: flex !important; grid-column: 1 / -1; align-items: center; gap: 0.55rem !important; }
+.checkbox-label input { width: auto; }
 .record-list { display: grid; gap: 0.55rem; margin-top: 1rem; }
-.record-list > div { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding-top: 0.65rem; }
-.record-list span { color: var(--muted); text-align: right; }
+.record-list > .record-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: start; border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.record-row > span { display: grid; gap: 0.2rem; min-width: 0; }
+.record-row small { color: var(--muted); }
+.record-actions { display: flex; gap: 0.45rem; align-items: flex-start; }
+.edit-panel { position: relative; }
+.edit-panel summary { list-style: none; border-radius: 10px; background: var(--accent-soft); color: var(--accent); padding: 0.55rem 0.7rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.edit-panel summary::-webkit-details-marker { display: none; }
+.edit-panel[open] { grid-column: 1 / -1; width: min(520px, 80vw); }
+.edit-form { margin-top: 0.65rem; padding: 0.85rem; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfd; }
 .success-banner { background: var(--accent-soft); color: #315849; border: 1px solid #cadfd5; border-radius: 12px; padding: 0.85rem 1rem; }
 .profile-summary { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; align-items: start; }
 .profile-summary ul { margin: 0; padding-left: 1.25rem; line-height: 1.8; }
@@ -92,4 +102,9 @@ button { background: var(--accent); color: white; }
   .metric-grid, .panel-grid, .profile-summary, .data-form { grid-template-columns: 1fr; }
   .hero-actions { width: 100%; }
   .hero-actions > *, .hero-actions form, .hero-actions button { width: 100%; }
+  .record-list > .record-row { grid-template-columns: 1fr; }
+  .record-actions { width: 100%; }
+  .record-actions > * { flex: 1; }
+  .record-actions form button, .edit-panel summary { width: 100%; text-align: center; }
+  .edit-panel[open] { width: 100%; }
 }
