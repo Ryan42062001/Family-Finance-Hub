@@ -83,8 +83,8 @@ export function projectDebtStrategy(debts: DebtInput[], extraMonthlyPayment: num
     }
   }
 
-  let debtsState = normalized.map((debt) => ({ ...debt }));
-  let monthlyBudget = debtsState.reduce((sum, debt) => sum + debt.minimumPayment, 0) + safe(extraMonthlyPayment);
+  const debtsState = normalized.map((debt) => ({ ...debt }));
+  const monthlyBudget = debtsState.reduce((sum, debt) => sum + debt.minimumPayment, 0) + safe(extraMonthlyPayment);
   let totalInterest = 0;
   let months = 0;
   const payoffOrder: string[] = [];
