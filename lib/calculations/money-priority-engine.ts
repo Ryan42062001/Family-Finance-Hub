@@ -180,7 +180,7 @@ function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRe
 
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
-  const secure = evaluateSecureStage(snapshot, asOfDate);
+  const secure = evaluateSecureStage(snapshot, asOfDate, policy);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
   const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
   const build = evaluateBuildStage(snapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
@@ -189,7 +189,7 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
     roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed),
   );
   const optimizeUnlocked = !securePlan.hasUnfundedPriority && feasibility.status !== "funding_gap";
-  const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked);
+  const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked, policy);
 
   const recommendations = normalizeRanks([
     ...stabilizeRecommendations(snapshot, feasibility),
