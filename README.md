@@ -2,30 +2,42 @@
 
 Family Finance Hub is a private-first household financial planning application designed to help a household understand where it stands and decide what to do with the next dollar.
 
-## Current milestone: v0.1 Secure Foundation
+## Current milestone: v0.2 Financial Profile
 
-The Phase 1 foundation now includes:
+The application now includes the Phase 1 secure foundation plus the completed Phase 2 financial profile:
 
 - Next.js + TypeScript application structure
-- Supabase cookie-based authentication foundation
-- Sign-up, sign-in, confirmation callback, sign-out, and protected dashboard routes
+- Supabase cookie-based authentication
+- Sign-up, sign-in, confirmation callback, sign-out, and protected routes
 - Household-based multi-tenant database design
-- Row Level Security for profiles, households, and household membership
-- Verified cross-household isolation in the Supabase development project
-- Product, database, security, and Money Priority Engine documentation
+- Automatic first-household owner membership
+- Row Level Security across household and financial data
+- Household onboarding
+- Cash and asset accounts
+- Income sources
+- Recurring monthly expenses
+- Debts
+- Retirement accounts
+- Financial goals
+- Validated create, edit, and delete flows
+- Dashboard calculations for net worth, monthly income, expenses, cash flow, debt, retirement, and savings rate
+- Profile-completion guidance
+- Automated financial-calculation tests in CI
+- Verified cross-household read and update isolation
 
 ## Privacy model
 
-Every sensitive financial record will belong to a `household_id`. Access is enforced in Postgres Row Level Security, not merely hidden in the frontend. A user can only retrieve household records for households in which they have an authorized membership.
+Every sensitive financial record belongs to a `household_id`. Access is enforced in Postgres Row Level Security, not merely hidden in the frontend. Server actions derive the current household from the authenticated session and constrain mutations by both record ID and household ID.
 
 Sharing a generic Family Finance Hub link creates a separate private account/workspace by default. Household sharing will only occur through an explicit invitation flow added later.
 
 ## Development stack
 
-- Next.js
-- React
+- Next.js 16
+- React 19
 - TypeScript
 - Supabase Auth + Postgres + Row Level Security
+- GitHub Actions CI
 - Vercel planned for deployment
 
 ## Local setup
@@ -38,6 +50,14 @@ Sharing a generic Family Finance Hub link creates a separate private account/wor
 
 Never commit `.env.local`, service-role keys, secret API keys, banking credentials, account numbers, SSNs, or real test financial data.
 
+Verification:
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
 ## Documentation
 
 - `docs/PRODUCT_ROADMAP.md`
@@ -48,4 +68,4 @@ Never commit `.env.local`, service-role keys, secret API keys, banking credentia
 
 ## Next milestone
 
-After the secure foundation is merged, Phase 2 will build household onboarding and the first financial profile: household creation, income, accounts, debts, retirement accounts, and goals.
+Phase 3 expands the dashboard experience and builds on the Phase 2 household financial profile with richer financial summaries and planning insights.
