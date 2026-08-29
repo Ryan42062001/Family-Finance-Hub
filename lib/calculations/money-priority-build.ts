@@ -6,6 +6,14 @@ import {
   MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
   type MoneyPriorityPlanningAssumptions,
 } from "./money-priority-planning-assumptions.ts";
+import {
+  evaluateRetirementAccountOpportunities,
+  type RetirementAccountOpportunityResult,
+} from "./money-priority-retirement-accounts.ts";
+import {
+  MONEY_PRIORITY_TAX_POLICY_2026,
+  type MoneyPriorityTaxPolicy,
+} from "./money-priority-tax-policy.ts";
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
@@ -53,6 +61,7 @@ export type BuildStageResult = {
   protectedMonthlyFundingNeed: number;
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
+  retirementAccounts: RetirementAccountOpportunityResult;
   goals: GoalFundingAssessment[];
   allocations: BuildStageAllocation[];
   totalAllocatedMonthly: number;
@@ -237,11 +246,13 @@ export function evaluateBuildStage(
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
   allocationMonthlyCapacityOverride?: number,
   planningAssumptions: MoneyPriorityPlanningAssumptions = MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
+  taxPolicy: MoneyPriorityTaxPolicy = MONEY_PRIORITY_TAX_POLICY_2026,
 ): BuildStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
   const warnings: string[] = [];
   const retirement = assessRetirementBuild(snapshot, asOfDate, policy, planningAssumptions);
+  const retirementAccounts = evaluateRetirementAccountOpportunities(snapshot, taxPolicy);
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
 
@@ -283,6 +294,7 @@ export function evaluateBuildStage(
   } else if (retirement.guidanceMode === "benchmark" && retirement.missingData.length) {
     warnings.push(`Projection-based retirement guidance is unavailable: ${retirement.missingData.join(" ")}`);
   }
+  warnings.push(...retirementAccounts.warnings);
 
   for (const goal of snapshot.goals) {
     const assessment = goalById.get(goal.id)!;
@@ -347,6 +359,7 @@ export function evaluateBuildStage(
     protectedMonthlyFundingNeed,
     feasibility,
     retirement,
+    retirementAccounts,
     goals,
     allocations: requests,
     totalAllocatedMonthly,
