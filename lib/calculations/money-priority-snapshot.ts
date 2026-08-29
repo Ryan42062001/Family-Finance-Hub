@@ -19,6 +19,8 @@ export type MoneyPrioritySnapshot = {
     relationship: string;
     birthDate: string | null;
     plannedRetirementAge: number | null;
+    coveredByWorkplaceRetirementPlan: boolean | null;
+    estimatedTaxableCompensationAnnual: number | null;
     isDependent: boolean;
     isActive: boolean;
   }>;
@@ -120,6 +122,9 @@ export type MoneyPrioritySnapshot = {
     retirementSpendingBasis: string;
     planningSocialSecurityMonthly: number | null;
     planningPensionMonthly: number | null;
+    taxProfileYear: number | null;
+    taxFilingStatus: string | null;
+    estimatedModifiedAgi: number | null;
   } | null;
   aggregates: {
     monthlyTakeHomeIncome: number;
@@ -179,6 +184,10 @@ function booleanValue(value: unknown, fallback = false): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
+function nullableBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 function normalizeRetirementType(value: unknown): RetirementAccountType {
   const raw = stringValue(value, "other");
   if (raw === "457") return "457b";
@@ -195,6 +204,8 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     relationship: stringValue(row.relationship, "other"),
     birthDate: nullableString(row.birth_date),
     plannedRetirementAge: nullableNumber(row.planned_retirement_age),
+    coveredByWorkplaceRetirementPlan: nullableBoolean(row.covered_by_workplace_retirement_plan),
+    estimatedTaxableCompensationAnnual: nullableNumber(row.estimated_taxable_compensation_annual),
     isDependent: booleanValue(row.is_dependent),
     isActive: booleanValue(row.is_active, true),
   }));
@@ -260,7 +271,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     fullMatchEmployeeContributionMonthly: nullableNumber(row.full_match_employee_contribution_monthly),
     matchStatus: stringValue(row.match_status, "unknown"),
     hsaCoverageType: nullableString(row.hsa_coverage_type),
-    hsaEligible: typeof row.hsa_eligible === "boolean" ? row.hsa_eligible : null,
+    hsaEligible: nullableBoolean(row.hsa_eligible),
   }));
 
   const goals = (raw.goals ?? []).map((row) => ({
@@ -304,6 +315,9 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     retirementSpendingBasis: stringValue(raw.preferences.retirement_spending_basis, "unknown"),
     planningSocialSecurityMonthly: nullableNumber(raw.preferences.planning_social_security_monthly),
     planningPensionMonthly: nullableNumber(raw.preferences.planning_pension_monthly),
+    taxProfileYear: nullableNumber(raw.preferences.tax_profile_year),
+    taxFilingStatus: nullableString(raw.preferences.tax_filing_status),
+    estimatedModifiedAgi: nullableNumber(raw.preferences.estimated_modified_agi),
   } : null;
 
   const activeIncome = income.filter((item) => item.isActive);
