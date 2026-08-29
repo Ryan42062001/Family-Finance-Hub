@@ -3,53 +3,47 @@
 ## Objective
 Turn the household financial profile into practical calculators that answer focused planning questions without changing live household data.
 
-## Scope
-Phase 4 will deliver six planning tools:
+## Status
+All six planned calculators are implemented:
+1. Emergency-fund calculator
+2. Mortgage extra-payment calculator
+3. Savings-goal projection
+4. Retirement contribution pacing
+5. Debt payoff calculator
+6. Paycheck planner
 
-1. Paycheck planner
-2. Emergency-fund calculator
-3. Debt payoff calculator
-4. Mortgage extra-payment calculator
-5. Savings-goal projections
-6. Retirement contribution pacing
-
-## Product behavior
-Each tool should:
-- Reuse household financial data when helpful, while allowing users to adjust assumptions locally.
-- Keep calculations pure and testable under `lib/calculations`.
-- Clearly display assumptions and results.
-- Handle missing or zero-value inputs safely.
-- Avoid presenting projections as guarantees.
-- Never write scenario/calculator values back to household records automatically.
-
-## Initial implementation order
-1. Emergency-fund calculator — simplest useful planning tool and foundation for later Priority Engine logic.
-2. Mortgage extra-payment calculator — deterministic amortization logic with strong household value.
-3. Savings-goal projection — reusable time-to-goal math.
-4. Retirement contribution pacing — annual-limit and remaining-pay-period calculations.
-5. Debt payoff calculator — payoff timeline and interest comparisons.
-6. Paycheck planner — combines income allocation and planning outputs from prior tools.
+Phase 4 is in cleanup, security review, and final verification before merge.
 
 ## Architecture
-- Planning page under `app/planning/`.
-- Pure calculation modules under `lib/calculations/`.
-- Tests for every calculator and important edge case.
-- Presentational components may live under `components/planning/` if the page becomes large.
-- Calculators should accept explicit inputs rather than reaching into Supabase from calculation modules.
+- Authenticated server pages read household-scoped defaults from Supabase.
+- Interactive calculator assumptions live in client-local React state and are not placed in query strings.
+- Pure calculation modules live under `lib/calculations/` with automated tests.
+- Calculator assumptions never write back to household records automatically.
+- Dedicated client components live under `components/planning/`.
 
 ## Privacy and security
-- Household defaults must be read through the existing authenticated, household-scoped server flow.
-- No service-role or privileged database access.
+- Pages verify identity with `supabase.auth.getClaims()` before reading household data.
+- Every financial-data query is explicitly filtered by the resolved household ID in addition to database RLS.
+- No service-role or privileged database access is used by planning tools.
 - No new sensitive-data fields are required for Phase 4.
-- Calculator inputs are ephemeral unless a future explicit save feature is designed with household scoping and RLS.
+- Scenario values remain ephemeral unless a future explicit save feature is designed with household scoping and RLS.
+- Financial assumptions must not be placed in URL query parameters, browser history, or referrer data.
+
+## Calculation assumptions
+- Mortgage projections use principal + interest only and exclude escrow, taxes, insurance, and fees.
+- Debt strategies use fixed APRs and fixed minimum payments; mortgage debt is excluded from avalanche/snowball comparison because it has a dedicated tool.
+- Savings and emergency-fund projections exclude investment growth and changing expenses.
+- Retirement pacing does not determine tax-law eligibility or legal contribution limits.
+- Paycheck projections depend on the selected pay frequency and do not model bonuses or irregular checks.
 
 ## Verification before merge
-- Automated tests cover each planning calculation.
+- Automated tests cover each planning calculation and important edge cases.
 - Lint passes.
 - Production build passes.
 - Calculators render safely with empty/partial household profiles.
-- Results state their assumptions clearly.
+- Results state assumptions clearly.
 - Existing household-isolation model remains unchanged.
+- Supabase security/RLS review is completed.
 
 ## Out of scope
 - Money Priority Engine recommendations
