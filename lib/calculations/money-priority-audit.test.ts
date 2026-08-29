@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { MONEY_PRIORITY_POLICY_V1 } from "./money-priority-policy.ts";
 
 function baseRaw(): MoneyPriorityRawSnapshot {
   return {
@@ -114,4 +115,33 @@ test("a small Secure balance gap can be completed before residual capacity flows
   assert.equal(result.build.allocationMonthlyCapacity, 1400);
   assert.ok(result.build.totalAllocatedMonthly <= 1400);
   assert.ok(totalMonthlyAllocated(result) <= 1500);
+});
+
+test("custom policy propagates through Secure and Optimize instead of silently using defaults", () => {
+  const raw = baseRaw();
+  raw.goals = [];
+  raw.retirementAccounts = [{
+    id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
+    monthly_employee_contribution: 840, monthly_employer_contribution: 0, match_status: "fully_captured",
+  }];
+  raw.debts = [
+    { id: "consumer", name: "Consumer Loan", debt_type: "personal_loan", current_balance: 5000, interest_rate: 12, minimum_payment: 0, rate_type: "fixed" },
+    { id: "mortgage", name: "Mortgage", debt_type: "mortgage", current_balance: 150000, interest_rate: 6.5, minimum_payment: 0, rate_type: "fixed" },
+  ];
+
+  const policy = {
+    ...MONEY_PRIORITY_POLICY_V1,
+    version: "audit-custom",
+    highInterestDebtApr: 0.15,
+    debtDecision: { ...MONEY_PRIORITY_POLICY_V1.debtDecision, accelerateStartingApr: 0.13 },
+    optimizeDebt: {
+      mortgagePayoffFavoredApr: 0.07,
+      mortgageInvestingFavoredApr: 0.03,
+    },
+  };
+
+  const result = runMoneyPriorityEngine(raw, "2026-08-29", policy);
+  assert.equal(result.policyVersion, "audit-custom");
+  assert.equal(result.secure.debtClassifications.find((item) => item.debtId === "consumer")?.band, "payoff_favored");
+  assert.equal(result.optimize.recommendations.find((item) => item.relatedDebtId === "mortgage")?.decision, "split");
 });
