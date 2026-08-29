@@ -16,6 +16,12 @@ export type MoneyPriorityTaxPolicy = {
     marriedFilingJointly: { start: number; end: number };
     marriedFilingSeparately: { start: number; end: number };
   };
+  traditionalIraDeductionPhaseout: {
+    coveredSingleOrHeadOfHousehold: { start: number; end: number };
+    coveredMarriedFilingJointly: { start: number; end: number };
+    coveredMarriedFilingSeparately: { start: number; end: number };
+    contributorNotCoveredSpouseCoveredMarriedFilingJointly: { start: number; end: number };
+  };
 };
 
 export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
@@ -33,5 +39,11 @@ export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
     singleOrHeadOfHousehold: { start: 153000, end: 168000 },
     marriedFilingJointly: { start: 242000, end: 252000 },
     marriedFilingSeparately: { start: 0, end: 10000 },
+  },
+  traditionalIraDeductionPhaseout: {
+    coveredSingleOrHeadOfHousehold: { start: 81000, end: 91000 },
+    coveredMarriedFilingJointly: { start: 129000, end: 149000 },
+    coveredMarriedFilingSeparately: { start: 0, end: 10000 },
+    contributorNotCoveredSpouseCoveredMarriedFilingJointly: { start: 242000, end: 252000 },
   },
 };
