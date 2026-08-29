@@ -6,6 +6,7 @@ import {
   calculateGoalProgress,
   groupCategoryAmounts,
   profileCompletion,
+  splitExpenseTypes,
   sumAmounts,
 } from "@/lib/calculations/dashboard-insights";
 import { calculateFinancialSummary } from "@/lib/calculations/financial-summary";
@@ -55,6 +56,7 @@ export default async function DashboardPage() {
   const retirementAssets = sumAmounts(retirement.map((row) => ({ name: row.name, amount: Number(row.balance) })));
   const totalDebt = sumAmounts(debts.map((row) => ({ name: row.name, amount: Number(row.current_balance) })));
   const expenseCategories = groupCategoryAmounts(expenses.map((row) => ({ category: row.category, amount: Number(row.monthly_amount) })));
+  const expenseTypes = splitExpenseTypes(expenses.map((row) => ({ amount: Number(row.monthly_amount), isEssential: row.is_essential })));
   const goalProgress = calculateGoalProgress(goals.map((goal) => ({ id: goal.id, name: goal.name, currentAmount: Number(goal.current_amount), targetAmount: Number(goal.target_amount), priority: Number(goal.priority) })));
   const completion = profileCompletion([accounts.length, income.length, expenses.length, debts.length, retirement.length, goals.length]);
   const health = calculateFinancialHealth({ completion, monthlyIncome: summary.monthlyIncome, monthlyCashFlow: summary.monthlyCashFlow, savingsRate: summary.savingsRate, totalDebt, retirementAssets, goalCount: goals.length });
@@ -99,7 +101,7 @@ export default async function DashboardPage() {
 
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Spending</p><h2>Expense breakdown</h2></div><strong>{money(summary.monthlyExpenses)}</strong></div>
-          {expenseCategories.length ? <div className="bar-list">{expenseCategories.slice(0, 6).map((item) => { const share = summary.monthlyExpenses > 0 ? (item.amount / summary.monthlyExpenses) * 100 : 0; return <div key={item.category}><div className="bar-label"><span>{label(item.category)}</span><strong>{money(item.amount)} · {Math.round(share)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${Math.min(100, share)}%` }} /></div></div>; })}</div> : <p className="empty-state">Add monthly expenses to see where your money goes.</p>}
+          {expenseCategories.length ? <><div className="split-summary"><div><span>Essential</span><strong>{money(expenseTypes.essential)}</strong></div><div><span>Discretionary</span><strong>{money(expenseTypes.discretionary)}</strong></div><div><span>Total recurring</span><strong>{money(summary.monthlyExpenses)}</strong></div></div><div className="bar-list">{expenseCategories.slice(0, 6).map((item) => { const share = summary.monthlyExpenses > 0 ? (item.amount / summary.monthlyExpenses) * 100 : 0; return <div key={item.category}><div className="bar-label"><span>{label(item.category)}</span><strong>{money(item.amount)} · {Math.round(share)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${Math.min(100, share)}%` }} /></div></div>; })}</div></> : <p className="empty-state">Add monthly expenses to see where your money goes.</p>}
         </article>
 
         <article className="panel dashboard-panel">
