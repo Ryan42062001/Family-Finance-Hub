@@ -10,6 +10,7 @@ export type MoneyPriorityTaxPolicy = {
   iraCatchUpAge50: number;
   hsaSelfOnlyLimit: number;
   hsaFamilyLimit: number;
+  hsaCatchUpAge55: number;
   rothIraPhaseout: {
     singleOrHeadOfHousehold: { start: number; end: number };
     marriedFilingJointly: { start: number; end: number };
@@ -27,6 +28,7 @@ export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
   iraCatchUpAge50: 1100,
   hsaSelfOnlyLimit: 4400,
   hsaFamilyLimit: 8750,
+  hsaCatchUpAge55: 1000,
   rothIraPhaseout: {
     singleOrHeadOfHousehold: { start: 153000, end: 168000 },
     marriedFilingJointly: { start: 242000, end: 252000 },
