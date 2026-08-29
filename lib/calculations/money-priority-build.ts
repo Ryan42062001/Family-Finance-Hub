@@ -1,6 +1,11 @@
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { calculatePlanFeasibility, type PlanFeasibility } from "./money-priority-core.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
+import { projectRetirement, type RetirementProjectionResult } from "./money-priority-retirement-projection.ts";
+import {
+  MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
+  type MoneyPriorityPlanningAssumptions,
+} from "./money-priority-planning-assumptions.ts";
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
@@ -26,7 +31,8 @@ export type GoalFundingAssessment = {
 };
 
 export type RetirementBuildAssessment = {
-  state: "benchmark_met" | "below_benchmark" | "more_information_needed";
+  state: "projection_on_track" | "projection_shortfall" | "benchmark_met" | "below_benchmark" | "more_information_needed";
+  guidanceMode: "projection" | "benchmark" | "unavailable";
   monthlyGrossIncome: number | null;
   currentEmployeeMonthlyContribution: number;
   currentEmployerMonthlyContribution: number;
@@ -35,6 +41,8 @@ export type RetirementBuildAssessment = {
   currentTotalSavingsRate: number | null;
   healthyBenchmarkMonthlyTarget: number | null;
   healthyBenchmarkMonthlyGap: number;
+  recommendedMonthlyIncrease: number;
+  projection: RetirementProjectionResult;
   missingData: string[];
 };
 
@@ -87,7 +95,9 @@ function goalProtectionMultiplier(goal: MoneyPrioritySnapshot["goals"][number]):
 
 export function assessRetirementBuild(
   snapshot: MoneyPrioritySnapshot,
+  asOfDate: string,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  planningAssumptions: MoneyPriorityPlanningAssumptions = MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
 ): RetirementBuildAssessment {
   const currentEmployeeMonthlyContribution = roundMoney(
     snapshot.retirementAccounts.reduce((sum, account) => sum + account.monthlyEmployeeContribution, 0),
@@ -98,41 +108,68 @@ export function assessRetirementBuild(
   const currentTotalMonthlyContribution = roundMoney(
     currentEmployeeMonthlyContribution + currentEmployerMonthlyContribution,
   );
+  const projection = projectRetirement(snapshot, asOfDate, planningAssumptions);
 
-  if (snapshot.aggregates.hasIncompleteGrossIncome || snapshot.aggregates.monthlyGrossIncomeKnown <= 0) {
-    return {
-      state: "more_information_needed",
-      monthlyGrossIncome: null,
-      currentEmployeeMonthlyContribution,
-      currentEmployerMonthlyContribution,
-      currentTotalMonthlyContribution,
-      currentPersonalSavingsRate: null,
-      currentTotalSavingsRate: null,
-      healthyBenchmarkMonthlyTarget: null,
-      healthyBenchmarkMonthlyGap: 0,
-      missingData: ["Complete gross-income data is required to evaluate the retirement savings-rate benchmark."],
-    };
-  }
+  const grossAvailable = !snapshot.aggregates.hasIncompleteGrossIncome && snapshot.aggregates.monthlyGrossIncomeKnown > 0;
+  const monthlyGrossIncome = grossAvailable ? snapshot.aggregates.monthlyGrossIncomeKnown : null;
+  const healthyBenchmarkMonthlyTarget = monthlyGrossIncome === null
+    ? null
+    : roundMoney(monthlyGrossIncome * policy.retirementBenchmark.healthyLower);
+  const healthyBenchmarkMonthlyGap = healthyBenchmarkMonthlyTarget === null
+    ? 0
+    : roundMoney(Math.max(0, healthyBenchmarkMonthlyTarget - currentTotalMonthlyContribution));
 
-  const monthlyGrossIncome = snapshot.aggregates.monthlyGrossIncomeKnown;
-  const healthyBenchmarkMonthlyTarget = roundMoney(
-    monthlyGrossIncome * policy.retirementBenchmark.healthyLower,
-  );
-  const healthyBenchmarkMonthlyGap = roundMoney(
-    Math.max(0, healthyBenchmarkMonthlyTarget - currentTotalMonthlyContribution),
-  );
-
-  return {
-    state: healthyBenchmarkMonthlyGap > 0 ? "below_benchmark" : "benchmark_met",
+  const common = {
     monthlyGrossIncome,
     currentEmployeeMonthlyContribution,
     currentEmployerMonthlyContribution,
     currentTotalMonthlyContribution,
-    currentPersonalSavingsRate: currentEmployeeMonthlyContribution / monthlyGrossIncome,
-    currentTotalSavingsRate: currentTotalMonthlyContribution / monthlyGrossIncome,
+    currentPersonalSavingsRate: monthlyGrossIncome === null ? null : currentEmployeeMonthlyContribution / monthlyGrossIncome,
+    currentTotalSavingsRate: monthlyGrossIncome === null ? null : currentTotalMonthlyContribution / monthlyGrossIncome,
     healthyBenchmarkMonthlyTarget,
     healthyBenchmarkMonthlyGap,
-    missingData: [],
+    projection,
+  };
+
+  if (projection.state === "on_track") {
+    return {
+      ...common,
+      state: "projection_on_track",
+      guidanceMode: "projection",
+      recommendedMonthlyIncrease: 0,
+      missingData: [],
+    };
+  }
+
+  if (projection.state === "shortfall" && projection.requiredAdditionalMonthlyContribution !== null) {
+    return {
+      ...common,
+      state: "projection_shortfall",
+      guidanceMode: "projection",
+      recommendedMonthlyIncrease: projection.requiredAdditionalMonthlyContribution,
+      missingData: [],
+    };
+  }
+
+  if (monthlyGrossIncome !== null) {
+    return {
+      ...common,
+      state: healthyBenchmarkMonthlyGap > 0 ? "below_benchmark" : "benchmark_met",
+      guidanceMode: "benchmark",
+      recommendedMonthlyIncrease: healthyBenchmarkMonthlyGap,
+      missingData: projection.missingData,
+    };
+  }
+
+  return {
+    ...common,
+    state: "more_information_needed",
+    guidanceMode: "unavailable",
+    recommendedMonthlyIncrease: 0,
+    missingData: [
+      ...projection.missingData,
+      "Complete gross-income data is required for benchmark guidance when projection-based guidance is unavailable.",
+    ],
   };
 }
 
@@ -199,18 +236,17 @@ export function evaluateBuildStage(
   asOfDate: string,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
   allocationMonthlyCapacityOverride?: number,
+  planningAssumptions: MoneyPriorityPlanningAssumptions = MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
 ): BuildStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
   const warnings: string[] = [];
-  const retirement = assessRetirementBuild(snapshot, policy);
+  const retirement = assessRetirementBuild(snapshot, asOfDate, policy, planningAssumptions);
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
 
   const protectedGoalNeed = roundMoney(goals.reduce((sum, goal) => sum + goal.protectedMonthlyNeed, 0));
-  const protectedRetirementNeed = retirement.state === "below_benchmark"
-    ? retirement.healthyBenchmarkMonthlyGap
-    : 0;
+  const protectedRetirementNeed = retirement.recommendedMonthlyIncrease;
   const protectedMonthlyFundingNeed = roundMoney(protectedGoalNeed + protectedRetirementNeed);
   const feasibility = calculatePlanFeasibility(snapshot, protectedMonthlyFundingNeed);
   const monthlyPlanCapacity = roundMoney(Math.max(0, feasibility.monthlyPlanCapacity));
@@ -221,19 +257,31 @@ export function evaluateBuildStage(
 
   const requests: BuildStageAllocation[] = [];
 
-  if (retirement.state === "below_benchmark" && retirement.healthyBenchmarkMonthlyGap > 0) {
+  if (retirement.recommendedMonthlyIncrease > 0) {
+    const usingProjection = retirement.guidanceMode === "projection";
     requests.push({
       category: "retirement",
       relatedEntityId: null,
-      title: "Increase retirement contributions toward the healthy benchmark",
-      requestedMonthlyAmount: retirement.healthyBenchmarkMonthlyGap,
+      title: usingProjection
+        ? "Increase retirement contributions toward the projection-based target"
+        : "Increase retirement contributions toward the healthy benchmark",
+      requestedMonthlyAmount: retirement.recommendedMonthlyIncrease,
       allocatedMonthlyAmount: 0,
-      unfundedMonthlyAmount: retirement.healthyBenchmarkMonthlyGap,
+      unfundedMonthlyAmount: retirement.recommendedMonthlyIncrease,
       priority: 100,
-      reasons: ["The current total retirement savings rate is below the policy healthy-lower benchmark."],
+      reasons: usingProjection
+        ? [
+            "Projection-based guidance is available and is primary over the generic savings-rate benchmark.",
+            `The modeled shortfall requires approximately $${retirement.recommendedMonthlyIncrease.toFixed(2)} of additional monthly retirement funding under the current planning assumptions.`,
+          ]
+        : ["Projection inputs are incomplete, so the engine is using the policy healthy-lower retirement benchmark as a fallback."],
     });
-  } else if (retirement.state === "more_information_needed") {
+  }
+
+  if (retirement.guidanceMode === "unavailable") {
     warnings.push(...retirement.missingData);
+  } else if (retirement.guidanceMode === "benchmark" && retirement.missingData.length) {
+    warnings.push(`Projection-based retirement guidance is unavailable: ${retirement.missingData.join(" ")}`);
   }
 
   for (const goal of snapshot.goals) {
