@@ -125,6 +125,7 @@ export type MoneyPrioritySnapshot = {
     taxProfileYear: number | null;
     taxFilingStatus: string | null;
     estimatedModifiedAgi: number | null;
+    livedWithSpouseDuringTaxYear: boolean | null;
   } | null;
   aggregates: {
     monthlyTakeHomeIncome: number;
@@ -318,6 +319,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     taxProfileYear: nullableNumber(raw.preferences.tax_profile_year),
     taxFilingStatus: nullableString(raw.preferences.tax_filing_status),
     estimatedModifiedAgi: nullableNumber(raw.preferences.estimated_modified_agi),
+    livedWithSpouseDuringTaxYear: nullableBoolean(raw.preferences.lived_with_spouse_during_tax_year),
   } : null;
 
   const activeIncome = income.filter((item) => item.isActive);
