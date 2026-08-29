@@ -5,6 +5,7 @@ import {
   calculateGoalProgress,
   groupCategoryAmounts,
   profileCompletion,
+  splitExpenseTypes,
   sumAmounts,
 } from "./dashboard-insights.ts";
 
@@ -19,6 +20,17 @@ test("groups category amounts and sorts largest first", () => {
       { category: "housing", amount: 1750 },
       { category: "groceries", amount: 400 },
     ],
+  );
+});
+
+test("splits essential and discretionary expenses", () => {
+  assert.deepEqual(
+    splitExpenseTypes([
+      { amount: 1500, isEssential: true },
+      { amount: 400, isEssential: true },
+      { amount: 120, isEssential: false },
+    ]),
+    { essential: 1900, discretionary: 120 },
   );
 });
 
