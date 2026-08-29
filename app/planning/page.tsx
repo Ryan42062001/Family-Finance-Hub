@@ -64,33 +64,33 @@ export default async function PlanningPage({ searchParams }: PageProps) {
         <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
       </section>
 
-      <section className="planning-grid">
-        <article className="panel planning-input-card">
+      <section className="panel-grid">
+        <article className="panel">
           <p className="eyebrow">Assumptions</p>
           <h2>Adjust your plan</h2>
           <p className="muted">Defaults come from your household profile. Changes here are calculator-only and do not update saved records.</p>
-          <form className="planning-form" method="get">
+          <form className="data-form" method="get">
             <label>Current liquid savings<input name="currentSavings" type="number" min="0" step="0.01" defaultValue={currentSavings} /></label>
             <label>Monthly essential expenses<input name="monthlyEssentialExpenses" type="number" min="0" step="0.01" defaultValue={monthlyEssentialExpenses} /></label>
             <label>Target months<input name="targetMonths" type="number" min="0" step="0.5" defaultValue={targetMonths} /></label>
             <label>Monthly contribution<input name="monthlyContribution" type="number" min="0" step="0.01" defaultValue={monthlyContribution} /></label>
             <button type="submit">Recalculate</button>
           </form>
-          <p className="planning-note">Essential-expense defaults include expenses marked essential plus monthly debt minimums. Liquid-savings defaults include checking, savings, and cash accounts.</p>
+          <p className="muted">Essential-expense defaults include expenses marked essential plus monthly debt minimums. Liquid-savings defaults include checking, savings, and cash accounts.</p>
         </article>
 
-        <article className="panel planning-result-card">
+        <article className="panel">
           <p className="eyebrow">Projection</p>
           <h2>Your emergency reserve</h2>
-          <div className="planning-metrics">
+          <div className="split-summary">
             <div><span>Target reserve</span><strong>{money(result.targetAmount)}</strong></div>
             <div><span>Current reserve</span><strong>{money(result.currentSavings)}</strong></div>
             <div><span>Funding progress</span><strong>{percent}</strong></div>
             <div><span>Funding gap</span><strong>{money(result.fundingGap)}</strong></div>
             <div><span>Current coverage</span><strong>{result.coverageMonths === null ? "—" : `${result.coverageMonths.toFixed(1)} months`}</strong></div>
-            <div><span>Time to target</span><strong>{result.monthsToGoal === null ? "Add a monthly contribution" : result.monthsToGoal === 0 ? "Funded" : `${result.monthsToGoal} months`}</strong></div>
+            <div><span>Time to target</span><strong>{result.monthsToGoal === null ? "Add monthly savings" : result.monthsToGoal === 0 ? "Funded" : `${result.monthsToGoal} months`}</strong></div>
           </div>
-          <div className="progress-track planning-progress"><div className="progress-fill" style={{ width: `${(result.progress ?? 0) * 100}%` }} /></div>
+          <div className="progress-track"><div className="progress-fill" style={{ width: `${(result.progress ?? 0) * 100}%` }} /></div>
           <p className="muted">This is a planning projection based only on the assumptions above. It does not account for interest earned, changing expenses, or unexpected withdrawals.</p>
         </article>
       </section>
