@@ -61,7 +61,7 @@ export function evaluateSecureStage(snapshot: MoneyPrioritySnapshot): SecureStag
       relatedEntityId: null,
       reasons: ["The deductible reserve target cannot be verified without deductible data."],
     });
-  } else if (deductibleReserveGap > 0) {
+  } else if (deductibleReserveGap !== null && deductibleReserveGap > 0) {
     recommendations.push({
       id: "secure-deductible-gap",
       rank: rank++,
