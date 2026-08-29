@@ -62,7 +62,6 @@ function stabilizeRecommendations(
 ): MoneyPriorityRecommendation[] {
   if (snapshot.aggregates.monthlyCashFlowBeforeSavings >= 0 && feasibility.status !== "funding_gap") return [];
 
-  const gap = Math.max(0, -snapshot.aggregates.monthlyCashFlowBeforeSavings, feasibility.planFundingGap);
   return [{
     id: "stabilize-cash-flow-gap",
     rank: 0,
@@ -91,7 +90,7 @@ function secureRecommendations(secure: SecureStageResult): MoneyPriorityRecommen
     explanation: item.reasons.join(" "),
     allocations: item.monthlyAmount && item.monthlyAmount > 0
       ? [{
-          category: item.id.includes("match") ? "employer_match" : item.id.includes("debt") ? "debt" : "reserve",
+          category: item.id.includes("match") ? "employer_match" : item.id.includes("debt") || item.id.includes("promo") ? "debt" : "reserve",
           relatedEntityId: item.relatedEntityId,
           monthlyAmount: item.monthlyAmount,
           annualAmount: roundMoney(item.monthlyAmount * 12),
@@ -191,7 +190,7 @@ export function runMoneyPriorityEngine(
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
 ): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
-  const secure = evaluateSecureStage(snapshot);
+  const secure = evaluateSecureStage(snapshot, asOfDate);
   const build = evaluateBuildStage(snapshot, asOfDate, policy);
   const feasibility = calculatePlanFeasibility(snapshot, build.protectedMonthlyFundingNeed);
 
