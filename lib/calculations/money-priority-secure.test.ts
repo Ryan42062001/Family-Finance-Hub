@@ -6,7 +6,11 @@ import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 function baseSnapshot(): MoneyPrioritySnapshot {
   return {
     householdId: "h1",
-    people: [{ id: "p1", displayName: "Alex", relationship: "self", birthDate: null, plannedRetirementAge: 65, isDependent: false, isActive: true }],
+    people: [{
+      id: "p1", displayName: "Alex", relationship: "self", birthDate: null, plannedRetirementAge: 65,
+      coveredByWorkplaceRetirementPlan: null, estimatedTaxableCompensationAnnual: null,
+      isDependent: false, isActive: true,
+    }],
     income: [{ id: "i1", ownerPersonId: "p1", name: "Job", type: "employment", monthlyTakeHomeAmount: 5000, monthlyGrossAmount: 7000, isVariable: false, isActive: true }],
     expenses: [
       { id: "e1", name: "Housing", category: "housing", monthlyAmount: 2000, isEssential: true },
@@ -30,6 +34,10 @@ function baseSnapshot(): MoneyPrioritySnapshot {
       retirementSpendingBasis: "unknown",
       planningSocialSecurityMonthly: null,
       planningPensionMonthly: null,
+      taxProfileYear: null,
+      taxFilingStatus: null,
+      estimatedModifiedAgi: null,
+      livedWithSpouseDuringTaxYear: null,
     },
     aggregates: {
       monthlyTakeHomeIncome: 5000,
@@ -131,7 +139,11 @@ test("high-interest debts are ordered by APR descending", () => {
 
 test("full emergency fund uses the risk-derived month target and protected reserve cash", () => {
   const snapshot = baseSnapshot();
-  snapshot.people.push({ id: "p2", displayName: "Child", relationship: "child", birthDate: null, plannedRetirementAge: null, isDependent: true, isActive: true });
+  snapshot.people.push({
+    id: "p2", displayName: "Child", relationship: "child", birthDate: null, plannedRetirementAge: null,
+    coveredByWorkplaceRetirementPlan: null, estimatedTaxableCompensationAnnual: null,
+    isDependent: true, isActive: true,
+  });
   snapshot.aggregates.protectedCash = 1000;
   const result = evaluateSecureStage(snapshot);
   assert.equal(result.fullEmergencyTarget, 8000);
