@@ -41,6 +41,7 @@ export type RetirementBuildAssessment = {
 export type BuildStageResult = {
   asOfDate: string;
   monthlyPlanCapacity: number;
+  allocationMonthlyCapacity: number;
   protectedMonthlyFundingNeed: number;
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
@@ -197,6 +198,7 @@ export function evaluateBuildStage(
   snapshot: MoneyPrioritySnapshot,
   asOfDate: string,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  allocationMonthlyCapacityOverride?: number,
 ): BuildStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
@@ -212,6 +214,10 @@ export function evaluateBuildStage(
   const protectedMonthlyFundingNeed = roundMoney(protectedGoalNeed + protectedRetirementNeed);
   const feasibility = calculatePlanFeasibility(snapshot, protectedMonthlyFundingNeed);
   const monthlyPlanCapacity = roundMoney(Math.max(0, feasibility.monthlyPlanCapacity));
+  const allocationMonthlyCapacity = roundMoney(Math.max(
+    0,
+    Math.min(monthlyPlanCapacity, allocationMonthlyCapacityOverride ?? monthlyPlanCapacity),
+  ));
 
   const requests: BuildStageAllocation[] = [];
 
@@ -267,7 +273,7 @@ export function evaluateBuildStage(
 
   requests.sort((a, b) => b.priority - a.priority || a.title.localeCompare(b.title));
 
-  let remainingMonthlyCapacity = monthlyPlanCapacity;
+  let remainingMonthlyCapacity = allocationMonthlyCapacity;
   for (const request of requests) {
     const allocated = roundMoney(Math.min(request.requestedMonthlyAmount, remainingMonthlyCapacity));
     request.allocatedMonthlyAmount = allocated;
@@ -282,10 +288,14 @@ export function evaluateBuildStage(
   if (requests.some((request) => request.unfundedMonthlyAmount > 0)) {
     warnings.push("Available monthly capacity is not enough to fully fund every Build-stage request.");
   }
+  if (allocationMonthlyCapacity < monthlyPlanCapacity) {
+    warnings.push("Build-stage allocations were limited to capacity remaining after higher-priority stages.");
+  }
 
   return {
     asOfDate,
     monthlyPlanCapacity,
+    allocationMonthlyCapacity,
     protectedMonthlyFundingNeed,
     feasibility,
     retirement,
