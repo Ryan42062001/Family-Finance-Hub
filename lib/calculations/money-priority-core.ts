@@ -24,12 +24,7 @@ export function calculatePlanFeasibility(
       ? "tight"
       : "feasible";
 
-  return {
-    status,
-    monthlyPlanCapacity,
-    protectedMonthlyFundingNeed,
-    planFundingGap,
-  };
+  return { status, monthlyPlanCapacity, protectedMonthlyFundingNeed, planFundingGap };
 }
 
 export type EmergencyRiskAssessment = {
@@ -44,7 +39,6 @@ export function classifyEmergencyRisk(
 ): EmergencyRiskAssessment {
   const reasons: string[] = [];
   let score = 0;
-
   const activeIncome = snapshot.income.filter((item) => item.isActive);
   const totalTakeHome = activeIncome.reduce((sum, item) => sum + item.monthlyTakeHomeAmount, 0);
   const largestIncome = activeIncome.reduce((max, item) => Math.max(max, item.monthlyTakeHomeAmount), 0);
@@ -82,70 +76,37 @@ export function classifyEmergencyRisk(
   const override = snapshot.preferences?.emergencyFundMonthsOverride;
   const recommendedMonths = override ?? policy.emergencyReserveMonthsByRisk[tier];
   if (override !== null && override !== undefined) reasons.push("Household emergency-fund override applied.");
-
   return { tier, recommendedMonths, reasons };
 }
 
-export function calculateFullEmergencyTarget(
-  snapshot: MoneyPrioritySnapshot,
-  recommendedMonths: number,
-): number {
-  return recommendedMonths * (
-    snapshot.aggregates.monthlyEssentialExpenses
-    + snapshot.aggregates.monthlyMinimumDebtPayments
-  );
+export function calculateFullEmergencyTarget(snapshot: MoneyPrioritySnapshot, recommendedMonths: number): number {
+  return recommendedMonths * (snapshot.aggregates.monthlyEssentialExpenses + snapshot.aggregates.monthlyMinimumDebtPayments);
 }
 
-export type DebtPriorityBand =
-  | "special_priority"
-  | "high_interest"
-  | "payoff_favored"
-  | "gray_zone"
-  | "optimize"
-  | "unknown";
-
-export type DebtClassification = {
-  debtId: string;
-  band: DebtPriorityBand;
-  reasons: string[];
-};
-
-export type DebtAction =
-  | "special"
-  | "accelerate"
-  | "split"
-  | "scheduled"
-  | "optimize"
-  | "unknown";
-
-export type DebtActionAssessment = DebtClassification & {
-  action: DebtAction;
-  reasons: string[];
-};
+export type DebtPriorityBand = "special_priority" | "high_interest" | "payoff_favored" | "gray_zone" | "optimize" | "unknown";
+export type DebtClassification = { debtId: string; band: DebtPriorityBand; reasons: string[] };
+export type DebtAction = "special" | "accelerate" | "split" | "scheduled" | "optimize" | "unknown";
+export type DebtActionAssessment = DebtClassification & { action: DebtAction; reasons: string[] };
 
 export function classifyDebt(
   debt: MoneyPrioritySnapshot["debts"][number],
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
 ): DebtClassification {
   const reasons: string[] = [];
-
   if (debt.isPastDue || debt.isInCollections || debt.hasLegalOrTaxPriority) {
     if (debt.isPastDue) reasons.push("Debt is past due.");
     if (debt.isInCollections) reasons.push("Debt is in collections.");
     if (debt.hasLegalOrTaxPriority) reasons.push("Debt has legal or tax priority.");
     return { debtId: debt.id, band: "special_priority", reasons };
   }
-
   if (debt.rateType === "promotional" || debt.forgivenessOrRepaymentProgram) {
     reasons.push("Debt requires special-policy handling before ordinary APR ranking.");
     return { debtId: debt.id, band: "special_priority", reasons };
   }
-
   if (debt.type === "mortgage") {
     reasons.push("Mortgage debt is handled in Optimize rather than ordinary high-interest ranking.");
     return { debtId: debt.id, band: "optimize", reasons };
   }
-
   if (debt.annualInterestRate === null) {
     reasons.push("APR is missing.");
     return { debtId: debt.id, band: "unknown", reasons };
@@ -164,7 +125,6 @@ export function classifyDebt(
     reasons.push("APR falls in the debt-vs-investing gray zone.");
     return { debtId: debt.id, band: "gray_zone", reasons };
   }
-
   reasons.push("APR is below the ordinary debt-acceleration thresholds.");
   return { debtId: debt.id, band: "optimize", reasons };
 }
@@ -204,7 +164,6 @@ export function assessDebtAction(
 ): DebtActionAssessment {
   const classification = classifyDebt(debt, policy);
   const reasons = [...classification.reasons];
-
   if (classification.band === "special_priority") return { ...classification, action: "special", reasons };
   if (classification.band === "high_interest") return { ...classification, action: "accelerate", reasons };
   if (classification.band === "unknown") return { ...classification, action: "unknown", reasons };
@@ -212,22 +171,22 @@ export function assessDebtAction(
 
   const apr = (debt.annualInterestRate ?? 0) / 100;
   const baseline: "accelerate" | "split" | "scheduled" = classification.band === "payoff_favored"
-    ? (apr >= 0.08 ? "accelerate" : "split")
+    ? (apr >= policy.debtDecision.accelerateStartingApr ? "accelerate" : "split")
     : "scheduled";
   reasons.push(baseline === "accelerate"
-    ? "An 8–9.99% APR starts in the accelerate posture."
+    ? `APR is at or above the ${(policy.debtDecision.accelerateStartingApr * 100).toFixed(0)}% accelerate starting threshold.`
     : baseline === "split"
-      ? "A 6–7.99% APR starts in the split/payoff-favored posture."
-      : "A 4–5.99% APR starts in the scheduled/context posture.");
+      ? "APR starts in the split/payoff-favored posture."
+      : "APR starts in the scheduled/context posture.");
 
   let modifierScore = 0;
   const retirementHorizon = householdRetirementHorizon(snapshot, asOfDate);
-  if (retirementHorizon !== null && retirementHorizon <= 10) {
+  if (retirementHorizon !== null && retirementHorizon <= policy.debtDecision.retirementNearYears) {
     modifierScore += 2;
-    reasons.push("Retirement is within 10 years, a strong factor favoring debt reduction.");
-  } else if (retirementHorizon !== null && retirementHorizon >= 25) {
+    reasons.push(`Retirement is within ${policy.debtDecision.retirementNearYears} years, a strong factor favoring debt reduction.`);
+  } else if (retirementHorizon !== null && retirementHorizon >= policy.debtDecision.longInvestmentHorizonYears) {
     modifierScore -= 1;
-    reasons.push("A 25+ year retirement horizon modestly favors investing flexibility.");
+    reasons.push(`A ${policy.debtDecision.longInvestmentHorizonYears}+ year retirement horizon modestly favors investing flexibility.`);
   }
 
   if (debt.rateType === "variable") {
@@ -238,14 +197,14 @@ export function assessDebtAction(
   const debtBurden = snapshot.aggregates.monthlyTakeHomeIncome > 0
     ? snapshot.aggregates.monthlyMinimumDebtPayments / snapshot.aggregates.monthlyTakeHomeIncome
     : 0;
-  if (debtBurden >= 0.2) {
+  if (debtBurden >= policy.debtDecision.severeDebtBurdenTakeHome) {
     modifierScore += 2;
-    reasons.push("Minimum debt payments consume at least 20% of take-home income, a strong debt-burden signal.");
+    reasons.push(`Minimum debt payments consume at least ${(policy.debtDecision.severeDebtBurdenTakeHome * 100).toFixed(0)}% of take-home income.`);
   }
 
-  if (debt.minimumPayment > 0 && debt.balance / debt.minimumPayment <= 12) {
+  if (debt.minimumPayment > 0 && debt.balance / debt.minimumPayment <= policy.debtDecision.nearPayoffMonths) {
     modifierScore += 1;
-    reasons.push("The balance is close enough to payoff that eliminating the payment could free cash flow soon.");
+    reasons.push(`The balance could be cleared in roughly ${policy.debtDecision.nearPayoffMonths} scheduled-payment months or less.`);
   }
 
   if (snapshot.preferences?.debtVsInvesting === "debt_focused") {
