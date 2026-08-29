@@ -205,71 +205,67 @@ export function assessDebtAction(
   const classification = classifyDebt(debt, policy);
   const reasons = [...classification.reasons];
 
-  if (classification.band === "special_priority") {
-    return { ...classification, action: "special", reasons };
-  }
-  if (classification.band === "high_interest") {
-    return { ...classification, action: "accelerate", reasons };
-  }
-  if (classification.band === "unknown") {
-    return { ...classification, action: "unknown", reasons };
-  }
-  if (classification.band === "optimize") {
-    return { ...classification, action: "optimize", reasons };
-  }
+  if (classification.band === "special_priority") return { ...classification, action: "special", reasons };
+  if (classification.band === "high_interest") return { ...classification, action: "accelerate", reasons };
+  if (classification.band === "unknown") return { ...classification, action: "unknown", reasons };
+  if (classification.band === "optimize") return { ...classification, action: "optimize", reasons };
 
   const apr = (debt.annualInterestRate ?? 0) / 100;
-  let score = 0;
+  const baseline: "accelerate" | "split" | "scheduled" = classification.band === "payoff_favored"
+    ? (apr >= 0.08 ? "accelerate" : "split")
+    : "scheduled";
+  reasons.push(baseline === "accelerate"
+    ? "An 8–9.99% APR starts in the accelerate posture."
+    : baseline === "split"
+      ? "A 6–7.99% APR starts in the split/payoff-favored posture."
+      : "A 4–5.99% APR starts in the scheduled/context posture.");
 
-  if (classification.band === "payoff_favored") {
-    score = apr >= 0.08 ? 2 : 1;
-    reasons.push(apr >= 0.08
-      ? "An 8–9.99% APR starts in the accelerate posture."
-      : "A 6–7.99% APR starts in the split/payoff-favored posture.");
-  } else {
-    score = 0;
-    reasons.push("A 4–5.99% APR starts in the scheduled/context posture.");
-  }
-
+  let modifierScore = 0;
   const retirementHorizon = householdRetirementHorizon(snapshot, asOfDate);
   if (retirementHorizon !== null && retirementHorizon <= 10) {
-    score += 1;
-    reasons.push("Retirement is within 10 years, which favors reducing debt risk.");
+    modifierScore += 2;
+    reasons.push("Retirement is within 10 years, a strong factor favoring debt reduction.");
   } else if (retirementHorizon !== null && retirementHorizon >= 25) {
-    score -= 1;
+    modifierScore -= 1;
     reasons.push("A 25+ year retirement horizon modestly favors investing flexibility.");
   }
 
   if (debt.rateType === "variable") {
-    score += 1;
-    reasons.push("Variable-rate debt has reset risk, which favors faster payoff.");
+    modifierScore += 2;
+    reasons.push("Variable-rate debt has reset risk, a strong factor favoring faster payoff.");
   }
 
   const debtBurden = snapshot.aggregates.monthlyTakeHomeIncome > 0
     ? snapshot.aggregates.monthlyMinimumDebtPayments / snapshot.aggregates.monthlyTakeHomeIncome
     : 0;
   if (debtBurden >= 0.2) {
-    score += 1;
-    reasons.push("Minimum debt payments consume at least 20% of take-home income.");
+    modifierScore += 2;
+    reasons.push("Minimum debt payments consume at least 20% of take-home income, a strong debt-burden signal.");
   }
 
   if (debt.minimumPayment > 0 && debt.balance / debt.minimumPayment <= 12) {
-    score += 0.5;
+    modifierScore += 1;
     reasons.push("The balance is close enough to payoff that eliminating the payment could free cash flow soon.");
   }
 
   if (snapshot.preferences?.debtVsInvesting === "debt_focused") {
-    score += 0.5;
+    modifierScore += 1;
     reasons.push("Household preference leans toward debt payoff.");
   } else if (snapshot.preferences?.debtVsInvesting === "growth_focused") {
-    score -= 0.5;
+    modifierScore -= 1;
     reasons.push("Household preference leans toward long-term growth.");
   }
 
-  let action: DebtAction;
-  if (score >= 2) action = "accelerate";
-  else if (score >= 1) action = "split";
-  else action = "scheduled";
+  let action: "accelerate" | "split" | "scheduled" = baseline;
+  if (baseline === "accelerate") {
+    if (modifierScore <= -2) action = "split";
+  } else if (baseline === "split") {
+    if (modifierScore >= 2) action = "accelerate";
+    else if (modifierScore <= -2) action = "scheduled";
+  } else if (modifierScore >= 2) {
+    action = "split";
+  }
 
+  if (action !== baseline) reasons.push("Context modifiers moved the debt exactly one posture from its APR baseline.");
   return { ...classification, action, reasons };
 }
