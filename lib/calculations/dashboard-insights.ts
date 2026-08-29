@@ -8,6 +8,11 @@ export type CategoryAmount = {
   amount: number;
 };
 
+export type ExpenseTypeAmount = {
+  amount: number;
+  isEssential: boolean;
+};
+
 export type GoalProgressInput = {
   id: string;
   name: string;
@@ -51,6 +56,18 @@ export function groupCategoryAmounts(items: CategoryAmount[]) {
   return [...grouped.entries()]
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
+}
+
+export function splitExpenseTypes(items: ExpenseTypeAmount[]) {
+  return items.reduce(
+    (totals, item) => {
+      const amount = Number(item.amount || 0);
+      if (item.isEssential) totals.essential += amount;
+      else totals.discretionary += amount;
+      return totals;
+    },
+    { essential: 0, discretionary: 0 },
+  );
 }
 
 export function calculateGoalProgress(goals: GoalProgressInput[]): GoalProgress[] {
