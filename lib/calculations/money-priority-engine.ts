@@ -5,10 +5,7 @@ import { evaluateBuildStage, type BuildStageResult } from "./money-priority-buil
 import { evaluateOptimizeStage, type OptimizeStageResult } from "./money-priority-optimize.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 
-export type RecommendationState =
-  | "recommended"
-  | "worth_considering"
-  | "more_information_needed";
+export type RecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
 export type MoneyPriorityAllocation = {
   category: string;
@@ -67,17 +64,67 @@ function stabilizeRecommendations(snapshot: MoneyPrioritySnapshot, feasibility: 
   }];
 }
 
-function secureRecommendations(secure: SecureStageResult): MoneyPriorityRecommendation[] {
-  return secure.recommendations.map((item) => ({
-    id: item.id, rank: 0, stage: "secure" as const, state: item.state, urgency: item.urgency, title: item.title,
-    explanation: item.reasons.join(" "),
-    allocations: item.monthlyAmount && item.monthlyAmount > 0 ? [{
-      category: item.id.includes("match") ? "employer_match" : item.id.includes("debt") || item.id.includes("promo") ? "debt" : "reserve",
-      relatedEntityId: item.relatedEntityId, monthlyAmount: item.monthlyAmount, annualAmount: roundMoney(item.monthlyAmount * 12), rationale: item.reasons,
-    }] : [],
-    whyNow: item.reasons, tradeoffs: [], sourceInputs: [item.relatedEntityId ? `entity:${item.relatedEntityId}` : "household_snapshot"],
-    assumptions: [], missingData: item.state === "more_information_needed" ? item.reasons : [],
-  }));
+type SecureAllocationPlan = {
+  recommendations: MoneyPriorityRecommendation[];
+  remainingMonthlyCapacity: number;
+  protectedMonthlyNeed: number;
+  hasUnfundedPriority: boolean;
+};
+
+function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacity: number): SecureAllocationPlan {
+  let remainingMonthlyCapacity = roundMoney(Math.max(0, monthlyCapacity));
+  let protectedMonthlyNeed = 0;
+  let hasUnfundedPriority = false;
+  const recommendations: MoneyPriorityRecommendation[] = [];
+
+  for (const item of secure.recommendations) {
+    const isProtectedPriority = item.state === "recommended" && (item.urgency === "required" || item.urgency === "high");
+    const explicitMonthlyNeed = isProtectedPriority && item.monthlyAmount && item.monthlyAmount > 0 ? item.monthlyAmount : 0;
+    protectedMonthlyNeed = roundMoney(protectedMonthlyNeed + explicitMonthlyNeed);
+
+    let allocatedMonthlyAmount = 0;
+    let tradeoffs: string[] = [];
+
+    if (isProtectedPriority && remainingMonthlyCapacity > 0) {
+      const requestedThisMonth = explicitMonthlyNeed > 0
+        ? explicitMonthlyNeed
+        : Math.max(0, item.gapAmount ?? 0);
+      allocatedMonthlyAmount = roundMoney(Math.min(requestedThisMonth, remainingMonthlyCapacity));
+      remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocatedMonthlyAmount));
+
+      if (explicitMonthlyNeed > allocatedMonthlyAmount) {
+        const gap = roundMoney(explicitMonthlyNeed - allocatedMonthlyAmount);
+        tradeoffs = [`$${gap.toFixed(2)} of the required monthly pace remains unfunded at current capacity.`];
+        hasUnfundedPriority = true;
+      } else if (explicitMonthlyNeed === 0 && (item.gapAmount ?? 0) > allocatedMonthlyAmount) {
+        const balanceRemaining = roundMoney((item.gapAmount ?? 0) - allocatedMonthlyAmount);
+        tradeoffs = [`$${balanceRemaining.toFixed(2)} of this higher-priority balance remains after the current monthly allocation.`];
+        hasUnfundedPriority = true;
+      }
+    } else if (isProtectedPriority) {
+      hasUnfundedPriority = true;
+    }
+
+    const category = item.id.includes("match")
+      ? "employer_match"
+      : item.id.includes("debt") || item.id.includes("promo")
+        ? "debt"
+        : "reserve";
+
+    recommendations.push({
+      id: item.id, rank: 0, stage: "secure", state: item.state, urgency: item.urgency, title: item.title,
+      explanation: item.reasons.join(" "),
+      allocations: allocatedMonthlyAmount > 0 ? [{
+        category, relatedEntityId: item.relatedEntityId, monthlyAmount: allocatedMonthlyAmount,
+        annualAmount: roundMoney(allocatedMonthlyAmount * 12), rationale: item.reasons,
+      }] : [],
+      whyNow: item.reasons, tradeoffs,
+      sourceInputs: [item.relatedEntityId ? `entity:${item.relatedEntityId}` : "household_snapshot"],
+      assumptions: [], missingData: item.state === "more_information_needed" ? item.reasons : [],
+    });
+  }
+
+  return { recommendations, remainingMonthlyCapacity, protectedMonthlyNeed, hasUnfundedPriority };
 }
 
 function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendation[] {
@@ -96,7 +143,10 @@ function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendat
       id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state,
       urgency: allocation.priority >= 100 ? "high" : allocation.priority >= 50 ? "medium" : "optional", title: allocation.title,
       explanation: allocation.reasons.join(" "),
-      allocations: allocation.allocatedMonthlyAmount > 0 ? [{ category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount, annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons }] : [],
+      allocations: allocation.allocatedMonthlyAmount > 0 ? [{
+        category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount,
+        annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons,
+      }] : [],
       whyNow: allocation.reasons,
       tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [],
       sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: [], missingData: [],
@@ -131,14 +181,19 @@ function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRe
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
   const secure = evaluateSecureStage(snapshot, asOfDate);
-  const build = evaluateBuildStage(snapshot, asOfDate, policy);
-  const feasibility = calculatePlanFeasibility(snapshot, build.protectedMonthlyFundingNeed);
-  const optimizeUnlocked = !secure.recommendations.some((item) => item.state === "recommended" && (item.urgency === "required" || item.urgency === "high"));
+  const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
+  const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
+  const build = evaluateBuildStage(snapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
+  const feasibility = calculatePlanFeasibility(
+    snapshot,
+    roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed),
+  );
+  const optimizeUnlocked = !securePlan.hasUnfundedPriority && feasibility.status !== "funding_gap";
   const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked);
 
   const recommendations = normalizeRanks([
     ...stabilizeRecommendations(snapshot, feasibility),
-    ...secureRecommendations(secure),
+    ...securePlan.recommendations,
     ...buildRecommendations(build),
     ...optimizeRecommendations(optimize),
   ]);
