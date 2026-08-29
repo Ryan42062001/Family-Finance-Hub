@@ -31,8 +31,10 @@ alter table public.profiles enable row level security;
 alter table public.households enable row level security;
 alter table public.household_members enable row level security;
 
--- SECURITY DEFINER avoids recursive RLS checks on household_members.
-create or replace function public.is_household_member(target_household_id uuid)
+-- Keep SECURITY DEFINER authorization helpers outside the exposed public schema.
+create schema if not exists private;
+
+create or replace function private.is_household_member(target_household_id uuid)
 returns boolean
 language sql
 stable
@@ -43,74 +45,57 @@ as $$
     select 1
     from public.household_members hm
     where hm.household_id = target_household_id
-      and hm.user_id = auth.uid()
+      and hm.user_id = (select auth.uid())
   );
 $$;
 
--- Used only to safely bootstrap the creator's first owner membership.
-create or replace function public.is_household_creator(target_household_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1
-    from public.households h
-    where h.id = target_household_id
-      and h.created_by = auth.uid()
-  );
-$$;
-
-revoke all on function public.is_household_member(uuid) from public;
-revoke all on function public.is_household_creator(uuid) from public;
-grant execute on function public.is_household_member(uuid) to authenticated;
-grant execute on function public.is_household_creator(uuid) to authenticated;
+revoke all on function private.is_household_member(uuid) from public;
+grant usage on schema private to authenticated;
+grant execute on function private.is_household_member(uuid) to authenticated;
 
 create policy "profiles_select_self"
 on public.profiles
 for select
 to authenticated
-using (id = auth.uid());
+using (id = (select auth.uid()));
 
 create policy "profiles_insert_self"
 on public.profiles
 for insert
 to authenticated
-with check (id = auth.uid());
+with check (id = (select auth.uid()));
 
 create policy "profiles_update_self"
 on public.profiles
 for update
 to authenticated
-using (id = auth.uid())
-with check (id = auth.uid());
+using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
 
 create policy "households_select_members"
 on public.households
 for select
 to authenticated
-using (public.is_household_member(id));
+using (private.is_household_member(id));
 
 create policy "households_insert_creator"
 on public.households
 for insert
 to authenticated
-with check (created_by = auth.uid());
+with check (created_by = (select auth.uid()));
 
 create policy "households_update_members"
 on public.households
 for update
 to authenticated
-using (public.is_household_member(id))
-with check (public.is_household_member(id));
+using (private.is_household_member(id))
+with check (private.is_household_member(id));
 
 create policy "household_members_select_same_household"
 on public.household_members
 for select
 to authenticated
-using (public.is_household_member(household_id));
+using (private.is_household_member(household_id));
 
 -- Bootstrap policy: the creator may add only themselves as the first owner.
 create policy "household_members_insert_creator_owner"
@@ -118,9 +103,14 @@ on public.household_members
 for insert
 to authenticated
 with check (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   and role = 'owner'
-  and public.is_household_creator(household_id)
+  and exists (
+    select 1
+    from public.households h
+    where h.id = household_id
+      and h.created_by = (select auth.uid())
+  )
 );
 
 -- Broader member-management policies are intentionally deferred until invitation flows exist.
