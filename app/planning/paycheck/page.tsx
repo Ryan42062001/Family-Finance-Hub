@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import PaycheckPlanner from "@/components/planning/PaycheckPlanner";
-import { monthlyAmountToPerPaycheck } from "@/lib/calculations/paycheck-planner";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -22,18 +21,16 @@ export default async function PaycheckPlannerPage() {
     supabase.from("retirement_accounts").select("monthly_employee_contribution").eq("household_id", household.id),
   ]);
 
-  const paychecksPerYear = 26;
   const monthlyIncome = (incomeResult.data ?? []).reduce((sum, row) => sum + Number(row.monthly_amount), 0);
   const monthlyEssentialExpenses = (expensesResult.data ?? []).filter((row) => row.is_essential).reduce((sum, row) => sum + Number(row.monthly_amount), 0);
   const monthlyDebtMinimums = (debtsResult.data ?? []).reduce((sum, row) => sum + Number(row.minimum_payment), 0);
   const monthlyRetirement = (retirementResult.data ?? []).reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0);
 
   const defaults = {
-    paychecksPerYear,
-    takeHomePay: monthlyAmountToPerPaycheck(monthlyIncome, paychecksPerYear),
-    essentialExpenses: monthlyAmountToPerPaycheck(monthlyEssentialExpenses, paychecksPerYear),
-    debtMinimums: monthlyAmountToPerPaycheck(monthlyDebtMinimums, paychecksPerYear),
-    retirementContributions: monthlyAmountToPerPaycheck(monthlyRetirement, paychecksPerYear),
+    monthlyIncome,
+    monthlyEssentialExpenses,
+    monthlyDebtMinimums,
+    monthlyRetirement,
   };
 
   return (
@@ -42,7 +39,7 @@ export default async function PaycheckPlannerPage() {
         <div>
           <p className="eyebrow">Phase 4 planning tools</p>
           <h1>Paycheck planner</h1>
-          <p className="muted">Turn monthly household data into a per-paycheck plan, then decide how much of the remaining cash goes toward savings, debt, goals, and spending.</p>
+          <p className="muted">Turn monthly household data into a paycheck plan using your actual pay frequency, then decide how much of the remaining cash goes toward savings, debt, goals, and spending.</p>
         </div>
         <div className="hero-actions">
           <Link className="secondary-button" href="/planning">Back to planning</Link>

@@ -1,14 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { calculatePaycheckPlan } from "@/lib/calculations/paycheck-planner";
+import { calculatePaycheckPlan, monthlyAmountToPerPaycheck } from "@/lib/calculations/paycheck-planner";
 
 type Defaults = {
-  paychecksPerYear: number;
-  takeHomePay: number;
-  essentialExpenses: number;
-  debtMinimums: number;
-  retirementContributions: number;
+  monthlyIncome: number;
+  monthlyEssentialExpenses: number;
+  monthlyDebtMinimums: number;
+  monthlyRetirement: number;
+};
+
+type PayFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly";
+
+const PAYCHECKS_PER_YEAR: Record<PayFrequency, number> = {
+  weekly: 52,
+  biweekly: 26,
+  semimonthly: 24,
+  monthly: 12,
 };
 
 const money = (value: number) => new Intl.NumberFormat("en-US", {
@@ -18,15 +26,29 @@ const money = (value: number) => new Intl.NumberFormat("en-US", {
 }).format(value);
 
 export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
-  const [paychecksPerYear, setPaychecksPerYear] = useState(defaults.paychecksPerYear);
-  const [takeHomePay, setTakeHomePay] = useState(defaults.takeHomePay);
-  const [essentialExpenses, setEssentialExpenses] = useState(defaults.essentialExpenses);
-  const [debtMinimums, setDebtMinimums] = useState(defaults.debtMinimums);
-  const [retirementContributions, setRetirementContributions] = useState(defaults.retirementContributions);
+  const [payFrequency, setPayFrequency] = useState<PayFrequency>("biweekly");
+  const paychecksPerYear = PAYCHECKS_PER_YEAR[payFrequency];
+
+  const convertedDefaults = useMemo(() => ({
+    takeHomePay: monthlyAmountToPerPaycheck(defaults.monthlyIncome, paychecksPerYear),
+    essentialExpenses: monthlyAmountToPerPaycheck(defaults.monthlyEssentialExpenses, paychecksPerYear),
+    debtMinimums: monthlyAmountToPerPaycheck(defaults.monthlyDebtMinimums, paychecksPerYear),
+    retirementContributions: monthlyAmountToPerPaycheck(defaults.monthlyRetirement, paychecksPerYear),
+  }), [defaults, paychecksPerYear]);
+
+  const [takeHomePayOverride, setTakeHomePayOverride] = useState<number | null>(null);
+  const [essentialExpensesOverride, setEssentialExpensesOverride] = useState<number | null>(null);
+  const [debtMinimumsOverride, setDebtMinimumsOverride] = useState<number | null>(null);
+  const [retirementOverride, setRetirementOverride] = useState<number | null>(null);
   const [emergencySavings, setEmergencySavings] = useState(0);
   const [extraDebtPayment, setExtraDebtPayment] = useState(0);
   const [goalSavings, setGoalSavings] = useState(0);
   const [discretionarySpending, setDiscretionarySpending] = useState(0);
+
+  const takeHomePay = takeHomePayOverride ?? convertedDefaults.takeHomePay;
+  const essentialExpenses = essentialExpensesOverride ?? convertedDefaults.essentialExpenses;
+  const debtMinimums = debtMinimumsOverride ?? convertedDefaults.debtMinimums;
+  const retirementContributions = retirementOverride ?? convertedDefaults.retirementContributions;
 
   const result = useMemo(() => calculatePaycheckPlan({
     takeHomePay,
@@ -53,22 +75,37 @@ export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
     <label>{label}<input type="number" min="0" step="0.01" value={value} onChange={(event) => setter(Math.max(0, Number(event.target.value) || 0))} /></label>
   );
 
+  const resetProfileDefaults = () => {
+    setTakeHomePayOverride(null);
+    setEssentialExpensesOverride(null);
+    setDebtMinimumsOverride(null);
+    setRetirementOverride(null);
+  };
+
   return (
     <section className="panel-grid">
       <article className="panel">
         <p className="eyebrow">Paycheck planner</p>
         <h2>Give each paycheck a job</h2>
-        <p className="muted">Saved household data provides starting values. Changes here stay local to this page and do not update your financial profile.</p>
+        <p className="muted">Saved monthly household data is converted to your selected pay frequency. Changes stay local to this page and do not update your financial profile.</p>
         <div className="data-form">
-          <label>Paychecks per year<input type="number" min="1" step="1" value={paychecksPerYear} onChange={(event) => setPaychecksPerYear(Math.max(1, Math.floor(Number(event.target.value) || 1)))} /></label>
-          {numberField("Take-home pay per paycheck", takeHomePay, setTakeHomePay)}
-          {numberField("Essential expenses", essentialExpenses, setEssentialExpenses)}
-          {numberField("Debt minimums", debtMinimums, setDebtMinimums)}
-          {numberField("Retirement contributions", retirementContributions, setRetirementContributions)}
+          <label>Pay frequency
+            <select value={payFrequency} onChange={(event) => setPayFrequency(event.target.value as PayFrequency)}>
+              <option value="weekly">Weekly — 52 paychecks/year</option>
+              <option value="biweekly">Biweekly — 26 paychecks/year</option>
+              <option value="semimonthly">Twice monthly — 24 paychecks/year</option>
+              <option value="monthly">Monthly — 12 paychecks/year</option>
+            </select>
+          </label>
+          {numberField("Take-home pay per paycheck", takeHomePay, setTakeHomePayOverride)}
+          {numberField("Essential expenses", essentialExpenses, setEssentialExpensesOverride)}
+          {numberField("Debt minimums", debtMinimums, setDebtMinimumsOverride)}
+          {numberField("Retirement contributions", retirementContributions, setRetirementOverride)}
           {numberField("Emergency-fund savings", emergencySavings, setEmergencySavings)}
           {numberField("Extra debt payment", extraDebtPayment, setExtraDebtPayment)}
           {numberField("Other goal savings", goalSavings, setGoalSavings)}
           {numberField("Discretionary spending", discretionarySpending, setDiscretionarySpending)}
+          <button type="button" className="secondary-button" onClick={resetProfileDefaults}>Reset profile-based amounts</button>
         </div>
       </article>
 
@@ -84,7 +121,7 @@ export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
           <div><span>Projected annual leftover</span><strong>{money(result.annualRemaining)}</strong></div>
         </div>
         <div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, (result.allocationRate ?? 0) * 100)}%` }} /></div>
-        <p className="muted">Annual projections multiply this paycheck plan by {paychecksPerYear} paychecks. They do not account for irregular checks, bonuses, taxes changing during the year, or investment growth.</p>
+        <p className="muted">Annual projections use {paychecksPerYear} paychecks per year for the selected frequency. They do not account for irregular checks, bonuses, tax changes, or investment growth.</p>
       </article>
     </section>
   );
