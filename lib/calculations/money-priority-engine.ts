@@ -4,6 +4,7 @@ import { evaluateSecureStage, type SecureStageResult } from "./money-priority-se
 import { evaluateBuildStage, type BuildStageResult } from "./money-priority-build.ts";
 import { evaluateOptimizeStage, type OptimizeStageResult } from "./money-priority-optimize.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
+import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
 
 export type RecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -34,6 +35,8 @@ export type MoneyPriorityRecommendation = {
 export type MoneyPriorityEngineResult = {
   policyVersion: string;
   planningAssumptionsVersion: string;
+  taxPolicyVersion: string;
+  taxYear: number;
   asOfDate: string;
   snapshot: MoneyPrioritySnapshot;
   feasibility: PlanFeasibility;
@@ -133,13 +136,38 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
 
 function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendation[] {
   const recommendations: MoneyPriorityRecommendation[] = [];
+
   if (build.retirement.state === "more_information_needed") {
     recommendations.push({
       id: "build-retirement-missing-data", rank: 0, stage: "build", state: "more_information_needed", urgency: "medium",
-      title: "Complete gross-income data for retirement benchmarking", explanation: build.retirement.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [],
-      sourceInputs: ["monthlyGrossIncomeKnown", "hasIncompleteGrossIncome"], assumptions: [], missingData: build.retirement.missingData,
+      title: "Complete retirement planning data", explanation: build.retirement.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [],
+      sourceInputs: ["retirementProfile", "monthlyGrossIncomeKnown"],
+      assumptions: build.retirement.projection.assumptions,
+      missingData: build.retirement.missingData,
     });
   }
+
+  if (build.retirement.guidanceMode === "projection") {
+    const projection = build.retirement.projection;
+    recommendations.push({
+      id: "build-retirement-projection", rank: 0, stage: "build",
+      state: projection.state === "shortfall" ? "recommended" : "worth_considering",
+      urgency: projection.state === "shortfall" ? "high" : "optional",
+      title: projection.state === "shortfall" ? "Close the modeled retirement projection gap" : "Retirement projection is currently on track",
+      explanation: projection.state === "shortfall"
+        ? `The modeled portfolio shortfall is $${(projection.projectedShortfall ?? 0).toFixed(2)} under the current planning assumptions.`
+        : "Current assets and ongoing contributions meet or exceed the modeled portfolio target under the current planning assumptions.",
+      allocations: [],
+      whyNow: projection.state === "shortfall" && projection.requiredAdditionalMonthlyContribution !== null
+        ? [`The projection estimates approximately $${projection.requiredAdditionalMonthlyContribution.toFixed(2)} of additional monthly retirement funding.`]
+        : [],
+      tradeoffs: ["Long-range retirement projections are sensitive to spending, returns, retirement age, and guaranteed-income assumptions."],
+      sourceInputs: ["retirementAccounts", "plannedRetirementAge", "desiredRetirementMonthlySpending", "planningGuaranteedIncome"],
+      assumptions: projection.assumptions,
+      missingData: projection.missingData,
+    });
+  }
+
   for (const allocation of build.allocations) {
     if (allocation.allocatedMonthlyAmount <= 0 && allocation.unfundedMonthlyAmount <= 0) continue;
     const state: RecommendationState = allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering";
@@ -153,9 +181,35 @@ function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendat
       }] : [],
       whyNow: allocation.reasons,
       tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [],
-      sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: [], missingData: [],
+      sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`],
+      assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [],
     });
   }
+
+  const availableAccounts = build.retirementAccounts.opportunities.filter((item) => item.state === "available");
+  const accountDataNeeded = build.retirementAccounts.opportunities.filter((item) => item.state === "more_information_needed");
+  if (availableAccounts.length || accountDataNeeded.length) {
+    const roomSummary = availableAccounts
+      .map((item) => `${item.accountName}: $${(item.remainingAnnualRoom ?? 0).toFixed(2)} of known ${build.retirementAccounts.taxYear} contribution room`)
+      .join("; ");
+    const missing = accountDataNeeded.flatMap((item) => item.missingData.map((value) => `${item.accountName}: ${value}`));
+    recommendations.push({
+      id: "build-retirement-account-options", rank: 0, stage: "build",
+      state: availableAccounts.length ? "worth_considering" : "more_information_needed",
+      urgency: "medium",
+      title: "Choose the accounts for additional retirement funding",
+      explanation: availableAccounts.length
+        ? `Known account room: ${roomSummary}. The engine does not impose a universal account sequence.`
+        : "Contribution room cannot yet be translated into an account-specific allocation safely.",
+      allocations: [],
+      whyNow: availableAccounts.length ? ["Account-specific room is known for at least one tax-advantaged account."] : [],
+      tradeoffs: ["Tax treatment, eligibility, plan quality, and diversification can change which account is the better destination for the next dollar."],
+      sourceInputs: build.retirementAccounts.opportunities.map((item) => `retirementAccount:${item.accountId}`),
+      assumptions: [`Tax policy version ${build.retirementAccounts.taxPolicyVersion} for tax year ${build.retirementAccounts.taxYear}.`],
+      missingData: missing,
+    });
+  }
+
   for (const goal of build.goals) {
     if (!goal.missingData.length) continue;
     recommendations.push({
@@ -203,7 +257,17 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
   ]);
 
   return {
-    policyVersion: policy.version, planningAssumptionsVersion: policy.planningAssumptionsVersion, asOfDate, snapshot, feasibility, secure, build, optimize,
-    recommendations, warnings: [...snapshot.warnings, ...build.warnings],
+    policyVersion: policy.version,
+    planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version,
+    taxPolicyVersion: build.retirementAccounts.taxPolicyVersion,
+    taxYear: build.retirementAccounts.taxYear,
+    asOfDate,
+    snapshot,
+    feasibility,
+    secure,
+    build,
+    optimize,
+    recommendations,
+    warnings: [...snapshot.warnings, ...build.warnings],
   };
 }
