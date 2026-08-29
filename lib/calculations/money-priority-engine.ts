@@ -3,6 +3,7 @@ import { calculatePlanFeasibility, type PlanFeasibility } from "./money-priority
 import { evaluateSecureStage, type SecureStageResult } from "./money-priority-secure.ts";
 import { evaluateBuildStage, type BuildStageResult } from "./money-priority-build.ts";
 import { evaluateOptimizeStage, type OptimizeStageResult } from "./money-priority-optimize.ts";
+import { evaluateExistingCashDeployment, type ExistingCashDeploymentResult } from "./money-priority-existing-cash.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
 
@@ -40,6 +41,7 @@ export type MoneyPriorityEngineResult = {
   asOfDate: string;
   snapshot: MoneyPrioritySnapshot;
   feasibility: PlanFeasibility;
+  existingCash: ExistingCashDeploymentResult;
   secure: SecureStageResult;
   build: BuildStageResult;
   optimize: OptimizeStageResult;
@@ -86,25 +88,17 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
     const explicitMonthlyNeed = isProtectedPriority && item.monthlyAmount && item.monthlyAmount > 0 ? item.monthlyAmount : 0;
     protectedMonthlyNeed = roundMoney(protectedMonthlyNeed + explicitMonthlyNeed);
 
-    const category = item.id.includes("match")
-      ? "employer_match"
-      : item.id.includes("debt") || item.id.includes("promo")
-        ? "debt"
-        : "reserve";
-
+    const category = item.id.includes("match") ? "employer_match" : item.id.includes("debt") || item.id.includes("promo") ? "debt" : "reserve";
     let allocatedMonthlyAmount = 0;
     let tradeoffs: string[] = [];
     const rawBalanceGap = Math.max(0, item.gapAmount ?? 0);
-    const effectiveBalanceGap = category === "reserve"
-      ? Math.max(0, rawBalanceGap - reserveAllocatedThisPlan)
-      : rawBalanceGap;
+    const effectiveBalanceGap = category === "reserve" ? Math.max(0, rawBalanceGap - reserveAllocatedThisPlan) : rawBalanceGap;
 
     if (isProtectedPriority && remainingMonthlyCapacity > 0) {
       const requestedThisMonth = explicitMonthlyNeed > 0 ? explicitMonthlyNeed : effectiveBalanceGap;
       allocatedMonthlyAmount = roundMoney(Math.min(requestedThisMonth, remainingMonthlyCapacity));
       remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocatedMonthlyAmount));
       if (category === "reserve") reserveAllocatedThisPlan = roundMoney(reserveAllocatedThisPlan + allocatedMonthlyAmount);
-
       if (explicitMonthlyNeed > allocatedMonthlyAmount) {
         const gap = roundMoney(explicitMonthlyNeed - allocatedMonthlyAmount);
         tradeoffs = [`$${gap.toFixed(2)} of the required monthly pace remains unfunded at current capacity.`];
@@ -121,153 +115,51 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
     recommendations.push({
       id: item.id, rank: 0, stage: "secure", state: item.state, urgency: item.urgency, title: item.title,
       explanation: item.reasons.join(" "),
-      allocations: allocatedMonthlyAmount > 0 ? [{
-        category, relatedEntityId: item.relatedEntityId, monthlyAmount: allocatedMonthlyAmount,
-        annualAmount: roundMoney(allocatedMonthlyAmount * 12), rationale: item.reasons,
-      }] : [],
+      allocations: allocatedMonthlyAmount > 0 ? [{ category, relatedEntityId: item.relatedEntityId, monthlyAmount: allocatedMonthlyAmount, annualAmount: roundMoney(allocatedMonthlyAmount * 12), rationale: item.reasons }] : [],
       whyNow: item.reasons, tradeoffs,
-      sourceInputs: [item.relatedEntityId ? `entity:${item.relatedEntityId}` : "household_snapshot"],
-      assumptions: [], missingData: item.state === "more_information_needed" ? item.reasons : [],
+      sourceInputs: [item.relatedEntityId ? `entity:${item.relatedEntityId}` : "household_snapshot"], assumptions: [],
+      missingData: item.state === "more_information_needed" ? item.reasons : [],
     });
   }
-
   return { recommendations, remainingMonthlyCapacity, protectedMonthlyNeed, hasUnfundedPriority };
 }
 
 function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendation[] {
   const recommendations: MoneyPriorityRecommendation[] = [];
-
-  if (build.retirement.state === "more_information_needed") {
-    recommendations.push({
-      id: "build-retirement-missing-data", rank: 0, stage: "build", state: "more_information_needed", urgency: "medium",
-      title: "Complete retirement planning data", explanation: build.retirement.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [],
-      sourceInputs: ["retirementProfile", "monthlyGrossIncomeKnown"],
-      assumptions: build.retirement.projection.assumptions,
-      missingData: build.retirement.missingData,
-    });
-  }
-
+  if (build.retirement.state === "more_information_needed") recommendations.push({ id: "build-retirement-missing-data", rank: 0, stage: "build", state: "more_information_needed", urgency: "medium", title: "Complete retirement planning data", explanation: build.retirement.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [], sourceInputs: ["retirementProfile", "monthlyGrossIncomeKnown"], assumptions: build.retirement.projection.assumptions, missingData: build.retirement.missingData });
   if (build.retirement.guidanceMode === "projection") {
     const projection = build.retirement.projection;
-    recommendations.push({
-      id: "build-retirement-projection", rank: 0, stage: "build",
-      state: projection.state === "shortfall" ? "recommended" : "worth_considering",
-      urgency: projection.state === "shortfall" ? "high" : "optional",
-      title: projection.state === "shortfall" ? "Close the modeled retirement projection gap" : "Retirement projection is currently on track",
-      explanation: projection.state === "shortfall"
-        ? `The modeled portfolio shortfall is $${(projection.projectedShortfall ?? 0).toFixed(2)} under the current planning assumptions.`
-        : "Current assets and ongoing contributions meet or exceed the modeled portfolio target under the current planning assumptions.",
-      allocations: [],
-      whyNow: projection.state === "shortfall" && projection.requiredAdditionalMonthlyContribution !== null
-        ? [`The projection estimates approximately $${projection.requiredAdditionalMonthlyContribution.toFixed(2)} of additional monthly retirement funding.`]
-        : [],
-      tradeoffs: ["Long-range retirement projections are sensitive to spending, returns, retirement age, and guaranteed-income assumptions."],
-      sourceInputs: ["retirementAccounts", "plannedRetirementAge", "desiredRetirementMonthlySpending", "planningGuaranteedIncome"],
-      assumptions: projection.assumptions,
-      missingData: projection.missingData,
-    });
+    recommendations.push({ id: "build-retirement-projection", rank: 0, stage: "build", state: projection.state === "shortfall" ? "recommended" : "worth_considering", urgency: projection.state === "shortfall" ? "high" : "optional", title: projection.state === "shortfall" ? "Close the modeled retirement projection gap" : "Retirement projection is currently on track", explanation: projection.state === "shortfall" ? `The modeled portfolio shortfall is $${(projection.projectedShortfall ?? 0).toFixed(2)} under the current planning assumptions.` : "Current assets and ongoing contributions meet or exceed the modeled portfolio target under the current planning assumptions.", allocations: [], whyNow: projection.state === "shortfall" && projection.requiredAdditionalMonthlyContribution !== null ? [`The projection estimates approximately $${projection.requiredAdditionalMonthlyContribution.toFixed(2)} of additional monthly retirement funding.`] : [], tradeoffs: ["Long-range retirement projections are sensitive to spending, returns, retirement age, and guaranteed-income assumptions."], sourceInputs: ["retirementAccounts", "plannedRetirementAge", "desiredRetirementMonthlySpending", "planningGuaranteedIncome"], assumptions: projection.assumptions, missingData: projection.missingData });
   }
-
   for (const allocation of build.allocations) {
     if (allocation.allocatedMonthlyAmount <= 0 && allocation.unfundedMonthlyAmount <= 0) continue;
-    const state: RecommendationState = allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering";
-    recommendations.push({
-      id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state,
-      urgency: allocation.priority >= 100 ? "high" : allocation.priority >= 50 ? "medium" : "optional", title: allocation.title,
-      explanation: allocation.reasons.join(" "),
-      allocations: allocation.allocatedMonthlyAmount > 0 ? [{
-        category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount,
-        annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons,
-      }] : [],
-      whyNow: allocation.reasons,
-      tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [],
-      sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`],
-      assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [],
-    });
+    recommendations.push({ id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state: allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering", urgency: allocation.priority >= 100 ? "high" : allocation.priority >= 50 ? "medium" : "optional", title: allocation.title, explanation: allocation.reasons.join(" "), allocations: allocation.allocatedMonthlyAmount > 0 ? [{ category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount, annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons }] : [], whyNow: allocation.reasons, tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [], sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [] });
   }
-
   const availableAccounts = build.retirementAccounts.opportunities.filter((item) => item.state === "available");
   const accountDataNeeded = build.retirementAccounts.opportunities.filter((item) => item.state === "more_information_needed");
   if (availableAccounts.length || accountDataNeeded.length) {
-    const roomSummary = availableAccounts
-      .map((item) => `${item.accountName}: $${(item.remainingAnnualRoom ?? 0).toFixed(2)} of known ${build.retirementAccounts.taxYear} contribution room`)
-      .join("; ");
+    const roomSummary = availableAccounts.map((item) => `${item.accountName}: $${(item.remainingAnnualRoom ?? 0).toFixed(2)} of known ${build.retirementAccounts.taxYear} contribution room`).join("; ");
     const missing = accountDataNeeded.flatMap((item) => item.missingData.map((value) => `${item.accountName}: ${value}`));
-    recommendations.push({
-      id: "build-retirement-account-options", rank: 0, stage: "build",
-      state: availableAccounts.length ? "worth_considering" : "more_information_needed",
-      urgency: "medium",
-      title: "Choose the accounts for additional retirement funding",
-      explanation: availableAccounts.length
-        ? `Known account room: ${roomSummary}. The engine does not impose a universal account sequence.`
-        : "Contribution room cannot yet be translated into an account-specific allocation safely.",
-      allocations: [],
-      whyNow: availableAccounts.length ? ["Account-specific room is known for at least one tax-advantaged account."] : [],
-      tradeoffs: ["Tax treatment, eligibility, plan quality, and diversification can change which account is the better destination for the next dollar."],
-      sourceInputs: build.retirementAccounts.opportunities.map((item) => `retirementAccount:${item.accountId}`),
-      assumptions: [`Tax policy version ${build.retirementAccounts.taxPolicyVersion} for tax year ${build.retirementAccounts.taxYear}.`],
-      missingData: missing,
-    });
+    recommendations.push({ id: "build-retirement-account-options", rank: 0, stage: "build", state: availableAccounts.length ? "worth_considering" : "more_information_needed", urgency: "medium", title: "Choose the accounts for additional retirement funding", explanation: availableAccounts.length ? `Known account room: ${roomSummary}. The engine does not impose a universal account sequence.` : "Contribution room cannot yet be translated into an account-specific allocation safely.", allocations: [], whyNow: availableAccounts.length ? ["Account-specific room is known for at least one tax-advantaged account."] : [], tradeoffs: ["Tax treatment, eligibility, plan quality, and diversification can change which account is the better destination for the next dollar."], sourceInputs: build.retirementAccounts.opportunities.map((item) => `retirementAccount:${item.accountId}`), assumptions: [`Tax policy version ${build.retirementAccounts.taxPolicyVersion} for tax year ${build.retirementAccounts.taxYear}.`], missingData: missing });
   }
-
-  for (const goal of build.goals) {
-    if (!goal.missingData.length) continue;
-    recommendations.push({
-      id: `build-goal-missing-${goal.goalId}`, rank: 0, stage: "build", state: "more_information_needed", urgency: "medium",
-      title: `Complete planning details for ${goal.goalName}`, explanation: goal.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [],
-      sourceInputs: [`goal:${goal.goalId}`], assumptions: [], missingData: goal.missingData,
-    });
-  }
+  for (const goal of build.goals) if (goal.missingData.length) recommendations.push({ id: `build-goal-missing-${goal.goalId}`, rank: 0, stage: "build", state: "more_information_needed", urgency: "medium", title: `Complete planning details for ${goal.goalName}`, explanation: goal.missingData.join(" "), allocations: [], whyNow: [], tradeoffs: [], sourceInputs: [`goal:${goal.goalId}`], assumptions: [], missingData: goal.missingData });
   return recommendations;
 }
 
 function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRecommendation[] {
-  return optimize.recommendations.map((item) => ({
-    id: item.id, rank: 0, stage: "optimize" as const, state: item.state, urgency: item.urgency, title: item.title,
-    explanation: item.reasons.join(" "),
-    allocations: [
-      ...(item.debtMonthlyAmount > 0 ? [{ category: "debt", relatedEntityId: item.relatedDebtId, monthlyAmount: item.debtMonthlyAmount, annualAmount: roundMoney(item.debtMonthlyAmount * 12), rationale: item.reasons }] : []),
-      ...(item.investingMonthlyAmount > 0 ? [{ category: "investing", relatedEntityId: null, monthlyAmount: item.investingMonthlyAmount, annualAmount: roundMoney(item.investingMonthlyAmount * 12), rationale: item.reasons }] : []),
-    ],
-    whyNow: item.reasons, tradeoffs: item.tradeoffs,
-    sourceInputs: [item.relatedDebtId ? `debt:${item.relatedDebtId}` : "household_snapshot", "debtVsInvesting"],
-    assumptions: ["No assumed market return is used; the decision compares the guaranteed avoided debt interest with liquidity, horizon, and household preference."],
-    missingData: item.missingData,
-  }));
+  return optimize.recommendations.map((item) => ({ id: item.id, rank: 0, stage: "optimize" as const, state: item.state, urgency: item.urgency, title: item.title, explanation: item.reasons.join(" "), allocations: [...(item.debtMonthlyAmount > 0 ? [{ category: "debt", relatedEntityId: item.relatedDebtId, monthlyAmount: item.debtMonthlyAmount, annualAmount: roundMoney(item.debtMonthlyAmount * 12), rationale: item.reasons }] : []), ...(item.investingMonthlyAmount > 0 ? [{ category: "investing", relatedEntityId: null, monthlyAmount: item.investingMonthlyAmount, annualAmount: roundMoney(item.investingMonthlyAmount * 12), rationale: item.reasons }] : [])], whyNow: item.reasons, tradeoffs: item.tradeoffs, sourceInputs: [item.relatedDebtId ? `debt:${item.relatedDebtId}` : "household_snapshot", "debtVsInvesting"], assumptions: ["No assumed market return is used; the decision compares the guaranteed avoided debt interest with liquidity, horizon, and household preference."], missingData: item.missingData }));
 }
 
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
   const secure = evaluateSecureStage(snapshot, asOfDate, policy);
+  const existingCash = evaluateExistingCashDeployment(snapshot, secure);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
   const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
   const build = evaluateBuildStage(snapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
-  const feasibility = calculatePlanFeasibility(
-    snapshot,
-    roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed),
-  );
+  const feasibility = calculatePlanFeasibility(snapshot, roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed));
   const optimizeUnlocked = !securePlan.hasUnfundedPriority && feasibility.status !== "funding_gap";
   const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked, policy);
-
-  const recommendations = normalizeRanks([
-    ...stabilizeRecommendations(snapshot, feasibility),
-    ...securePlan.recommendations,
-    ...buildRecommendations(build),
-    ...optimizeRecommendations(optimize),
-  ]);
-
-  return {
-    policyVersion: policy.version,
-    planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version,
-    taxPolicyVersion: build.retirementAccounts.taxPolicyVersion,
-    taxYear: build.retirementAccounts.taxYear,
-    asOfDate,
-    snapshot,
-    feasibility,
-    secure,
-    build,
-    optimize,
-    recommendations,
-    warnings: [...snapshot.warnings, ...build.warnings],
-  };
+  const recommendations = normalizeRanks([...stabilizeRecommendations(snapshot, feasibility), ...securePlan.recommendations, ...buildRecommendations(build), ...optimizeRecommendations(optimize)]);
+  return { policyVersion: policy.version, planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version, taxPolicyVersion: build.retirementAccounts.taxPolicyVersion, taxYear: build.retirementAccounts.taxYear, asOfDate, snapshot, feasibility, existingCash, secure, build, optimize, recommendations, warnings: [...snapshot.warnings, ...build.warnings] };
 }
