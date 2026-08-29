@@ -1,278 +1,595 @@
-# Phase 5 — Schema Audit
+# Phase 5 — Schema Audit V2
 
 ## Purpose
-Audit the current live Supabase schema and the existing financial-profile code against the expanded Phase 5 Money Priority Engine requirements.
+Audit the live Supabase schema against the researched Phase 5 Money Priority Engine V2 design and identify the smallest additive schema expansion needed before implementation.
 
 ## Executive conclusion
-The existing household financial model is strong enough to support most of Phase 5 without redesigning the core schema. Income, expenses, debts, goals, cash accounts, household isolation, and monthly contribution fields are already usable.
+The existing schema remains a strong foundation for Phase 5, but the V2 engine now requires more planning context than the original audit anticipated.
 
-The main gaps are concentrated in retirement/HSA planning metadata and household-level planning preferences. The recommended migration should therefore be additive and small rather than introducing a parallel planning schema.
+The core tables should **not** be redesigned. Household isolation, expenses, basic debts, balances, goals, and retirement balances already exist and can remain intact.
 
-## Existing data that is already sufficient
+However, V2 introduces several requirements that are now first-class rather than optional:
 
-### Income
-`income_sources.monthly_amount` is already stored as monthly take-home income. This is sufficient for the V1 cash-flow gate.
+1. explicit financial-profile people separate from authenticated household members
+2. owner linkage for income and retirement accounts
+3. gross-income data in addition to take-home income
+4. purpose classification for cash accounts
+5. insurance deductible / immediate-risk inputs
+6. richer debt metadata for promotional, variable-rate, delinquent, and program-specific debt
+7. richer goal metadata for necessity, flexibility, consequences, and need-vs-upgrade analysis
+8. household planning/risk preferences
+9. retirement projection inputs at the person/household level
 
-No Phase 5 schema change required.
+The recommended approach is still additive and incremental. No destructive migration is required.
 
-### Expenses
-`expenses.monthly_amount` and `expenses.is_essential` already allow the engine to calculate:
-- total monthly expenses
-- essential monthly expenses
-- discretionary monthly expenses
-- starter/full emergency-fund targets
+---
 
-No Phase 5 schema change required.
+## Live schema verified
+The live public schema currently contains:
+- `households`
+- `household_members`
+- `accounts`
+- `income_sources`
+- `expenses`
+- `debts`
+- `retirement_accounts`
+- `goals`
+- `profiles`
 
-### Debts
-The existing debt model already provides:
-- stable ID
-- debt type
-- current balance
+RLS is enabled on all financial tables.
+
+Existing financial-table policies consistently use:
+
+`private.is_household_member(household_id)`
+
+for SELECT/INSERT/UPDATE/DELETE authorization.
+
+That tenancy pattern should be preserved for every new Phase 5 table.
+
+---
+
+# Existing data that remains sufficient
+
+## Expenses
+Current fields already support:
+- monthly essential spending
+- monthly discretionary spending
+- emergency-fund expense base
+- plan-feasibility calculations
+
+Existing fields:
+- `monthly_amount`
+- `category`
+- `is_essential`
+
+No required Phase 5 V2 schema change.
+
+A future version may distinguish fixed vs variable essential spending, but this is not necessary for the first V2 engine.
+
+## Basic account balances
+`accounts.balance` and `account_type` already provide the balance layer needed for net worth and cash totals.
+
+The table should be extended rather than replaced.
+
+## Basic debt math
+`debts` already stores:
+- type
+- balance
 - APR
 - minimum payment
 
-This is sufficient for high-interest, moderate-interest, mortgage, and low-interest debt classification in V1.
+Those fields remain sufficient for ordinary fixed-rate debt payoff math.
 
-No Phase 5 schema change required.
+The table needs additive metadata for V2 exceptions, described below.
 
-### Goals
-The existing goal model already provides:
+## Basic goal math
+`goals` already stores:
 - target amount
 - current amount
 - target date
 - user priority
 
-This is sufficient to calculate goal gap, months remaining, and required monthly pace.
+Those remain the source for:
 
-`planned_monthly_contribution` would improve later recommendations, but is not required for the first engine implementation because the engine can calculate the required pace from target/current/date.
+`required monthly pace = remaining amount / months remaining`
 
-Recommendation: defer `planned_monthly_contribution` unless the UI later needs to distinguish required pace from already-planned pace.
+The table needs additional planning metadata rather than replacement.
 
-### Cash / liquid accounts
-The existing accounts model distinguishes checking, savings, cash, brokerage, and other assets.
+---
 
-This is enough for V1 if the normalized snapshot counts only checking/savings/cash toward liquid emergency reserves by default and excludes brokerage/other assets.
+# Required V2 schema additions
 
-No Phase 5 schema change required for V1.
+# 1. Financial-profile people
 
-## Retirement-account audit
-The current `retirement_accounts` table contains:
-- `id`
-- `household_id`
-- `name`
-- `account_type`
-- `balance`
-- `monthly_employee_contribution`
-- `monthly_employer_contribution`
+## Why this is now required
+The authenticated `household_members` table is an access-control model, not a financial ownership model.
 
-The current account-type list supports:
-- 401(k)
-- 403(b)
-- 457
-- Traditional IRA
-- Roth IRA
-- HSA
-- pension
-- other
+A spouse or dependent may need to exist in the financial plan even if that person does not have a login. Conversely, an authenticated household member should not automatically be treated as the owner of every retirement account.
 
-This is a good base, but it is not enough for account-aware priority recommendations.
+V2 requires person-level handling for:
+- IRA contribution limits
+- employer retirement plans
+- employer matching
+- gross income
+- retirement age
+- Social Security assumptions
+- person-specific tax-advantaged accounts
 
-## Required Phase 5 retirement additions
+## Recommended new table: `household_people`
 
-### 1. `tax_treatment`
-Suggested values:
+Suggested columns:
+- `id uuid primary key default gen_random_uuid()`
+- `household_id uuid not null references households(id) on delete cascade`
+- `display_name text not null`
+- `linked_user_id uuid null references auth.users(id) on delete set null`
+- `relationship text not null default 'other'`
+- `birth_date date null`
+- `planned_retirement_age smallint null`
+- `is_dependent boolean not null default false`
+- `is_active boolean not null default true`
+- timestamps
+
+Suggested relationship values:
+- `self`
+- `spouse_partner`
+- `child`
+- `dependent_adult`
+- `other`
+
+Important distinction:
+`linked_user_id` is optional. Financial people must not depend on every person having a ChatGPT/app login.
+
+RLS: household-member pattern via `household_id`.
+
+---
+
+# 2. Income ownership and gross income
+
+## Existing limitation
+`income_sources.monthly_amount` currently represents the monthly amount used by the product, but V2 needs both:
+- take-home income for cash-flow stress
+- gross income for retirement savings rates and broader planning metrics
+
+## Recommended changes to `income_sources`
+Add:
+- `owner_person_id uuid null references household_people(id) on delete set null`
+- `monthly_gross_amount numeric(14,2) null`
+- `income_type text not null default 'employment'`
+- `is_variable boolean not null default false`
+
+Preserve existing `monthly_amount` as the current take-home/net planning amount to avoid breaking existing pages.
+
+Suggested income types:
+- `employment`
+- `self_employment`
+- `commission`
+- `pension`
+- `social_security`
+- `rental`
+- `other`
+
+Do not rename `monthly_amount` in this migration; the application layer can normalize it to `monthlyTakeHomeAmount`.
+
+---
+
+# 3. Cash-purpose classification
+
+## Existing limitation
+V2 distinguishes money already owned by purpose:
+- protected reserve
+- earmarked/sinking fund
+- debt-backed reserve
+- unallocated cash
+
+Counting every checking/savings dollar as deployable would create incorrect recommendations.
+
+## Recommended changes to `accounts`
+Add:
+- `cash_purpose text not null default 'unallocated'`
+- `related_goal_id uuid null references goals(id) on delete set null`
+- `related_debt_id uuid null references debts(id) on delete set null`
+
+Suggested cash-purpose values:
+- `unallocated`
+- `protected_reserve`
+- `earmarked_goal`
+- `debt_backed_reserve`
+- `operating_cash`
+- `not_applicable`
+
+Application rule:
+- checking/savings/cash may use these classifications
+- brokerage/other assets normally use `not_applicable`
+
+V1 engine should only auto-deploy `unallocated` cash.
+
+`operating_cash` is intentionally separate from protected emergency reserves so ordinary bill-paying cash is not accidentally swept into optimization.
+
+---
+
+# 4. Insurance and immediate-risk exposure
+
+## Why a dedicated table is better
+Stage 1 now uses the household's largest relevant insurance deductible, while Stage 4 may use broader risk factors.
+
+These fields do not fit cleanly into expenses or accounts.
+
+## Recommended new table: `insurance_exposures`
+
+Suggested columns:
+- `id uuid primary key default gen_random_uuid()`
+- `household_id uuid not null references households(id) on delete cascade`
+- `person_id uuid null references household_people(id) on delete set null`
+- `name text not null`
+- `insurance_type text not null`
+- `deductible_amount numeric(14,2) null`
+- `family_deductible_amount numeric(14,2) null`
+- `out_of_pocket_max numeric(14,2) null`
+- `percentage_deductible numeric(7,4) null`
+- `insured_value numeric(14,2) null`
+- `is_relevant_to_reserve boolean not null default true`
+- timestamps
+
+Suggested insurance types:
+- `health`
+- `auto`
+- `homeowners`
+- `renters`
+- `umbrella`
+- `pet`
+- `other`
+
+For percentage property deductibles, the snapshot builder can calculate:
+
+`percentage_deductible × insured_value`
+
+Do not automatically treat out-of-pocket maximum as Stage 1 target. Track it as additional exposure.
+
+---
+
+# 5. Debt metadata
+
+## Existing limitation
+APR + balance + minimum payment does not capture V2 special cases.
+
+## Recommended additions to `debts`
+Add nullable/defaulted fields:
+- `rate_type text not null default 'fixed'`
+- `promo_rate_expires_on date null`
+- `post_promo_interest_rate numeric(7,4) null`
+- `is_past_due boolean not null default false`
+- `is_in_collections boolean not null default false`
+- `has_legal_or_tax_priority boolean not null default false`
+- `forgiveness_or_repayment_program text null`
+- `scheduled_payoff_date date null`
+
+Suggested `rate_type` values:
+- `fixed`
+- `variable`
+- `promotional`
+- `unknown`
+
+Why these matter:
+- promotional debt becomes a deadline liability
+- variable rates influence yellow-zone risk
+- delinquent/legal/tax obligations may become Priority 0
+- student loans may need program-specific handling
+
+Avoid building a large lender-specific schema in Phase 5.
+
+---
+
+# 6. Goal planning metadata
+
+## Existing limitation
+V2 no longer ranks goals primarily from `priority` and proximity.
+
+The engine must understand whether missing a goal has real consequences and whether the target is flexible.
+
+## Recommended additions to `goals`
+Add:
+- `goal_class text not null default 'major_life_goal'`
+- `necessity text not null default 'important'`
+- `deadline_flexibility text not null default 'flexible'`
+- `consequence_level text not null default 'moderate'`
+- `planned_monthly_contribution numeric(14,2) null`
+- `core_need_amount numeric(14,2) null`
+
+Suggested `goal_class`:
+- `necessary_protective`
+- `major_life_goal`
+- `education`
+- `home_purchase`
+- `lifestyle_optional`
+- `other`
+
+Suggested `necessity`:
+- `required`
+- `important`
+- `optional`
+
+Suggested `deadline_flexibility`:
+- `fixed`
+- `somewhat_flexible`
+- `flexible`
+
+Suggested `consequence_level`:
+- `high`
+- `moderate`
+- `low`
+
+`core_need_amount` supports the V2 need-vs-upgrade concept without changing the user's full target amount.
+
+Example:
+- `target_amount = 60000`
+- `core_need_amount = 28000`
+
+The engine can protect the necessary portion while treating the remainder as lifestyle expansion.
+
+---
+
+# 7. Retirement account ownership and planning metadata
+
+## Required changes to `retirement_accounts`
+Add:
+- `owner_person_id uuid null references household_people(id) on delete set null`
+- `tax_treatment text null`
+- `employee_contributed_ytd numeric(14,2) null`
+- `employer_contributed_ytd numeric(14,2) null`
+- `annual_contribution_target numeric(14,2) null`
+- `full_match_employee_contribution_monthly numeric(14,2) null`
+- `match_status text not null default 'unknown'`
+- `hsa_coverage_type text null`
+- `hsa_eligible boolean null`
+
+Recommended `tax_treatment`:
 - `traditional`
 - `roth`
 - `mixed`
 - `not_applicable`
 - `unknown`
 
-Why it matters:
-A workplace account type alone does not tell the engine whether current employee contributions are pre-tax, Roth, or mixed.
-
-Recommended for Phase 5 V1: yes.
-
-### 2. `employee_contributed_ytd`
-Numeric, nullable.
-
-Why it matters:
-The engine cannot calculate remaining annual retirement contribution capacity or pacing from monthly contribution alone.
-
-Recommended for Phase 5 V1: yes.
-
-### 3. `employer_contributed_ytd`
-Numeric, nullable.
-
-Why it matters:
-Required for HSA contribution-limit accounting and useful for employer-plan explanations.
-
-Recommended for Phase 5 V1: yes.
-
-### 4. `annual_contribution_target`
-Numeric, nullable.
-
-Why it matters:
-Phase 5 should recommend toward the household's explicit goal, not automatically assume every user wants to hit the statutory maximum.
-
-Recommended for Phase 5 V1: yes.
-
-### 5. `full_match_employee_contribution_monthly`
-Numeric, nullable.
-
-Why it matters:
-This gives the engine a deterministic monthly employee contribution amount needed to capture the full employer match without forcing V1 to implement every employer match formula.
-
-Recommended for Phase 5 V1: yes.
-
-### 6. `match_status`
-Suggested values:
+Recommended `match_status`:
 - `not_offered`
 - `unknown`
 - `not_fully_captured`
 - `fully_captured`
 
-Why it matters:
-A nullable boolean cannot distinguish "there is no match" from "we do not know whether a match exists." That distinction matters for confidence and missing-data handling.
+## Account type normalization
+Preserve existing stored `457` for backward compatibility and normalize to engine `457b`.
 
-Recommended for Phase 5 V1: yes.
-
-## Retirement account-type normalization
-The existing schema uses `457`; the Phase 5 design used `457b`.
-
-Recommendation: preserve existing stored value `457` for backward compatibility in the database and normalize it to the engine's canonical `457b` type in the snapshot builder.
-
-Do not perform a destructive rename solely for engine aesthetics.
-
-Additional account types that may be added safely to the allowed list:
+Expand allowed database values to include:
 - `tsp`
 - `simple_ira`
 - `sep_ira`
 
-These are useful but not required to make the initial engine work for current data.
+Do not destructively rename existing account types.
 
-Recommendation: include them in the Phase 5 migration because expanding the check constraint is low-risk and avoids another near-term migration.
+## Why HSA metadata should live on the account now
+The previous audit proposed household-level HSA eligibility. With the V2 person/ownership model, account-level HSA metadata is cleaner because eligibility and coverage can relate to a specific covered person/account and because multiple HSAs may exist in one household.
 
-## HSA-specific audit
-The current product stores HSA as a retirement-account type. That is acceptable for V1 and avoids creating a separate HSA table.
+The snapshot layer can still derive household HSA limits using person/account ownership rules.
 
-However, the engine needs metadata that does not naturally belong only to an account row:
-- HSA eligibility
-- coverage type: self-only/family/unknown
+---
 
-Recommended design: add household-level planning settings rather than duplicating these fields on every HSA account.
+# 8. Household financial preferences and risk profile
 
-## Household planning preferences
-Create one household-scoped settings table, for example `household_financial_preferences`, with one row per household.
+Create one row per household.
 
-Recommended Phase 5 V1 fields:
-- `household_id` primary key / FK
-- `emergency_fund_months` nullable numeric or smallint
-- `debt_vs_investing` text: `debt_focused | balanced | growth_focused | unspecified`
-- `roth_vs_traditional` text: `roth | traditional | balanced | unspecified`
-- `hsa_eligible` nullable boolean
-- `hsa_coverage_type` text: `self_only | family | unknown`
-- timestamps
+## Recommended new table: `household_financial_preferences`
 
-Why use a dedicated table instead of columns on `households`:
-- keeps identity/tenancy data separate from financial-planning settings
-- makes future preference additions cleaner
-- can use the same household-scoped RLS model as financial tables
-
-## Fields deliberately deferred
-The following are useful but should not block the first engine:
-
-### Owner/person linkage for retirement accounts
-The current schema is household-level and does not yet have a first-class household-person model beyond authenticated members.
-
-IRA limits are person-specific, so robust multi-person retirement-limit enforcement will eventually need account ownership. For V1, avoid pretending to enforce a household-wide IRA limit when multiple spouses may each have separate limits.
-
-Recommended V1 behavior:
-- allow account-specific targets/YTD values
-- do not aggregate two people's IRA accounts into one statutory limit unless ownership is known
-- surface a tax-rule warning when ownership matters
-
-Future schema: introduce an explicit financial-profile person/owner model rather than overloading auth membership.
-
-### Filing status and modified AGI
-Do not require tax-sensitive personal data simply to make Phase 5 work.
-
-V1 should allow Roth eligibility / Traditional IRA deductibility to remain unknown and explain that limitation.
-
-Future versions may add optional tax-profile inputs after a separate privacy/product review.
-
-### Exact employer-match formula
-Do not store a complex formula DSL in V1.
-
-Use `full_match_employee_contribution_monthly` plus `match_status`. This is enough to answer whether the current monthly contribution captures the match.
-
-A richer match model can be added later if automatic payroll-percentage calculation becomes a product requirement.
-
-### Goal planned monthly contribution
-Useful but not required for V1.
-
-## Minimal recommended migration
-
-### Alter `retirement_accounts`
-Add nullable columns:
-- `tax_treatment text`
-- `employee_contributed_ytd numeric(14,2)`
-- `employer_contributed_ytd numeric(14,2)`
-- `annual_contribution_target numeric(14,2)`
-- `full_match_employee_contribution_monthly numeric(14,2)`
-- `match_status text not null default 'unknown'`
-
-Add appropriate non-negative checks to numeric fields.
-
-Expand the `account_type` check constraint to include `tsp`, `simple_ira`, and `sep_ira` while preserving existing values.
-
-Add a check constraint for `tax_treatment` and `match_status`.
-
-### Create `household_financial_preferences`
-Suggested V1 columns:
+Suggested fields:
 - `household_id uuid primary key references households(id) on delete cascade`
-- `emergency_fund_months numeric(3,1)` nullable, constrained to a reasonable range such as 1–12
-- `debt_vs_investing text not null default 'unspecified'`
+- `emergency_fund_months_override numeric(3,1) null`
+- `debt_vs_investing text not null default 'balanced'`
 - `roth_vs_traditional text not null default 'unspecified'`
-- `hsa_eligible boolean` nullable
-- `hsa_coverage_type text not null default 'unknown'`
+- `risk_tolerance text not null default 'moderate'`
+- `retirement_priority text not null default 'balanced'`
 - `created_at timestamptz not null default now()`
 - `updated_at timestamptz not null default now()`
 
-Enable RLS and apply the existing `private.is_household_member(household_id)` pattern for select/insert/update/delete.
+Suggested preference values should remain broad and explainable rather than producing false precision.
 
-## Security impact
-The proposed changes do not require service-role access, new SECURITY DEFINER functions, views, or cross-household joins.
+## Recommended risk inputs
+The emergency-fund model also needs observable household facts. Prefer storing those separately from subjective preferences.
 
-The new preferences table should follow the existing household-scoped RLS pattern. The retirement columns inherit the current `retirement_accounts` RLS policies.
+Add optional fields to this table or a dedicated risk-profile table:
+- `job_replacement_difficulty text default 'unknown'`
+- `known_income_disruption boolean default false`
+- `known_income_disruption_end_date date null`
 
-All application reads and mutations should continue to include explicit `household_id` filters in addition to RLS.
+Income concentration and variable-income risk should be derived from `income_sources`, not manually duplicated.
+Dependents should be derived from `household_people.is_dependent`.
 
-## Migration-risk assessment
-Risk is low because the migration is additive:
-- no existing financial rows need to be rewritten
-- new planning metadata can remain null/unknown until users enter it
-- existing Phase 2/3/4 pages continue to work if their selects remain explicit
-- engine logic can treat null fields as missing data rather than inventing values
+For Phase 5, keeping these few risk fields in `household_financial_preferences` is acceptable and minimizes table count.
 
-The one existing constraint that must be changed carefully is `retirement_accounts.account_type` if the allowed type list is expanded.
+---
 
-## Final audit result
-### No schema change required
-- accounts
-- income_sources
-- expenses
-- debts
+# 9. Retirement projection inputs
+
+## Person-level inputs
+Store on `household_people` where possible:
+- birth date
+- planned retirement age
+
+## Household-level optional assumptions
+Add to `household_financial_preferences`:
+- `desired_retirement_monthly_spending numeric(14,2) null`
+- `retirement_spending_basis text not null default 'unknown'`
+- `planning_social_security_monthly numeric(14,2) null`
+- `planning_pension_monthly numeric(14,2) null`
+
+Do not store market-return assumptions in household rows.
+Those belong in versioned engine policy so the same household state produces deterministic results under a given policy version.
+
+Social Security values should be clearly marked as user-entered planning estimates unless a future integration supplies authoritative estimates.
+
+---
+
+# 10. Life events
+
+V2 life events affect liquidity, income stability, deadlines, and risk.
+
+Do **not** require a life-events table for the first Phase 5 build.
+
+Most important effects can already be represented through:
 - goals
+- income activity/variability
+- household people/dependents
+- known income disruption fields
+- emergency-fund override
 
-### Additive changes required
-- retirement_accounts planning metadata
-- household financial preferences / HSA eligibility
+A dedicated `life_events` table should be deferred until the product has a concrete workflow that needs event history or future event orchestration.
 
-### Deferred by design
-- tax filing status / MAGI
-- retirement-account person ownership
-- exact employer match formula DSL
-- goal planned monthly contribution
+---
 
-This is the smallest schema expansion that supports the detailed Phase 5 engine without turning the financial profile into a tax-return data model.
+# Fields deliberately deferred
+
+## Detailed tax-return profile
+Do not require a tax-return-style schema in Phase 5.
+
+Defer:
+- complete MAGI construction
+- deductions
+- tax credits
+- detailed filing-status history
+
+The engine may accept user-confirmed Roth eligibility or mark it unknown.
+
+## Exact employer-match formula DSL
+V2 should support the progressive model but does not need an arbitrary formula language yet.
+
+Use:
+- required contribution for full match
+- current contribution
+- match status
+- YTD values
+
+Add exact payroll match formulas only when a UI/workflow requires them.
+
+## Social Security benefit modeling
+Use optional user-entered estimate initially.
+Do not recreate SSA benefit calculations inside Phase 5.
+
+## Detailed investment holdings/allocation
+Phase 5 is a priority/allocation engine, not portfolio management.
+Account balances and contribution destinations are sufficient.
+
+## Actual money movement
+Explicitly out of scope.
+
+---
+
+# Recommended migration grouping
+
+The V2 additions are larger than the original audit but should still be delivered as one coherent additive Phase 5 foundation migration or as two tightly sequenced migrations.
+
+## Migration A — ownership and planning foundation
+1. Create `household_people`.
+2. Add owner/gross/variability fields to `income_sources`.
+3. Add owner and planning fields to `retirement_accounts`.
+4. Create `household_financial_preferences`.
+5. Expand retirement account-type constraint.
+
+## Migration B — priority-engine context
+1. Add cash-purpose fields to `accounts`.
+2. Create `insurance_exposures`.
+3. Add debt special-case metadata.
+4. Add goal classification/flexibility fields.
+
+Splitting the work this way makes validation and rollback reasoning easier while remaining fully additive.
+
+---
+
+# RLS and security plan
+
+Every new household-scoped table must:
+- have RLS enabled
+- target `authenticated`
+- use `private.is_household_member(household_id)` for row authorization
+- have SELECT policy
+- have INSERT `WITH CHECK`
+- have UPDATE `USING` and `WITH CHECK`
+- have DELETE `USING`
+
+Existing modified tables inherit their current RLS policies.
+
+No new SECURITY DEFINER function is required.
+No public view is required.
+No service-role browser access is required.
+
+Application reads should continue to filter explicitly by `household_id` even though RLS is the security boundary.
+
+For person-owned rows, security should remain household-based in Phase 5. Do not authorize solely from `owner_person_id` because financial household planning is intentionally shared within an authorized household.
+
+---
+
+# Data migration / backward compatibility
+
+The live database currently has no rows in the audited financial tables, which lowers migration risk, but the design should still remain backward-compatible.
+
+Rules:
+- all newly required ownership links should initially be nullable
+- existing account and debt type values remain valid
+- current `monthly_amount` income semantics remain unchanged
+- new preference/risk fields default to neutral/unknown states
+- engine treats missing new fields as `More information needed`, not guessed values
+
+When onboarding a household after the migration, the application should create financial-profile people before asking for owner-specific retirement details.
+
+---
+
+# Engine snapshot implications
+
+The database should remain a persistence model, not the decision engine.
+
+A server-side snapshot builder should normalize database rows into canonical engine input:
+
+- household people
+- gross and take-home income
+- essential/discretionary expenses
+- deployable vs protected cash
+- insurance deductible target
+- debt classifications and special conditions
+- retirement ownership/contributions/match state
+- goals and required funding pace
+- emergency-fund risk inputs
+- preferences
+- projection inputs
+
+The pure engine must not query Supabase directly.
+
+---
+
+# Final V2 audit result
+
+## No structural redesign required
+- `households`
+- `household_members`
+- `expenses`
+- tenancy/RLS architecture
+
+## Existing tables requiring additive columns
+- `accounts`
+- `income_sources`
+- `debts`
+- `retirement_accounts`
+- `goals`
+
+## New tables required
+- `household_people`
+- `insurance_exposures`
+- `household_financial_preferences`
+
+## Deferred
+- detailed tax-profile model
+- exact employer match DSL
+- dedicated life-events table
+- portfolio holdings/allocation model
+- Social Security calculation engine
+- automatic financial-account integrations or money movement
+
+## Recommendation
+Proceed with an additive Phase 5 schema migration before writing the recommendation engine.
+
+The migration should prioritize **data correctness and explainability** over collecting every possible planning field. The engine can provide partial recommendations when optional data is missing, but ownership, cash purpose, immediate deductible exposure, and basic planning preferences are now foundational to V2 and should no longer be deferred.
