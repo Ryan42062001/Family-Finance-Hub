@@ -33,12 +33,11 @@ export default async function PlanningPage({ searchParams }: PageProps) {
   const defaultSavings = accounts.filter((row) => ["checking", "savings", "cash"].includes(row.account_type)).reduce((sum, row) => sum + Number(row.balance), 0);
   const defaultEssentialExpenses = expenses.filter((row) => row.is_essential).reduce((sum, row) => sum + Number(row.monthly_amount), 0) + debts.reduce((sum, row) => sum + Number(row.minimum_payment), 0);
 
-  const emergency = calculateEmergencyFund({
-    currentSavings: readNumber(params.currentSavings, defaultSavings),
-    monthlyEssentialExpenses: readNumber(params.monthlyEssentialExpenses, defaultEssentialExpenses),
-    targetMonths: readNumber(params.targetMonths, 6),
-    monthlyContribution: readNumber(params.monthlyContribution, 0),
-  });
+  const currentSavings = readNumber(params.currentSavings, defaultSavings);
+  const monthlyEssentialExpenses = readNumber(params.monthlyEssentialExpenses, defaultEssentialExpenses);
+  const targetMonths = readNumber(params.targetMonths, 6);
+  const monthlyContribution = readNumber(params.monthlyContribution, 0);
+  const emergency = calculateEmergencyFund({ currentSavings, monthlyEssentialExpenses, targetMonths, monthlyContribution });
 
   const mortgageInputs = {
     principal: readNumber(params.mortgagePrincipal, Number(mortgage?.current_balance ?? 0)),
@@ -57,10 +56,10 @@ export default async function PlanningPage({ searchParams }: PageProps) {
 
       <section className="panel-grid">
         <article className="panel"><p className="eyebrow">Emergency fund</p><h2>Adjust your reserve plan</h2><p className="muted">Defaults use liquid accounts, essential recurring expenses, and debt minimums.</p><form className="data-form" method="get">
-          <label>Current liquid savings<input name="currentSavings" type="number" min="0" step="0.01" defaultValue={emergency.currentSavings} /></label>
-          <label>Monthly essential expenses<input name="monthlyEssentialExpenses" type="number" min="0" step="0.01" defaultValue={emergency.monthlyEssentialExpenses} /></label>
-          <label>Target months<input name="targetMonths" type="number" min="0" step="0.5" defaultValue={emergency.targetMonths} /></label>
-          <label>Monthly contribution<input name="monthlyContribution" type="number" min="0" step="0.01" defaultValue={readNumber(params.monthlyContribution, 0)} /></label>
+          <label>Current liquid savings<input name="currentSavings" type="number" min="0" step="0.01" defaultValue={currentSavings} /></label>
+          <label>Monthly essential expenses<input name="monthlyEssentialExpenses" type="number" min="0" step="0.01" defaultValue={monthlyEssentialExpenses} /></label>
+          <label>Target months<input name="targetMonths" type="number" min="0" step="0.5" defaultValue={targetMonths} /></label>
+          <label>Monthly contribution<input name="monthlyContribution" type="number" min="0" step="0.01" defaultValue={monthlyContribution} /></label>
           <button type="submit">Recalculate emergency fund</button>
         </form></article>
         <article className="panel"><p className="eyebrow">Emergency projection</p><h2>Your reserve</h2><div className="split-summary"><div><span>Target</span><strong>{money(emergency.targetAmount)}</strong></div><div><span>Current</span><strong>{money(emergency.currentSavings)}</strong></div><div><span>Progress</span><strong>{percent}</strong></div><div><span>Gap</span><strong>{money(emergency.fundingGap)}</strong></div><div><span>Coverage</span><strong>{emergency.coverageMonths === null ? "—" : `${emergency.coverageMonths.toFixed(1)} months`}</strong></div><div><span>Time to target</span><strong>{emergency.monthsToGoal === null ? "Add monthly savings" : emergency.monthsToGoal === 0 ? "Funded" : `${emergency.monthsToGoal} months`}</strong></div></div><div className="progress-track"><div className="progress-fill" style={{ width: `${(emergency.progress ?? 0) * 100}%` }} /></div><p className="muted">Projection excludes interest earned, changing expenses, and withdrawals.</p></article>
