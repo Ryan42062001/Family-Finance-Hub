@@ -47,8 +47,26 @@ as $$
   );
 $$;
 
+-- Used only to safely bootstrap the creator's first owner membership.
+create or replace function public.is_household_creator(target_household_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.households h
+    where h.id = target_household_id
+      and h.created_by = auth.uid()
+  );
+$$;
+
 revoke all on function public.is_household_member(uuid) from public;
+revoke all on function public.is_household_creator(uuid) from public;
 grant execute on function public.is_household_member(uuid) to authenticated;
+grant execute on function public.is_household_creator(uuid) to authenticated;
 
 create policy "profiles_select_self"
 on public.profiles
@@ -94,7 +112,7 @@ for select
 to authenticated
 using (public.is_household_member(household_id));
 
--- Bootstrap policy: the creator of a household may add themselves as its first owner.
+-- Bootstrap policy: the creator may add only themselves as the first owner.
 create policy "household_members_insert_creator_owner"
 on public.household_members
 for insert
@@ -102,12 +120,7 @@ to authenticated
 with check (
   user_id = auth.uid()
   and role = 'owner'
-  and exists (
-    select 1
-    from public.households h
-    where h.id = household_id
-      and h.created_by = auth.uid()
-  )
+  and public.is_household_creator(household_id)
 );
 
 -- Broader member-management policies are intentionally deferred until invitation flows exist.
