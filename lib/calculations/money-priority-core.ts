@@ -66,7 +66,7 @@ export function classifyEmergencyRisk(
     score += 2;
     reasons.push("A known income disruption is recorded.");
   }
-  if (snapshot.preferences?.jobReplacementDifficulty === "hard") {
+  if (snapshot.preferences?.jobReplacementDifficulty === "difficult") {
     score += 2;
     reasons.push("Job replacement is expected to be difficult.");
   } else if (snapshot.preferences?.jobReplacementDifficulty === "moderate") {
@@ -107,6 +107,19 @@ export type DebtPriorityBand =
 export type DebtClassification = {
   debtId: string;
   band: DebtPriorityBand;
+  reasons: string[];
+};
+
+export type DebtAction =
+  | "special"
+  | "accelerate"
+  | "split"
+  | "scheduled"
+  | "optimize"
+  | "unknown";
+
+export type DebtActionAssessment = DebtClassification & {
+  action: DebtAction;
   reasons: string[];
 };
 
@@ -154,4 +167,109 @@ export function classifyDebt(
 
   reasons.push("APR is below the ordinary debt-acceleration thresholds.");
   return { debtId: debt.id, band: "optimize", reasons };
+}
+
+function parseIsoDate(value: string): Date | null {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function ageOnDate(birthDate: string, asOfDate: string): number | null {
+  const birth = parseIsoDate(birthDate);
+  const asOf = parseIsoDate(asOfDate);
+  if (!birth || !asOf || birth > asOf) return null;
+  let age = asOf.getUTCFullYear() - birth.getUTCFullYear();
+  const beforeBirthday = asOf.getUTCMonth() < birth.getUTCMonth()
+    || (asOf.getUTCMonth() === birth.getUTCMonth() && asOf.getUTCDate() < birth.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
+
+function householdRetirementHorizon(snapshot: MoneyPrioritySnapshot, asOfDate: string): number | null {
+  const horizons = snapshot.people
+    .filter((person) => person.isActive && person.birthDate && person.plannedRetirementAge !== null)
+    .map((person) => {
+      const age = ageOnDate(person.birthDate!, asOfDate);
+      return age === null ? null : Math.max(0, person.plannedRetirementAge! - age);
+    })
+    .filter((value): value is number => value !== null);
+  return horizons.length ? Math.min(...horizons) : null;
+}
+
+export function assessDebtAction(
+  snapshot: MoneyPrioritySnapshot,
+  debt: MoneyPrioritySnapshot["debts"][number],
+  asOfDate: string,
+  policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+): DebtActionAssessment {
+  const classification = classifyDebt(debt, policy);
+  const reasons = [...classification.reasons];
+
+  if (classification.band === "special_priority") {
+    return { ...classification, action: "special", reasons };
+  }
+  if (classification.band === "high_interest") {
+    return { ...classification, action: "accelerate", reasons };
+  }
+  if (classification.band === "unknown") {
+    return { ...classification, action: "unknown", reasons };
+  }
+  if (classification.band === "optimize") {
+    return { ...classification, action: "optimize", reasons };
+  }
+
+  const apr = (debt.annualInterestRate ?? 0) / 100;
+  let score = 0;
+
+  if (classification.band === "payoff_favored") {
+    score = apr >= 0.08 ? 2 : 1;
+    reasons.push(apr >= 0.08
+      ? "An 8–9.99% APR starts in the accelerate posture."
+      : "A 6–7.99% APR starts in the split/payoff-favored posture.");
+  } else {
+    score = 0;
+    reasons.push("A 4–5.99% APR starts in the scheduled/context posture.");
+  }
+
+  const retirementHorizon = householdRetirementHorizon(snapshot, asOfDate);
+  if (retirementHorizon !== null && retirementHorizon <= 10) {
+    score += 1;
+    reasons.push("Retirement is within 10 years, which favors reducing debt risk.");
+  } else if (retirementHorizon !== null && retirementHorizon >= 25) {
+    score -= 1;
+    reasons.push("A 25+ year retirement horizon modestly favors investing flexibility.");
+  }
+
+  if (debt.rateType === "variable") {
+    score += 1;
+    reasons.push("Variable-rate debt has reset risk, which favors faster payoff.");
+  }
+
+  const debtBurden = snapshot.aggregates.monthlyTakeHomeIncome > 0
+    ? snapshot.aggregates.monthlyMinimumDebtPayments / snapshot.aggregates.monthlyTakeHomeIncome
+    : 0;
+  if (debtBurden >= 0.2) {
+    score += 1;
+    reasons.push("Minimum debt payments consume at least 20% of take-home income.");
+  }
+
+  if (debt.minimumPayment > 0 && debt.balance / debt.minimumPayment <= 12) {
+    score += 0.5;
+    reasons.push("The balance is close enough to payoff that eliminating the payment could free cash flow soon.");
+  }
+
+  if (snapshot.preferences?.debtVsInvesting === "debt_focused") {
+    score += 0.5;
+    reasons.push("Household preference leans toward debt payoff.");
+  } else if (snapshot.preferences?.debtVsInvesting === "growth_focused") {
+    score -= 0.5;
+    reasons.push("Household preference leans toward long-term growth.");
+  }
+
+  let action: DebtAction;
+  if (score >= 2) action = "accelerate";
+  else if (score >= 1) action = "split";
+  else action = "scheduled";
+
+  return { ...classification, action, reasons };
 }
