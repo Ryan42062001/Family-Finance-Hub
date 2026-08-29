@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logout } from "@/app/auth/actions";
+import { calculateFinancialSummary } from "@/lib/calculations/financial-summary";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -8,77 +9,56 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
+  if (!claimsData?.claims?.sub) redirect("/auth/login");
 
-  if (!userId) redirect("/auth/login");
-
-  const { data: households } = await supabase
-    .from("households")
-    .select("id, name, created_at")
-    .order("created_at")
-    .limit(1);
-
+  const { data: households } = await supabase.from("households").select("id, name, created_at").order("created_at").limit(1);
   if (!households?.length) redirect("/onboarding");
   const household = households[0];
 
-  const [accountsResult, incomeResult, debtsResult, retirementResult, goalsResult] = await Promise.all([
+  const [accountsResult, incomeResult, expensesResult, debtsResult, retirementResult, goalsResult] = await Promise.all([
     supabase.from("accounts").select("id, balance, include_in_net_worth").eq("household_id", household.id),
     supabase.from("income_sources").select("id, monthly_amount, is_active").eq("household_id", household.id),
+    supabase.from("expenses").select("id, monthly_amount").eq("household_id", household.id),
     supabase.from("debts").select("id, current_balance, minimum_payment").eq("household_id", household.id),
     supabase.from("retirement_accounts").select("id, balance, monthly_employee_contribution, monthly_employer_contribution").eq("household_id", household.id),
     supabase.from("goals").select("id, target_amount, current_amount").eq("household_id", household.id),
   ]);
 
-  const sum = <T,>(rows: T[] | null, value: (row: T) => number) =>
-    (rows ?? []).reduce((total, row) => total + value(row), 0);
+  const summary = calculateFinancialSummary({
+    accountBalances: (accountsResult.data ?? []).filter((row) => row.include_in_net_worth).map((row) => Number(row.balance)),
+    retirementBalances: (retirementResult.data ?? []).map((row) => Number(row.balance)),
+    debtBalances: (debtsResult.data ?? []).map((row) => Number(row.current_balance)),
+    monthlyIncome: (incomeResult.data ?? []).filter((row) => row.is_active).map((row) => Number(row.monthly_amount)),
+    monthlyExpenses: (expensesResult.data ?? []).map((row) => Number(row.monthly_amount)),
+    monthlyDebtPayments: (debtsResult.data ?? []).map((row) => Number(row.minimum_payment)),
+    monthlyEmployeeRetirement: (retirementResult.data ?? []).map((row) => Number(row.monthly_employee_contribution)),
+    monthlyEmployerRetirement: (retirementResult.data ?? []).map((row) => Number(row.monthly_employer_contribution)),
+  });
 
-  const cashAssets = sum(accountsResult.data, (row) => row.include_in_net_worth ? Number(row.balance) : 0);
-  const retirementAssets = sum(retirementResult.data, (row) => Number(row.balance));
-  const totalDebt = sum(debtsResult.data, (row) => Number(row.current_balance));
-  const monthlyIncome = sum(incomeResult.data, (row) => row.is_active ? Number(row.monthly_amount) : 0);
-  const minimumDebtPayments = sum(debtsResult.data, (row) => Number(row.minimum_payment));
-  const monthlyRetirement = sum(retirementResult.data, (row) => Number(row.monthly_employee_contribution) + Number(row.monthly_employer_contribution));
-  const netWorth = cashAssets + retirementAssets - totalDebt;
+  const sections = [accountsResult, incomeResult, expensesResult, debtsResult, retirementResult, goalsResult];
+  const completeSections = sections.filter((result) => (result.data?.length ?? 0) > 0).length;
+  const completion = Math.round((completeSections / sections.length) * 100);
 
-  const money = (value: number) => new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+  const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+  const percent = summary.savingsRate === null ? "—" : `${Math.round(summary.savingsRate * 100)}%`;
 
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <div>
-          <p className="eyebrow">Private workspace</p>
-          <h1>{household.name}</h1>
-          <p className="muted">Your first live household metrics are calculated from data protected by row-level security.</p>
-        </div>
-        <div className="hero-actions">
-          <Link className="secondary-button" href="/financial-profile">Edit financial profile</Link>
-          <form action={logout}><button type="submit">Sign out</button></form>
-        </div>
+        <div><p className="eyebrow">Private workspace</p><h1>{household.name}</h1><p className="muted">Your live household metrics are calculated from records protected by row-level security.</p></div>
+        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit financial profile</Link><form action={logout}><button type="submit">Sign out</button></form></div>
       </section>
 
       <section className="metric-grid dashboard-metrics">
-        <article className="metric-card"><p>Net worth</p><strong>{money(netWorth)}</strong><span>Assets minus debts</span></article>
-        <article className="metric-card"><p>Monthly income</p><strong>{money(monthlyIncome)}</strong><span>Active income sources</span></article>
-        <article className="metric-card"><p>Total debt</p><strong>{money(totalDebt)}</strong><span>{money(minimumDebtPayments)} minimums / month</span></article>
-        <article className="metric-card"><p>Retirement assets</p><strong>{money(retirementAssets)}</strong><span>{money(monthlyRetirement)} contributed / month</span></article>
+        <article className="metric-card"><p>Net worth</p><strong>{money(summary.netWorth)}</strong><span>Assets minus debts</span></article>
+        <article className="metric-card"><p>Monthly cash flow</p><strong>{money(summary.monthlyCashFlow)}</strong><span>After expenses, debt minimums, and your retirement contributions</span></article>
+        <article className="metric-card"><p>Savings rate</p><strong>{percent}</strong><span>Cash surplus + your retirement contributions</span></article>
+        <article className="metric-card"><p>Monthly expenses</p><strong>{money(summary.monthlyExpenses)}</strong><span>{money(summary.monthlyDebtPayments)} debt minimums separate</span></article>
       </section>
 
       <section className="panel profile-summary">
-        <div>
-          <h2>Financial profile</h2>
-          <p className="muted">Keep filling this out—the Priority Engine and Scenario Lab will build on these records later.</p>
-        </div>
-        <ul>
-          <li>Cash & accounts: {accountsResult.data?.length ?? 0}</li>
-          <li>Income sources: {incomeResult.data?.length ?? 0}</li>
-          <li>Debts: {debtsResult.data?.length ?? 0}</li>
-          <li>Retirement accounts: {retirementResult.data?.length ?? 0}</li>
-          <li>Goals: {goalsResult.data?.length ?? 0}</li>
-        </ul>
+        <div><h2>Financial profile: {completion}% complete</h2><p className="muted">Add at least one record in each core section before the Priority Engine starts making recommendations.</p><div className="progress-track"><div className="progress-fill" style={{ width: `${completion}%` }} /></div></div>
+        <ul><li>Cash & accounts: {accountsResult.data?.length ?? 0}</li><li>Income sources: {incomeResult.data?.length ?? 0}</li><li>Monthly expenses: {expensesResult.data?.length ?? 0}</li><li>Debts: {debtsResult.data?.length ?? 0}</li><li>Retirement accounts: {retirementResult.data?.length ?? 0}</li><li>Goals: {goalsResult.data?.length ?? 0}</li></ul>
       </section>
     </main>
   );
