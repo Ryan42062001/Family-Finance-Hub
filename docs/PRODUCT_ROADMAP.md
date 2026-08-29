@@ -5,7 +5,16 @@ Family Finance Hub is a private-first household financial planning application t
 
 The product is not intended to be only a transaction tracker. Its long-term differentiators are the Money Priority Engine, Household Financial Roadmap, Paycheck Planner, and Scenario Lab.
 
-## Phase 1 — Secure Foundation
+## Current status
+- Phase 1 — Secure Foundation ✅ Complete
+- Phase 2 — Household Financial Profile ✅ Complete
+- Phase 3 — Dashboard ✅ Complete
+- Phase 4 — Planning Tools 🚧 In progress
+- Phase 5 — Money Priority Engine
+- Phase 6 — Scenario Lab
+- Phase 7 — Private Beta
+
+## Phase 1 — Secure Foundation ✅
 - Next.js + TypeScript application
 - Authentication foundation
 - Household-based tenancy model
@@ -14,7 +23,7 @@ The product is not intended to be only a transaction tracker. Its long-term diff
 - Environment and secret handling
 - Security regression tests
 
-## Phase 2 — Household Financial Profile
+## Phase 2 — Household Financial Profile ✅
 - Household onboarding
 - Income sources
 - Cash and savings accounts
@@ -23,22 +32,28 @@ The product is not intended to be only a transaction tracker. Its long-term diff
 - Recurring expenses
 - Financial goals
 
-## Phase 3 — Dashboard
-- Net worth
+## Phase 3 — Dashboard ✅
+- Net worth and asset/liability breakdown
 - Monthly cash flow
 - Savings rate
-- Debt totals
+- Debt overview
 - Goal progress
-- Retirement contribution progress
+- Retirement balances and contribution pace
+- Expense category and essential/discretionary breakdowns
+- Financial profile completion guidance
 - Financial health summary
+- Safe empty and incomplete-data states
+- Tested dashboard calculation helpers
 
-## Phase 4 — Planning Tools
+## Phase 4 — Planning Tools 🚧
 - Paycheck planner
 - Emergency-fund calculator
 - Debt payoff calculator
 - Mortgage extra-payment calculator
 - Savings-goal projections
 - Retirement contribution pacing
+
+Phase 4 calculators should reuse pure calculation modules, explain assumptions, handle incomplete data safely, and avoid modifying live household records unless a user explicitly applies a result in a later feature.
 
 ## Phase 5 — Money Priority Engine
 - Evaluate employer match
