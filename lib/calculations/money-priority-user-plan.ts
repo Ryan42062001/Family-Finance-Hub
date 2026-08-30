@@ -116,8 +116,8 @@ export function buildPlanAllocationId(
 export function deriveRecommendedPlanAllocations(
   engine: MoneyPriorityEngineResult,
 ): PlanAllocation[] {
-  return engine.recommendations.flatMap((recommendation) =>
-    recommendation.allocations.map((allocation) => ({
+  return engine.recommendations.flatMap((recommendation) => {
+    const recurring = recommendation.allocations.map((allocation) => ({
       allocationId: buildPlanAllocationId(
         recommendation.id,
         allocation.category,
@@ -131,7 +131,24 @@ export function deriveRecommendedPlanAllocations(
       recommendationState: recommendation.state,
       urgency: recommendation.urgency,
       recommendedMonthlyAmount: roundMoney(allocation.monthlyAmount),
-    })));
+    }));
+    const isStudentStrategy = recommendation.state === "worth_considering"
+      && (recommendation.id.startsWith("secure-student-loan-preserve-")
+        || recommendation.id.startsWith("secure-student-loan-review-"))
+      && recommendation.relatedEntityId;
+    if (!isStudentStrategy) return recurring;
+    return [...recurring, {
+      allocationId: buildPlanAllocationId(recommendation.id, "debt", recommendation.relatedEntityId),
+      recommendationId: recommendation.id,
+      stage: recommendation.stage,
+      category: "debt",
+      relatedEntityId: recommendation.relatedEntityId,
+      title: recommendation.title,
+      recommendationState: recommendation.state,
+      urgency: recommendation.urgency,
+      recommendedMonthlyAmount: 0,
+    }];
+  });
 }
 
 export function removeMoneyPlanOverride(
@@ -424,7 +441,15 @@ export function evaluateUserPlan(
       if (difference < 0) {
         severity = allocation.stage === "secure" ? "high" : "tradeoff";
         if (debt && debt.payoffDelayMonths !== null) {
-          explanation += ` Modeled payoff is delayed by ${debt.payoffDelayMonths} months and adds $${(debt.increasedInterest ?? 0).toFixed(2)} of interest.`;
+          explanation += ` Modeled payoff is delayed by ${debt.payoffDelayMonths} months and adds ${(debt.increasedInterest ?? 0).toFixed(2)} of interest.`;
+        }
+      } else {
+        const studentStrategy = allocation.relatedEntityId
+          ? engine.secure.studentLoanStrategies.find((item) => item.debtId === allocation.relatedEntityId)
+          : null;
+        if (studentStrategy && !studentStrategy.ordinaryDebtPolicyAllowed) {
+          severity = "tradeoff";
+          explanation += " This extra payment conflicts with the modeled forgiveness, special-repayment, or employer-benefit strategy and may reduce its value.";
         }
       }
     } else if (allocation.category === "retirement") {
