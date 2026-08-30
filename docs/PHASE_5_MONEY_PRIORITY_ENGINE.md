@@ -1088,3 +1088,32 @@ Household-reported PSLF and sufficiently described IDR-forgiveness strategies su
 Known employer direct loan assistance and explicitly reported qualified-student-loan-payment retirement matching are treated as material benefits that ordinary acceleration must not destroy. Preserved-strategy loans do not receive one-time cash payoff deployments. Recommended Plan exposes zero recommended extra payment for these loans, while Your Plan may model an extra payment and receives a strategy-conflict tradeoff.
 
 The policy facts are versioned under `MoneyPriorityPolicy.studentLoan`. V1 records the post-July-1-2026 framework boundary, disallows SAVE as a modeled long-term assumption, and records the end of the broad IDR federal tax exclusion after December 31, 2025. No live web dependency or database migration is introduced.
+
+
+---
+
+## Committed Expenses V1
+
+Expense survival classification and recurring cash-flow treatment are separate:
+
+- `isEssential: true` means the expense participates in emergency/survival planning and always normalizes to `cashFlowTreatment: "required"`.
+- A nonessential expense with `cashFlowTreatment: "required"` reduces ordinary monthly capacity without increasing the emergency-fund target.
+- A nonessential expense with `cashFlowTreatment: "discretionary"` remains outside required outflow while continuing to be included once in the household's recorded spending and cash-flow calculation.
+
+Backward-compatible defaults are essential → required and nonessential → discretionary. An essential expense supplied as discretionary is normalized to required.
+
+The canonical aggregates are:
+
+```ts
+monthlyRequiredOutflow =
+  monthlyEssentialExpenses
+  + monthlyCommittedNonEssentialExpenses
+  + monthlyMinimumDebtPayments;
+
+monthlyCashFlowBeforeSavings =
+  monthlyTakeHomeIncome
+  - monthlyRequiredOutflow
+  - monthlyDiscretionaryExpenses;
+```
+
+Required nonessential commitments increase a liquidity floor derived from required outflow, but the full emergency target remains based on essential expenses plus minimum debt payments. Goal savings and retirement contributions remain outside expense aggregates.
