@@ -64,7 +64,7 @@ export function assessStudentLoanStrategy(
     repaymentPlan: debt.studentLoanRepaymentPlan,
     forgivenessStrategy: debt.studentLoanForgivenessStrategy,
     forgivenessTaxTreatment: debt.forgivenessTaxTreatment,
-    estimatedForgivenessTaxLiability: debt.estimatedForgivenessTaxLiability,
+    estimatedForgivenessTaxLiability: debt.estimatedForgivenessTaxLiability ?? null,
     employerDirectAssistanceMonthly: assistanceMonthly,
     employerDirectAssistanceRemaining: assistanceRemaining,
     studentLoanPaymentRetirementMatchMonthly: matchMonthly,
@@ -176,7 +176,7 @@ export function assessStudentLoanStrategy(
       return result("special_review", false);
     }
     reasons.push("A sufficiently described household-reported IDR forgiveness strategy bypasses APR-only acceleration.");
-    if (debt.estimatedForgivenessTaxLiability !== null) {
+    if (debt.estimatedForgivenessTaxLiability != null) {
       reasons.push(`The household-supplied estimated forgiveness tax liability is $${debt.estimatedForgivenessTaxLiability.toFixed(2)}.`);
     }
     if (asOfDate >= policy.studentLoan.post2026FrameworkEffectiveDate
