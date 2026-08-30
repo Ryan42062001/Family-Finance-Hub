@@ -26,6 +26,12 @@ export type MoneyPriorityPolicy = {
     normalTermMaxMonths: number;
     cautionTermMaxMonths: number;
   };
+  studentLoan: {
+    version: string;
+    post2026FrameworkEffectiveDate: string;
+    saveLongTermModelingAllowed: boolean;
+    broadIdrFederalTaxExclusionEndedOn: string;
+  };
   homeAffordability: {
     standardMortgageTermMaxYears: number;
     missingMaintenanceStrongMarginMultiplier: number;
@@ -69,6 +75,12 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
     preferredTermMaxMonths: 48,
     normalTermMaxMonths: 60,
     cautionTermMaxMonths: 72,
+  },
+  studentLoan: {
+    version: "2026.1",
+    post2026FrameworkEffectiveDate: "2026-07-01",
+    saveLongTermModelingAllowed: false,
+    broadIdrFederalTaxExclusionEndedOn: "2025-12-31",
   },
   homeAffordability: {
     standardMortgageTermMaxYears: 30,
