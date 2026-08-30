@@ -58,6 +58,29 @@ test("projection shortfall drives the retirement increase instead of the benchma
     result.build.allocations.find((item) => item.category === "retirement")?.requestedMonthlyAmount,
     result.build.retirement.recommendedMonthlyIncrease,
   );
+  const retirementAllocation = result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount ?? 0;
+  const routed = result.build.retirementAccountAllocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount, 0);
+  assert.equal(Math.round((routed + result.build.unresolvedRetirementMonthlyAmount) * 100), Math.round(retirementAllocation * 100));
+  assert.ok(result.build.retirementAccountAllocations.every((item) => item.allocatedMonthlyAmount * 12 <= 21500));
+});
+
+test("Build routes retirement need across legal destinations and exposes any unresolved remainder", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts = [
+    { id: "r1", owner_person_id: "p1", name: "Roth IRA", account_type: "roth_ira", balance: 0,
+      monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 6900,
+      employer_contributed_ytd: 0, match_status: "not_offered" },
+    { id: "r2", owner_person_id: "p1", name: "401k", account_type: "401k", balance: 0,
+      monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 23900,
+      employer_contributed_ytd: 0, match_status: "fully_captured" },
+  ];
+  raw.people![0]!.estimated_taxable_compensation_annual = 100000;
+  raw.people![0]!.covered_by_workplace_retirement_plan = true;
+  raw.preferences = { ...raw.preferences, tax_profile_year: 2026, tax_filing_status: "single", estimated_modified_agi: 100000 };
+  const result = runMoneyPriorityEngine(raw, "2026-08-29");
+  const routedAnnual = result.build.retirementAccountAllocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount * 12, 0);
+  assert.ok(routedAnnual <= 1200);
+  assert.ok(result.build.unresolvedRetirementMonthlyAmount > 0);
 });
 
 test("known HSA room and unresolved IRA tax eligibility are both surfaced", () => {
@@ -88,6 +111,6 @@ test("known HSA room and unresolved IRA tax eligibility are both surfaced", () =
 test("engine exposes the tax and planning policy versions used for retirement guidance", () => {
   const result = runMoneyPriorityEngine(baseRaw(), "2026-08-29");
   assert.equal(result.taxYear, 2026);
-  assert.equal(result.taxPolicyVersion, "2026.1");
+  assert.equal(result.taxPolicyVersion, "2026.2");
   assert.equal(result.planningAssumptionsVersion, "2026.1");
 });

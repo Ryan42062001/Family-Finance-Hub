@@ -6,6 +6,14 @@ export type MoneyPriorityTaxPolicy = {
   workplaceEmployeeDeferralLimit: number;
   workplaceCatchUpAge50: number;
   workplaceCatchUpAge60To63: number;
+  definedContributionAnnualAdditionsLimit: number;
+  simpleEmployeeDeferralLimit: number;
+  simpleApplicableHigherEmployeeDeferralLimit: number;
+  simpleCatchUpAge50: number;
+  simpleCatchUpAge60To63: number;
+  sepEmployerContributionLimit: number;
+  sepEmployerCompensationRate: number;
+  highWageRothCatchUpThreshold: number;
   iraCombinedLimit: number;
   iraCatchUpAge50: number;
   hsaSelfOnlyLimit: number;
@@ -26,10 +34,18 @@ export type MoneyPriorityTaxPolicy = {
 
 export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
   taxYear: 2026,
-  version: "2026.1",
+  version: "2026.2",
   workplaceEmployeeDeferralLimit: 24500,
   workplaceCatchUpAge50: 8000,
   workplaceCatchUpAge60To63: 11250,
+  definedContributionAnnualAdditionsLimit: 72000,
+  simpleEmployeeDeferralLimit: 17000,
+  simpleApplicableHigherEmployeeDeferralLimit: 18100,
+  simpleCatchUpAge50: 4000,
+  simpleCatchUpAge60To63: 5250,
+  sepEmployerContributionLimit: 72000,
+  sepEmployerCompensationRate: 0.25,
+  highWageRothCatchUpThreshold: 150000,
   iraCombinedLimit: 7500,
   iraCatchUpAge50: 1100,
   hsaSelfOnlyLimit: 4400,

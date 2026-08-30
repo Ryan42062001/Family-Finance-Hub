@@ -78,6 +78,12 @@ export type BuildStageResult = {
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
   retirementAccounts: RetirementAccountOpportunityResult;
+  retirementAccountAllocations: Array<{
+    accountId: string;
+    opportunityTier: string;
+    allocatedMonthlyAmount: number;
+  }>;
+  unresolvedRetirementMonthlyAmount: number;
   goals: GoalFundingAssessment[];
   allocations: BuildStageAllocation[];
   totalAllocatedMonthly: number;
@@ -461,6 +467,41 @@ export function evaluateBuildStage(
     requests.reduce((sum, request) => sum + request.allocatedMonthlyAmount, 0),
   );
 
+  const retirementAccountAllocations: BuildStageResult["retirementAccountAllocations"] = [];
+  let retirementToRoute = retirementRequest?.allocatedMonthlyAmount ?? 0;
+  const tierOrder = new Map([
+    ["strong_tax_advantaged", 1], ["diversification_opportunity", 2], ["secondary_tax_advantaged", 3],
+  ]);
+  const sharedRemaining = new Map<string, number>();
+  const destinations = retirementAccounts.opportunities
+    .filter((item) => item.state === "available" && item.contributionSource !== "employer"
+      && item.opportunityTier !== "employer_match" && item.opportunityTier !== "unavailable_or_unknown")
+    .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99) - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
+      || a.accountId.localeCompare(b.accountId));
+  for (const destination of destinations) {
+    if (retirementToRoute <= 0) break;
+    let annualRoom = destination.remainingAnnualRoom ?? 0;
+    if (destination.sharedCapacityGroup) {
+      const remaining = sharedRemaining.get(destination.sharedCapacityGroup) ?? annualRoom;
+      annualRoom = Math.min(annualRoom, remaining);
+    }
+    const allocatedMonthlyAmount = roundMoney(Math.min(retirementToRoute, annualRoom / 12));
+    if (allocatedMonthlyAmount <= 0) continue;
+    retirementAccountAllocations.push({
+      accountId: destination.accountId,
+      opportunityTier: destination.opportunityTier!,
+      allocatedMonthlyAmount,
+    });
+    retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
+    if (destination.sharedCapacityGroup) {
+      sharedRemaining.set(destination.sharedCapacityGroup, roundMoney(Math.max(0, annualRoom - allocatedMonthlyAmount * 12)));
+    }
+  }
+  const unresolvedRetirementMonthlyAmount = retirementToRoute;
+  if (unresolvedRetirementMonthlyAmount > 0 && (retirementRequest?.allocatedMonthlyAmount ?? 0) > 0) {
+    warnings.push(`$${unresolvedRetirementMonthlyAmount.toFixed(2)} of the monthly retirement allocation has no known legal account destination.`);
+  }
+
   if (requests.some((request) => request.unfundedMonthlyAmount > 0)) {
     warnings.push("Available monthly capacity is not enough to fully fund every Build-stage request.");
   }
@@ -476,6 +517,8 @@ export function evaluateBuildStage(
     feasibility,
     retirement,
     retirementAccounts,
+    retirementAccountAllocations,
+    unresolvedRetirementMonthlyAmount,
     goals,
     allocations: requests,
     totalAllocatedMonthly,

@@ -133,9 +133,18 @@ export function evaluateExistingCashDeployment(
 
   if (build && deployable > 0) {
     const goalAssessment = new Map(build.goals.map((goal) => [goal.goalId, goal]));
-    const availableRetirementRoom = roundMoney(build.retirementAccounts.opportunities
-      .filter((item) => item.state === "available" && item.remainingAnnualRoom !== null)
-      .reduce((sum, item) => sum + Math.max(0, item.remainingAnnualRoom ?? 0), 0));
+    const retirementRoomByCapacity = new Map<string, number>();
+    for (const item of build.retirementAccounts.opportunities) {
+      if (item.state !== "available" || item.remainingAnnualRoom === null || item.contributionSource === "employer") continue;
+      const key = item.sharedCapacityGroup ?? `account:${item.accountId}`;
+      retirementRoomByCapacity.set(key, Math.max(
+        retirementRoomByCapacity.get(key) ?? 0,
+        Math.max(0, item.remainingAnnualRoom),
+      ));
+    }
+    const availableRetirementRoom = roundMoney(
+      [...retirementRoomByCapacity.values()].reduce((sum, room) => sum + room, 0),
+    );
 
     for (const allocation of build.allocations) {
       if (deployable <= 0) break;

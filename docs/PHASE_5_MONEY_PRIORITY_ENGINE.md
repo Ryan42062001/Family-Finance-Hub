@@ -1166,3 +1166,23 @@ effectiveRecommendedMonths
 ```
 
 Committed nonessential and discretionary expenses remain outside that target. Protected reserve cash offsets the target once and continues to share coverage with the deductible reserve. A larger gap can legitimately consume more Secure capacity or unallocated existing cash; residual reconciliation then prevents that cash from being claimed again. Build and Optimize receive only the capacity left after authoritative Secure allocation.
+
+---
+
+## Advanced Retirement-Account Cases V1
+
+Retirement analysis keeps three decisions separate: legal contribution capacity, tax eligibility/treatment, and the engine-recommended retirement increase. More legal room never increases the household retirement need. Build routes only an already-legitimate retirement allocation, after Secure and required/protective goals, and never beyond known annual account room.
+
+The versioned 2026 tax policy (`2026.2`) centralizes the $24,500 workplace deferral limit, $8,000 age-50 catch-up, $11,250 age-60-through-63 catch-up, $72,000 annual-additions limit, $7,500 IRA limit, $1,100 IRA catch-up, SIMPLE limits, SEP cap, and $150,000 prior-year sponsor-wage threshold. Ages are determined at tax-year end; the enhanced catch-up replaces rather than stacks with the ordinary catch-up.
+
+Traditional and Roth IRAs share one annual limit per person. Married-filing-jointly households may use combined eligible compensation for separate person-owned spousal IRAs, allocated deterministically without exceeding household compensation. Direct Roth eligibility still requires filing status and MAGI; gross and take-home income are not substitutes. Traditional IRA legal capacity remains distinct from deductibility, and a known nondeductible opportunity is classified below clearly tax-advantaged capacity. This is not a Form 8606 or backdoor-Roth simulator.
+
+SIMPLE accounts use their own $17,000 employee limit and $4,000/$5,250 catch-up bands. The $18,100 applicable-plan limit is granted only by an explicit structured fact. SIMPLE deferrals coordinate with other applicable employee deferrals; governmental 457(b) room remains separate. A known SIMPLE nonelective employer contribution creates no employee match gap, while a known uncaptured matching formula continues through Secure.
+
+Ordinary SEP accounts are employer-only: they expose no employee deferral or catch-up. When supported eligible compensation and employer YTD contributions are known, employer capacity is the lesser of 25% of compensation or $72,000. Self-employed compensation is not approximated, and SARSEP remains deferred because it is not a structured account type.
+
+For applicable 401(k), 403(b), and TSP catch-ups, the 2026 Roth assessment uses only prior-year wages from that plan's sponsor. Exactly $150,000 does not trigger the rule; an amount above it does. Missing sponsor wages or Roth-plan support produces targeted missing data, and a plan known not to support the required Roth path receives no fabricated catch-up room. The rule is not applied to IRAs, ordinary SEPs, or SIMPLE accounts by generic analogy.
+
+Account quality is an inspectable lexicographic tier—`employer_match`, `strong_tax_advantaged`, `diversification_opportunity`, `secondary_tax_advantaged`, or `unavailable_or_unknown`—rather than a weighted score. Employer match remains Secure and is excluded from Build routing. Tax diversification is only a lower-order account-selection consideration based on known tax treatment; unknown fees or investment quality are never invented. If no known legal destination can accept an allocated retirement increase, Build exposes the unresolved monthly amount instead of fabricating capacity.
+
+The optional normalized plan facts used by V1 are calculation inputs only; no database migration or UI was added. Missing persistence for sponsor-specific prior-year wages, Roth catch-up support, SIMPLE subtype/formula, and SEP supported compensation remains explicit and narrowly scoped.

@@ -106,6 +106,12 @@ export type MoneyPrioritySnapshot = {
     matchStatus: string;
     hsaCoverageType: string | null;
     hsaEligible: boolean | null;
+    simpleHigherLimitEligible?: boolean | null;
+    employerContributionType?: string | null;
+    priorYearSponsorWages?: number | null;
+    rothCatchUpSupported?: boolean | null;
+    sepEligibleCompensationAnnual?: number | null;
+    sepCompensationCalculationSupported?: boolean | null;
   }>;
   goals: Array<{
     id: string;
@@ -324,6 +330,12 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     matchStatus: stringValue(row.match_status, "unknown"),
     hsaCoverageType: nullableString(row.hsa_coverage_type),
     hsaEligible: nullableBoolean(row.hsa_eligible),
+    simpleHigherLimitEligible: nullableBoolean(row.simple_higher_limit_eligible),
+    employerContributionType: nullableString(row.employer_contribution_type),
+    priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
+    rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported),
+    sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
+    sepCompensationCalculationSupported: nullableBoolean(row.sep_compensation_calculation_supported),
   }));
 
   const goals = (raw.goals ?? []).map((row) => ({

@@ -98,6 +98,8 @@ export function evaluateSecureStage(
 
   let employerMatchMonthlyGap = 0;
   for (const account of snapshot.retirementAccounts) {
+    if (account.type === "sep_ira") continue;
+    if (account.type === "simple_ira" && account.employerContributionType === "nonelective") continue;
     if (account.matchStatus === "not_offered" || account.matchStatus === "fully_captured") continue;
     if (account.matchStatus === "not_fully_captured") {
       if (account.fullMatchEmployeeContributionMonthly === null) {
