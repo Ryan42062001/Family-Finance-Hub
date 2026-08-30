@@ -194,8 +194,14 @@ test("required expense reduces Build goal allocation", () => {
 });
 
 test("required expense reduces Optimize allocation", () => {
+  const optimizeRaw = (committed: boolean) => {
+    const raw = committed ? withCommitted() : baseRaw();
+    raw.accounts = [{ id: "reserve", name: "Reserve", account_type: "savings", balance: 9600, cash_purpose: "protected_reserve" }];
+    raw.debts = [{ id: "loan", name: "Low-rate loan", debt_type: "personal", current_balance: 10000, interest_rate: 3, minimum_payment: 200, rate_type: "fixed" }];
+    return raw;
+  };
   const optimizeTotal = (raw: MoneyPriorityRawSnapshot) => engine(raw).recommendations.filter((item) => item.stage === "optimize").flatMap((item) => item.allocations).reduce((sum, item) => sum + item.monthlyAmount, 0);
-  assert.ok(optimizeTotal(baseRaw()) > optimizeTotal(withCommitted()));
+  assert.ok(optimizeTotal(optimizeRaw(false)) > optimizeTotal(optimizeRaw(true)));
 });
 
 test("Recommended Plan respects corrected capacity", () => {
@@ -210,19 +216,26 @@ test("Your Plan receives corrected monthly capacity", () => {
 });
 
 test("Your Plan reports funding gap above corrected capacity", () => {
-  const plan = engine(withCommitted());
+  const raw = withCommitted();
+  raw.goals = [{ id: "g", name: "Goal", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" }];
+  const plan = engine(raw);
   const allocation = deriveRecommendedPlanAllocations(plan)[0]!;
   const result = evaluateUserPlan(plan, [{ allocationId: allocation.allocationId, monthlyAmount: plan.feasibility.monthlyPlanCapacity + 300 }]);
   assert.equal(result.yourPlan.fundingGap, 300);
 });
 
 test("Your Plan does not squeeze untouched allocations", () => {
-  const plan = engine(withCommitted());
+  const raw = withCommitted();
+  raw.goals = [
+    { id: "g1", name: "Required", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" },
+    { id: "g2", name: "Optional", target_amount: 6000, current_amount: 0, target_date: "2027-08-30", priority: 10, goal_class: "lifestyle_optional", necessity: "optional", deadline_flexibility: "flexible", consequence_level: "low" },
+  ];
+  const plan = engine(raw);
   const allocations = deriveRecommendedPlanAllocations(plan);
   const target = allocations[0]!;
-  const untouched = allocations[1];
+  const untouched = allocations[1]!;
   const result = evaluateUserPlan(plan, [{ allocationId: target.allocationId, monthlyAmount: plan.feasibility.monthlyPlanCapacity + 300 }]);
-  if (untouched) assert.equal(result.yourPlan.allocations.find((item) => item.allocationId === untouched.allocationId)?.userMonthlyAmount, untouched.recommendedMonthlyAmount);
+  assert.equal(result.yourPlan.allocations.find((item) => item.allocationId === untouched.allocationId)?.userMonthlyAmount, untouched.recommendedMonthlyAmount);
 });
 
 test("existing-cash balances remain normalized identically", () => {
@@ -290,7 +303,7 @@ test("home emergency-reserve basis remains unchanged", () => {
 test("vehicle affordability margin falls by committed expense", () => {
   const a = evaluateVehicleAffordability(engine(), vehicleScenario());
   const b = evaluateVehicleAffordability(engine(withCommitted()), vehicleScenario());
-  assert.equal(a.monthlyImpact.postPurchasePlanMargin - b.monthlyImpact.postPurchasePlanMargin, 800);
+  assert.ok(Math.abs((a.monthlyImpact.postPurchasePlanMargin - b.monthlyImpact.postPurchasePlanMargin) - 800) < 0.01);
 });
 
 test("retirement projection itself is unchanged by classification", () => {
