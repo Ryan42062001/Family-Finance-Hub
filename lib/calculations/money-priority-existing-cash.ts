@@ -88,7 +88,7 @@ export function evaluateExistingCashDeployment(
   for (const recommendation of secure.recommendations) {
     if (recommendation.state !== "recommended") continue;
     if (recommendation.urgency !== "required" && recommendation.urgency !== "high") continue;
-    if (recommendation.id.includes("match")) continue; // recurring payroll decision
+    if (recommendation.id.includes("match")) continue;
 
     const category: "reserve" | "debt" = recommendation.id.includes("debt") || recommendation.id.includes("promo")
       ? "debt"
@@ -142,13 +142,14 @@ export function evaluateExistingCashDeployment(
       if (allocation.unfundedMonthlyAmount <= 0) continue;
 
       if (allocation.category === "goal" && allocation.relatedEntityId) {
-        // Only close meaningful Build shortfalls. Optional/lifestyle goals stay residual.
         if (allocation.priority < 50) continue;
         const assessment = goalAssessment.get(allocation.relatedEntityId);
+        if (!assessment) continue;
+
         const remainingGoal = goalRemainingAmount(snapshot, allocation.relatedEntityId);
-        const shortfallThroughDeadline = assessment?.monthsRemaining === null
+        const shortfallThroughDeadline = assessment.monthsRemaining === null
           ? 0
-          : assessment?.monthsRemaining === 0
+          : assessment.monthsRemaining === 0
             ? remainingGoal
             : roundMoney(allocation.unfundedMonthlyAmount * assessment.monthsRemaining);
         const requested = Math.min(remainingGoal, shortfallThroughDeadline);
