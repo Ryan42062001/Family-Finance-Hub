@@ -133,7 +133,12 @@ function detectProfileChanges(previous: MoneyPrioritySnapshot, current: MoneyPri
   const prefBefore = previous.preferences as unknown as Record<string, unknown>; const prefAfter = current.preferences as unknown as Record<string, unknown>;
   for (const field of [...new Set([...Object.keys(prefBefore), ...Object.keys(prefAfter)])].sort()) {
     if (JSON.stringify(canonical(prefBefore[field])) === JSON.stringify(canonical(prefAfter[field]))) continue;
-    const category: ProfileChangeCategory = field.includes("tax") || field.includes("filing") || field.includes("agi") ? "tax_profile" : field.includes("risk") || field.includes("emergency") || field.includes("disruption") || field.includes("jobReplacement") ? "risk" : "household";
+    const normalizedField = field.toLowerCase();
+    const category: ProfileChangeCategory = normalizedField.includes("tax") || normalizedField.includes("filing") || normalizedField.includes("agi") || normalizedField.includes("magi")
+      ? "tax_profile"
+      : normalizedField.includes("risk") || normalizedField.includes("emergency") || normalizedField.includes("disruption") || normalizedField.includes("jobreplacement")
+        ? "risk"
+        : "household";
     changes.push({ category, entityId: null, field, significance: "informational", reason: `Planning preference ${field} changed.`, previousValue: scalar(prefBefore[field]), currentValue: scalar(prefAfter[field]) });
   }
   return changes;
