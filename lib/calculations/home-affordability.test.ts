@@ -225,7 +225,12 @@ test("missing PMI amount produces missing-data result", () => {
 });
 
 test("ARM initial payment can fit while contractual stress payment fails", () => {
-  const result = evaluateHomeAffordability(engine(), scenario({
+  const raw = baseRaw();
+  raw.accounts = [
+    { id: "reserve", name: "Emergency fund", account_type: "savings", balance: 12000, cash_purpose: "protected_reserve" },
+    { id: "cash", name: "Unallocated cash", account_type: "savings", balance: 200000, cash_purpose: "unallocated" },
+  ];
+  const result = evaluateHomeAffordability(engine(raw), scenario({
     purchasePrice: 1200000,
     downPayment: 100000,
     mortgage: {
@@ -318,6 +323,10 @@ test("temporary overlap can make transition unsafe", () => {
 
 test("required unrelated goal becoming infeasible fails ongoing affordability", () => {
   const raw = baseRaw();
+  raw.accounts = [
+    { id: "reserve", name: "Emergency fund", account_type: "savings", balance: 12000, cash_purpose: "protected_reserve" },
+    { id: "cash", name: "Unallocated cash", account_type: "savings", balance: 70000, cash_purpose: "unallocated" },
+  ];
   raw.goals = [{
     id: "required-goal", name: "Required care", target_amount: 72000, current_amount: 0,
     target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective",
