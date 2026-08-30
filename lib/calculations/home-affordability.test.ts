@@ -309,7 +309,7 @@ test("temporary overlap can make transition unsafe", () => {
     { id: "cash", name: "Cash", account_type: "savings", balance: 75000, cash_purpose: "unallocated" },
   ];
   const result = evaluateHomeAffordability(engine(raw), scenario({
-    purchasePrice: 1300000, downPayment: 60000,
+    purchasePrice: 1500000, downPayment: 60000,
     homeSale: sale("expected_after_purchase", { expectedHousingOverlapMonths: 6, expectedNetSaleProceeds: 0 }),
   }));
   assert.equal(result.overlap.overlapAffordable, false);
@@ -357,7 +357,7 @@ test("purchase can materially displace retirement funding", () => {
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
-  const result = evaluateHomeAffordability(engine(raw), scenario({ purchasePrice: 1300000, downPayment: 60000 }));
+  const result = evaluateHomeAffordability(engine(raw), scenario({ purchasePrice: 1500000, downPayment: 60000 }));
   assert.ok(result.planImpact.retirementMonthlyAllocationDisplaced > 0);
   assert.notEqual(result.overallAffordability, "comfortably_affordable");
 });
@@ -385,7 +385,7 @@ test("missing maintenance is explicitly disclosed for strong capacity", () => {
 
 test("missing maintenance makes a borderline scenario indeterminate", () => {
   const result = evaluateHomeAffordability(engine(), scenario({
-    purchasePrice: 1300000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
+    purchasePrice: 1500000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
   }));
   assert.ok(result.missingData.includes("monthlyMaintenancePlanningAmount"));
   assert.equal(result.overallAffordability, "more_information_needed");
