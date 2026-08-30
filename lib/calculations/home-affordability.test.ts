@@ -310,7 +310,7 @@ test("temporary overlap can make transition unsafe", () => {
   ];
   const result = evaluateHomeAffordability(engine(raw), scenario({
     purchasePrice: 1500000, downPayment: 60000,
-    homeSale: sale("expected_after_purchase", { expectedHousingOverlapMonths: 6, expectedNetSaleProceeds: 0 }),
+    homeSale: sale("expected_after_purchase", { expectedHousingOverlapMonths: 8, expectedNetSaleProceeds: 0 }),
   }));
   assert.equal(result.overlap.overlapAffordable, false);
   assert.equal(result.purchaseReadiness, "not_recommended");
@@ -385,7 +385,7 @@ test("missing maintenance is explicitly disclosed for strong capacity", () => {
 
 test("missing maintenance makes a borderline scenario indeterminate", () => {
   const result = evaluateHomeAffordability(engine(), scenario({
-    purchasePrice: 1500000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
+    purchasePrice: 1600000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
   }));
   assert.ok(result.missingData.includes("monthlyMaintenancePlanningAmount"));
   assert.equal(result.overallAffordability, "more_information_needed");
