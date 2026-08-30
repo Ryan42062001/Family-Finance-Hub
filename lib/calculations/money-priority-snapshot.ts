@@ -1,3 +1,8 @@
+export type StudentLoanSource = "federal" | "private" | "unknown";
+export type StudentLoanRepaymentPlan = "standard" | "tiered_standard" | "ibr" | "icr" | "paye" | "rap" | "other" | "unknown";
+export type StudentLoanForgivenessStrategy = "none" | "pslf" | "idr" | "teacher" | "health_service" | "other" | "unknown";
+export type StudentLoanForgivenessTaxTreatment = "federally_tax_free" | "potentially_taxable" | "unknown";
+
 export type RetirementAccountType =
   | "401k"
   | "403b"
@@ -65,6 +70,22 @@ export type MoneyPrioritySnapshot = {
     hasLegalOrTaxPriority: boolean;
     forgivenessOrRepaymentProgram: string | null;
     scheduledPayoffDate: string | null;
+    studentLoanSource: StudentLoanSource | null;
+    studentLoanRepaymentPlan: StudentLoanRepaymentPlan | null;
+    studentLoanForgivenessStrategy: StudentLoanForgivenessStrategy | null;
+    studentLoanStrategyActive: boolean | null;
+    currentRequiredMonthlyPayment: number | null;
+    qualifyingPaymentsMade: number | null;
+    qualifyingPaymentsRequired: number | null;
+    estimatedForgivenessAmount: number | null;
+    estimatedForgivenessDate: string | null;
+    forgivenessTaxTreatment: StudentLoanForgivenessTaxTreatment | null;
+    estimatedForgivenessTaxLiability: number | null;
+    employerDirectLoanAssistanceMonthly: number | null;
+    employerDirectLoanAssistanceRemaining: number | null;
+    qualifiedStudentLoanPaymentRetirementMatchOffered: boolean | null;
+    qualifiedPaymentRequiredForFullRetirementMatch: number | null;
+    expectedStudentLoanBasedEmployerMatchMonthly: number | null;
   }>;
   retirementAccounts: Array<{
     id: string;
@@ -255,6 +276,22 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     hasLegalOrTaxPriority: booleanValue(row.has_legal_or_tax_priority),
     forgivenessOrRepaymentProgram: nullableString(row.forgiveness_or_repayment_program),
     scheduledPayoffDate: nullableString(row.scheduled_payoff_date),
+    studentLoanSource: nullableString(row.student_loan_source) as StudentLoanSource | null,
+    studentLoanRepaymentPlan: nullableString(row.student_loan_repayment_plan) as StudentLoanRepaymentPlan | null,
+    studentLoanForgivenessStrategy: nullableString(row.student_loan_forgiveness_strategy) as StudentLoanForgivenessStrategy | null,
+    studentLoanStrategyActive: nullableBoolean(row.student_loan_strategy_active),
+    currentRequiredMonthlyPayment: nullableNumber(row.current_required_monthly_payment),
+    qualifyingPaymentsMade: nullableNumber(row.qualifying_payments_made),
+    qualifyingPaymentsRequired: nullableNumber(row.qualifying_payments_required),
+    estimatedForgivenessAmount: nullableNumber(row.estimated_forgiveness_amount),
+    estimatedForgivenessDate: nullableString(row.estimated_forgiveness_date),
+    forgivenessTaxTreatment: nullableString(row.forgiveness_tax_treatment) as StudentLoanForgivenessTaxTreatment | null,
+    estimatedForgivenessTaxLiability: nullableNumber(row.estimated_forgiveness_tax_liability),
+    employerDirectLoanAssistanceMonthly: nullableNumber(row.employer_direct_loan_assistance_monthly),
+    employerDirectLoanAssistanceRemaining: nullableNumber(row.employer_direct_loan_assistance_remaining),
+    qualifiedStudentLoanPaymentRetirementMatchOffered: nullableBoolean(row.qualified_student_loan_payment_retirement_match_offered),
+    qualifiedPaymentRequiredForFullRetirementMatch: nullableNumber(row.qualified_payment_required_for_full_retirement_match),
+    expectedStudentLoanBasedEmployerMatchMonthly: nullableNumber(row.expected_student_loan_based_employer_match_monthly),
   }));
 
   const retirementAccounts = (raw.retirementAccounts ?? []).map((row) => ({
