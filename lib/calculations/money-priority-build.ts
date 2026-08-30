@@ -17,6 +17,19 @@ import {
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
+export type GoalEconomicTier = "required_protective" | "important" | "optional_lifestyle";
+export type GoalDeadlineTier = "fixed" | "flexible" | "unknown";
+export type GoalConsequenceTier = "high" | "moderate" | "low" | "unknown";
+
+export type GoalRankingFactors = {
+  economicTier: GoalEconomicTier;
+  deadlineTier: GoalDeadlineTier;
+  consequenceTier: GoalConsequenceTier;
+  monthsRemaining: number | null;
+  userPriority: number;
+  stableTieBreaker: string;
+};
+
 export type BuildStageAllocation = {
   category: BuildAllocationCategory;
   relatedEntityId: string | null;
@@ -24,7 +37,9 @@ export type BuildStageAllocation = {
   requestedMonthlyAmount: number;
   allocatedMonthlyAmount: number;
   unfundedMonthlyAmount: number;
-  priority: number;
+  rankingFactors: GoalRankingFactors | null;
+  protectedAllocatedMonthlyAmount: number;
+  allocationPhase: "required_goal" | "retirement" | "important_goal" | "optional_goal";
   reasons: string[];
 };
 
@@ -36,6 +51,7 @@ export type GoalFundingAssessment = {
   monthsRemaining: number | null;
   isFunded: boolean;
   missingData: string[];
+  rankingFactors: GoalRankingFactors;
 };
 
 export type RetirementBuildAssessment = {
@@ -74,8 +90,10 @@ function roundMoney(value: number): number {
 }
 
 function parseIsoDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10) === value ? date : null;
 }
 
 function monthsUntil(asOfDate: string, targetDate: string): number | null {
@@ -100,6 +118,58 @@ function goalProtectionMultiplier(goal: MoneyPrioritySnapshot["goals"][number]):
   if (goal.goalClass === "necessary_protective") return 0.75;
   if (goal.necessity === "important" && goal.deadlineFlexibility === "fixed") return 0.5;
   return 0;
+}
+
+const ECONOMIC_ORDER: Record<GoalEconomicTier, number> = {
+  required_protective: 1,
+  important: 2,
+  optional_lifestyle: 3,
+};
+const DEADLINE_ORDER: Record<GoalDeadlineTier, number> = { fixed: 1, flexible: 2, unknown: 3 };
+const CONSEQUENCE_ORDER: Record<GoalConsequenceTier, number> = { high: 1, moderate: 2, low: 3, unknown: 4 };
+
+export function buildGoalRankingFactors(
+  goal: MoneyPrioritySnapshot["goals"][number],
+  monthsRemaining: number | null,
+): GoalRankingFactors {
+  const economicTier: GoalEconomicTier = goal.necessity === "required" || goal.goalClass === "necessary_protective"
+    ? "required_protective"
+    : goal.necessity === "important"
+      ? "important"
+      : "optional_lifestyle";
+  const deadlineTier: GoalDeadlineTier = goal.deadlineFlexibility === "fixed" || goal.deadlineFlexibility === "inflexible"
+    ? "fixed"
+    : goal.deadlineFlexibility === "flexible"
+      ? "flexible"
+      : "unknown";
+  const consequenceTier: GoalConsequenceTier = goal.consequenceLevel === "high"
+    ? "high"
+    : goal.consequenceLevel === "moderate"
+      ? "moderate"
+      : goal.consequenceLevel === "low"
+        ? "low"
+        : "unknown";
+  return {
+    economicTier,
+    deadlineTier,
+    consequenceTier,
+    monthsRemaining,
+    userPriority: goal.priority,
+    stableTieBreaker: goal.id,
+  };
+}
+
+export function compareGoalRankingFactors(a: GoalRankingFactors, b: GoalRankingFactors): number {
+  const meaningful = ECONOMIC_ORDER[a.economicTier] - ECONOMIC_ORDER[b.economicTier]
+    || DEADLINE_ORDER[a.deadlineTier] - DEADLINE_ORDER[b.deadlineTier]
+    || CONSEQUENCE_ORDER[a.consequenceTier] - CONSEQUENCE_ORDER[b.consequenceTier];
+  if (meaningful) return meaningful;
+  if (a.monthsRemaining !== b.monthsRemaining) {
+    if (a.monthsRemaining === null) return 1;
+    if (b.monthsRemaining === null) return -1;
+    return a.monthsRemaining - b.monthsRemaining;
+  }
+  return a.userPriority - b.userPriority || a.stableTieBreaker.localeCompare(b.stableTieBreaker);
 }
 
 export function assessRetirementBuild(
@@ -188,6 +258,8 @@ export function assessGoalFunding(
 ): GoalFundingAssessment[] {
   return snapshot.goals.map((goal) => {
     const remaining = roundMoney(Math.max(0, goal.targetAmount - goal.currentAmount));
+    const preliminaryMonths = goal.targetDate ? monthsUntil(asOfDate, goal.targetDate) : null;
+    const rankingFactors = buildGoalRankingFactors(goal, preliminaryMonths);
     if (remaining === 0) {
       return {
         goalId: goal.id,
@@ -197,6 +269,7 @@ export function assessGoalFunding(
         monthsRemaining: goal.targetDate ? monthsUntil(asOfDate, goal.targetDate) : null,
         isFunded: true,
         missingData: [],
+        rankingFactors,
       };
     }
 
@@ -209,6 +282,7 @@ export function assessGoalFunding(
         monthsRemaining: null,
         isFunded: false,
         missingData: ["A target date is required to calculate the monthly funding pace."],
+        rankingFactors,
       };
     }
 
@@ -222,6 +296,7 @@ export function assessGoalFunding(
         monthsRemaining: null,
         isFunded: false,
         missingData: ["The goal target date is invalid."],
+        rankingFactors,
       };
     }
 
@@ -236,8 +311,9 @@ export function assessGoalFunding(
       monthsRemaining,
       isFunded: false,
       missingData: [],
+      rankingFactors,
     };
-  });
+  }).sort((a, b) => compareGoalRankingFactors(a.rankingFactors, b.rankingFactors));
 }
 
 export function evaluateBuildStage(
@@ -255,6 +331,7 @@ export function evaluateBuildStage(
   const retirementAccounts = evaluateRetirementAccountOpportunities(snapshot, taxPolicy);
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
+  const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
 
   const protectedGoalNeed = roundMoney(goals.reduce((sum, goal) => sum + goal.protectedMonthlyNeed, 0));
   const protectedRetirementNeed = retirement.recommendedMonthlyIncrease;
@@ -279,7 +356,9 @@ export function evaluateBuildStage(
       requestedMonthlyAmount: retirement.recommendedMonthlyIncrease,
       allocatedMonthlyAmount: 0,
       unfundedMonthlyAmount: retirement.recommendedMonthlyIncrease,
-      priority: 100,
+      rankingFactors: null,
+      protectedAllocatedMonthlyAmount: 0,
+      allocationPhase: "retirement",
       reasons: usingProjection
         ? [
             "Projection-based guidance is available and is primary over the generic savings-rate benchmark.",
@@ -296,21 +375,13 @@ export function evaluateBuildStage(
   }
   warnings.push(...retirementAccounts.warnings);
 
-  for (const goal of snapshot.goals) {
-    const assessment = goalById.get(goal.id)!;
+  for (const assessment of goals) {
+    const goal = sourceGoalById.get(assessment.goalId)!;
     if (assessment.isFunded) continue;
     if (assessment.requiredMonthlyPace === null) {
       warnings.push(`${goal.name}: ${assessment.missingData.join(" ")}`);
       continue;
     }
-
-    let priority = Math.max(0, 50 - goal.priority);
-    if (goal.necessity === "required") priority += 100;
-    else if (goal.necessity === "important") priority += 40;
-    if (goal.goalClass === "necessary_protective") priority += 50;
-    if (goal.deadlineFlexibility === "fixed") priority += 30;
-    if (goal.consequenceLevel === "high") priority += 20;
-    if (goal.necessity === "optional" || goal.goalClass === "lifestyle_optional") priority -= 50;
 
     requests.push({
       category: "goal",
@@ -319,7 +390,13 @@ export function evaluateBuildStage(
       requestedMonthlyAmount: assessment.requiredMonthlyPace,
       allocatedMonthlyAmount: 0,
       unfundedMonthlyAmount: assessment.requiredMonthlyPace,
-      priority,
+      rankingFactors: assessment.rankingFactors,
+      protectedAllocatedMonthlyAmount: 0,
+      allocationPhase: assessment.rankingFactors.economicTier === "required_protective"
+        ? "required_goal"
+        : assessment.rankingFactors.economicTier === "important"
+          ? "important_goal"
+          : "optional_goal",
       reasons: [
         `Required pace is $${assessment.requiredMonthlyPace.toFixed(2)} per month.`,
         goal.necessity === "required"
@@ -331,15 +408,54 @@ export function evaluateBuildStage(
     });
   }
 
-  requests.sort((a, b) => b.priority - a.priority || a.title.localeCompare(b.title));
-
   let remainingMonthlyCapacity = allocationMonthlyCapacity;
-  for (const request of requests) {
-    const allocated = roundMoney(Math.min(request.requestedMonthlyAmount, remainingMonthlyCapacity));
-    request.allocatedMonthlyAmount = allocated;
-    request.unfundedMonthlyAmount = roundMoney(Math.max(0, request.requestedMonthlyAmount - allocated));
+  const goalRequests = requests.filter((request) => request.category === "goal");
+  const retirementRequest = requests.find((request) => request.category === "retirement");
+  const allocate = (request: BuildStageAllocation, maximum: number, isProtected = false) => {
+    const stillNeeded = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
+    const allocated = roundMoney(Math.min(stillNeeded, maximum, remainingMonthlyCapacity));
+    request.allocatedMonthlyAmount = roundMoney(request.allocatedMonthlyAmount + allocated);
+    if (isProtected) request.protectedAllocatedMonthlyAmount = roundMoney(
+      request.protectedAllocatedMonthlyAmount + allocated,
+    );
+    request.unfundedMonthlyAmount = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
     remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocated));
+  };
+
+  // Pass 1 protects every qualifying goal before any goal is topped up.
+  for (const request of goalRequests) {
+    const assessment = goalById.get(request.relatedEntityId!)!;
+    if (assessment.protectedMonthlyNeed <= 0) continue;
+    allocate(request, assessment.protectedMonthlyNeed, true);
   }
+
+  // Required/protective goals retain their legitimate pace before additional retirement.
+  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "required_protective")) {
+    request.allocationPhase = "required_goal";
+    allocate(request, request.requestedMonthlyAmount);
+  }
+
+  if (retirementRequest) allocate(retirementRequest, retirementRequest.requestedMonthlyAmount);
+
+  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "important")) {
+    request.allocationPhase = "important_goal";
+    allocate(request, request.requestedMonthlyAmount);
+  }
+  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "optional_lifestyle")) {
+    request.allocationPhase = "optional_goal";
+    allocate(request, request.requestedMonthlyAmount);
+  }
+
+  const phaseOrder: Record<BuildStageAllocation["allocationPhase"], number> = {
+    required_goal: 1,
+    retirement: 2,
+    important_goal: 3,
+    optional_goal: 4,
+  };
+  requests.sort((a, b) => phaseOrder[a.allocationPhase] - phaseOrder[b.allocationPhase]
+    || (a.rankingFactors && b.rankingFactors
+      ? compareGoalRankingFactors(a.rankingFactors, b.rankingFactors)
+      : a.category === "retirement" ? -1 : 1));
 
   const totalAllocatedMonthly = roundMoney(
     requests.reduce((sum, request) => sum + request.allocatedMonthlyAmount, 0),

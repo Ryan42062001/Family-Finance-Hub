@@ -135,7 +135,14 @@ function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendat
   }
   for (const allocation of build.allocations) {
     if (allocation.allocatedMonthlyAmount <= 0 && allocation.unfundedMonthlyAmount <= 0) continue;
-    recommendations.push({ id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state: allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering", urgency: allocation.priority >= 100 ? "high" : allocation.priority >= 50 ? "medium" : "optional", title: allocation.title, explanation: allocation.reasons.join(" "), allocations: allocation.allocatedMonthlyAmount > 0 ? [{ category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount, annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons }] : [], whyNow: allocation.reasons, tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [], sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [] });
+    const urgency = allocation.category === "retirement"
+      ? "high"
+      : allocation.rankingFactors?.economicTier === "required_protective"
+        ? "high"
+        : allocation.rankingFactors?.economicTier === "important"
+          ? "medium"
+          : "optional";
+    recommendations.push({ id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state: allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering", urgency, title: allocation.title, explanation: allocation.reasons.join(" "), allocations: allocation.allocatedMonthlyAmount > 0 ? [{ category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount, annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons }] : [], whyNow: allocation.reasons, tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [], sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [] });
   }
   const availableAccounts = build.retirementAccounts.opportunities.filter((item) => item.state === "available");
   const accountDataNeeded = build.retirementAccounts.opportunities.filter((item) => item.state === "more_information_needed");

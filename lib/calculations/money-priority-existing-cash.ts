@@ -142,7 +142,7 @@ export function evaluateExistingCashDeployment(
       if (allocation.unfundedMonthlyAmount <= 0) continue;
 
       if (allocation.category === "goal" && allocation.relatedEntityId) {
-        if (allocation.priority < 50) continue;
+        if (allocation.rankingFactors?.economicTier === "optional_lifestyle") continue;
         const assessment = goalAssessment.get(allocation.relatedEntityId);
         if (!assessment) continue;
 

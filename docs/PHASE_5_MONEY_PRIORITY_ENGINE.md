@@ -1117,3 +1117,31 @@ monthlyCashFlowBeforeSavings =
 ```
 
 Required nonessential commitments increase a liquidity floor derived from required outflow, but the full emergency target remains based on essential expenses plus minimum debt payments. Goal savings and retirement contributions remain outside expense aggregates.
+
+---
+
+## Goal Ranking & Two-Pass Build Allocation V1
+
+Build goal ranking is lexicographic rather than an additive score. The engine compares the following fields in order and stops at the first difference:
+
+1. economic tier: required/protective, important, optional/lifestyle;
+2. deadline rigidity: fixed/inflexible, flexible, unknown;
+3. consequence: high, moderate, low, unknown;
+4. valid deadline proximity: fewer months remaining first, with missing/invalid dates last;
+5. explicit user priority: the existing lower-number-means-higher-priority convention;
+6. stable goal ID.
+
+Required/protective includes `necessity === "required"` or `goalClass === "necessary_protective"`. Important contains other goals explicitly marked important. All remaining goals are optional/lifestyle. Ranking uses only normalized structured metadata; names never determine tier, consequence, or urgency. Output exposes these factors as `rankingFactors`, so consumers do not need to reconstruct hidden arithmetic. The former numeric Build priority score has been removed.
+
+Ranking and protection are deliberately separate. `goalProtectionMultiplier()` continues to determine how much of a goal's legitimate monthly pace is protected; it does not influence rank. Build then allocates in explicit phases:
+
+1. protected portions of all qualifying goals, in lexicographic order;
+2. required/protective goals from their protected amount to their full legitimate pace;
+3. additional retirement toward the existing projection-based need or benchmark;
+4. important goals from any protected amount to their full legitimate pace;
+5. optional/lifestyle goals to their full legitimate pace;
+6. Optimize receives only what remains.
+
+This preserves protection for important fixed goals without allowing their top-up to displace additional retirement. Within the protected pass, a higher-ranked goal receives up to its protected need before the next goal; no proportional allocation is invented. No goal is topped above its protected amount while a qualifying protected need remains uncovered.
+
+The authoritative Build run continues to use the residual snapshot produced after one-time existing-cash deployment. Fully cash-satisfied goals disappear from recurring allocations, and partially satisfied goals expose only their residual pace. Missing or invalid target dates produce targeted warnings, no invented pace, and do not block other goals. Sorting uses the normalized goal ID as the final tie-break, so raw input order does not affect ranking, allocation, capacity, or recommendation order.
