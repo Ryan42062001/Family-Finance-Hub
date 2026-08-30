@@ -25,28 +25,3 @@ Cross-household isolation is a release blocker. Future financial tables must inc
 ### Current limitation
 
 This verification proves the database RLS behavior. Automated CI coverage for these assertions should be added before private beta so regressions fail the build automatically.
-
-## Phase 5 schema security verification
-
-Date: 2026-08-30  
-Environment: Supabase development project, hosted Postgres 17
-
-The applied Phase 5 migration history and live schema were reconciled with the `phase-5-money-priority-engine` branch.
-
-### Verified assertions
-
-1. `household_people`, `household_financial_preferences`, and `insurance_exposures` have RLS enabled.
-2. Each new table has four household-member policies covering SELECT, INSERT, UPDATE, and DELETE.
-3. Each new table has explicit authenticated CRUD grants for Data API compatibility.
-4. Income-owner, retirement-owner, insurance-person, account-goal, and account-debt relationships use composite household-aware foreign keys.
-5. Phase 5 catalog regression checks execute successfully without exceptions.
-6. Supabase Security Advisor reports no findings.
-7. Performance Advisor reports only expected unused-index informational notices because the development database currently contains no household financial rows.
-
-### Automated check
-
-Run `supabase/tests/phase_5_schema_security.sql` against the target database after migrations. Any missing RLS setting, policy, grant, or household-aware relationship raises an exception.
-
-### Remaining release test
-
-Before merging Phase 5, repeat the two-identity positive-ownership and negative-cross-household CRUD test for all three new tables. This remains a release blocker even though their policies use the previously verified household-membership function.
