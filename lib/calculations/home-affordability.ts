@@ -1,4 +1,5 @@
 import type { MoneyPriorityEngineResult } from "./money-priority-engine.ts";
+import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 
 export type HomeAffordabilityState =
@@ -190,6 +191,62 @@ function sumMonthlyAllocations(
     .reduce((sum, allocation) => sum + allocation.monthlyAmount, 0));
 }
 
+function retirementAllocation(result: MoneyPriorityEngineResult): number {
+  return roundMoney(result.build.allocations
+    .filter((allocation) => allocation.category === "retirement")
+    .reduce((sum, allocation) => sum + allocation.allocatedMonthlyAmount, 0));
+}
+
+function allocatedForRecommendation(result: MoneyPriorityEngineResult, recommendationId: string): number {
+  const recommendation = result.recommendations.find((item) => item.id === recommendationId);
+  return roundMoney(recommendation?.allocations.reduce((sum, allocation) => sum + allocation.monthlyAmount, 0) ?? 0);
+}
+
+function securePrioritiesFullyFunded(result: MoneyPriorityEngineResult): boolean {
+  return result.secure.recommendations
+    .filter((item) => item.state === "recommended" && (item.urgency === "required" || item.urgency === "high"))
+    .every((item) => {
+      const requested = item.monthlyAmount && item.monthlyAmount > 0
+        ? item.monthlyAmount
+        : Math.max(0, item.gapAmount ?? 0);
+      if (requested <= 0) return true;
+      return allocatedForRecommendation(result, item.id) >= requested;
+    });
+}
+
+function employerMatchFullyFunded(result: MoneyPriorityEngineResult): boolean {
+  if (result.secure.employerMatchMonthlyGap <= 0) return true;
+  const allocated = roundMoney(result.recommendations
+    .filter((item) => item.stage === "secure")
+    .flatMap((item) => item.allocations)
+    .filter((allocation) => allocation.category === "employer_match")
+    .reduce((sum, allocation) => sum + allocation.monthlyAmount, 0));
+  return allocated >= result.secure.employerMatchMonthlyGap;
+}
+
+function unrelatedRequiredGoalsFullyFunded(result: MoneyPriorityEngineResult, relatedGoalId: string | null): boolean {
+  return !result.build.allocations.some((allocation) =>
+    allocation.category === "goal"
+    && allocation.relatedEntityId !== relatedGoalId
+    && allocation.rankingFactors?.economicTier === "required_protective"
+    && allocation.unfundedMonthlyAmount > 0
+  );
+}
+
+function protectedRecurringAllocations(result: MoneyPriorityEngineResult, relatedGoalId: string | null): number {
+  const secure = sumMonthlyAllocations(result, (item) =>
+    item.stage === "secure"
+    && item.state === "recommended"
+    && (item.urgency === "required" || item.urgency === "high"));
+  const goals = roundMoney(result.build.allocations
+    .filter((allocation) =>
+      allocation.category === "goal"
+      && allocation.relatedEntityId !== relatedGoalId
+      && allocation.rankingFactors?.economicTier === "required_protective")
+    .reduce((sum, allocation) => sum + allocation.allocatedMonthlyAmount, 0));
+  return roundMoney(secure + goals);
+}
+
 function availableSaleProceeds(scenario: HomePurchaseScenario): {
   available: number;
   unavailable: number;
@@ -339,9 +396,7 @@ export function evaluateHomeAffordability(
         ["mortgage.arm.subsequentAdjustmentCap", arm.subsequentAdjustmentCap],
         ["mortgage.arm.lifetimeAdjustmentCap", arm.lifetimeAdjustmentCap],
       ];
-      for (const [name, value] of armInputs) {
-        if (!finiteNonnegative(value)) missingData.push(name);
-      }
+      for (const [name, value] of armInputs) if (!finiteNonnegative(value)) missingData.push(name);
       if (!Number.isInteger(arm.initialFixedMonths) || arm.initialFixedMonths <= 0) {
         missingData.push("mortgage.arm.initialFixedMonths must be a positive whole number");
       }
@@ -412,40 +467,11 @@ export function evaluateHomeAffordability(
   const stressedAllInHousingCost = stressedPrincipalAndInterest === null
     ? null
     : roundMoney(stressedPrincipalAndInterest + taxesInsuranceHoaAndMortgageInsurance + maintenanceAndOtherPropertyCosts);
-  const disappearingHousingCost = scenario.currentHousingCostDisappears
-    ? (scenario.currentHousingMonthlyCost ?? 0)
-    : 0;
+  const disappearingHousingCost = scenario.currentHousingCostDisappears ? (scenario.currentHousingMonthlyCost ?? 0) : 0;
   const incrementalHousingImpact = roundMoney(allInHousingCost - disappearingHousingCost);
   const stressedIncrementalHousingImpact = stressedAllInHousingCost === null
     ? null
     : roundMoney(stressedAllInHousingCost - disappearingHousingCost);
-  const recurringClaims = sumMonthlyAllocations(engine, () => true);
-  const prePurchasePlanMargin = roundMoney(
-    engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - recurringClaims,
-  );
-  const postPurchaseCashFlow = roundMoney(
-    engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - incrementalHousingImpact,
-  );
-  const stressedPostPurchaseCashFlow = stressedIncrementalHousingImpact === null
-    ? null
-    : roundMoney(engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - stressedIncrementalHousingImpact);
-  const postPurchasePlanMargin = roundMoney(postPurchaseCashFlow - recurringClaims);
-  const stressedPostPurchasePlanMargin = stressedPostPurchaseCashFlow === null
-    ? null
-    : roundMoney(stressedPostPurchaseCashFlow - recurringClaims);
-  const monthly: HomeMonthlyAssessment = {
-    principalAndInterest: initialPrincipalAndInterest,
-    taxesInsuranceHoaAndMortgageInsurance,
-    maintenanceAndOtherPropertyCosts,
-    allInHousingCost,
-    stressedAllInHousingCost,
-    incrementalHousingImpact,
-    stressedIncrementalHousingImpact,
-    postPurchaseCashFlow,
-    stressedPostPurchaseCashFlow,
-    postPurchasePlanMargin,
-    stressedPostPurchasePlanMargin,
-  };
 
   const relatedGoalEarmarkedCash = roundMoney(engine.snapshot.accounts
     .filter((account) => account.cashPurpose === "earmarked_goal" && account.relatedGoalId === relatedGoalId)
@@ -454,10 +480,7 @@ export function evaluateHomeAffordability(
     .filter((deployment) => deployment.stage !== "optimize")
     .filter((deployment) => !(deployment.category === "goal" && deployment.relatedEntityId === relatedGoalId))
     .reduce((sum, deployment) => sum + deployment.amount, 0));
-  const unallocatedAfterPriority = roundMoney(Math.max(
-    0,
-    engine.existingCash.availableUnallocatedCash - higherPriorityOneTimeDeployments,
-  ));
+  const unallocatedAfterPriority = roundMoney(Math.max(0, engine.existingCash.availableUnallocatedCash - higherPriorityOneTimeDeployments));
   const saleProceeds = availableSaleProceeds(scenario);
   const legitimateCashAvailable = roundMoney(
     Math.max(0, unallocatedAfterPriority - engine.existingCash.liquidityFloor)
@@ -481,10 +504,7 @@ export function evaluateHomeAffordability(
     totalAcquisitionCashCommitted - scenario.closing.earnestMoneyAlreadyPaid,
   ));
   const protectedCashRequired = roundMoney(Math.max(0, cashStillRequiredAtClosing - legitimateCashAvailable));
-  const postClosingAvailableLiquidity = roundMoney(Math.max(
-    0,
-    legitimateCashAvailable - cashStillRequiredAtClosing,
-  ));
+  const postClosingAvailableLiquidity = roundMoney(Math.max(0, legitimateCashAvailable - cashStillRequiredAtClosing));
   const cashToClose: HomeCashToCloseAssessment = {
     totalAcquisitionCashCommitted,
     cashStillRequiredAtClosing,
@@ -499,26 +519,108 @@ export function evaluateHomeAffordability(
     dependsOnSimultaneousClosing: saleProceeds.simultaneous,
   };
 
-  const secureMonthlyNeed = sumMonthlyAllocations(
-    engine,
-    (item) => item.stage === "secure" && item.state === "recommended"
-      && (item.urgency === "required" || item.urgency === "high"),
+  const recurringNonDebtHousingCosts = roundMoney(
+    taxesInsuranceHoaAndMortgageInsurance + maintenanceAndOtherPropertyCosts,
   );
-  const employerMatchMonthlyNeed = engine.secure.employerMatchMonthlyGap;
-  const unrelatedRequiredGoalNeed = roundMoney(engine.build.goals
-    .filter((goal) => goal.goalId !== relatedGoalId)
-    .reduce((sum, goal) => sum + goal.protectedMonthlyNeed, 0));
-  const employerMatchPreserved = postPurchaseCashFlow >= employerMatchMonthlyNeed;
-  const secureNeedsPreserved = engine.feasibility.status !== "funding_gap"
-    && postPurchaseCashFlow >= secureMonthlyNeed;
-  const requiredGoalsPreserved = postPurchaseCashFlow >= secureMonthlyNeed + unrelatedRequiredGoalNeed;
-  const retirementAllocation = engine.build.allocations
-    .find((allocation) => allocation.category === "retirement")?.allocatedMonthlyAmount ?? 0;
-  const retirementMonthlyAllocationDisplaced = roundMoney(Math.min(
-    retirementAllocation,
-    Math.max(0, incrementalHousingImpact - Math.max(0, prePurchasePlanMargin)),
-  ));
-  const retirementMateriallyWorsened = retirementMonthlyAllocationDisplaced > 0;
+  const commonChanges = {
+    cashInflow: saleProceeds.available,
+    cashUse: cashStillRequiredAtClosing > 0 ? { amount: cashStillRequiredAtClosing, relatedGoalId } : null,
+    addExpenses: [
+      ...(recurringNonDebtHousingCosts !== 0 ? [{
+        id: "hypothetical-home-recurring-costs",
+        name: "Hypothetical home recurring costs",
+        category: "housing",
+        monthlyAmount: recurringNonDebtHousingCosts,
+        isEssential: true,
+        cashFlowTreatment: "required" as const,
+      }] : []),
+      ...(disappearingHousingCost > 0 ? [{
+        id: "hypothetical-current-housing-offset",
+        name: "Current housing cost removed by purchase",
+        category: "housing",
+        monthlyAmount: -disappearingHousingCost,
+        isEssential: true,
+        cashFlowTreatment: "required" as const,
+      }] : []),
+    ],
+    completeGoalIds: relatedGoalId ? [relatedGoalId] : [],
+  };
+
+  let postEngine: MoneyPriorityEngineResult | null = null;
+  let stressedPostEngine: MoneyPriorityEngineResult | null = null;
+  if (missingData.length === 0 && protectedCashRequired === 0) {
+    postEngine = runHypotheticalMoneyPriorityEngine(engine, {
+      ...commonChanges,
+      addDebts: loanAmount > 0 ? [{
+        id: "hypothetical-home-mortgage",
+        name: "Hypothetical home mortgage",
+        type: "mortgage",
+        balance: loanAmount,
+        annualInterestRate: scenario.mortgage.interestRate,
+        minimumPayment: initialPrincipalAndInterest,
+        rateType: scenario.mortgage.rateType,
+      }] : [],
+    }, policy).engine;
+
+    if (stressedPrincipalAndInterest !== null && stressInterestRate !== null) {
+      stressedPostEngine = runHypotheticalMoneyPriorityEngine(engine, {
+        ...commonChanges,
+        addDebts: loanAmount > 0 ? [{
+          id: "hypothetical-home-mortgage",
+          name: "Hypothetical home mortgage",
+          type: "mortgage",
+          balance: loanAmount,
+          annualInterestRate: stressInterestRate,
+          minimumPayment: stressedPrincipalAndInterest,
+          rateType: "adjustable",
+        }] : [],
+      }, policy).engine;
+    }
+  }
+
+  const prePurchasePlanMargin = roundMoney(
+    engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - protectedRecurringAllocations(engine, relatedGoalId),
+  );
+  const postPurchaseCashFlow = postEngine
+    ? postEngine.snapshot.aggregates.monthlyCashFlowBeforeSavings
+    : roundMoney(engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - incrementalHousingImpact);
+  const stressedPostPurchaseCashFlow = stressedPostEngine
+    ? stressedPostEngine.snapshot.aggregates.monthlyCashFlowBeforeSavings
+    : stressedIncrementalHousingImpact === null
+      ? null
+      : roundMoney(engine.snapshot.aggregates.monthlyCashFlowBeforeSavings - stressedIncrementalHousingImpact);
+  const postPurchasePlanMargin = roundMoney(
+    postPurchaseCashFlow - (postEngine ? protectedRecurringAllocations(postEngine, relatedGoalId) : protectedRecurringAllocations(engine, relatedGoalId)),
+  );
+  const stressedPostPurchasePlanMargin = stressedPostPurchaseCashFlow === null
+    ? null
+    : roundMoney(stressedPostPurchaseCashFlow - (stressedPostEngine
+      ? protectedRecurringAllocations(stressedPostEngine, relatedGoalId)
+      : protectedRecurringAllocations(engine, relatedGoalId)));
+  const monthly: HomeMonthlyAssessment = {
+    principalAndInterest: initialPrincipalAndInterest,
+    taxesInsuranceHoaAndMortgageInsurance,
+    maintenanceAndOtherPropertyCosts,
+    allInHousingCost,
+    stressedAllInHousingCost,
+    incrementalHousingImpact,
+    stressedIncrementalHousingImpact,
+    postPurchaseCashFlow,
+    stressedPostPurchaseCashFlow,
+    postPurchasePlanMargin,
+    stressedPostPurchasePlanMargin,
+  };
+
+  const employerMatchPreserved = postEngine !== null && employerMatchFullyFunded(postEngine);
+  const secureNeedsPreserved = postEngine !== null && securePrioritiesFullyFunded(postEngine);
+  const requiredGoalsPreserved = postEngine !== null && unrelatedRequiredGoalsFullyFunded(postEngine, relatedGoalId);
+  const retirementBefore = retirementAllocation(engine);
+  const retirementAfter = postEngine ? retirementAllocation(postEngine) : retirementBefore;
+  const retirementMonthlyAllocationDisplaced = roundMoney(Math.max(0, retirementBefore - retirementAfter));
+  const retirementMateriallyWorsened = postEngine !== null && (
+    retirementMonthlyAllocationDisplaced > 0
+    || (engine.build.retirement.state === "projection_on_track" && postEngine.build.retirement.state !== "projection_on_track")
+  );
   const planImpact: HomePlanImpact = {
     employerMatchPreserved,
     secureNeedsPreserved,
@@ -529,9 +631,7 @@ export function evaluateHomeAffordability(
   };
 
   const overlapMonths = scenario.homeSale?.expectedHousingOverlapMonths ?? 0;
-  const additionalMonthlyBurdenDuringOverlap = overlapMonths > 0
-    ? roundMoney(allInHousingCost)
-    : 0;
+  const additionalMonthlyBurdenDuringOverlap = overlapMonths > 0 ? roundMoney(allInHousingCost) : 0;
   const liquidityRequiredForOverlapShortfall = roundMoney(
     Math.max(0, additionalMonthlyBurdenDuringOverlap - Math.max(0, prePurchasePlanMargin)) * overlapMonths,
   );
@@ -550,15 +650,11 @@ export function evaluateHomeAffordability(
     : null;
   const dti: HomeDtiDiagnostics = { housingDti, totalDti };
 
-  const thinMarginThreshold = Math.max(
-    100,
-    engine.snapshot.aggregates.monthlyTakeHomeIncome * 0.05,
-  );
+  const thinMarginThreshold = Math.max(100, engine.snapshot.aggregates.monthlyTakeHomeIncome * 0.05);
   if (scenario.monthlyMaintenancePlanningAmount === null
     || !Number.isFinite(scenario.monthlyMaintenancePlanningAmount)
     || scenario.monthlyMaintenancePlanningAmount < 0) {
-    if (postPurchasePlanMargin <= thinMarginThreshold
-      * policy.homeAffordability.missingMaintenanceStrongMarginMultiplier) {
+    if (postPurchasePlanMargin <= thinMarginThreshold * policy.homeAffordability.missingMaintenanceStrongMarginMultiplier) {
       missingData.push("monthlyMaintenancePlanningAmount");
     } else {
       warnings.push("Maintenance planning amount is missing; the result has strong modeled capacity but excludes this known limitation.");
@@ -590,11 +686,12 @@ export function evaluateHomeAffordability(
     purchaseReadiness = "comfortably_affordable";
   }
 
-  const stressedPlanFails = stressedPostPurchaseCashFlow !== null
-    && (stressedPostPurchaseCashFlow < 0
-      || stressedPostPurchaseCashFlow < secureMonthlyNeed
-      || stressedPostPurchaseCashFlow < employerMatchMonthlyNeed
-      || stressedPostPurchaseCashFlow < secureMonthlyNeed + unrelatedRequiredGoalNeed);
+  const stressedPlanFails = stressedPostEngine !== null && (
+    stressedPostEngine.snapshot.aggregates.monthlyCashFlowBeforeSavings < 0
+    || !employerMatchFullyFunded(stressedPostEngine)
+    || !securePrioritiesFullyFunded(stressedPostEngine)
+    || !unrelatedRequiredGoalsFullyFunded(stressedPostEngine, relatedGoalId)
+  );
   const ongoingHardFailure = postPurchaseCashFlow < 0
     || !employerMatchPreserved
     || !secureNeedsPreserved
@@ -627,9 +724,7 @@ export function evaluateHomeAffordability(
   let overallAffordability: HomeAffordabilityState;
   if (states.includes("more_information_needed") || financing.quality === "more_information_needed") {
     overallAffordability = "more_information_needed";
-  } else if (states.includes("not_recommended")) {
-    overallAffordability = "not_recommended";
-  } else if (financing.quality === "not_recommended") {
+  } else if (states.includes("not_recommended") || financing.quality === "not_recommended") {
     overallAffordability = "not_recommended";
   } else if (states.includes("stretch") || financing.quality === "caution" || retirementMateriallyWorsened) {
     overallAffordability = "stretch";
@@ -652,7 +747,7 @@ export function evaluateHomeAffordability(
   if (scenario.mortgage.rateType === "adjustable") {
     risks.push("ARM affordability is tested at the supplied contractual lifetime-cap rate, not only the initial payment.");
   }
-  reasons.push("Purchase readiness, ongoing affordability, and financing quality are evaluated independently against the existing Phase 5 financial plan.");
+  reasons.push("Purchase readiness, ongoing affordability, and financing quality are evaluated against an authoritative hypothetical post-purchase Phase 5 plan.");
 
   return {
     purchaseReadiness,
