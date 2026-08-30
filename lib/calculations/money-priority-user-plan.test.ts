@@ -207,7 +207,7 @@ test("employer-match recommendation remains authoritative", () => {
 
 test("deductible reserve reduction is high severity", () => {
   const plan = reserveEngine();
-  const allocation = findAllocation(plan, (item) => item.recommendationId === "secure-deductible-reserve");
+  const allocation = findAllocation(plan, (item) => item.recommendationId === "secure-deductible-gap");
   const result = evaluateUserPlan(plan, [{ allocationId: allocation.allocationId, monthlyAmount: 0 }]);
   assert.equal(result.impacts.find((item) => item.allocationId === allocation.allocationId)?.severity, "high");
 });
@@ -285,6 +285,11 @@ test("retirement reduction may remain the same projection state", () => {
     employee_contributed_ytd: 6000, employer_contributed_ytd: 0,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
+  raw.preferences = {
+    ...(raw.preferences ?? {}),
+    desired_retirement_monthly_spending: null,
+    retirement_spending_basis: "unknown",
+  };
   const plan = engine(raw);
   const retirement = findAllocation(plan, (item) => item.category === "retirement");
   const result = evaluateUserPlan(plan, [{ allocationId: retirement.allocationId, monthlyAmount: 0 }]);
@@ -383,6 +388,11 @@ test("missing-information recommendation cannot be bypassed", () => {
   const raw = baseRaw();
   raw.goals = [];
   raw.income = [{ id: "income", owner_person_id: "p1", name: "Salary", monthly_amount: 8000, monthly_gross_amount: null, is_active: true }];
+  raw.preferences = {
+    ...(raw.preferences ?? {}),
+    desired_retirement_monthly_spending: null,
+    retirement_spending_basis: "unknown",
+  };
   const plan = engine(raw);
   const id = buildPlanAllocationId("build-retirement-missing-data", "retirement", null);
   const result = evaluateUserPlan(plan, [{ allocationId: id, monthlyAmount: 500 }]);
