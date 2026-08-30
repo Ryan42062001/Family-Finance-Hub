@@ -21,6 +21,11 @@ export type MoneyPriorityPolicy = {
     minimumUnallocatedLiquidityMonths: number;
     retirementCatchUpMonths: number;
   };
+  vehicleAffordability: {
+    preferredTermMaxMonths: number;
+    normalTermMaxMonths: number;
+    cautionTermMaxMonths: number;
+  };
   emergencyReserveMonthsByRisk: Record<EmergencyRiskTier, number>;
   retirementBenchmark: {
     healthyLower: number;
@@ -55,6 +60,11 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
     minimumUnallocatedLiquidityFloor: 1000,
     minimumUnallocatedLiquidityMonths: 0.5,
     retirementCatchUpMonths: 12,
+  },
+  vehicleAffordability: {
+    preferredTermMaxMonths: 48,
+    normalTermMaxMonths: 60,
+    cautionTermMaxMonths: 72,
   },
   emergencyReserveMonthsByRisk: {
     low: 3,
