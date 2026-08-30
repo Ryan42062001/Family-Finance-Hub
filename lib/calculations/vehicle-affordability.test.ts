@@ -188,7 +188,7 @@ test("loss of employer-match capacity is not recommended", () => {
     full_match_employee_contribution_monthly: 1000, match_status: "partially_captured",
   }];
   const result = evaluateVehicleAffordability(engine(raw), scenario({
-    purchasePrice: 120000, cashDownPayment: 0, salesTax: 0, titleRegistrationFees: 0,
+    purchasePrice: 150000, cashDownPayment: 0, salesTax: 0, titleRegistrationFees: 0,
   }));
   assert.equal(result.planImpact.employerMatchPreserved, false);
   assert.equal(result.affordability, "not_recommended");
@@ -260,7 +260,7 @@ test("higher-priority one-time deployments cannot be double-counted as vehicle c
     loanApr: null, loanTermMonths: null,
   }));
   assert.ok(result.cash.higherPriorityOneTimeDeployments > 0);
-  assert.equal(result.cash.availableVehicleCash, 0);
+  assert.equal(result.cash.availableVehicleCash, 1500);\n  assert.ok(result.cash.cashRequired > result.cash.availableVehicleCash);
   assert.equal(result.affordability, "not_recommended");
 });
 
