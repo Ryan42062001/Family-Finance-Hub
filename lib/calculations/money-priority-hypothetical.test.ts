@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
+import { MONEY_PRIORITY_POLICY_V1 } from "./money-priority-policy.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 
 function raw(): MoneyPriorityRawSnapshot {
@@ -110,7 +111,7 @@ test("completing the related purchase goal marks it fully funded in the authorit
 
 test("policy mismatch is rejected instead of silently changing comparison policy", () => {
   const before = engine();
-  const mismatched = { ...({} as Parameters<typeof runHypotheticalMoneyPriorityEngine>[2]), version: "different" };
+  const mismatched = { ...MONEY_PRIORITY_POLICY_V1, version: "different" };
   assert.throws(() => runHypotheticalMoneyPriorityEngine(before, {}, mismatched), /does not match/);
 });
 
