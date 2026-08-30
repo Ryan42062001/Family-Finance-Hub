@@ -295,7 +295,7 @@ test("ordinary student-loan cash payoff reconciles residual debt", () => {
   ];
   const result = engineWith([loan({ current_balance: 5000 })], raw);
   assert.equal(result.residualNeeds.debtAppliedById["student-1"], 5000);
-  assert.equal(result.recommendations.some((item) => item.relatedEntityId === "student-1"), false);
+  assert.equal(result.secure.recommendations.some((item) => item.relatedEntityId === "student-1"), false);
 });
 
 test("minimum student-loan payment remains committed outflow", () => {
@@ -336,7 +336,7 @@ test("extra Your Plan payment against preserve strategy surfaces tradeoff", () =
 
 test("paid-off student loan creates no strategy recommendation", () => {
   const result = engineWith([pslf({ current_balance: 0 })]);
-  assert.equal(result.recommendations.some((item) => item.relatedEntityId === "student-1"), false);
+  assert.equal(result.secure.recommendations.some((item) => item.relatedEntityId === "student-1"), false);
 });
 
 test("stale override for paid-off student loan is superseded", () => {
