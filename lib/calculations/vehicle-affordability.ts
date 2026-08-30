@@ -166,7 +166,7 @@ function assessFinancing(
   let quality: VehicleFinancingQuality;
   if (aprSignal === "high_interest") quality = "not_recommended";
   else if (aprSignal === "payoff_favored" || termSignal === "strong_caution" || termSignal === "caution" || equitySignal === "underwater") quality = "caution";
-  else if (aprSignal === "low" && termSignal === "preferred" && equitySignal !== "underwater") quality = "preferred";
+  else if (aprSignal === "low" && termSignal === "preferred") quality = "preferred";
   else quality = "acceptable";
 
   const reasons = [
