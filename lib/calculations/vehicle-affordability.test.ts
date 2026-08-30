@@ -143,6 +143,10 @@ test("positive trade equity reduces net acquisition cost", () => {
 
 test("required unrelated goal becoming infeasible fails affordability", () => {
   const raw = baseRaw();
+  raw.accounts = [
+    { id: "reserve", name: "Emergency fund", account_type: "savings", balance: 9000, cash_purpose: "protected_reserve" },
+    { id: "cash", name: "Unallocated cash", account_type: "savings", balance: 0, cash_purpose: "unallocated" },
+  ];
   raw.goals = [{
     id: "required-goal", name: "Required repair", target_amount: 36000, current_amount: 0,
     target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective",
