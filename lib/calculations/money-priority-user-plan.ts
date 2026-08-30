@@ -132,17 +132,18 @@ export function deriveRecommendedPlanAllocations(
       urgency: recommendation.urgency,
       recommendedMonthlyAmount: roundMoney(allocation.monthlyAmount),
     }));
-    const isStudentStrategy = recommendation.state === "worth_considering"
+    const studentStrategyEntityId = recommendation.state === "worth_considering"
       && (recommendation.id.startsWith("secure-student-loan-preserve-")
         || recommendation.id.startsWith("secure-student-loan-review-"))
-      && recommendation.relatedEntityId;
-    if (!isStudentStrategy) return recurring;
+      ? engine.secure.recommendations.find((item) => item.id === recommendation.id)?.relatedEntityId ?? null
+      : null;
+    if (!studentStrategyEntityId) return recurring;
     return [...recurring, {
-      allocationId: buildPlanAllocationId(recommendation.id, "debt", recommendation.relatedEntityId),
+      allocationId: buildPlanAllocationId(recommendation.id, "debt", studentStrategyEntityId),
       recommendationId: recommendation.id,
       stage: recommendation.stage,
       category: "debt",
-      relatedEntityId: recommendation.relatedEntityId,
+      relatedEntityId: studentStrategyEntityId,
       title: recommendation.title,
       recommendationState: recommendation.state,
       urgency: recommendation.urgency,
