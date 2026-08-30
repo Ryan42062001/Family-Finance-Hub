@@ -226,7 +226,7 @@ test("missing PMI amount produces missing-data result", () => {
 
 test("ARM initial payment can fit while contractual stress payment fails", () => {
   const result = evaluateHomeAffordability(engine(), scenario({
-    purchasePrice: 1000000,
+    purchasePrice: 1200000,
     downPayment: 100000,
     mortgage: {
       rateType: "adjustable", interestRate: 3, termYears: 30,
@@ -309,7 +309,7 @@ test("temporary overlap can make transition unsafe", () => {
     { id: "cash", name: "Cash", account_type: "savings", balance: 75000, cash_purpose: "unallocated" },
   ];
   const result = evaluateHomeAffordability(engine(raw), scenario({
-    purchasePrice: 800000, downPayment: 60000,
+    purchasePrice: 1300000, downPayment: 60000,
     homeSale: sale("expected_after_purchase", { expectedHousingOverlapMonths: 6, expectedNetSaleProceeds: 0 }),
   }));
   assert.equal(result.overlap.overlapAffordable, false);
@@ -357,7 +357,7 @@ test("purchase can materially displace retirement funding", () => {
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
-  const result = evaluateHomeAffordability(engine(raw), scenario({ purchasePrice: 900000, downPayment: 60000 }));
+  const result = evaluateHomeAffordability(engine(raw), scenario({ purchasePrice: 1300000, downPayment: 60000 }));
   assert.ok(result.planImpact.retirementMonthlyAllocationDisplaced > 0);
   assert.notEqual(result.overallAffordability, "comfortably_affordable");
 });
