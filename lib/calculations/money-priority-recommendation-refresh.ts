@@ -1,6 +1,6 @@
 import type { MoneyPriorityEngineResult, MoneyPriorityRecommendation } from "./money-priority-engine.ts";
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
-import { deriveRecommendedPlanAllocations, evaluateUserPlan, type MoneyPlanOverride, type OverrideStatus } from "./money-priority-user-plan.ts";
+import { evaluateUserPlan, type MoneyPlanOverride, type OverrideStatus } from "./money-priority-user-plan.ts";
 
 export const RECOMMENDATION_REFRESH_VERSION = "2026.1";
 
