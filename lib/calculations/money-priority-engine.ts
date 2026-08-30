@@ -153,13 +153,13 @@ function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRe
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
   const secure = evaluateSecureStage(snapshot, asOfDate, policy);
-  const existingCash = evaluateExistingCashDeployment(snapshot, secure);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
   const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
   const build = evaluateBuildStage(snapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
   const feasibility = calculatePlanFeasibility(snapshot, roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed));
   const optimizeUnlocked = !securePlan.hasUnfundedPriority && feasibility.status !== "funding_gap";
   const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked, policy);
+  const existingCash = evaluateExistingCashDeployment(snapshot, secure, build, optimize, policy);
   const recommendations = normalizeRanks([...stabilizeRecommendations(snapshot, feasibility), ...securePlan.recommendations, ...buildRecommendations(build), ...optimizeRecommendations(optimize)]);
   return { policyVersion: policy.version, planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version, taxPolicyVersion: build.retirementAccounts.taxPolicyVersion, taxYear: build.retirementAccounts.taxYear, asOfDate, snapshot, feasibility, existingCash, secure, build, optimize, recommendations, warnings: [...snapshot.warnings, ...build.warnings] };
 }
