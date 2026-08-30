@@ -260,7 +260,8 @@ test("higher-priority one-time deployments cannot be double-counted as vehicle c
     loanApr: null, loanTermMonths: null,
   }));
   assert.ok(result.cash.higherPriorityOneTimeDeployments > 0);
-  assert.equal(result.cash.availableVehicleCash, 1500);\n  assert.ok(result.cash.cashRequired > result.cash.availableVehicleCash);
+  assert.equal(result.cash.availableVehicleCash, 1500);
+  assert.ok(result.cash.cashRequired > result.cash.availableVehicleCash);
   assert.equal(result.affordability, "not_recommended");
 });
 
