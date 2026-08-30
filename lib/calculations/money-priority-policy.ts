@@ -16,6 +16,11 @@ export type MoneyPriorityPolicy = {
     mortgagePayoffFavoredApr: number;
     mortgageInvestingFavoredApr: number;
   };
+  existingCash: {
+    minimumUnallocatedLiquidityFloor: number;
+    minimumUnallocatedLiquidityMonths: number;
+    retirementCatchUpMonths: number;
+  };
   emergencyReserveMonthsByRisk: Record<EmergencyRiskTier, number>;
   retirementBenchmark: {
     healthyLower: number;
@@ -45,6 +50,11 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
   optimizeDebt: {
     mortgagePayoffFavoredApr: 0.06,
     mortgageInvestingFavoredApr: 0.04,
+  },
+  existingCash: {
+    minimumUnallocatedLiquidityFloor: 1000,
+    minimumUnallocatedLiquidityMonths: 0.5,
+    retirementCatchUpMonths: 12,
   },
   emergencyReserveMonthsByRisk: {
     low: 3,
