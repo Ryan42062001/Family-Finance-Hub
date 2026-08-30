@@ -1186,3 +1186,29 @@ For applicable 401(k), 403(b), and TSP catch-ups, the 2026 Roth assessment uses 
 Account quality is an inspectable lexicographic tier—`employer_match`, `strong_tax_advantaged`, `diversification_opportunity`, `secondary_tax_advantaged`, or `unavailable_or_unknown`—rather than a weighted score. Employer match remains Secure and is excluded from Build routing. Tax diversification is only a lower-order account-selection consideration based on known tax treatment; unknown fees or investment quality are never invented. If no known legal destination can accept an allocated retirement increase, Build exposes the unresolved monthly amount instead of fabricating capacity.
 
 The optional normalized plan facts used by V1 are calculation inputs only; no database migration or UI was added. Missing persistence for sponsor-specific prior-year wages, Roth catch-up support, SIMPLE subtype/formula, and SEP supported compensation remains explicit and narrowly scoped.
+
+---
+
+## Windfall Mode V1
+
+Windfall Mode is an ephemeral, deterministic one-time allocator over an already-computed authoritative Priority Engine result. A windfall never becomes recurring income, is never divided by twelve, and does not change take-home income, monthly cash flow, monthly plan capacity, goal pace, retirement need, debt minimums, Recommended Plan, or Your Plan.
+
+The input distinguishes gross proceeds from four independent structured reservations: known tax liability, known other liability, restricted proceeds, and earmarked required-purpose proceeds. Those buckets are subtracted exactly once before allocation. V1 estimates no taxes, withholding, basis, capital gains, inheritance tax, state tax, or settlement treatment. When tax treatment is uncertain or absent, the otherwise deployable remainder is held for tax review and targeted missing data is returned. Source labels are explanatory only; an inheritance is not automatically invested, and insurance, asset-sale, or settlement proceeds are not automatically taxed or restricted.
+
+Allocation begins with the engine's residual state after normal existing-cash deployment. It does not add the windfall to account balances or rerun existing-cash logic. The explicit hierarchy is:
+
+1. known liabilities, restrictions, and earmarks reserved outside the deployable pool;
+2. remaining Secure one-time needs, with deductible and emergency coverage sharing one reserve pool;
+3. required/protective goals in the existing lexicographic goal order;
+4. residual high-confidence debt acceleration not already claimed by Secure;
+5. legitimate direct one-time retirement destinations;
+6. important goals;
+7. clear Optimize debt-payoff uses;
+8. optional/lifestyle goals;
+9. unallocated remainder.
+
+The later debt phase honors Dedicated Student-Loan Policy and skips PSLF, IDR, employer-benefit, and other strategies for which ordinary acceleration is disallowed. All acceleration already represented in Secure is excluded from that later phase. Goal phases reuse the existing ranking factors and cap funding at the residual target amount.
+
+Retirement funding requires both an authoritative retirement need and remaining legal room. V1 direct destinations are Traditional IRA, Roth IRA, and HSA opportunities that the advanced-retirement layer marks available. Employee 401(k), 403(b), TSP, and SIMPLE salary deferrals are payroll mechanisms and are not represented as direct windfall deposits; ordinary SEP is employer-funded. Combined IRA limits, spousal compensation, Roth eligibility, deductibility, current-year contributions, age rules, and opportunity tiers remain authoritative. Employer-match gaps remain recurring Secure behavior and receive no windfall allocation.
+
+Optimize does not force taxable investing or a split decision merely to consume the pool. A low-confidence choice remains unallocated with an explanation. Windfall Mode performs no transfer, payment, trade, or contribution, uses no wall clock or live service, mutates no input, and adds no persistence, migration, or UI.
