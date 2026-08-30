@@ -13,8 +13,8 @@ function baseSnapshot(): MoneyPrioritySnapshot {
     }],
     income: [{ id: "i1", ownerPersonId: "p1", name: "Job", type: "employment", monthlyTakeHomeAmount: 5000, monthlyGrossAmount: 7000, isVariable: false, isActive: true }],
     expenses: [
-      { id: "e1", name: "Housing", category: "housing", monthlyAmount: 2000, isEssential: true },
-      { id: "e2", name: "Fun", category: "personal", monthlyAmount: 500, isEssential: false },
+      { id: "e1", name: "Housing", category: "housing", monthlyAmount: 2000, isEssential: true, cashFlowTreatment: "required" },
+      { id: "e2", name: "Fun", category: "personal", monthlyAmount: 500, isEssential: false, cashFlowTreatment: "discretionary" },
     ],
     accounts: [{ id: "a1", name: "Savings", type: "savings", balance: 3000, cashPurpose: "protected_reserve", relatedGoalId: null, relatedDebtId: null }],
     debts: [],
@@ -44,6 +44,7 @@ function baseSnapshot(): MoneyPrioritySnapshot {
       monthlyGrossIncomeKnown: 7000,
       hasIncompleteGrossIncome: false,
       monthlyEssentialExpenses: 2000,
+      monthlyCommittedNonEssentialExpenses: 0,
       monthlyDiscretionaryExpenses: 500,
       monthlyMinimumDebtPayments: 0,
       monthlyRequiredOutflow: 2000,
