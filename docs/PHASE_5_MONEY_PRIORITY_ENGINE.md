@@ -1075,3 +1075,16 @@ Key research-informed changes from the earlier Phase 5 draft:
 14. Build Priority Engine UI with Recommended Plan / Your Plan distinction.
 15. Test representative households and adversarial edge cases.
 16. Run CI, security review, and merge only after regression behavior is accepted.
+
+
+---
+
+## Dedicated Student-Loan Policy V1
+
+Student loans are assessed per debt before ordinary APR-based acceleration. Private loans and federal loans with a known ordinary repayment plan, no forgiveness strategy, and no material employer benefit continue through the existing debt policy. The word `student` alone does not suppress high-interest treatment.
+
+Household-reported PSLF and sufficiently described IDR-forgiveness strategies suppress extra acceleration while preserving the recorded required payment in monthly obligations. Other forgiveness programs receive focused review, and missing strategy inputs block only that loan's acceleration decision. Family Finance Hub does not certify forgiveness eligibility, reproduce federal payment formulas, forecast legislation, or fabricate future tax liabilities.
+
+Known employer direct loan assistance and explicitly reported qualified-student-loan-payment retirement matching are treated as material benefits that ordinary acceleration must not destroy. Preserved-strategy loans do not receive one-time cash payoff deployments. Recommended Plan exposes zero recommended extra payment for these loans, while Your Plan may model an extra payment and receives a strategy-conflict tradeoff.
+
+The policy facts are versioned under `MoneyPriorityPolicy.studentLoan`. V1 records the post-July-1-2026 framework boundary, disallows SAVE as a modeled long-term assumption, and records the end of the broad IDR federal tax exclusion after December 31, 2025. No live web dependency or database migration is introduced.
