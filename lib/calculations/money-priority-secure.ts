@@ -8,6 +8,10 @@ import {
   type DebtActionAssessment,
   type DebtClassification,
 } from "./money-priority-core.ts";
+import {
+  assessStudentLoanStrategy,
+  type StudentLoanStrategyAssessment,
+} from "./money-priority-student-loans.ts";
 
 export type SecureRecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -32,6 +36,7 @@ export type SecureStageResult = {
   fullEmergencyGap: number;
   debtClassifications: DebtClassification[];
   debtActionAssessments: DebtActionAssessment[];
+  studentLoanStrategies: StudentLoanStrategyAssessment[];
   recommendations: SecureStageRecommendation[];
 };
 
@@ -121,13 +126,55 @@ export function evaluateSecureStage(
     }
   }
 
-  const debtClassifications = snapshot.debts.map((debt) => classifyDebt(debt, policy));
-  const debtActionAssessments = snapshot.debts.map((debt) => assessDebtAction(snapshot, debt, asOfDate, policy));
+  const studentLoanStrategies = snapshot.debts
+    .filter((debt) => debt.type === "student_loan" || debt.type === "student")
+    .map((debt) => assessStudentLoanStrategy(debt, asOfDate, policy));
+  const studentStrategyById = new Map(studentLoanStrategies.map((item) => [item.debtId, item]));
+  const debtClassifications = snapshot.debts.map((debt) => {
+    const strategy = studentStrategyById.get(debt.id);
+    return strategy && !strategy.ordinaryDebtPolicyAllowed
+      ? { debtId: debt.id, band: "special_priority" as const, reasons: [...strategy.reasons, ...strategy.warnings] }
+      : classifyDebt(debt, policy);
+  });
+  const debtActionAssessments = snapshot.debts.map((debt) => {
+    const strategy = studentStrategyById.get(debt.id);
+    return strategy && !strategy.ordinaryDebtPolicyAllowed
+      ? { debtId: debt.id, band: "special_priority" as const, action: "special" as const, reasons: [...strategy.reasons, ...strategy.warnings] }
+      : assessDebtAction(snapshot, debt, asOfDate, policy);
+  });
   const debtById = new Map(snapshot.debts.map((debt) => [debt.id, debt]));
   const actionById = new Map(debtActionAssessments.map((item) => [item.debtId, item]));
 
   for (const classification of debtClassifications.filter((item) => item.band === "special_priority")) {
     const debt = debtById.get(classification.debtId)!;
+    const studentStrategy = studentStrategyById.get(debt.id);
+    if (studentStrategy && !studentStrategy.ordinaryDebtPolicyAllowed) {
+      const state = studentStrategy.state === "more_information_needed"
+        ? "more_information_needed" as const
+        : "worth_considering" as const;
+      const purpose = studentStrategy.state === "preserve_current_strategy"
+        ? "preserve"
+        : studentStrategy.state === "special_review"
+          ? "review"
+          : "missing";
+      recommendations.push({
+        id: `secure-student-loan-${purpose}-${debt.id}`,
+        rank: rank++,
+        state,
+        urgency: studentStrategy.state === "more_information_needed" ? "high" : "medium",
+        title: studentStrategy.state === "preserve_current_strategy"
+          ? `Preserve the current strategy for ${debt.name}`
+          : studentStrategy.state === "special_review"
+            ? `Review the special repayment strategy for ${debt.name}`
+            : `Complete student-loan strategy details for ${debt.name}`,
+        monthlyAmount: null,
+        targetAmount: debt.balance,
+        gapAmount: null,
+        relatedEntityId: debt.id,
+        reasons: [...studentStrategy.reasons, ...studentStrategy.warnings],
+      });
+      continue;
+    }
     if (debt.rateType === "promotional") {
       const backedReserve = debtBackedReserveFor(snapshot, debt.id);
       const remainingPromoBalance = roundMoney(Math.max(0, debt.balance - backedReserve));
@@ -243,6 +290,6 @@ export function evaluateSecureStage(
 
   return {
     deductibleReserveTarget, deductibleReserveGap, employerMatchMonthlyGap, fullEmergencyTarget, fullEmergencyGap,
-    debtClassifications, debtActionAssessments, recommendations,
+    debtClassifications, debtActionAssessments, studentLoanStrategies, recommendations,
   };
 }
