@@ -2,9 +2,10 @@ import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import {
   assessDebtAction,
+  assessEmergencyReserve,
   calculateFullEmergencyTarget,
   classifyDebt,
-  classifyEmergencyRisk,
+  type EmergencyReserveAssessment,
   type DebtActionAssessment,
   type DebtClassification,
 } from "./money-priority-core.ts";
@@ -34,6 +35,7 @@ export type SecureStageResult = {
   employerMatchMonthlyGap: number;
   fullEmergencyTarget: number;
   fullEmergencyGap: number;
+  emergencyReserveAssessment: EmergencyReserveAssessment;
   debtClassifications: DebtClassification[];
   debtActionAssessments: DebtActionAssessment[];
   studentLoanStrategies: StudentLoanStrategyAssessment[];
@@ -273,16 +275,36 @@ export function evaluateSecureStage(
     });
   }
 
-  const emergencyRisk = classifyEmergencyRisk(snapshot, policy);
-  const fullEmergencyTarget = roundMoney(calculateFullEmergencyTarget(snapshot, emergencyRisk.recommendedMonths));
+  const emergencyReserveAssessment = assessEmergencyReserve(snapshot, asOfDate, policy);
+  const fullEmergencyTarget = roundMoney(calculateFullEmergencyTarget(
+    snapshot,
+    emergencyReserveAssessment.effectiveRecommendedMonths,
+  ));
   const fullEmergencyGap = roundMoney(Math.max(0, fullEmergencyTarget - protectedReserveCash));
+  if (emergencyReserveAssessment.missingData.length) {
+    recommendations.push({
+      id: "secure-exceptional-reserve-missing", rank: rank++, state: "more_information_needed", urgency: "high",
+      title: "Add the expected income-disruption end date", monthlyAmount: null, targetAmount: fullEmergencyTarget,
+      gapAmount: fullEmergencyGap, relatedEntityId: null,
+      reasons: emergencyReserveAssessment.missingData,
+    });
+  }
   if (fullEmergencyGap > 0) {
     recommendations.push({
       id: "secure-full-emergency-fund", rank: rank++, state: "recommended", urgency: "high",
-      title: `Build a ${emergencyRisk.recommendedMonths}-month emergency reserve`, monthlyAmount: null,
+      title: `Build a ${emergencyReserveAssessment.effectiveRecommendedMonths}-month emergency reserve`, monthlyAmount: null,
       targetAmount: fullEmergencyTarget, gapAmount: fullEmergencyGap, relatedEntityId: null,
       reasons: [
-        ...(emergencyRisk.reasons.length ? emergencyRisk.reasons : ["A full emergency reserve protects essential expenses and minimum debt payments."]),
+        ...(emergencyReserveAssessment.ordinaryReasons.length
+          ? emergencyReserveAssessment.ordinaryReasons
+          : ["A full emergency reserve protects essential expenses and minimum debt payments."]),
+        ...emergencyReserveAssessment.exceptionalReasons,
+        ...emergencyReserveAssessment.warnings,
+        ...(emergencyReserveAssessment.source === "household_override"
+          ? [emergencyReserveAssessment.effectiveRecommendedMonths > emergencyReserveAssessment.engineRecommendedMonths
+              ? `The engine recommends ${emergencyReserveAssessment.engineRecommendedMonths} months; the household preference raises the effective target to ${emergencyReserveAssessment.effectiveRecommendedMonths} months.`
+              : `The ordinary engine recommendation is ${emergencyReserveAssessment.engineRecommendedMonths} months; the household preference sets the effective target to ${emergencyReserveAssessment.effectiveRecommendedMonths} months.`]
+          : []),
         "Protected reserve cash is one shared reserve pool: deductible coverage counts toward the full emergency target rather than being subtracted twice.",
       ],
     });
@@ -290,6 +312,7 @@ export function evaluateSecureStage(
 
   return {
     deductibleReserveTarget, deductibleReserveGap, employerMatchMonthlyGap, fullEmergencyTarget, fullEmergencyGap,
+    emergencyReserveAssessment,
     debtClassifications, debtActionAssessments, studentLoanStrategies, recommendations,
   };
 }

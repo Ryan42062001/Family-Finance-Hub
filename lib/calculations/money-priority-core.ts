@@ -33,10 +33,37 @@ export type EmergencyRiskAssessment = {
   reasons: string[];
 };
 
-export function classifyEmergencyRisk(
+export type ExceptionalEmergencyReserveMode =
+  | "none"
+  | "temporary_exception"
+  | "severe_exception"
+  | "more_information_needed";
+
+export type EmergencyReserveTargetSource = "ordinary_policy" | "exceptional_policy" | "household_override";
+
+export type EmergencyReserveAssessment = {
+  ordinaryRiskTier: EmergencyRiskTier;
+  ordinaryRecommendedMonths: number;
+  ordinaryReasons: string[];
+  exceptionalTriggerExists: boolean;
+  disruptionMonths: number | null;
+  recoveryBufferMonths: number;
+  exceptionalCandidateMonths: number | null;
+  exceptionalRecommendedMonths: number | null;
+  exceptionalMode: ExceptionalEmergencyReserveMode;
+  exceptionalReasons: string[];
+  missingData: string[];
+  warnings: string[];
+  engineRecommendedMonths: number;
+  householdOverrideMonths: number | null;
+  effectiveRecommendedMonths: number;
+  source: EmergencyReserveTargetSource;
+};
+
+function classifyOrdinaryEmergencyRisk(
   snapshot: MoneyPrioritySnapshot,
-  policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
-): EmergencyRiskAssessment {
+  policy: MoneyPriorityPolicy,
+): { tier: EmergencyRiskTier; recommendedMonths: number; reasons: string[] } {
   const reasons: string[] = [];
   let score = 0;
   const activeIncome = snapshot.income.filter((item) => item.isActive);
@@ -58,7 +85,7 @@ export function classifyEmergencyRisk(
   }
   if (snapshot.preferences?.knownIncomeDisruption) {
     score += 2;
-    reasons.push("A known income disruption is recorded.");
+    reasons.push("A known income disruption is recorded as an ordinary risk factor.");
   }
   if (snapshot.preferences?.jobReplacementDifficulty === "difficult") {
     score += 2;
@@ -72,11 +99,125 @@ export function classifyEmergencyRisk(
   if (score >= 5) tier = "high";
   else if (score >= 3) tier = "elevated";
   else if (score >= 1) tier = "moderate";
+  return { tier, recommendedMonths: policy.emergencyReserveMonthsByRisk[tier], reasons };
+}
 
+export function classifyEmergencyRisk(
+  snapshot: MoneyPrioritySnapshot,
+  policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+): EmergencyRiskAssessment {
+  const ordinary = classifyOrdinaryEmergencyRisk(snapshot, policy);
   const override = snapshot.preferences?.emergencyFundMonthsOverride;
-  const recommendedMonths = override ?? policy.emergencyReserveMonthsByRisk[tier];
-  if (override !== null && override !== undefined) reasons.push("Household emergency-fund override applied.");
-  return { tier, recommendedMonths, reasons };
+  const validOverride = override !== null && override !== undefined && override >= 0 ? override : null;
+  const reasons = [...ordinary.reasons];
+  if (validOverride !== null) reasons.push("Household emergency-fund override applied.");
+  return { tier: ordinary.tier, recommendedMonths: validOverride ?? ordinary.recommendedMonths, reasons };
+}
+
+function parseStrictIsoDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10) === value ? date : null;
+}
+
+function monthsBetweenCeiling(start: Date, end: Date): number {
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / dayMs / 30.4375));
+}
+
+export function assessEmergencyReserve(
+  snapshot: MoneyPrioritySnapshot,
+  asOfDate: string,
+  policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+): EmergencyReserveAssessment {
+  const asOf = parseStrictIsoDate(asOfDate);
+  if (!asOf) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
+
+  const ordinary = classifyOrdinaryEmergencyRisk(snapshot, policy);
+  const exceptionalReasons: string[] = [];
+  const missingData: string[] = [];
+  const warnings: string[] = [];
+  const triggerExists = snapshot.preferences?.knownIncomeDisruption === true;
+  const endDateValue = snapshot.preferences?.knownIncomeDisruptionEndDate;
+  let disruptionMonths: number | null = null;
+  let exceptionalCandidateMonths: number | null = null;
+  let exceptionalRecommendedMonths: number | null = null;
+  let exceptionalMode: ExceptionalEmergencyReserveMode = "none";
+  let engineRecommendedMonths = ordinary.recommendedMonths;
+
+  if (triggerExists) {
+    if (!endDateValue) {
+      exceptionalMode = "more_information_needed";
+      missingData.push("A known income disruption is recorded, but its expected duration is unknown. Add an estimated end date to evaluate whether more than six months of reserves is warranted.");
+    } else {
+      const endDate = parseStrictIsoDate(endDateValue);
+      if (!endDate) {
+        exceptionalMode = "more_information_needed";
+        missingData.push("The known income disruption end date is invalid. Add a valid expected end date to evaluate exceptional reserve needs.");
+      } else if (endDate <= asOf) {
+        warnings.push("The known income disruption end date is on or before the as-of date. Review whether the disruption record is stale.");
+      } else {
+        disruptionMonths = monthsBetweenCeiling(asOf, endDate);
+        exceptionalCandidateMonths = disruptionMonths + policy.exceptionalEmergencyReserve.recoveryBufferMonths;
+        exceptionalRecommendedMonths = Math.min(
+          policy.exceptionalEmergencyReserve.automaticMaxMonths,
+          exceptionalCandidateMonths,
+        );
+        engineRecommendedMonths = Math.max(ordinary.recommendedMonths, exceptionalRecommendedMonths);
+        exceptionalMode = engineRecommendedMonths <= 6
+          ? "none"
+          : engineRecommendedMonths <= policy.exceptionalEmergencyReserve.temporaryMaxMonths
+            ? "temporary_exception"
+            : "severe_exception";
+        exceptionalReasons.push(
+          `The known income disruption has ${disruptionMonths} month${disruptionMonths === 1 ? "" : "s"} remaining as of ${asOfDate}.`,
+          `Policy adds a ${policy.exceptionalEmergencyReserve.recoveryBufferMonths}-month recovery buffer.`,
+        );
+        if (exceptionalCandidateMonths > policy.exceptionalEmergencyReserve.automaticMaxMonths) {
+          exceptionalReasons.push(`The automatic exceptional recommendation is capped at ${policy.exceptionalEmergencyReserve.automaticMaxMonths} months.`);
+        }
+      }
+    }
+  }
+
+  const rawOverride = snapshot.preferences?.emergencyFundMonthsOverride;
+  const householdOverrideMonths = rawOverride !== null && rawOverride !== undefined && rawOverride >= 0
+    ? rawOverride
+    : null;
+  if (rawOverride !== null && rawOverride !== undefined && rawOverride < 0) {
+    warnings.push("A negative emergency-fund override is invalid and was ignored.");
+  }
+  const effectiveRecommendedMonths = householdOverrideMonths === null
+    ? engineRecommendedMonths
+    : engineRecommendedMonths > 6
+      ? Math.max(engineRecommendedMonths, householdOverrideMonths)
+      : householdOverrideMonths;
+  const source: EmergencyReserveTargetSource = householdOverrideMonths !== null
+    && effectiveRecommendedMonths !== engineRecommendedMonths
+    ? "household_override"
+    : engineRecommendedMonths > ordinary.recommendedMonths
+      ? "exceptional_policy"
+      : "ordinary_policy";
+
+  return {
+    ordinaryRiskTier: ordinary.tier,
+    ordinaryRecommendedMonths: ordinary.recommendedMonths,
+    ordinaryReasons: ordinary.reasons,
+    exceptionalTriggerExists: triggerExists,
+    disruptionMonths,
+    recoveryBufferMonths: policy.exceptionalEmergencyReserve.recoveryBufferMonths,
+    exceptionalCandidateMonths,
+    exceptionalRecommendedMonths,
+    exceptionalMode,
+    exceptionalReasons,
+    missingData,
+    warnings,
+    engineRecommendedMonths,
+    householdOverrideMonths,
+    effectiveRecommendedMonths,
+    source,
+  };
 }
 
 export function calculateFullEmergencyTarget(snapshot: MoneyPrioritySnapshot, recommendedMonths: number): number {

@@ -1145,3 +1145,24 @@ Ranking and protection are deliberately separate. `goalProtectionMultiplier()` c
 This preserves protection for important fixed goals without allowing their top-up to displace additional retirement. Within the protected pass, a higher-ranked goal receives up to its protected need before the next goal; no proportional allocation is invented. No goal is topped above its protected amount while a qualifying protected need remains uncovered.
 
 The authoritative Build run continues to use the residual snapshot produced after one-time existing-cash deployment. Fully cash-satisfied goals disappear from recurring allocations, and partially satisfied goals expose only their residual pace. Missing or invalid target dates produce targeted warnings, no invented pace, and do not block other goals. Sorting uses the normalized goal ID as the final tie-break, so raw input order does not affect ranking, allocation, capacity, or recommendation order.
+
+---
+
+## Exceptional-Risk Emergency Reserve V1
+
+Ordinary emergency risk remains the existing 3/4/5/6-month system. Income concentration, variable income, dependents, known disruption, and job-replacement difficulty continue to affect the ordinary score, but generalized factors cannot automatically produce more than six months.
+
+An automatic target above six months requires the structured combination of `knownIncomeDisruption === true` and a valid future `knownIncomeDisruptionEndDate`. The exceptional candidate is the deterministic remaining disruption duration, measured from the supplied `asOfDate`, plus the policy two-month recovery buffer. The engine uses the larger of the ordinary recommendation and this candidate, capped at the automatic 12-month maximum. Results of 7–9 months are `temporary_exception`; results of 10–12 months are `severe_exception`.
+
+Missing or calendar-invalid disruption dates do not create exceptional months and instead produce targeted missing-data guidance. An end date on or before the as-of date produces a stale-data warning and ordinary reserve behavior. A future end date is ignored when the disruption flag is false. No occupation, employer, industry, goal-name, or free-form keyword inference is used.
+
+The assessment exposes ordinary and exceptional reasons separately, along with `engineRecommendedMonths`, `householdOverrideMonths`, `effectiveRecommendedMonths`, and the effective source. Existing lower household overrides remain compatible with ordinary 3–6-month policy. Once a concrete exceptional engine recommendation exceeds six months, a lower override cannot reduce the authoritative target. A higher preference—including one above the automatic 12-month cap—may raise the effective target, but remains labeled as a household preference rather than exceptional engine policy.
+
+There is one total emergency reserve target, not separate ordinary and exceptional pools. Its dollar base remains:
+
+```ts
+effectiveRecommendedMonths
+  * (monthlyEssentialExpenses + monthlyMinimumDebtPayments)
+```
+
+Committed nonessential and discretionary expenses remain outside that target. Protected reserve cash offsets the target once and continues to share coverage with the deductible reserve. A larger gap can legitimately consume more Secure capacity or unallocated existing cash; residual reconciliation then prevents that cash from being claimed again. Build and Optimize receive only the capacity left after authoritative Secure allocation.

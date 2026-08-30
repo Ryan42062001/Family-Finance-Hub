@@ -37,6 +37,11 @@ export type MoneyPriorityPolicy = {
     missingMaintenanceStrongMarginMultiplier: number;
   };
   emergencyReserveMonthsByRisk: Record<EmergencyRiskTier, number>;
+  exceptionalEmergencyReserve: {
+    automaticMaxMonths: number;
+    recoveryBufferMonths: number;
+    temporaryMaxMonths: number;
+  };
   retirementBenchmark: {
     healthyLower: number;
     healthyUpper: number;
@@ -51,7 +56,7 @@ export type MoneyPriorityPolicy = {
 };
 
 export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
-  version: "2026.1",
+  version: "2026.2",
   highInterestDebtApr: 0.10,
   payoffFavoredDebtApr: 0.06,
   grayZoneDebtApr: 0.04,
@@ -91,6 +96,11 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
     moderate: 4,
     elevated: 5,
     high: 6,
+  },
+  exceptionalEmergencyReserve: {
+    automaticMaxMonths: 12,
+    recoveryBufferMonths: 2,
+    temporaryMaxMonths: 9,
   },
   retirementBenchmark: {
     healthyLower: 0.12,
