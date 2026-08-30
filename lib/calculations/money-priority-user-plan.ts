@@ -423,7 +423,7 @@ export function evaluateUserPlan(
       debt = debtImpact(engine, allocation);
       if (difference < 0) {
         severity = allocation.stage === "secure" ? "high" : "tradeoff";
-        if (debt?.payoffDelayMonths !== null) {
+        if (debt && debt.payoffDelayMonths !== null) {
           explanation += ` Modeled payoff is delayed by ${debt.payoffDelayMonths} months and adds $${(debt.increasedInterest ?? 0).toFixed(2)} of interest.`;
         }
       }
