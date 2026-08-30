@@ -26,6 +26,10 @@ export type MoneyPriorityPolicy = {
     normalTermMaxMonths: number;
     cautionTermMaxMonths: number;
   };
+  homeAffordability: {
+    standardMortgageTermMaxYears: number;
+    missingMaintenanceStrongMarginMultiplier: number;
+  };
   emergencyReserveMonthsByRisk: Record<EmergencyRiskTier, number>;
   retirementBenchmark: {
     healthyLower: number;
@@ -65,6 +69,10 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
     preferredTermMaxMonths: 48,
     normalTermMaxMonths: 60,
     cautionTermMaxMonths: 72,
+  },
+  homeAffordability: {
+    standardMortgageTermMaxYears: 30,
+    missingMaintenanceStrongMarginMultiplier: 2,
   },
   emergencyReserveMonthsByRisk: {
     low: 3,
