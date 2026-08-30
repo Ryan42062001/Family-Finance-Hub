@@ -39,14 +39,17 @@ test("hypothetical rerun is deterministic and leaves the source engine immutable
   assert.deepEqual(before, frozen);
 });
 
-test("new financed purchase debt is rerun through Secure rather than treated as margin-only math", () => {
+test("new financed purchase debt is rerun through the authoritative engine rather than treated as margin-only math", () => {
   const before = engine();
   const result = runHypotheticalMoneyPriorityEngine(before, {
     addDebts: [{ id: "auto", name: "Auto loan", type: "auto", balance: 20000, annualInterestRate: 20, minimumPayment: 500 }],
   });
-  assert.equal(result.engine.snapshot.debts.some((debt) => debt.id === "auto"), true);
+  const autoDebt = result.engine.snapshot.debts.find((debt) => debt.id === "auto");
+  assert.ok(autoDebt);
+  assert.equal(autoDebt.annualInterestRate, 20);
+  assert.equal(autoDebt.minimumPayment, 500);
   assert.equal(result.engine.snapshot.aggregates.monthlyMinimumDebtPayments, before.snapshot.aggregates.monthlyMinimumDebtPayments + 500);
-  assert.ok(result.engine.recommendations.some((recommendation) => recommendation.sourceInputs.includes("debt:auto")));
+  assert.notDeepEqual(result.engine.secure, before.secure);
 });
 
 test("required hypothetical operating costs change authoritative monthly capacity", () => {
@@ -92,11 +95,19 @@ test("available sale or trade cash can be added explicitly and then consumed in 
   assert.equal(result.engine.snapshot.aggregates.protectedCash, before.snapshot.aggregates.protectedCash);
 });
 
-test("completing the related purchase goal removes its recurring protected funding need", () => {
-  const before = engine();
-  assert.ok(before.build.goals.find((goal) => goal.goalId === "car")?.protectedMonthlyNeed ?? 0 > 0);
+test("completing the related purchase goal removes it from authoritative recurring Build funding", () => {
+  const scenario = raw();
+  scenario.accounts = scenario.accounts.filter((account) => account.id !== "goal-cash");
+  scenario.accounts = scenario.accounts.map((account) => account.id === "cash" ? { ...account, balance: 1000 } : account);
+  const before = runMoneyPriorityEngine(scenario, "2026-08-30");
+  const beforeGoal = before.build.goals.find((goal) => goal.goalId === "car");
+  assert.ok(beforeGoal);
+  assert.ok(beforeGoal.protectedMonthlyNeed > 0);
+
   const result = runHypotheticalMoneyPriorityEngine(before, { completeGoalIds: ["car"] });
-  assert.equal(result.engine.build.goals.find((goal) => goal.goalId === "car")?.protectedMonthlyNeed, 0);
+  const completedGoal = result.engine.build.goals.find((goal) => goal.goalId === "car");
+  assert.ok(completedGoal);
+  assert.equal(completedGoal.protectedMonthlyNeed, 0);
 });
 
 test("policy mismatch is rejected instead of silently changing comparison policy", () => {
