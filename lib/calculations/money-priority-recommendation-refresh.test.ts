@@ -31,14 +31,14 @@ test("explicit as-of-date change never relies on wall clock", () => {
 });
 
 test("small cash change is distinguished from recommendation impact", () => {
-  const before = raw(); const after = structuredClone(before); (after.accounts[0] as any).balance = 12001.37;
+  const before = raw(); const after = structuredClone(before); after.accounts![0].balance = 12001.37;
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.ok(result.detectedChanges.some((c) => c.category === "cash" && c.field === "balance"));
   assert.ok(["refresh_recommended", "materially_changed"].includes(result.state));
 });
 
 test("income loss that creates an unsafe plan is critical", () => {
-  const before = raw(); const after = structuredClone(before); (after.income[0] as any).monthly_amount = 0; (after.income[0] as any).monthly_gross_amount = 0;
+  const before = raw(); const after = structuredClone(before); after.income![0].monthly_amount = 0; after.income![0].monthly_gross_amount = 0;
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.state, "critical_change");
   assert.ok(result.detectedChanges.some((c) => c.category === "income"));
@@ -46,7 +46,7 @@ test("income loss that creates an unsafe plan is critical", () => {
 
 test("new high-interest debt is detected through authoritative outputs", () => {
   const before = raw(); const after = structuredClone(before);
-  (after.debts as any[]).push({ id: "card", name: "Card", debt_type: "credit_card", balance: 5000, annual_interest_rate: 24, minimum_payment: 150, is_past_due: false, is_in_collections: false, has_legal_or_tax_priority: false });
+  after.debts!.push({ id: "card", name: "Card", debt_type: "credit_card", balance: 5000, annual_interest_rate: 24, minimum_payment: 150, is_past_due: false, is_in_collections: false, has_legal_or_tax_priority: false });
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.ok(result.detectedChanges.some((c) => c.category === "debt" && c.entityId === "card"));
   assert.ok(["materially_changed", "critical_change"].includes(result.state));
@@ -54,7 +54,7 @@ test("new high-interest debt is detected through authoritative outputs", () => {
 
 test("goal addition is detected without title-based identity", () => {
   const before = raw(); const after = structuredClone(before);
-  (after.goals as any[]).push({ id: "goal-1", name: "Car", target_amount: 12000, current_amount: 1000, target_date: "2027-08-30", priority: 3, goal_class: "required", necessity: "necessary", deadline_flexibility: "fixed", consequence_level: "high" });
+  after.goals!.push({ id: "goal-1", name: "Car", target_amount: 12000, current_amount: 1000, target_date: "2027-08-30", priority: 3, goal_class: "required", necessity: "necessary", deadline_flexibility: "fixed", consequence_level: "high" });
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.ok(result.detectedChanges.some((c) => c.category === "goal" && c.entityId === "goal-1"));
 });
@@ -74,15 +74,15 @@ test("old override is never silently retargeted", () => {
 });
 
 test("fingerprints ignore display-name-only changes", () => {
-  const before = raw(); const after = structuredClone(before); (after.people[0] as any).display_name = "Renamed Adult"; (after.accounts[0] as any).name = "Renamed Reserve";
+  const before = raw(); const after = structuredClone(before); after.people![0].display_name = "Renamed Adult"; after.accounts![0].name = "Renamed Reserve";
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.financialBasisFingerprint, result.previousFinancialBasisFingerprint);
 });
 
 test("equivalent entity ordering has the same basis fingerprint", () => {
   const before = raw();
-  (before.accounts as any[]).push({ id: "cash-2", name: "Other", account_type: "checking", balance: 500, cash_purpose: "operating_cash" });
-  const after = structuredClone(before); after.accounts.reverse();
+  before.accounts!.push({ id: "cash-2", name: "Other", account_type: "checking", balance: 500, cash_purpose: "operating_cash" });
+  const after = structuredClone(before); after.accounts!.reverse();
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.financialBasisFingerprint, result.previousFinancialBasisFingerprint);
 });
