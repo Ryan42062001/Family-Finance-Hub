@@ -1,3 +1,5 @@
+export type ExpenseCashFlowTreatment = "required" | "discretionary";
+
 export type StudentLoanSource = "federal" | "private" | "unknown";
 export type StudentLoanRepaymentPlan = "standard" | "tiered_standard" | "ibr" | "icr" | "paye" | "rap" | "other" | "unknown";
 export type StudentLoanForgivenessStrategy = "none" | "pslf" | "idr" | "teacher" | "health_service" | "other" | "unknown";
@@ -45,6 +47,7 @@ export type MoneyPrioritySnapshot = {
     category: string;
     monthlyAmount: number;
     isEssential: boolean;
+    cashFlowTreatment: ExpenseCashFlowTreatment;
   }>;
   accounts: Array<{
     id: string;
@@ -153,6 +156,7 @@ export type MoneyPrioritySnapshot = {
     monthlyGrossIncomeKnown: number;
     hasIncompleteGrossIncome: boolean;
     monthlyEssentialExpenses: number;
+    monthlyCommittedNonEssentialExpenses: number;
     monthlyDiscretionaryExpenses: number;
     monthlyMinimumDebtPayments: number;
     monthlyRequiredOutflow: number;
@@ -243,13 +247,23 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     isActive: booleanValue(row.is_active, true),
   }));
 
-  const expenses = (raw.expenses ?? []).map((row) => ({
-    id: stringValue(row.id),
-    name: stringValue(row.name),
-    category: stringValue(row.category),
-    monthlyAmount: numberValue(row.monthly_amount),
-    isEssential: booleanValue(row.is_essential, true),
-  }));
+  const expenses = (raw.expenses ?? []).map((row) => {
+    const isEssential = booleanValue(row.is_essential, true);
+    const explicitTreatment = stringValue(row.cash_flow_treatment);
+    const cashFlowTreatment: ExpenseCashFlowTreatment = isEssential
+      ? "required"
+      : explicitTreatment === "required"
+        ? "required"
+        : "discretionary";
+    return {
+      id: stringValue(row.id),
+      name: stringValue(row.name),
+      category: stringValue(row.category),
+      monthlyAmount: numberValue(row.monthly_amount),
+      isEssential,
+      cashFlowTreatment,
+    };
+  });
 
   const accounts = (raw.accounts ?? []).map((row) => ({
     id: stringValue(row.id),
@@ -364,9 +378,16 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
   const monthlyGrossIncomeKnown = activeIncome.reduce((sum, item) => sum + (item.monthlyGrossAmount ?? 0), 0);
   const hasIncompleteGrossIncome = activeIncome.some((item) => item.monthlyGrossAmount === null);
   const monthlyEssentialExpenses = expenses.filter((item) => item.isEssential).reduce((sum, item) => sum + item.monthlyAmount, 0);
-  const monthlyDiscretionaryExpenses = expenses.filter((item) => !item.isEssential).reduce((sum, item) => sum + item.monthlyAmount, 0);
+  const monthlyCommittedNonEssentialExpenses = expenses
+    .filter((item) => !item.isEssential && item.cashFlowTreatment === "required")
+    .reduce((sum, item) => sum + item.monthlyAmount, 0);
+  const monthlyDiscretionaryExpenses = expenses
+    .filter((item) => !item.isEssential && item.cashFlowTreatment === "discretionary")
+    .reduce((sum, item) => sum + item.monthlyAmount, 0);
   const monthlyMinimumDebtPayments = debts.reduce((sum, item) => sum + item.minimumPayment, 0);
-  const monthlyRequiredOutflow = monthlyEssentialExpenses + monthlyMinimumDebtPayments;
+  const monthlyRequiredOutflow = monthlyEssentialExpenses
+    + monthlyCommittedNonEssentialExpenses
+    + monthlyMinimumDebtPayments;
 
   const liquidAccounts = accounts.filter((item) => ["checking", "savings", "cash"].includes(item.type));
   const liquidCash = liquidAccounts.reduce((sum, item) => sum + item.balance, 0);
@@ -403,10 +424,11 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
       monthlyGrossIncomeKnown,
       hasIncompleteGrossIncome,
       monthlyEssentialExpenses,
+      monthlyCommittedNonEssentialExpenses,
       monthlyDiscretionaryExpenses,
       monthlyMinimumDebtPayments,
       monthlyRequiredOutflow,
-      monthlyCashFlowBeforeSavings: monthlyTakeHomeIncome - monthlyEssentialExpenses - monthlyDiscretionaryExpenses - monthlyMinimumDebtPayments,
+      monthlyCashFlowBeforeSavings: monthlyTakeHomeIncome - monthlyRequiredOutflow - monthlyDiscretionaryExpenses,
       liquidCash,
       protectedCash: cashByPurpose("protected_reserve"),
       earmarkedCash: cashByPurpose("earmarked_goal"),
