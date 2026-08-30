@@ -3,1212 +3,134 @@
 ## Objective
 Answer the household question: **What should I do with my money next?**
 
-Phase 5 turns the household's saved financial profile into an explainable, deterministic plan for both:
-- existing deployable cash, and
-- future monthly cash flow.
-
-The engine is FOO-inspired but not a static nine-step checklist. The researched V2 model uses four operating states:
-
-1. **Stabilize** — fix negative cash flow and immediate financial exposure.
-2. **Secure** — capture employer benefits, eliminate harmful debt, and establish liquidity.
-3. **Build** — keep retirement and necessary future expenses on a sustainable trajectory.
-4. **Optimize** — allocate excess capacity across tax-advantaged investing, low-interest debt, taxable investing, major goals, and lifestyle preferences.
+Phase 5 turns the household's saved financial profile into an explainable, deterministic plan for both existing deployable cash and future monthly cash flow. The engine uses four operating states: **Stabilize**, **Secure**, **Build**, and **Optimize**.
 
 The engine must never automatically move money or modify live household records.
 
 ## Product principles
 - Recommendations must be explainable in plain language.
-- Same normalized household state + same policy version + same tax year + same preferences = same recommendation.
+- Same normalized household state + same policy version + same tax year + same preferences + same explicit as-of date = same recommendation.
 - AI may explain recommendations later but may never determine ranking or allocation.
 - Solvency, required obligations, insurance exposure, liquidity, and employer benefits outrank wealth optimization.
 - Do not require every tax-advantaged account to be maxed before funding legitimate life goals.
-- Treat retirement as a trajectory, not a binary `maxed / not maxed` state.
-- Known future expenses should become today's sinking funds instead of tomorrow's emergencies.
-- When two good priorities conflict, show the funding conflict and recommend an allocation rather than pretending both can be fully funded.
-- User preferences may influence gray-zone decisions but must not rewrite hard financial guardrails.
+- Treat retirement as a trajectory, not a binary maxed/not-maxed state.
+- Known future expenses should become sinking funds instead of future emergencies.
 - Preserve a distinction between **Recommended Plan** and **Your Plan** when users override recommendations.
-- Missing data blocks only the decisions that depend on it.
-- Current tax-law limits and planning assumptions must live in versioned policy rather than scattered magic numbers.
+- Missing data blocks only decisions that depend on it.
+- Current tax-law limits and planning assumptions live in versioned policy rather than scattered magic numbers.
 
----
-
-# Engine State 1 — Stabilize
-
-## Priority 0 — Required obligations and cash-flow sanity
-
-Normalize monthly cash flow before optimization.
-
-```ts
-monthlyRequiredOutflow =
-  monthlyEssentialExpenses
-  + monthlyCommittedExpenses
-  + monthlyMinimumDebtPayments;
-
-monthlyPlanCapacity =
-  monthlyTakeHomeIncome
-  - monthlyRequiredOutflow
-  - monthlyPlannedDiscretionarySpending;
-```
-
-Discretionary spending is not automatically treated as available money. The engine respects the current household lifestyle unless that lifestyle prevents higher-priority needs from being met.
-
-If take-home income is below required obligations, the engine enters **Stabilize** mode.
-
-The engine should:
-- quantify the recurring deficit,
-- identify reasonable discretionary reductions,
-- identify goals or contributions above protected floors that can flex,
-- avoid eliminating employer-match contributions as the first solution,
-- state when spending cuts alone cannot solve the problem.
-
-The engine should not recommend extra debt payments, additional retirement investing, taxable investing, or accelerated optional goals while required cash flow is negative.
-
-### Plan feasibility
-Before allocating discretionary capacity, calculate the monthly pace required by protected priorities.
-
-```ts
-planFundingGap =
-  protectedMonthlyFundingNeed
-  - availableMonthlyCapacity;
-```
-
-Expose a user-facing state such as:
-- `Feasible`
-- `Tight`
-- `Funding gap: $X/month`
-
-When the plan is infeasible, the engine may recommend changing the plan itself: target amount, timeline, discretionary spending, contribution level above a protected floor, purchase scope, or income assumptions.
-
----
-
-## Priority 1 — Immediate deductible reserve
-
-The starter reserve follows the FOO-style deductible concept rather than the previous one-month-expense rule.
-
-### V2 rule
-
-```ts
-starterReserveTarget = max(relevantImmediateInsuranceDeductibles);
-```
-
-Relevant exposures may include:
-- health insurance deductible,
-- auto deductible,
-- homeowners/renters deductible,
-- other genuine insurance deductibles.
-
-Normalize percentage-based deductibles to dollar amounts where possible.
-
-The health-plan out-of-pocket maximum should be tracked as additional risk context but does not automatically become the Stage 1 target.
-
-Only genuinely liquid, unencumbered cash counts toward this reserve. Retirement balances, home equity, and long-term investments do not.
-
-If deductible data is missing, return targeted `data_needed` guidance rather than inventing a target.
-
----
-
-# Engine State 2 — Secure
-
-## Priority 2 — Capture 100% of available employer match
-
-Employer match remains a protected priority even when high-interest debt exists.
-
-Each person's workplace plan is evaluated independently.
-
-V1 may support the simple input:
-
-```ts
-fullMatchEmployeeContributionMonthly
-```
-
-The engine should also be designed to grow into detailed match modeling using:
-- salary / eligible compensation,
-- employee contribution percentage,
-- employer match formula,
-- pay frequency,
-- YTD employee contributions,
-- YTD employer contributions,
-- true-up status,
-- annual statutory limits.
-
-Do not infer a match formula from observed employer contributions.
-
-If the match requirement is unknown, surface `data_needed` for the match-dependent decision while continuing unrelated recommendations.
-
----
-
-## Priority 3 — High-interest and gray-zone debt
-
-Ordinary non-mortgage consumer debt uses four researched V2 bands.
-
-| APR | Default treatment |
-| ---: | --- |
-| **>= 10%** | Hard high-interest priority |
-| **6.00–9.99%** | Payoff-favored judgment zone |
-| **4.00–5.99%** | True gray zone |
-| **< 4%** | Usually later wealth optimization |
-
-### Hard high-interest debt
-Debt at or above 10% APR remains a hard recommended priority after the deductible reserve and employer match.
-
-User preference cannot make discretionary investing outrank this debt in the Recommended Plan. Users may still override the plan.
-
-Within the hard band, rank primarily by APR, then deterministic tie-breakers such as smaller balance and stable ID.
-
-### Judgment-zone debt
-Do not use a hidden black-box score.
-
-Use deterministic starting positions plus bounded modifiers.
-
-Suggested starting treatment:
-
-| APR | Starting treatment |
-| ---: | --- |
-| 8.00–9.99% | Accelerate payoff |
-| 6.00–7.99% | Split / payoff favored |
-| 4.00–5.99% | Scheduled payments / context dependent |
-
-Strong modifiers toward faster payoff include:
-- <= 10 years until planned retirement,
-- meaningful variable-rate/reset risk,
-- severe required debt-payment burden on take-home cash flow.
-
-Moderate modifiers include:
-- near-term payoff would release meaningful monthly cash flow,
-- debt-focused preference,
-- >= 25-year investment horizon in the opposite direction,
-- growth-focused preference in the opposite direction.
-
-A strong modifier may move the starting recommendation one level. Generally two aligned moderate modifiers are required to move one level. A yellow/gray debt may move at most one level from its starting treatment.
-
-Retirement trajectory should be considered in the final allocation but should not be a direct debt-risk modifier by itself.
-
-### Income measures
-Use both:
-- take-home income for monthly cash-flow pressure,
-- gross income for standardized savings and affordability metrics.
-
-### Special debt policies
-The following should bypass the ordinary APR bands and use dedicated policy logic:
-- mortgage debt,
-- 0% promotional balances,
-- student loans,
-- tax debt,
-- collections/delinquent obligations,
-- debts with legal or essential-service consequences.
-
-A promotional balance should be treated as a deadline liability when a high reset APR is approaching.
-
-```ts
-promoRequiredMonthlyPaydown =
-  remainingPromoBalance / monthsUntilPromoExpiration;
-```
-
-Student-loan acceleration must account for repayment-plan and forgiveness considerations before treating APR alone as decisive.
-
----
-
-## Priority 4 — Full emergency reserve
-
-Use a personalized liquidity-risk tier rather than a universal fixed target.
-
-| Household liquidity risk | Recommended reserve |
-| --- | ---: |
-| Low | 3 months |
-| Moderate | 4 months |
-| Elevated | 5 months |
-| High | 6 months |
-| Extended / temporary exceptional risk | > 6 months when justified |
-
-Risk factors include:
-- income concentration,
-- income volatility,
-- job replacement difficulty,
-- dependents,
-- known income disruption,
-- unusual insurance or medical exposure,
-- major life-event liquidity needs.
-
-Use essential required outflow rather than total lifestyle spending.
-
-```ts
-emergencyFundMonthlyBase =
-  monthlyEssentialExpenses
-  + monthlyMinimumDebtPayments;
-
-fullEmergencyTarget =
-  recommendedEmergencyMonths
-  * emergencyFundMonthlyBase;
-```
-
-The deductible reserve counts toward the full emergency reserve when it is held in the same genuinely liquid emergency cash pool. Do not double-count the same dollars.
-
-The engine recommends a target and explains the risk tier. Users may override the target, but the Recommended Plan continues to show the policy recommendation.
-
----
-
-# Engine State 3 — Build
-
-## Priority 5 — Establish a sustainable retirement trajectory
-
-Retirement success is not defined by maxing every account.
-
-The engine uses a progressive model.
-
-### Benchmark-based guidance
-When retirement-profile information is limited, use general references rather than false precision.
-
-Initial product references:
-- approximately 12–15% total retirement funding as a healthy baseline reference,
-- approximately 20–25% as a strong wealth-building reference.
-
-These are benchmarks, not universal requirements.
-
-Always distinguish:
-
-```ts
-personalRetirementContributionRate
-```
-
-from:
-
-```ts
-totalRetirementFundingRateIncludingEmployer
-```
-
-### Projection-based guidance
-When enough information exists, projection-based guidance becomes the primary retirement measure.
-
-Potential inputs:
-- current age,
-- desired retirement age,
-- current retirement assets,
-- gross income,
-- employee contributions,
-- employer contributions,
-- desired retirement spending,
-- estimated Social Security,
-- pensions / guaranteed income,
-- tax assumptions,
-- inflation assumption,
-- investment-return assumption,
-- planning withdrawal-rate assumption.
-
-A simple planning relationship is:
-
-```ts
-annualRetirementSpendingGap =
-  desiredAnnualRetirementSpending
-  - estimatedAnnualGuaranteedRetirementIncome;
-
-portfolioNeeded =
-  annualRetirementSpendingGap
-  / planningWithdrawalRate;
-```
-
-The withdrawal rate and all projection assumptions must be versioned planning assumptions, not permanent truths.
-
-Do not describe long-range projections as guarantees.
-
----
-
-## Priority 6 — Account-specific retirement allocation
-
-Employer match is already handled earlier. Additional retirement funding should be personalized across individual account owners.
-
-The engine may evaluate:
-- HSA eligibility and strategy,
-- Roth IRA eligibility,
-- Traditional IRA deductibility,
-- current vs expected future tax situation,
-- Roth / Traditional diversification,
-- workplace-plan quality and fees,
-- investment options,
-- contribution limits,
-- YTD contributions,
-- explicit user targets.
-
-Do not impose a universal `HSA > Roth IRA > 401(k)` sequence.
-
-Example output may be an allocation rather than a single account:
+## Authoritative calculation flow
 
 ```text
-$300/month -> HSA
-$200/month -> Roth IRA
-$150/month -> Traditional 401(k)
+normalized household snapshot
+→ provisional Secure / Build / Optimize
+→ existing-cash deployment
+→ residual-needs snapshot
+→ authoritative Secure
+→ Build
+→ feasibility
+→ Optimize
+→ normalized recommendations
 ```
 
-Tax eligibility/deductibility uncertainty must appear as an assumption or `data_needed` item rather than being fabricated.
+Existing cash and recurring cash flow are separate funding resources. One-time cash deployment cannot silently become recurring capacity. Residual needs prevent the same requirement from being funded twice.
 
----
-
-## Priority 7 — Known future expenses and sinking funds
-
-There is no arbitrary 24- or 36-month goal horizon.
-
-Any real goal with a target amount and target date can begin affecting today's plan.
-
-```ts
-requiredGoalMonthlyPace =
-  max(0, targetAmount - dedicatedCurrentAmount)
-  / monthsRemaining;
-```
-
-Goal time horizon should also influence liquidity/investment-risk guidance.
-
-Suggested V1 planning guidance:
-- <= 3 years: cash / very low-risk funding,
-- 3–10 years: moderate risk may be appropriate,
-- > 10 years: greater growth exposure may be considered.
-
-The Priority Engine should not choose specific securities in V1.
-
----
-
-## Goal classification
-
-### Necessary / Protective
-Examples:
-- required replacement transportation,
-- critical home repair,
-- known medical expense,
-- required relocation.
-
-These may compete with retirement before an ideal retirement target is reached.
-
-### Major Life Goal
-Examples:
-- home purchase,
-- education,
-- starting a business,
-- wedding.
-
-Important but often more flexible.
-
-### Lifestyle / Optional
-Examples:
-- vacation,
-- luxury upgrade,
-- recreational purchase.
-
-These should not normally undermine core financial security.
-
----
-
-## Need versus upgrade
-For expensive goals, distinguish the financially reasonable core need from an optional upgrade component where the product has enough information to make that distinction.
-
-Do not silently change the user's target.
-
-Example:
+## Required outflow and committed expenses
 
 ```text
-Vehicle target: $60,000
-Core transportation need: ~$28,000
-Lifestyle upgrade component: ~$32,000
+monthlyRequiredOutflow
+=
+monthlyEssentialExpenses
++ monthlyCommittedNonEssentialExpenses
++ monthlyMinimumDebtPayments
 ```
 
-The user's full target remains visible, but only the core need automatically receives protective priority.
+Essential expenses participate in both required cash flow and the ordinary emergency-reserve base. Nonessential expenses explicitly marked required participate in required cash flow but do not inflate the full emergency-reserve base. Discretionary expenses participate in neither. Goal and retirement contributions are not reclassified as committed expenses.
 
-The user can override the classification when legitimate context is missing.
+## Secure
+Secure handles immediate deductible exposure, employer-match protection, high-priority debt, dedicated student-loan policy, and the authoritative emergency reserve. The deductible reserve and emergency reserve share the same protected cash pool where appropriate so dollars are not double-counted.
 
----
+Ordinary emergency targets are 3–6 months according to household liquidity risk. A known, dated income disruption can create a temporary exceptional reserve above six months under the versioned exceptional-reserve policy. Household preference may raise the effective target, but cannot reduce a concrete exceptional target below the policy requirement.
 
-## Competing goal allocation
-Do not immediately use an opaque weighted score.
+Student loans use ordinary debt policy only when no material repayment-plan, forgiveness, tax, or employer-benefit consideration changes the acceleration decision. Special-strategy student loans remain separately inspectable and are not silently treated like ordinary consumer debt.
 
-Use a two-pass model.
-
-### Pass 1 — Required pace
-Calculate each goal's pace from target, dedicated savings, and deadline.
-
-### Pass 2 — Protected funding level
-Establish a protected funding expectation based on goal class and flexibility.
-
-Initial policy direction:
-- necessary + fixed deadline: attempt 100% of required pace,
-- necessary + flexible deadline: protect a large portion of required pace,
-- major life goal: fund according to capacity and priority,
-- lifestyle goal: generally receives residual capacity.
-
-If protected needs exceed available cash flow, surface the structural funding gap before applying any conflict allocation.
-
-Only then allocate scarce dollars according to transparent factors:
-- necessity,
-- deadline pressure,
-- consequence of failure,
-- current funding status,
-- flexibility,
-- retirement trajectory.
-
-Avoid exposing a fake precision score such as `Goal score: 78`.
-
----
-
-## Retirement versus necessary goals
-Necessary, deadline-driven goals may temporarily keep retirement below the ideal trajectory, but should generally not reduce workplace contributions below the employer-match floor.
-
-The engine may recommend a temporary allocation plan and future redirect.
-
-Example:
+## Build
+Build uses an explicit two-pass allocation order:
 
 ```text
-Maintain retirement at 15% temporarily.
-Save $650/month for the required vehicle replacement.
-When the vehicle goal completes, redirect the freed $650/month toward retirement.
+protected required/protective goals
+→ remaining required/protective goal pace
+→ additional retirement
+→ important goals
+→ optional/lifestyle goals
 ```
 
-This should be explicitly labeled as a planned temporary deviation rather than a new permanent target.
+Goal ranking is lexicographic: economic class, deadline type, consequence, months remaining, user priority, then stable ID. A lower-order preference cannot overpower a higher-order protective factor.
 
----
-
-## Education funding
-Parents' retirement security generally outranks fully funding education, but education funding is not automatically zero until retirement is perfect.
-
-Protect:
-- employer match,
-- minimum healthy retirement trajectory.
-
-Then evaluate education using:
-- years until education,
-- existing dedicated savings,
-- requested education amount,
-- parents' retirement trajectory,
-- available capacity.
-
----
-
-## Home purchase planning
-A home goal requires specialized analysis rather than treating only the down payment as the target.
-
-Model:
-- down payment,
-- closing costs,
-- initial post-close reserves,
-- principal + interest,
-- property taxes,
-- homeowners insurance,
-- HOA,
-- reasonable maintenance allowance.
-
-Do not use a lender qualification threshold such as a universal 43% DTI as proof that a home is affordable.
-
-Instead test whether the projected housing cost fits while preserving:
-- emergency reserves,
-- retirement trajectory,
-- necessary goals,
-- reasonable discretionary margin.
-
-If the target is not feasible, suggest changing purchase price, timeline, down payment, income capacity, or a combination.
-
----
-
-## Vehicle affordability
-Do not judge affordability from payment alone.
-
-```ts
-trueMonthlyVehicleCost =
-  loanPayment
-  + insuranceDelta
-  + fuelEstimate
-  + maintenanceReserve;
-```
-
-Also model taxes, fees, financing cost, and purchase price.
-
-The engine should evaluate the purchase itself before deciding whether cash or financing is preferable.
-
----
-
-# Engine State 4 — Optimize
-
-## Priority 8 — Low-interest debt versus investing
-Once the financial foundation and Build-stage protected needs are healthy, low-interest debt becomes an optimization problem.
-
-Evaluate:
-- guaranteed return from debt payoff,
-- expected long-term investment opportunity,
-- taxes where legitimately relevant,
-- liquidity impact,
-- years until retirement,
-- retirement trajectory,
-- household preference for debt freedom versus growth.
-
-Potential outputs:
-- pay debt,
-- invest,
-- split.
-
-Debt-focused / balanced / growth-focused preferences may influence this zone.
-
-Mortgage debt is normally handled here rather than in consumer-debt Stage 3.
-
----
-
-## Priority 9 — Additional tax-advantaged wealth building
-Once the household's retirement trajectory and necessary sinking funds are sustainable, additional tax-advantaged contributions may compete with major goals, taxable investing, and low-interest debt.
-
-Maxing every account is an optimization technique, not a gate that prevents all other life goals.
-
----
-
-## Priority 10 — Taxable investing, optional goals, and accelerated financial independence
-Remaining capacity can be allocated across:
-- taxable brokerage investing,
-- additional retirement contributions,
-- extra mortgage principal,
-- long-term flexible goals,
-- additional cash reserves,
-- lifestyle goals,
-- accelerated financial-independence objectives.
-
-This layer is preference-sensitive and should acknowledge that multiple choices may be financially reasonable.
-
----
-
-# Existing cash allocation
-
-Track existing cash by purpose.
-
-```ts
-type CashPurpose =
-  | "protected_reserve"
-  | "earmarked_goal"
-  | "debt_backed_reserve"
-  | "unallocated";
-```
-
-Only `unallocated` cash is automatically eligible for redeployment.
-
-The engine should separately answer:
-1. What should I do with money I already have?
-2. What should I do with future monthly cash flow?
-
-Do not raid earmarked or protected cash silently.
-
----
-
-# Cheap financing and debt-backed reserves
-
-Separate two questions:
-1. Can the household afford the purchase?
-2. If yes, what is the best way to pay for it?
-
-0% or very-low-rate financing does not make an unaffordable purchase affordable.
-
-If cheap financing is selected while sufficient cash exists, the corresponding cash may be classified as a debt-backed reserve so it is not accidentally treated as spare money elsewhere.
-
----
-
-# Intentional new debt
-New debt may be treated as a controlled tool when the underlying purchase is justified.
-
-Before recommending financing, evaluate:
-- purchase necessity/reasonableness,
-- APR,
-- term,
-- payment burden,
-- emergency liquidity,
-- existing debt,
-- alternatives,
-- opportunity cost.
-
-`The payment fits` is not sufficient evidence of affordability.
-
----
-
-# Windfalls
-Windfalls follow the same financial priorities but different allocation mechanics because the money is non-recurring.
-
-Appropriate uses may include:
-- reserve gaps,
-- high-cost debt,
-- sinking funds,
-- HSA/IRA contributions,
-- investing,
-- major goals.
-
-Do not use a one-time bonus to create an unsustainable recurring monthly commitment.
-
-When the household's foundation is healthy, the engine may surface an optional personalized guilt-free spending range. This is permission, not a requirement.
-
----
-
-# Lifestyle spending and graduated shortfall response
-Respect the user's actual discretionary budget, but show when it prevents important priorities from staying on pace.
-
-If the funding gap is small, recommend a modest adjustment.
-
-If the gap is serious, recommend stronger changes.
-
-If spending cuts alone cannot solve the plan, say so and suggest changing goals, timelines, contribution targets above protected floors, purchase scope, or income assumptions.
-
-Do not assume every financial problem can be solved by eliminating discretionary spending.
-
----
-
-# Life events
-Do not create dozens of opaque hard-coded modes.
-
-Life events modify underlying risk factors such as:
-- income stability,
-- liquidity need,
-- known expenses,
-- deadlines,
-- retirement horizon.
-
-Examples:
-- parental leave,
-- expected job change,
-- moving,
-- surgery,
-- retirement approaching,
-- starting a business,
-- becoming a single-income household.
-
-When the event ends, the normal deterministic recalculation can reduce the temporary adjustment.
-
----
-
-# Household optimization with individual ownership
-Financial planning is household-level, but retirement accounts and many tax rules are person-level.
-
-Future normalized model should support:
+Retirement separates three concepts:
 
 ```text
-Household
-  -> People
-      -> Income sources
-      -> Retirement accounts
-      -> Employer matches
-      -> Person-level contribution limits / eligibility
-  -> Shared debts
-  -> Shared expenses
-  -> Shared goals
-  -> Shared cash reserves
+legal contribution capacity
+≠ tax eligibility / treatment
+≠ engine-recommended contribution amount
 ```
 
-Do not enforce person-level IRA limits at the household level when account ownership is unknown.
+Employer match remains exclusively a Secure concern. Additional retirement routing respects account ownership, annual capacity, shared statutory limits, tax eligibility, and supported account mechanics. Missing legal or tax facts produce targeted information-needed states rather than fabricated capacity.
 
----
+## Optimize
+Optimize receives only capacity remaining after Secure and Build. It handles genuine low-interest-debt/investing tradeoffs and later wealth-building choices. User preferences may influence gray zones but cannot rewrite hard guardrails.
 
-# Missing data behavior
-Never fabricate material financial facts.
+## Existing Cash and Windfall Mode
+Existing cash is reconciled before recurring allocation. Protected, earmarked, debt-backed, and operating cash remain distinct from truly unallocated cash. A minimum unallocated liquidity floor applies only after required/high Secure balance needs are covered.
 
-Examples:
-- unknown match formula -> do not infer full match,
-- unknown HSA eligibility -> do not recommend HSA as definitely available,
-- unknown Roth eligibility -> do not claim direct Roth eligibility,
-- unknown debt APR -> do not invent a debt band,
-- unknown goal date -> do not invent a required monthly pace,
-- unknown deductible -> Stage 1 remains unverified.
+Windfall Mode is a separate deterministic one-time allocator that consumes the authoritative post-existing-cash engine result. It reserves explicit tax/other liabilities and restrictions first, then follows the established hierarchy. It does not invent tax rates, convert a windfall into recurring income, or assume that a recommended windfall allocation was actually executed. Actual balance/debt/goal/account changes are what later alter the household snapshot.
 
-Continue generating independent recommendations that are still supportable.
+## Recommended Plan versus Your Plan
+The authoritative engine produces the Recommended Plan. User overrides produce a separate Your Plan and may change modeled outcomes, but never rewrite the authoritative recommendation. Overrides use stable allocation IDs and explicit active/superseded/invalid reconciliation. A stale allocation is never silently retargeted to a different recommendation.
 
-User-facing states:
-- **Recommended**
-- **Worth considering**
-- **More information needed**
+## Material Profile Change / Recommendation Refresh V1
+Recommendations are valid for the financial basis that produced them. `assessRecommendationRefresh(previous, current, previousOverrides)` is a pure deterministic comparison layer over two authoritative engine results.
 
-Prefer messages such as `Needs 3 details` over fake numerical confidence percentages.
-
----
-
-# Recommended Plan versus Your Plan
-Users may override recommendations.
-
-An override changes projections for **Your Plan** but does not rewrite the financial recommendation itself.
-
-Example:
-
-```text
-Recommended Plan: Pay the 22% credit card first.
-Your Plan: Invest $500/month in brokerage.
-```
-
-The app may explain the consequence of the override without preventing the user from choosing it.
-
----
-
-# Automatic recalculation
-The engine recalculates when household data materially changes.
-
-Meaningful recommendation changes should be explained.
-
-Example:
-
-```text
-Your credit card is now paid off.
-The $475/month previously directed there is now recommended as:
-$300 -> Roth IRA
-$175 -> vehicle fund
-```
-
-Do not create noisy alerts for immaterial changes.
-
----
-
-# Normalized engine input direction
-The pure engine must receive a normalized household snapshot and never query Supabase directly.
+The refresh layer distinguishes:
 
 ```ts
-type MoneyPriorityInput = {
-  taxYear: number;
-  policyVersion: string;
-
-  household: {
-    monthlyGrossIncome: number;
-    monthlyTakeHomeIncome: number;
-    monthlyEssentialExpenses: number;
-    monthlyCommittedExpenses: number;
-    monthlyDiscretionaryExpenses: number;
-  };
-
-  people: Array<{
-    id: string;
-    age?: number | null;
-    plannedRetirementAge?: number | null;
-    grossIncomeMonthly?: number | null;
-  }>;
-
-  cashPools: Array<{
-    id: string;
-    amount: number;
-    purpose: "protected_reserve" | "earmarked_goal" | "debt_backed_reserve" | "unallocated";
-    relatedGoalId?: string | null;
-  }>;
-
-  insuranceExposures: Array<{
-    id: string;
-    type: string;
-    deductibleAmount?: number | null;
-    outOfPocketMaximum?: number | null;
-  }>;
-
-  debts: Array<{
-    id: string;
-    ownerId?: string | null;
-    name: string;
-    type: string;
-    balance: number;
-    annualInterestRate?: number | null;
-    minimumPayment: number;
-    rateType?: "fixed" | "variable" | "promotional" | "unknown";
-    promoExpirationDate?: string | null;
-    promoResetApr?: number | null;
-  }>;
-
-  retirementAccounts: Array<{
-    id: string;
-    ownerId: string | null;
-    name: string;
-    type: string;
-    taxTreatment?: "traditional" | "roth" | "mixed" | "not_applicable" | "unknown";
-    balance: number;
-    monthlyEmployeeContribution: number;
-    monthlyEmployerContribution: number;
-    employeeContributedYtd?: number | null;
-    employerContributedYtd?: number | null;
-    annualContributionTarget?: number | null;
-    fullMatchEmployeeContributionMonthly?: number | null;
-    matchStatus?: "not_offered" | "unknown" | "not_fully_captured" | "fully_captured";
-  }>;
-
-  goals: Array<{
-    id: string;
-    name: string;
-    type?: string | null;
-    classification: "necessary" | "major_life" | "lifestyle";
-    targetAmount: number;
-    currentDedicatedAmount: number;
-    targetDate?: string | null;
-    deadlineFlexibility?: "fixed" | "somewhat_flexible" | "flexible";
-    consequence?: "high" | "medium" | "low";
-  }>;
-
-  preferences: {
-    emergencyFundMonthsOverride?: number | null;
-    debtVsInvesting: "debt_focused" | "balanced" | "growth_focused" | "unspecified";
-    rothVsTraditional: "roth" | "traditional" | "balanced" | "unspecified";
-  };
-};
+type RecommendationRefreshState =
+  | "current"
+  | "refresh_recommended"
+  | "materially_changed"
+  | "critical_change";
 ```
 
-The schema does not need to implement every V2 field before engine work begins; normalized inputs may initially derive from a smaller stored profile and report unsupported/missing data explicitly.
+- `current`: financially relevant basis and authoritative recommendation remain current.
+- `refresh_recommended`: a relevant basis, policy, assumption, tax, or explicit-time input changed, but the authoritative recommendation remains substantially equivalent.
+- `materially_changed`: the recalculated authoritative recommendation or allocation meaningfully changed.
+- `critical_change`: a narrow high-impact transition means the old recommendation may now be unsafe or actively inappropriate, such as loss of income causing infeasibility, a new required priority, or an active known income disruption.
 
----
+A data change is not automatically a material recommendation change. The layer first detects financially relevant basis changes, then compares the already-authoritative recalculated outputs.
 
-# Policy configuration
-All thresholds and planning assumptions must be centralized and versioned.
+### Financial-basis fingerprint
+The financial-basis fingerprint includes the normalized financial snapshot plus the ordinary Money Priority policy version, planning-assumptions version, tax-policy version, tax year, and explicit `asOfDate`. It is deterministic change-detection metadata, not an authentication or security primitive.
 
-```ts
-type MoneyPriorityPolicy = {
-  version: string;
+Canonicalization sorts stable-ID entity collections and normalizes money to cents. Display names, notes, titles, explanation prose, and similar presentation metadata do not create false financial staleness. Scoped Windfall policy is not included in the ordinary recommendation basis merely because Windfall Mode exists.
 
-  highInterestDebtApr: number;       // initial 0.10
-  payoffFavoredDebtApr: number;      // initial 0.06
-  grayZoneDebtApr: number;           // initial 0.04
+### Recommendation fingerprint and diffs
+A separate recommendation fingerprint uses stable authoritative recommendation identity, rank, stage, state, urgency, allocations, and feasibility rather than explanation prose. The assessment exposes inspectable recommendation and allocation diffs so callers can explain what changed without reconstructing engine policy.
 
-  emergencyReserveMonthsByRisk: {
-    low: number;       // 3
-    moderate: number;  // 4
-    elevated: number;  // 5
-    high: number;      // 6
-  };
+### Time and policy changes
+Time is always explicit. Refresh logic never calls `Date.now()` or reads a wall clock. A changed `asOfDate` can matter because goal deadlines, promotional debt, disruption duration, retirement horizon, age boundaries, and tax year can change even when stored household values do not.
 
-  retirementBenchmark: {
-    healthyLower: number;       // 0.12
-    healthyUpper: number;       // 0.15
-    wealthBuildingLower: number;// 0.20
-    wealthBuildingUpper: number;// 0.25
-  };
+Relevant Money Priority, tax-policy, and planning-assumption version changes make the prior basis stale even if the household profile itself is unchanged. Scoped feature versions that do not participate in the ordinary engine basis do not create unrelated staleness.
 
-  goalRiskHorizonsMonths: {
-    shortTermMax: number; // 36
-    mediumTermMax: number;// 120
-  };
+### Override reconciliation
+Refresh never mutates the previous or current engine result. Previous Your Plan overrides are reconciled against the new authoritative Recommended Plan through the existing override machinery. Missing or superseded allocation IDs remain explicit; they are never silently redirected.
 
-  planningAssumptionsVersion: string;
-};
-```
+### V1 boundaries
+Recommendation Refresh V1 is calculation-only. It does not add event history, persistence, notifications, background jobs, automatic refresh, UI redesign, bank sync, Scenario Lab, automatic transfers/payments/trades/contributions, or runtime web calls.
 
-Tax-year policy remains separate from product policy.
+## Determinism, privacy, and security
+All Phase 5 calculation modules operate on supplied normalized household objects. They do not query another household, use a service-role client, call external services, or mutate live financial records. Recommendation fingerprints are not authorization tokens. The engine remains deterministic and inspectable, and no recommendation causes automatic money movement.
 
-For 2026, official IRS limits currently include:
-- 401(k), 403(b), governmental 457, and TSP employee elective-deferral limit: $24,500 before applicable catch-up rules,
-- combined Traditional + Roth IRA limit: $7,500 before applicable catch-up rules,
-- HSA self-only limit: $4,400,
-- HSA family limit: $8,750.
+## Phase 5 closure status
+The core Phase 5 feature set now includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, home and vehicle affordability, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
 
-These values belong in versioned tax policy and should be verified against official IRS guidance when implemented.
-
----
-
-# Recommendation model direction
-The engine should support both single actions and allocations.
-
-```ts
-type RecommendationState =
-  | "recommended"
-  | "worth_considering"
-  | "more_information_needed";
-
-type MoneyPriorityAllocation = {
-  category: string;
-  relatedEntityId?: string | null;
-  monthlyAmount: number;
-  annualAmount?: number | null;
-  rationale: string[];
-};
-
-type MoneyPriorityRecommendation = {
-  id: string;
-  rank: number;
-  state: RecommendationState;
-  urgency: "required" | "high" | "medium" | "optional";
-  title: string;
-  explanation: string;
-  allocations: MoneyPriorityAllocation[];
-  whyNow: string[];
-  tradeoffs: string[];
-  sourceInputs: string[];
-  assumptions: string[];
-  missingData: string[];
-};
-```
-
-Result summary should expose at least:
-- current engine state (`stabilize`, `secure`, `build`, `optimize`),
-- available monthly capacity,
-- plan feasibility / monthly funding gap,
-- starter deductible reserve target,
-- full emergency reserve target and months,
-- highest harmful debt state,
-- employer-match status,
-- retirement guidance mode (`benchmark` or `projection`),
-- retirement trajectory state,
-- necessary-goal funding gaps,
-- data-quality warnings,
-- tax-rule warnings,
-- policy version,
-- tax year.
-
----
-
-# Deterministic allocation flow
-
-1. Normalize household data and validate material missing inputs.
-2. Calculate required monthly outflow and available monthly capacity.
-3. Classify existing cash by purpose and calculate deployable unallocated cash.
-4. Calculate plan feasibility.
-5. Run Stabilize gates.
-6. Calculate deductible reserve gap.
-7. Calculate uncaptured employer-match requirements.
-8. Classify debt using common bands plus special debt policy modules.
-9. Calculate personalized emergency-reserve target.
-10. Determine retirement guidance mode and trajectory.
-11. Calculate goal required paces and protected goal funding.
-12. If protected needs exceed capacity, surface the structural funding gap and apply conflict rules.
-13. Allocate remaining capacity across Build-stage priorities.
-14. Run Optimize-stage debt/investing/goal tradeoffs.
-15. Return ranked recommendations and allocations with explicit reasons, assumptions, and missing data.
-
----
-
-# Regression requirements
-The existing regression suite should be expanded to cover V2 behavior, including at minimum:
-
-1. negative recurring cash flow,
-2. missing deductible data,
-3. deductible reserve gap,
-4. missing employer match,
-5. uncaptured employer match despite high-interest debt,
-6. 24% credit card,
-7. 9% payoff-favored debt,
-8. 5% gray-zone debt,
-9. mortgage excluded from consumer-debt red band,
-10. promotional 0% balance approaching reset,
-11. student loan with forgiveness consideration,
-12. 3-month low-risk emergency reserve,
-13. 6-month high-risk reserve,
-14. temporary extended reserve from life event,
-15. benchmark-based retirement guidance,
-16. projection-based retirement guidance,
-17. employer contributions tracked separately from personal savings rate,
-18. HSA eligibility unknown,
-19. Roth eligibility unknown,
-20. person-level IRA ownership uncertainty,
-21. necessary car goal five years away,
-22. necessary car goal competing with retirement,
-23. multiple necessary goals exceeding capacity,
-24. lifestyle goal receiving residual funding,
-25. house goal with affordable down payment but unaffordable carrying cost,
-26. vehicle with affordable payment but unaffordable total ownership cost,
-27. 0% financing with debt-backed reserve,
-28. reasonable use of new debt to preserve emergency liquidity,
-29. existing earmarked cash not redeployed,
-30. unallocated cash redeployed,
-31. windfall allocation without creating recurring obligation,
-32. guilt-free windfall range for healthy household,
-33. low-interest mortgage debt-focused preference,
-34. low-interest mortgage growth-focused preference,
-35. Recommended Plan vs Your Plan override,
-36. material profile change produces deterministic recommendation change,
-37. missing data blocks only dependent decisions,
-38. allocations never exceed available monthly capacity,
-39. allocations never double-count the same cash,
-40. same input + policy + tax year produces identical ordered output.
-
-Every permanent engine rule introduced in implementation should have a matching regression case.
-
----
-
-# Architecture
-Recommended implementation remains pure and testable:
-
-- `lib/priority-engine/types.ts`
-- `lib/priority-engine/policy.ts`
-- `lib/priority-engine/tax-policy.ts`
-- `lib/priority-engine/planning-assumptions.ts`
-- `lib/priority-engine/normalize.ts`
-- `lib/priority-engine/debt-policy.ts`
-- `lib/priority-engine/retirement.ts`
-- `lib/priority-engine/goals.ts`
-- `lib/priority-engine/allocation.ts`
-- `lib/priority-engine/engine.ts`
-- `lib/priority-engine/*.test.ts`
-
-Server-side household snapshot builder supplies normalized input. Supabase access must remain outside the pure engine.
-
----
-
-# Deliberately deferred precision
-Do not hard-code false precision before validating it.
-
-The following require research/versioned policy and representative-household testing before production formulas are frozen:
-- long-term return and inflation assumptions,
-- retirement withdrawal-rate assumptions,
-- Social Security modeling,
-- exact retirement contribution-rate solver,
-- detailed employer-match formula DSL,
-- exact household liquidity-risk classifier,
-- exact gray-zone debt burden thresholds,
-- exact need-versus-upgrade affordability formulas,
-- exact conflict-allocation weights,
-- education-cost assumptions,
-- detailed tax optimization.
-
-The V2 architecture defines what the engine must consider without pretending uncertain planning assumptions are facts.
-
----
-
-# Source-informed design notes
-The V2 decisions were validated against current public guidance from the Money Guy Financial Order of Operations, Fidelity, Vanguard, CFPB, Morningstar, and official IRS tax guidance.
-
-Key research-informed changes from the earlier Phase 5 draft:
-- starter reserve changed from one month of expenses to the highest relevant insurance deductible,
-- full emergency reserve remains 3–6 months but becomes risk-tiered,
-- debt framework expanded from a simple 10% / 6% waterfall to hard, payoff-favored, gray, and low-interest zones,
-- fixed 24-month goal horizon removed,
-- retirement changed from account-maxing gate to progressive trajectory guidance,
-- goals and retirement may coexist through deterministic allocation,
-- home and vehicle affordability use household cash-flow analysis rather than payment-only or universal DTI shortcuts,
-- plan feasibility becomes an explicit calculation before optimization.
-
----
-
-# Phase 5 implementation order
-
-1. Review and approve this V2 decision specification.
-2. Update the Phase 5 schema audit against V2 requirements.
-3. Design the smallest additive schema migration required for V2.
-4. Apply and verify migration with RLS/security checks.
-5. Add product policy, tax policy, and planning-assumption version files.
-6. Implement normalized engine types and validation.
-7. Implement Stabilize and Secure gates.
-8. Implement retirement benchmark/projection interface.
-9. Implement goal pace and feasibility calculations.
-10. Implement deterministic Build allocation.
-11. Implement Optimize tradeoff rules.
-12. Build the expanded regression suite.
-13. Add server-side household snapshot builder.
-14. Build Priority Engine UI with Recommended Plan / Your Plan distinction.
-15. Test representative households and adversarial edge cases.
-16. Run CI, security review, and merge only after regression behavior is accepted.
-
-
----
-
-## Dedicated Student-Loan Policy V1
-
-Student loans are assessed per debt before ordinary APR-based acceleration. Private loans and federal loans with a known ordinary repayment plan, no forgiveness strategy, and no material employer benefit continue through the existing debt policy. The word `student` alone does not suppress high-interest treatment.
-
-Household-reported PSLF and sufficiently described IDR-forgiveness strategies suppress extra acceleration while preserving the recorded required payment in monthly obligations. Other forgiveness programs receive focused review, and missing strategy inputs block only that loan's acceleration decision. Family Finance Hub does not certify forgiveness eligibility, reproduce federal payment formulas, forecast legislation, or fabricate future tax liabilities.
-
-Known employer direct loan assistance and explicitly reported qualified-student-loan-payment retirement matching are treated as material benefits that ordinary acceleration must not destroy. Preserved-strategy loans do not receive one-time cash payoff deployments. Recommended Plan exposes zero recommended extra payment for these loans, while Your Plan may model an extra payment and receives a strategy-conflict tradeoff.
-
-The policy facts are versioned under `MoneyPriorityPolicy.studentLoan`. V1 records the post-July-1-2026 framework boundary, disallows SAVE as a modeled long-term assumption, and records the end of the broad IDR federal tax exclusion after December 31, 2025. No live web dependency or database migration is introduced.
-
-
----
-
-## Committed Expenses V1
-
-Expense survival classification and recurring cash-flow treatment are separate:
-
-- `isEssential: true` means the expense participates in emergency/survival planning and always normalizes to `cashFlowTreatment: "required"`.
-- A nonessential expense with `cashFlowTreatment: "required"` reduces ordinary monthly capacity without increasing the emergency-fund target.
-- A nonessential expense with `cashFlowTreatment: "discretionary"` remains outside required outflow while continuing to be included once in the household's recorded spending and cash-flow calculation.
-
-Backward-compatible defaults are essential → required and nonessential → discretionary. An essential expense supplied as discretionary is normalized to required.
-
-The canonical aggregates are:
-
-```ts
-monthlyRequiredOutflow =
-  monthlyEssentialExpenses
-  + monthlyCommittedNonEssentialExpenses
-  + monthlyMinimumDebtPayments;
-
-monthlyCashFlowBeforeSavings =
-  monthlyTakeHomeIncome
-  - monthlyRequiredOutflow
-  - monthlyDiscretionaryExpenses;
-```
-
-Required nonessential commitments increase a liquidity floor derived from required outflow, but the full emergency target remains based on essential expenses plus minimum debt payments. Goal savings and retirement contributions remain outside expense aggregates.
-
----
-
-## Goal Ranking & Two-Pass Build Allocation V1
-
-Build goal ranking is lexicographic rather than an additive score. The engine compares the following fields in order and stops at the first difference:
-
-1. economic tier: required/protective, important, optional/lifestyle;
-2. deadline rigidity: fixed/inflexible, flexible, unknown;
-3. consequence: high, moderate, low, unknown;
-4. valid deadline proximity: fewer months remaining first, with missing/invalid dates last;
-5. explicit user priority: the existing lower-number-means-higher-priority convention;
-6. stable goal ID.
-
-Required/protective includes `necessity === "required"` or `goalClass === "necessary_protective"`. Important contains other goals explicitly marked important. All remaining goals are optional/lifestyle. Ranking uses only normalized structured metadata; names never determine tier, consequence, or urgency. Output exposes these factors as `rankingFactors`, so consumers do not need to reconstruct hidden arithmetic. The former numeric Build priority score has been removed.
-
-Ranking and protection are deliberately separate. `goalProtectionMultiplier()` continues to determine how much of a goal's legitimate monthly pace is protected; it does not influence rank. Build then allocates in explicit phases:
-
-1. protected portions of all qualifying goals, in lexicographic order;
-2. required/protective goals from their protected amount to their full legitimate pace;
-3. additional retirement toward the existing projection-based need or benchmark;
-4. important goals from any protected amount to their full legitimate pace;
-5. optional/lifestyle goals to their full legitimate pace;
-6. Optimize receives only what remains.
-
-This preserves protection for important fixed goals without allowing their top-up to displace additional retirement. Within the protected pass, a higher-ranked goal receives up to its protected need before the next goal; no proportional allocation is invented. No goal is topped above its protected amount while a qualifying protected need remains uncovered.
-
-The authoritative Build run continues to use the residual snapshot produced after one-time existing-cash deployment. Fully cash-satisfied goals disappear from recurring allocations, and partially satisfied goals expose only their residual pace. Missing or invalid target dates produce targeted warnings, no invented pace, and do not block other goals. Sorting uses the normalized goal ID as the final tie-break, so raw input order does not affect ranking, allocation, capacity, or recommendation order.
-
----
-
-## Exceptional-Risk Emergency Reserve V1
-
-Ordinary emergency risk remains the existing 3/4/5/6-month system. Income concentration, variable income, dependents, known disruption, and job-replacement difficulty continue to affect the ordinary score, but generalized factors cannot automatically produce more than six months.
-
-An automatic target above six months requires the structured combination of `knownIncomeDisruption === true` and a valid future `knownIncomeDisruptionEndDate`. The exceptional candidate is the deterministic remaining disruption duration, measured from the supplied `asOfDate`, plus the policy two-month recovery buffer. The engine uses the larger of the ordinary recommendation and this candidate, capped at the automatic 12-month maximum. Results of 7–9 months are `temporary_exception`; results of 10–12 months are `severe_exception`.
-
-Missing or calendar-invalid disruption dates do not create exceptional months and instead produce targeted missing-data guidance. An end date on or before the as-of date produces a stale-data warning and ordinary reserve behavior. A future end date is ignored when the disruption flag is false. No occupation, employer, industry, goal-name, or free-form keyword inference is used.
-
-The assessment exposes ordinary and exceptional reasons separately, along with `engineRecommendedMonths`, `householdOverrideMonths`, `effectiveRecommendedMonths`, and the effective source. Existing lower household overrides remain compatible with ordinary 3–6-month policy. Once a concrete exceptional engine recommendation exceeds six months, a lower override cannot reduce the authoritative target. A higher preference—including one above the automatic 12-month cap—may raise the effective target, but remains labeled as a household preference rather than exceptional engine policy.
-
-There is one total emergency reserve target, not separate ordinary and exceptional pools. Its dollar base remains:
-
-```ts
-effectiveRecommendedMonths
-  * (monthlyEssentialExpenses + monthlyMinimumDebtPayments)
-```
-
-Committed nonessential and discretionary expenses remain outside that target. Protected reserve cash offsets the target once and continues to share coverage with the deductible reserve. A larger gap can legitimately consume more Secure capacity or unallocated existing cash; residual reconciliation then prevents that cash from being claimed again. Build and Optimize receive only the capacity left after authoritative Secure allocation.
-
----
-
-## Advanced Retirement-Account Cases V1
-
-Retirement analysis keeps three decisions separate: legal contribution capacity, tax eligibility/treatment, and the engine-recommended retirement increase. More legal room never increases the household retirement need. Build routes only an already-legitimate retirement allocation, after Secure and required/protective goals, and never beyond known annual account room.
-
-The versioned 2026 tax policy (`2026.2`) centralizes the $24,500 workplace deferral limit, $8,000 age-50 catch-up, $11,250 age-60-through-63 catch-up, $72,000 annual-additions limit, $7,500 IRA limit, $1,100 IRA catch-up, SIMPLE limits, SEP cap, and $150,000 prior-year sponsor-wage threshold. Ages are determined at tax-year end; the enhanced catch-up replaces rather than stacks with the ordinary catch-up.
-
-Traditional and Roth IRAs share one annual limit per person. Married-filing-jointly households may use combined eligible compensation for separate person-owned spousal IRAs, allocated deterministically without exceeding household compensation. Direct Roth eligibility still requires filing status and MAGI; gross and take-home income are not substitutes. Traditional IRA legal capacity remains distinct from deductibility, and a known nondeductible opportunity is classified below clearly tax-advantaged capacity. This is not a Form 8606 or backdoor-Roth simulator.
-
-SIMPLE accounts use their own $17,000 employee limit and $4,000/$5,250 catch-up bands. The $18,100 applicable-plan limit is granted only by an explicit structured fact. SIMPLE deferrals coordinate with other applicable employee deferrals; governmental 457(b) room remains separate. A known SIMPLE nonelective employer contribution creates no employee match gap, while a known uncaptured matching formula continues through Secure.
-
-Ordinary SEP accounts are employer-only: they expose no employee deferral or catch-up. When supported eligible compensation and employer YTD contributions are known, employer capacity is the lesser of 25% of compensation or $72,000. Self-employed compensation is not approximated, and SARSEP remains deferred because it is not a structured account type.
-
-For applicable 401(k), 403(b), and TSP catch-ups, the 2026 Roth assessment uses only prior-year wages from that plan's sponsor. Exactly $150,000 does not trigger the rule; an amount above it does. Missing sponsor wages or Roth-plan support produces targeted missing data, and a plan known not to support the required Roth path receives no fabricated catch-up room. The rule is not applied to IRAs, ordinary SEPs, or SIMPLE accounts by generic analogy.
-
-Account quality is an inspectable lexicographic tier—`employer_match`, `strong_tax_advantaged`, `diversification_opportunity`, `secondary_tax_advantaged`, or `unavailable_or_unknown`—rather than a weighted score. Employer match remains Secure and is excluded from Build routing. Tax diversification is only a lower-order account-selection consideration based on known tax treatment; unknown fees or investment quality are never invented. If no known legal destination can accept an allocated retirement increase, Build exposes the unresolved monthly amount instead of fabricating capacity.
-
-The optional normalized plan facts used by V1 are calculation inputs only; no database migration or UI was added. Missing persistence for sponsor-specific prior-year wages, Roth catch-up support, SIMPLE subtype/formula, and SEP supported compensation remains explicit and narrowly scoped.
-
----
-
-## Windfall Mode V1
-
-Windfall Mode is an ephemeral, deterministic one-time allocator over an already-computed authoritative Priority Engine result. A windfall never becomes recurring income, is never divided by twelve, and does not change take-home income, monthly cash flow, monthly plan capacity, goal pace, retirement need, debt minimums, Recommended Plan, or Your Plan.
-
-The input distinguishes gross proceeds from four independent structured reservations: known tax liability, known other liability, restricted proceeds, and earmarked required-purpose proceeds. Those buckets are subtracted exactly once before allocation. V1 estimates no taxes, withholding, basis, capital gains, inheritance tax, state tax, or settlement treatment. When tax treatment is uncertain or absent, the otherwise deployable remainder is held for tax review and targeted missing data is returned. Source labels are explanatory only; an inheritance is not automatically invested, and insurance, asset-sale, or settlement proceeds are not automatically taxed or restricted.
-
-Allocation begins with the engine's residual state after normal existing-cash deployment. It does not add the windfall to account balances or rerun existing-cash logic. The explicit hierarchy is:
-
-1. known liabilities, restrictions, and earmarks reserved outside the deployable pool;
-2. remaining Secure one-time needs, with deductible and emergency coverage sharing one reserve pool;
-3. required/protective goals in the existing lexicographic goal order;
-4. residual high-confidence debt acceleration not already claimed by Secure;
-5. legitimate direct one-time retirement destinations;
-6. important goals;
-7. clear Optimize debt-payoff uses;
-8. optional/lifestyle goals;
-9. unallocated remainder.
-
-The later debt phase honors Dedicated Student-Loan Policy and skips PSLF, IDR, employer-benefit, and other strategies for which ordinary acceleration is disallowed. All acceleration already represented in Secure is excluded from that later phase. Goal phases reuse the existing ranking factors and cap funding at the residual target amount.
-
-Retirement funding requires both an authoritative retirement need and remaining legal room. V1 direct destinations are Traditional IRA, Roth IRA, and HSA opportunities that the advanced-retirement layer marks available. Employee 401(k), 403(b), TSP, and SIMPLE salary deferrals are payroll mechanisms and are not represented as direct windfall deposits; ordinary SEP is employer-funded. Combined IRA limits, spousal compensation, Roth eligibility, deductibility, current-year contributions, age rules, and opportunity tiers remain authoritative. Employer-match gaps remain recurring Secure behavior and receive no windfall allocation.
-
-Optimize does not force taxable investing or a split decision merely to consume the pool. A low-confidence choice remains unallocated with an explanation. Windfall Mode performs no transfer, payment, trade, or contribution, uses no wall clock or live service, mutates no input, and adds no persistence, migration, or UI.
+Before merge, Phase 5 still requires the cross-engine adversarial regression pass, documentation consistency cleanup, and final security/correctness audit.
