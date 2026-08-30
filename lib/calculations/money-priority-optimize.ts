@@ -97,7 +97,7 @@ export function evaluateOptimizeStage(
   const recommendations: OptimizeStageRecommendation[] = [];
 
   const eligibleDebts = snapshot.debts
-    .filter((debt) => classifyDebt(debt, policy).band === "optimize")
+    .filter((debt) => debt.balance > 0 && classifyDebt(debt, policy).band === "optimize")
     .sort((a, b) => (b.annualInterestRate ?? -1) - (a.annualInterestRate ?? -1) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 
   for (const debt of eligibleDebts) {
@@ -115,13 +115,18 @@ export function evaluateOptimizeStage(
     let debtMonthlyAmount = 0;
     let investingMonthlyAmount = 0;
     if (isUnlocked && remainingMonthlyCapacity > 0) {
-      if (assessment.decision === "pay_debt") debtMonthlyAmount = remainingMonthlyCapacity;
-      else if (assessment.decision === "invest") investingMonthlyAmount = remainingMonthlyCapacity;
-      else {
-        debtMonthlyAmount = roundMoney(remainingMonthlyCapacity / 2);
+      if (assessment.decision === "pay_debt") {
+        debtMonthlyAmount = roundMoney(Math.min(remainingMonthlyCapacity, debt.balance));
+        remainingMonthlyCapacity = roundMoney(remainingMonthlyCapacity - debtMonthlyAmount);
+      } else if (assessment.decision === "invest") {
+        investingMonthlyAmount = remainingMonthlyCapacity;
+        remainingMonthlyCapacity = 0;
+      } else {
+        const targetDebtShare = roundMoney(remainingMonthlyCapacity / 2);
+        debtMonthlyAmount = roundMoney(Math.min(targetDebtShare, debt.balance));
         investingMonthlyAmount = roundMoney(remainingMonthlyCapacity - debtMonthlyAmount);
+        remainingMonthlyCapacity = 0;
       }
-      remainingMonthlyCapacity = 0;
     }
 
     const allocationExists = debtMonthlyAmount > 0 || investingMonthlyAmount > 0;
