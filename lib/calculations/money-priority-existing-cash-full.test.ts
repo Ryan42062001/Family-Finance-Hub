@@ -78,8 +78,9 @@ test("Build existing cash closes only the deadline shortfall when monthly capaci
 
   assert.equal(result.snapshot.aggregates.monthlyCashFlowBeforeSavings, 500);
   assert.equal(goalAllocation?.allocatedMonthlyAmount, 500);
-  assert.equal(goalAllocation?.unfundedMonthlyAmount, 500);
+  assert.equal(goalAllocation?.unfundedMonthlyAmount, 0);
   assert.equal(goalDeployment?.amount, 6000);
+  assert.equal((goalDeployment?.amount ?? 0) + (goalAllocation?.allocatedMonthlyAmount ?? 0) * 12, 12000);
   assert.equal(result.existingCash.remainingUnallocatedCash, 4000);
 });
 
