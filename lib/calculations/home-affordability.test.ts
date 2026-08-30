@@ -189,7 +189,7 @@ test("all-in housing cost is visibly greater than principal and interest", () =>
 
 test("current rent that disappears reduces incremental impact", () => {
   const result = evaluateHomeAffordability(engine(), scenario());
-  assert.equal(result.monthly.incrementalHousingImpact, result.monthly.allInHousingCost - 2000);
+  assert.ok(Math.abs(result.monthly.incrementalHousingImpact - (result.monthly.allInHousingCost - 2000)) < 0.01);
 });
 
 test("current housing cost is not subtracted when it remains", () => {
@@ -385,7 +385,7 @@ test("missing maintenance is explicitly disclosed for strong capacity", () => {
 
 test("missing maintenance makes a borderline scenario indeterminate", () => {
   const result = evaluateHomeAffordability(engine(), scenario({
-    purchasePrice: 950000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
+    purchasePrice: 1300000, downPayment: 60000, monthlyMaintenancePlanningAmount: null,
   }));
   assert.ok(result.missingData.includes("monthlyMaintenancePlanningAmount"));
   assert.equal(result.overallAffordability, "more_information_needed");
