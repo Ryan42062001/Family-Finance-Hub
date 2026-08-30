@@ -4,6 +4,7 @@ import { evaluateSecureStage, type SecureStageResult } from "./money-priority-se
 import { evaluateBuildStage, type BuildStageResult } from "./money-priority-build.ts";
 import { evaluateOptimizeStage, type OptimizeStageResult } from "./money-priority-optimize.ts";
 import { evaluateExistingCashDeployment, type ExistingCashDeploymentResult } from "./money-priority-existing-cash.ts";
+import { buildResidualNeedsSnapshot, deriveResidualNeedsContext, type ResidualNeedsContext } from "./money-priority-residual-needs.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
 
@@ -42,6 +43,7 @@ export type MoneyPriorityEngineResult = {
   snapshot: MoneyPrioritySnapshot;
   feasibility: PlanFeasibility;
   existingCash: ExistingCashDeploymentResult;
+  residualNeeds: ResidualNeedsContext;
   secure: SecureStageResult;
   build: BuildStageResult;
   optimize: OptimizeStageResult;
@@ -152,14 +154,64 @@ function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRe
 
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw);
-  const secure = evaluateSecureStage(snapshot, asOfDate, policy);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
+
+  // Build a provisional recurring plan only to identify eligible one-time cash uses.
+  // The authoritative recurring plan is recomputed from immutable residual needs below.
+  const provisionalSecure = evaluateSecureStage(snapshot, asOfDate, policy);
+  const provisionalSecurePlan = allocateSecureRecommendations(provisionalSecure, monthlyPlanCapacity);
+  const provisionalBuild = evaluateBuildStage(snapshot, asOfDate, policy, provisionalSecurePlan.remainingMonthlyCapacity);
+  const provisionalFeasibility = calculatePlanFeasibility(
+    snapshot,
+    roundMoney(provisionalSecurePlan.protectedMonthlyNeed + provisionalBuild.protectedMonthlyFundingNeed),
+  );
+  const provisionalOptimize = evaluateOptimizeStage(
+    snapshot,
+    provisionalBuild,
+    !provisionalSecurePlan.hasUnfundedPriority && provisionalFeasibility.status !== "funding_gap",
+    policy,
+  );
+
+  const existingCash = evaluateExistingCashDeployment(
+    snapshot,
+    provisionalSecure,
+    provisionalBuild,
+    provisionalOptimize,
+    policy,
+  );
+  const residualNeeds = deriveResidualNeedsContext(existingCash);
+  const residualSnapshot = buildResidualNeedsSnapshot(snapshot, residualNeeds);
+
+  const secure = evaluateSecureStage(residualSnapshot, asOfDate, policy);
   const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
-  const build = evaluateBuildStage(snapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
-  const feasibility = calculatePlanFeasibility(snapshot, roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed));
+  const build = evaluateBuildStage(residualSnapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
+  const feasibility = calculatePlanFeasibility(
+    residualSnapshot,
+    roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed),
+  );
   const optimizeUnlocked = !securePlan.hasUnfundedPriority && feasibility.status !== "funding_gap";
-  const optimize = evaluateOptimizeStage(snapshot, build, optimizeUnlocked, policy);
-  const existingCash = evaluateExistingCashDeployment(snapshot, secure, build, optimize, policy);
-  const recommendations = normalizeRanks([...stabilizeRecommendations(snapshot, feasibility), ...securePlan.recommendations, ...buildRecommendations(build), ...optimizeRecommendations(optimize)]);
-  return { policyVersion: policy.version, planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version, taxPolicyVersion: build.retirementAccounts.taxPolicyVersion, taxYear: build.retirementAccounts.taxYear, asOfDate, snapshot, feasibility, existingCash, secure, build, optimize, recommendations, warnings: [...snapshot.warnings, ...build.warnings] };
+  const optimize = evaluateOptimizeStage(residualSnapshot, build, optimizeUnlocked, policy);
+  const recommendations = normalizeRanks([
+    ...stabilizeRecommendations(snapshot, feasibility),
+    ...securePlan.recommendations,
+    ...buildRecommendations(build),
+    ...optimizeRecommendations(optimize),
+  ]);
+
+  return {
+    policyVersion: policy.version,
+    planningAssumptionsVersion: MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1.version,
+    taxPolicyVersion: build.retirementAccounts.taxPolicyVersion,
+    taxYear: build.retirementAccounts.taxYear,
+    asOfDate,
+    snapshot,
+    feasibility,
+    existingCash,
+    residualNeeds,
+    secure,
+    build,
+    optimize,
+    recommendations,
+    warnings: [...snapshot.warnings, ...build.warnings],
+  };
 }
