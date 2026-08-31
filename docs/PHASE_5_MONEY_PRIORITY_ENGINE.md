@@ -88,6 +88,13 @@ Windfall Mode is a separate deterministic one-time allocator that consumes the a
 ## Recommended Plan versus Your Plan
 The authoritative engine produces the Recommended Plan. User overrides produce a separate Your Plan and may change modeled outcomes, but never rewrite the authoritative recommendation. Overrides use stable allocation IDs and explicit active/superseded/invalid reconciliation. A stale allocation is never silently retargeted to a different recommendation.
 
+## Home and Vehicle authoritative reruns
+Home and Vehicle affordability use the shared hypothetical Money Priority Engine rerun path. The hypothetical post-purchase household is evaluated by the same authoritative Secure → Build → feasibility → Optimize flow rather than by a second competing priority hierarchy.
+
+Home affordability models cash-to-close boundaries, mortgage debt, non-debt housing costs, disappearing current housing cost, related-goal completion, sale-proceeds timing, and contractual ARM stress through deterministic hypothetical inputs. Mortgage principal-and-interest is represented once as a debt minimum and is not duplicated as a housing expense.
+
+Vehicle affordability similarly reruns the authoritative engine after modeled purchase cash usage, financing, operating-cost changes, and related-goal completion. Both calculators preserve protected/earmarked/debt-backed cash boundaries and expose employer-match, Secure, required-goal, retirement, and plan-margin effects from the recalculated engine result.
+
 ## Material Profile Change / Recommendation Refresh V1
 Recommendations are valid for the financial basis that produced them. `assessRecommendationRefresh(previous, current, previousOverrides)` is a pure deterministic comparison layer over two authoritative engine results.
 
@@ -102,35 +109,41 @@ type RecommendationRefreshState =
 ```
 
 - `current`: financially relevant basis and authoritative recommendation remain current.
-- `refresh_recommended`: a relevant basis, policy, assumption, tax, or explicit-time input changed, but the authoritative recommendation remains substantially equivalent.
-- `materially_changed`: the recalculated authoritative recommendation or allocation meaningfully changed.
-- `critical_change`: a narrow high-impact transition means the old recommendation may now be unsafe or actively inappropriate, such as loss of income causing infeasibility, a new required priority, or an active known income disruption.
+- `refresh_recommended`: a relevant financial basis, policy, assumption, tax-year, or explicit-time input changed, but the authoritative recommendation remains substantially equivalent.
+- `materially_changed`: the recalculated authoritative recommendation meaningfully changes order, state, urgency, allocation, destination, or feasibility.
+- `critical_change`: a narrow high-impact transition means the old recommendation may now be unsafe or actively inappropriate, such as a new funding gap, loss of all modeled income, activation of a known income disruption, loss of employer-match capture, or a newly required/high Secure action.
 
-A data change is not automatically a material recommendation change. The layer first detects financially relevant basis changes, then compares the already-authoritative recalculated outputs.
+A data change is not automatically a material recommendation change. The layer first detects financially relevant basis changes, then compares already-authoritative recalculated outputs. A small financially relevant balance change can therefore produce `refresh_recommended` when the actual recommended action remains equivalent.
 
 ### Financial-basis fingerprint
-The financial-basis fingerprint includes the normalized financial snapshot plus the ordinary Money Priority policy version, planning-assumptions version, tax-policy version, tax year, and explicit `asOfDate`. It is deterministic change-detection metadata, not an authentication or security primitive.
+The financial-basis fingerprint includes the normalized financial snapshot plus the ordinary Money Priority policy version, planning-assumptions version, tax-policy version, tax year, and explicit `asOfDate`. It is deterministic change-detection metadata, not an authentication, encryption, authorization, or security primitive.
 
-Canonicalization sorts stable-ID entity collections and normalizes money to cents. Display names, notes, titles, explanation prose, and similar presentation metadata do not create false financial staleness. Scoped Windfall policy is not included in the ordinary recommendation basis merely because Windfall Mode exists.
+Canonicalization sorts stable-ID entity collections explicitly by stable ID. Monetary fields use repository cent-rounding conventions; non-money numeric fields such as APRs, ratios, months, and ages are not indiscriminately rounded to cents. Null/undefined behavior is normalized by canonical serialization. Display names, notes, titles, explanation prose, rationales, timestamps, and similar presentation metadata do not create false financial staleness.
+
+Scoped Windfall policy is not included in the ordinary recommendation basis merely because Windfall Mode exists.
 
 ### Recommendation fingerprint and diffs
-A separate recommendation fingerprint uses stable authoritative recommendation identity, rank, stage, state, urgency, allocations, and feasibility rather than explanation prose. The assessment exposes inspectable recommendation and allocation diffs so callers can explain what changed without reconstructing engine policy.
+A separate recommendation fingerprint uses stable authoritative recommendation identity, meaningful rank, stage, state, urgency, cent-rounded allocations, and meaningful feasibility state rather than explanation prose. Feasible-plan numeric capacity alone does not make an otherwise equivalent recommendation materially changed. A funding-gap state and funding-gap amount remain part of meaningful feasibility comparison.
+
+The assessment exposes combined and separated added/removed/changed recommendation diffs, allocation diffs, previous/current policy basis, and feasibility state transition so callers can explain what changed without reconstructing engine policy.
 
 ### Time and policy changes
 Time is always explicit. Refresh logic never calls `Date.now()` or reads a wall clock. A changed `asOfDate` can matter because goal deadlines, promotional debt, disruption duration, retirement horizon, age boundaries, and tax year can change even when stored household values do not.
 
-Relevant Money Priority, tax-policy, and planning-assumption version changes make the prior basis stale even if the household profile itself is unchanged. Scoped feature versions that do not participate in the ordinary engine basis do not create unrelated staleness.
+A harmless time-basis change with equivalent recommendations is refresh-worthy, not automatically material. Relevant Money Priority, tax-policy, tax-year, and planning-assumption version changes likewise make the prior basis stale even when the household profile itself is unchanged. If the authoritative recommendation also changes, severity escalates accordingly.
 
 ### Override reconciliation
-Refresh never mutates the previous or current engine result. Previous Your Plan overrides are reconciled against the new authoritative Recommended Plan through the existing override machinery. Missing or superseded allocation IDs remain explicit; they are never silently redirected.
+Refresh never mutates the previous or current engine result. Previous Your Plan overrides are reconciled only after the new authoritative Recommended Plan exists and through the existing override machinery. Missing, invalid, or superseded allocation IDs remain explicit; they are never silently redirected or used to rewrite the new Recommended Plan.
 
 ### V1 boundaries
-Recommendation Refresh V1 is calculation-only. It does not add event history, persistence, notifications, background jobs, automatic refresh, UI redesign, bank sync, Scenario Lab, automatic transfers/payments/trades/contributions, or runtime web calls.
+Recommendation Refresh V1 is calculation-only. It does not add event history, persistence, notifications, background jobs, scheduled polling, automatic refresh, UI redesign, bank sync, Scenario Lab, automatic transfers/payments/trades/contributions, or runtime web calls.
 
 ## Determinism, privacy, and security
-All Phase 5 calculation modules operate on supplied normalized household objects. They do not query another household, use a service-role client, call external services, or mutate live financial records. Recommendation fingerprints are not authorization tokens. The engine remains deterministic and inspectable, and no recommendation causes automatic money movement.
+All Phase 5 calculation modules operate on supplied normalized household objects. They do not query another household, use a service-role client, call external services, or mutate live financial records. Recommendation fingerprints are never authorization tokens. The engine remains deterministic and inspectable, and no recommendation causes automatic money movement.
+
+Persisted financial tables remain household-scoped and protected by row-level security. Phase 5 calculation modules do not bypass those controls.
 
 ## Phase 5 closure status
-The core Phase 5 feature set now includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, home and vehicle affordability, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
+The planned Phase 5 feature set includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, Home and Vehicle affordability with authoritative hypothetical reruns, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
 
-Before merge, Phase 5 still requires the cross-engine adversarial regression pass, documentation consistency cleanup, and final security/correctness audit.
+Closure requires the hardened Recommendation Refresh regression pass, complete calculation/lint/build validation, final household-isolation/security verification, and replacement of the historical Aug. 29 audit with a final completion audit tied to an exact green commit.
