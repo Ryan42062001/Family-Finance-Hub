@@ -2,7 +2,7 @@ import type { MoneyPriorityEngineResult, MoneyPriorityRecommendation } from "./m
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { evaluateUserPlan, type MoneyPlanOverride, type OverrideStatus } from "./money-priority-user-plan.ts";
 
-export const RECOMMENDATION_REFRESH_VERSION = "2026.1";
+export const RECOMMENDATION_REFRESH_VERSION = "2026.2";
 
 export type RecommendationRefreshState = "current" | "refresh_recommended" | "materially_changed" | "critical_change";
 export type ChangeSignificance = "informational" | "material" | "critical";
@@ -35,16 +35,29 @@ export type AllocationChange = {
 };
 
 export type RefreshOverrideStatus = { allocationId: string; status: OverrideStatus; reason: string };
+export type RecommendationPolicyBasis = {
+  moneyPriorityPolicyVersion: string;
+  planningAssumptionsVersion: string;
+  taxPolicyVersion: string;
+  taxYear: number;
+  asOfDate: string;
+};
 
 export type RecommendationRefreshAssessment = {
   version: string;
   state: RecommendationRefreshState;
+  previousPolicyBasis: RecommendationPolicyBasis;
+  currentPolicyBasis: RecommendationPolicyBasis;
+  stateTransition: { previousFeasibilityStatus: MoneyPriorityEngineResult["feasibility"]["status"]; currentFeasibilityStatus: MoneyPriorityEngineResult["feasibility"]["status"] };
   financialBasisFingerprint: string;
   previousFinancialBasisFingerprint: string;
   recommendationFingerprint: string;
   previousRecommendationFingerprint: string;
   detectedChanges: ProfileChange[];
   recommendationChanges: RecommendationChange[];
+  addedRecommendations: RecommendationChange[];
+  removedRecommendations: RecommendationChange[];
+  changedRecommendations: RecommendationChange[];
   allocationChanges: AllocationChange[];
   overrideStatuses: RefreshOverrideStatus[];
   reasons: string[];
@@ -53,72 +66,121 @@ export type RecommendationRefreshAssessment = {
 type JsonScalar = string | number | boolean | null;
 type Canonical = JsonScalar | Canonical[] | { [key: string]: Canonical };
 
-function roundMoney(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
+const EXCLUDED_KEYS = new Set(["name", "displayName", "note", "notes", "title", "explanation", "whyNow", "tradeoffs", "reasons", "rationale", "createdAt", "updatedAt", "created_at", "updated_at"]);
+const MONEY_KEY = /(amount|balance|payment|income|expense|cost|price|spending|contribution|compensation|wage|liability|proceeds|deductible|shortfall|funding|capacity|room|target|cash|assets|portfolio|value|principal|interestPaid)$/i;
 
-function canonical(value: unknown): Canonical {
+function roundMoney(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
+function canonicalNumber(value: number, key: string | null): number | string {
+  if (!Number.isFinite(value)) return String(value);
+  return key && MONEY_KEY.test(key) ? roundMoney(value) : value;
+}
+
+function canonical(value: unknown, key: string | null = null): Canonical {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number") return Number.isFinite(value) ? roundMoney(value) : String(value);
+  if (typeof value === "number") return canonicalNumber(value, key);
   if (Array.isArray(value)) {
-    const values = value.map(canonical);
-    if (value.every((item) => item && typeof item === "object" && "id" in item)) {
-      return values.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    }
-    return values;
+    const hasStableIds = value.every((item) => item && typeof item === "object" && "id" in item);
+    const source = hasStableIds
+      ? [...value].sort((a, b) => String((a as { id: unknown }).id).localeCompare(String((b as { id: unknown }).id)))
+      : value;
+    return source.map((item) => canonical(item, key));
   }
   if (typeof value === "object") {
     const result: { [key: string]: Canonical } = {};
-    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      if (["name", "displayName", "note", "notes", "title", "explanation", "whyNow", "tradeoffs", "reasons"].includes(key)) continue;
-      const child = (value as Record<string, unknown>)[key];
-      if (child !== undefined) result[key] = canonical(child);
+    for (const childKey of Object.keys(value as Record<string, unknown>).sort()) {
+      if (EXCLUDED_KEYS.has(childKey)) continue;
+      const child = (value as Record<string, unknown>)[childKey];
+      if (child !== undefined) result[childKey] = canonical(child, childKey);
     }
     return result;
   }
   return String(value);
 }
 
+function canonicalEqual(a: unknown, b: unknown, key: string | null = null): boolean {
+  return JSON.stringify(canonical(a, key)) === JSON.stringify(canonical(b, key));
+}
+
 function fingerprint(value: unknown): string {
-  // FNV-1a is a deterministic change-detection digest, not a security primitive or authorization token.
+  // FNV-1a is a deterministic change-detection digest only. It is not authorization, encryption, or a security token.
   const text = JSON.stringify(canonical(value));
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 0x01000193); }
-  return `rr1-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+  return `rr2-${(hash >>> 0).toString(16).padStart(8, "0")}`;
 }
 
-function basis(engine: MoneyPriorityEngineResult) {
-  return { snapshot: engine.snapshot, policyVersion: engine.policyVersion, planningAssumptionsVersion: engine.planningAssumptionsVersion, taxPolicyVersion: engine.taxPolicyVersion, taxYear: engine.taxYear, asOfDate: engine.asOfDate };
+function policyBasis(engine: MoneyPriorityEngineResult): RecommendationPolicyBasis {
+  return {
+    moneyPriorityPolicyVersion: engine.policyVersion,
+    planningAssumptionsVersion: engine.planningAssumptionsVersion,
+    taxPolicyVersion: engine.taxPolicyVersion,
+    taxYear: engine.taxYear,
+    asOfDate: engine.asOfDate,
+  };
+}
+
+function financialBasis(engine: MoneyPriorityEngineResult) {
+  return { snapshot: engine.snapshot, ...policyBasis(engine) };
+}
+
+function stableAllocations(item: MoneyPriorityRecommendation) {
+  return item.allocations
+    .map((allocation) => ({
+      category: allocation.category,
+      relatedEntityId: allocation.relatedEntityId,
+      monthlyAmount: roundMoney(allocation.monthlyAmount),
+      annualAmount: allocation.annualAmount === null ? null : roundMoney(allocation.annualAmount),
+    }))
+    .sort((a, b) => `${a.category}:${a.relatedEntityId ?? "household"}`.localeCompare(`${b.category}:${b.relatedEntityId ?? "household"}`));
 }
 
 function recommendationBasis(engine: MoneyPriorityEngineResult) {
   return {
-    recommendations: engine.recommendations.map((item) => ({ id: item.id, rank: item.rank, stage: item.stage, state: item.state, urgency: item.urgency, allocations: item.allocations.map((a) => ({ category: a.category, relatedEntityId: a.relatedEntityId, monthlyAmount: roundMoney(a.monthlyAmount), annualAmount: a.annualAmount === null ? null : roundMoney(a.annualAmount) })) })),
-    feasibility: engine.feasibility,
+    recommendations: engine.recommendations.map((item) => ({
+      id: item.id,
+      rank: item.rank,
+      stage: item.stage,
+      state: item.state,
+      urgency: item.urgency,
+      allocations: stableAllocations(item),
+    })),
+    feasibility: {
+      status: engine.feasibility.status,
+      planFundingGap: engine.feasibility.status === "funding_gap" ? roundMoney(engine.feasibility.planFundingGap) : 0,
+    },
   };
 }
 
-function scalar(value: unknown): JsonScalar | undefined {
+function scalar(value: unknown, key: string): JsonScalar | undefined {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number" && Number.isFinite(value)) return roundMoney(value);
+  if (typeof value === "number" && Number.isFinite(value)) return canonicalNumber(value, key) as number;
   return undefined;
 }
 
-function diffEntityCollection(previous: Array<Record<string, unknown>>, current: Array<Record<string, unknown>>, category: ProfileChangeCategory, ignored = new Set(["name", "displayName"])): ProfileChange[] {
+function diffEntityCollection(previous: Array<Record<string, unknown>>, current: Array<Record<string, unknown>>, category: ProfileChangeCategory): ProfileChange[] {
   const changes: ProfileChange[] = [];
   const oldMap = new Map(previous.map((item) => [String(item.id), item]));
   const newMap = new Map(current.map((item) => [String(item.id), item]));
   for (const id of [...new Set([...oldMap.keys(), ...newMap.keys()])].sort()) {
     const before = oldMap.get(id); const after = newMap.get(id);
     if (!before || !after) {
-      changes.push({ category, entityId: id, field: "entity", significance: category === "debt" || category === "income" ? "material" : "informational", reason: before ? `${category} entity was removed.` : `${category} entity was added.` });
+      changes.push({ category, entityId: id, field: "entity", significance: "informational", reason: before ? `${category} entity was removed.` : `${category} entity was added.` });
       continue;
     }
     for (const field of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
-      if (field === "id" || ignored.has(field)) continue;
-      if (JSON.stringify(canonical(before[field])) === JSON.stringify(canonical(after[field]))) continue;
-      changes.push({ category, entityId: id, field, significance: "informational", reason: `${category} ${field} changed.`, previousValue: scalar(before[field]), currentValue: scalar(after[field]) });
+      if (field === "id" || EXCLUDED_KEYS.has(field)) continue;
+      if (canonicalEqual(before[field], after[field], field)) continue;
+      changes.push({ category, entityId: id, field, significance: "informational", reason: `${category} ${field} changed.`, previousValue: scalar(before[field], field), currentValue: scalar(after[field], field) });
     }
   }
   return changes;
+}
+
+function preferenceCategory(field: string): ProfileChangeCategory {
+  const normalized = field.toLowerCase();
+  if (normalized.includes("tax") || normalized.includes("filing") || normalized.includes("agi") || normalized.includes("magi") || normalized.includes("workplaceplan")) return "tax_profile";
+  if (normalized.includes("risk") || normalized.includes("emergency") || normalized.includes("disruption") || normalized.includes("jobreplacement")) return "risk";
+  return "household";
 }
 
 function detectProfileChanges(previous: MoneyPrioritySnapshot, current: MoneyPrioritySnapshot): ProfileChange[] {
@@ -130,16 +192,10 @@ function detectProfileChanges(previous: MoneyPrioritySnapshot, current: MoneyPri
   changes.push(...diffEntityCollection(previous.debts as unknown as Array<Record<string, unknown>>, current.debts as unknown as Array<Record<string, unknown>>, "debt"));
   changes.push(...diffEntityCollection(previous.goals as unknown as Array<Record<string, unknown>>, current.goals as unknown as Array<Record<string, unknown>>, "goal"));
   changes.push(...diffEntityCollection(previous.retirementAccounts as unknown as Array<Record<string, unknown>>, current.retirementAccounts as unknown as Array<Record<string, unknown>>, "retirement"));
-  const prefBefore = previous.preferences as unknown as Record<string, unknown>; const prefAfter = current.preferences as unknown as Record<string, unknown>;
-  for (const field of [...new Set([...Object.keys(prefBefore), ...Object.keys(prefAfter)])].sort()) {
-    if (JSON.stringify(canonical(prefBefore[field])) === JSON.stringify(canonical(prefAfter[field]))) continue;
-    const normalizedField = field.toLowerCase();
-    const category: ProfileChangeCategory = normalizedField.includes("tax") || normalizedField.includes("filing") || normalizedField.includes("agi") || normalizedField.includes("magi")
-      ? "tax_profile"
-      : normalizedField.includes("risk") || normalizedField.includes("emergency") || normalizedField.includes("disruption") || normalizedField.includes("jobreplacement")
-        ? "risk"
-        : "household";
-    changes.push({ category, entityId: null, field, significance: "informational", reason: `Planning preference ${field} changed.`, previousValue: scalar(prefBefore[field]), currentValue: scalar(prefAfter[field]) });
+  const before = previous.preferences as unknown as Record<string, unknown>; const after = current.preferences as unknown as Record<string, unknown>;
+  for (const field of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+    if (EXCLUDED_KEYS.has(field) || canonicalEqual(before[field], after[field], field)) continue;
+    changes.push({ category: preferenceCategory(field), entityId: null, field, significance: "informational", reason: `Planning preference ${field} changed.`, previousValue: scalar(before[field], field), currentValue: scalar(after[field], field) });
   }
   return changes;
 }
@@ -151,11 +207,21 @@ function compareRecommendations(previous: MoneyPriorityEngineResult, current: Mo
   const changes: RecommendationChange[] = []; const old = recMap(previous); const now = recMap(current);
   for (const id of [...new Set([...old.keys(), ...now.keys()])].sort()) {
     const before = old.get(id); const after = now.get(id);
-    if (!before || !after) { changes.push({ recommendationId: id, changeType: before ? "removed" : "added", fields: ["recommendation"], significance: (before ?? after)?.urgency === "required" ? "critical" : "material" }); continue; }
+    if (!before || !after) {
+      const item = before ?? after;
+      const critical = item?.stage === "secure" && item.state === "recommended" && (item.urgency === "required" || item.urgency === "high");
+      changes.push({ recommendationId: id, changeType: before ? "removed" : "added", fields: ["recommendation"], significance: critical ? "critical" : "material" });
+      continue;
+    }
     const fields: string[] = [];
-    if (before.state !== after.state) fields.push("state"); if (before.urgency !== after.urgency) fields.push("urgency"); if (before.rank !== after.rank) fields.push("rank");
-    if (JSON.stringify(canonical(before.allocations)) !== JSON.stringify(canonical(after.allocations))) fields.push("allocations");
-    if (fields.length) changes.push({ recommendationId: id, changeType: "changed", fields, significance: after.urgency === "required" && (fields.includes("state") || fields.includes("urgency")) ? "critical" : "material" });
+    if (before.state !== after.state) fields.push("state");
+    if (before.urgency !== after.urgency) fields.push("urgency");
+    if (before.rank !== after.rank) fields.push("rank");
+    if (!canonicalEqual(stableAllocations(before), stableAllocations(after))) fields.push("allocations");
+    if (fields.length) {
+      const critical = after.stage === "secure" && after.state === "recommended" && (after.urgency === "required" || after.urgency === "high") && (fields.includes("state") || fields.includes("urgency"));
+      changes.push({ recommendationId: id, changeType: "changed", fields, significance: critical ? "critical" : "material" });
+    }
   }
   return changes;
 }
@@ -173,31 +239,68 @@ function compareAllocations(previous: MoneyPriorityEngineResult, current: MoneyP
   return result;
 }
 
-function criticalInputChange(previous: MoneyPriorityEngineResult, current: MoneyPriorityEngineResult, changes: ProfileChange[]): boolean {
-  const oldIncome = previous.snapshot.aggregates.monthlyTakeHomeIncome; const newIncome = current.snapshot.aggregates.monthlyTakeHomeIncome;
-  const lostIncome = oldIncome > 0 && newIncome <= 0;
+function addBasisChanges(previous: MoneyPriorityEngineResult, current: MoneyPriorityEngineResult, changes: ProfileChange[]): void {
+  if (previous.policyVersion !== current.policyVersion) changes.push({ category: "policy", entityId: null, field: "policyVersion", significance: "informational", reason: "Money-priority policy version changed.", previousValue: previous.policyVersion, currentValue: current.policyVersion });
+  if (previous.taxPolicyVersion !== current.taxPolicyVersion) changes.push({ category: "policy", entityId: null, field: "taxPolicyVersion", significance: "informational", reason: "Tax policy version changed.", previousValue: previous.taxPolicyVersion, currentValue: current.taxPolicyVersion });
+  if (previous.taxYear !== current.taxYear) changes.push({ category: "policy", entityId: null, field: "taxYear", significance: "informational", reason: "Tax year changed.", previousValue: previous.taxYear, currentValue: current.taxYear });
+  if (previous.planningAssumptionsVersion !== current.planningAssumptionsVersion) changes.push({ category: "assumptions", entityId: null, field: "planningAssumptionsVersion", significance: "informational", reason: "Planning assumptions version changed.", previousValue: previous.planningAssumptionsVersion, currentValue: current.planningAssumptionsVersion });
+  if (previous.asOfDate !== current.asOfDate) changes.push({ category: "time", entityId: null, field: "asOfDate", significance: "informational", reason: "The explicit planning as-of date changed.", previousValue: previous.asOfDate, currentValue: current.asOfDate });
+
+  const feasibilityFields: Array<keyof MoneyPriorityEngineResult["feasibility"]> = ["status", "monthlyPlanCapacity", "protectedMonthlyFundingNeed", "planFundingGap"];
+  for (const field of feasibilityFields) {
+    if (canonicalEqual(previous.feasibility[field], current.feasibility[field], field)) continue;
+    const critical = field === "status" && current.feasibility.status === "funding_gap";
+    const material = field === "status" || (field === "planFundingGap" && (previous.feasibility.status === "funding_gap" || current.feasibility.status === "funding_gap"));
+    changes.push({ category: "feasibility", entityId: null, field, significance: critical ? "critical" : material ? "material" : "informational", reason: `Plan feasibility ${field} changed.`, previousValue: scalar(previous.feasibility[field], field), currentValue: scalar(current.feasibility[field], field) });
+  }
+}
+
+function criticalInputChange(previous: MoneyPriorityEngineResult, current: MoneyPriorityEngineResult, changes: ProfileChange[], recommendationChanges: RecommendationChange[]): boolean {
+  const lostAllIncome = previous.snapshot.aggregates.monthlyTakeHomeIncome > 0 && current.snapshot.aggregates.monthlyTakeHomeIncome <= 0;
   const newFundingGap = previous.feasibility.status !== "funding_gap" && current.feasibility.status === "funding_gap";
-  const newRequired = current.recommendations.some((r) => r.urgency === "required" && !previous.recommendations.some((p) => p.id === r.id && p.urgency === "required"));
-  const activeDisruption = changes.some((c) => c.category === "risk" && c.field.toLowerCase().includes("disruption") && c.currentValue === true);
-  return lostIncome || newFundingGap || newRequired || activeDisruption;
+  const activeDisruption = changes.some((change) => change.category === "risk" && change.field.toLowerCase().includes("disruption") && change.currentValue === true);
+  const employerMatchLost = previous.secure.employerMatchMonthlyGap <= 0 && current.secure.employerMatchMonthlyGap > 0;
+  const newCriticalSecureAction = recommendationChanges.some((change) => change.changeType === "added" && change.significance === "critical");
+  return lostAllIncome || newFundingGap || activeDisruption || employerMatchLost || newCriticalSecureAction;
 }
 
 export function assessRecommendationRefresh(previous: MoneyPriorityEngineResult, current: MoneyPriorityEngineResult, previousOverrides: readonly MoneyPlanOverride[] = []): RecommendationRefreshAssessment {
-  const previousFinancialBasisFingerprint = fingerprint(basis(previous)); const financialBasisFingerprint = fingerprint(basis(current));
+  const previousPolicyBasis = policyBasis(previous); const currentPolicyBasis = policyBasis(current);
+  const previousFinancialBasisFingerprint = fingerprint(financialBasis(previous)); const financialBasisFingerprint = fingerprint(financialBasis(current));
   const previousRecommendationFingerprint = fingerprint(recommendationBasis(previous)); const recommendationFingerprint = fingerprint(recommendationBasis(current));
   const detectedChanges = detectProfileChanges(previous.snapshot, current.snapshot);
-  if (previous.policyVersion !== current.policyVersion) detectedChanges.push({ category: "policy", entityId: null, field: "policyVersion", significance: "informational", reason: "Money-priority policy version changed.", previousValue: previous.policyVersion, currentValue: current.policyVersion });
-  if (previous.taxPolicyVersion !== current.taxPolicyVersion || previous.taxYear !== current.taxYear) detectedChanges.push({ category: "policy", entityId: null, field: "taxPolicyBasis", significance: "informational", reason: "Tax policy basis changed.", previousValue: `${previous.taxPolicyVersion}:${previous.taxYear}`, currentValue: `${current.taxPolicyVersion}:${current.taxYear}` });
-  if (previous.planningAssumptionsVersion !== current.planningAssumptionsVersion) detectedChanges.push({ category: "assumptions", entityId: null, field: "planningAssumptionsVersion", significance: "informational", reason: "Planning assumptions version changed.", previousValue: previous.planningAssumptionsVersion, currentValue: current.planningAssumptionsVersion });
-  if (previous.asOfDate !== current.asOfDate) detectedChanges.push({ category: "time", entityId: null, field: "asOfDate", significance: "informational", reason: "The explicit planning as-of date changed.", previousValue: previous.asOfDate, currentValue: current.asOfDate });
+  addBasisChanges(previous, current, detectedChanges);
   const recommendationChanges = compareRecommendations(previous, current); const allocationChanges = compareAllocations(previous, current);
-  if (previous.feasibility.status !== current.feasibility.status) detectedChanges.push({ category: "feasibility", entityId: null, field: "status", significance: current.feasibility.status === "funding_gap" ? "critical" : "material", reason: "Plan feasibility status changed.", previousValue: previous.feasibility.status, currentValue: current.feasibility.status });
   const reconciled = evaluateUserPlan(current, previousOverrides).overrides;
-  const overrideStatuses = [...reconciled.active, ...reconciled.superseded, ...reconciled.invalid].map((o) => ({ allocationId: o.allocationId, status: o.status, reason: o.reason }));
+  const overrideStatuses = [...reconciled.active, ...reconciled.superseded, ...reconciled.invalid].map((item) => ({ allocationId: item.allocationId, status: item.status, reason: item.reason }));
   const basisChanged = financialBasisFingerprint !== previousFinancialBasisFingerprint;
   const recommendationsChanged = recommendationFingerprint !== previousRecommendationFingerprint || recommendationChanges.length > 0 || allocationChanges.length > 0;
-  const critical = criticalInputChange(previous, current, detectedChanges) || recommendationChanges.some((c) => c.significance === "critical");
+  const critical = criticalInputChange(previous, current, detectedChanges, recommendationChanges);
   const state: RecommendationRefreshState = critical ? "critical_change" : recommendationsChanged ? "materially_changed" : basisChanged ? "refresh_recommended" : "current";
-  const reasons = state === "current" ? ["The financially relevant planning basis and authoritative recommendation are current."] : state === "refresh_recommended" ? ["The planning basis changed, but the authoritative recommendation remains substantially equivalent."] : state === "materially_changed" ? ["The current authoritative engine result materially changes the recommended plan."] : ["A high-impact change means the previous recommendation may no longer be appropriate."];
-  return { version: RECOMMENDATION_REFRESH_VERSION, state, financialBasisFingerprint, previousFinancialBasisFingerprint, recommendationFingerprint, previousRecommendationFingerprint, detectedChanges, recommendationChanges, allocationChanges, overrideStatuses, reasons };
+  const reasons = state === "current"
+    ? ["The financially relevant planning basis and authoritative recommendation are current."]
+    : state === "refresh_recommended"
+      ? ["The financially relevant planning basis changed, but the authoritative recommendation remains substantially equivalent."]
+      : state === "materially_changed"
+        ? ["The current authoritative engine result materially changes recommendation order, state, allocation, destination, or feasibility."]
+        : ["A high-impact household or Secure-stage transition means the previous recommendation may now be unsafe or inappropriate."];
+  return {
+    version: RECOMMENDATION_REFRESH_VERSION,
+    state,
+    previousPolicyBasis,
+    currentPolicyBasis,
+    stateTransition: { previousFeasibilityStatus: previous.feasibility.status, currentFeasibilityStatus: current.feasibility.status },
+    financialBasisFingerprint,
+    previousFinancialBasisFingerprint,
+    recommendationFingerprint,
+    previousRecommendationFingerprint,
+    detectedChanges,
+    recommendationChanges,
+    addedRecommendations: recommendationChanges.filter((item) => item.changeType === "added"),
+    removedRecommendations: recommendationChanges.filter((item) => item.changeType === "removed"),
+    changedRecommendations: recommendationChanges.filter((item) => item.changeType === "changed"),
+    allocationChanges,
+    overrideStatuses,
+    reasons,
+  };
 }
