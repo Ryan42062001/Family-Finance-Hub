@@ -473,12 +473,12 @@ export function evaluateHomeAffordability(
     ? null
     : roundMoney(stressedAllInHousingCost - disappearingHousingCost);
 
-  const relatedGoalEarmarkedCash = roundMoney(engine.snapshot.accounts
+  const relatedGoalEarmarkedCash = relatedGoalId === null ? 0 : roundMoney(engine.snapshot.accounts
     .filter((account) => account.cashPurpose === "earmarked_goal" && account.relatedGoalId === relatedGoalId)
     .reduce((sum, account) => sum + account.balance, 0));
   const higherPriorityOneTimeDeployments = roundMoney(engine.existingCash.deployments
     .filter((deployment) => deployment.stage !== "optimize")
-    .filter((deployment) => !(deployment.category === "goal" && deployment.relatedEntityId === relatedGoalId))
+    .filter((deployment) => !(relatedGoalId !== null && deployment.category === "goal" && deployment.relatedEntityId === relatedGoalId))
     .reduce((sum, deployment) => sum + deployment.amount, 0));
   const unallocatedAfterPriority = roundMoney(Math.max(0, engine.existingCash.availableUnallocatedCash - higherPriorityOneTimeDeployments));
   const saleProceeds = availableSaleProceeds(scenario);
