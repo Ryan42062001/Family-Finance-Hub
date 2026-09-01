@@ -47,7 +47,7 @@ test("MFJ spousal IRA permits separate zero-earner capacity without exceeding ho
   const result = evaluateRetirementAccountOpportunities(make([
     { id: "a", owner_person_id: "a", name: "A IRA", account_type: "traditional_ira", employee_contributed_ytd: 0 },
     { id: "b", owner_person_id: "b", name: "B IRA", account_type: "traditional_ira", employee_contributed_ytd: 0 },
-  ], [person("a", 1990, 80000), person("b", 1990, 0, "spouse")], profile({ tax_filing_status: "married_filing_jointly" })));
+  ], [person("a", 1990, 80000), person("b", 1990, 0, "spouse_partner")], profile({ tax_filing_status: "married_filing_jointly" })));
   assert.deepEqual(result.opportunities.map((item) => [item.ownerPersonId, item.annualLimit]), [["a", 7500], ["b", 7500]]);
 });
 
@@ -55,7 +55,7 @@ test("limited MFJ household compensation is allocated deterministically and neve
   const result = evaluateRetirementAccountOpportunities(make([
     { id: "a", owner_person_id: "a", name: "A", account_type: "traditional_ira", employee_contributed_ytd: 0 },
     { id: "b", owner_person_id: "b", name: "B", account_type: "traditional_ira", employee_contributed_ytd: 0 },
-  ], [person("a", 1990, 10000), person("b", 1990, 0, "spouse")], profile({ tax_filing_status: "married_filing_jointly" })));
+  ], [person("a", 1990, 10000), person("b", 1990, 0, "spouse_partner")], profile({ tax_filing_status: "married_filing_jointly" })));
   assert.equal(result.opportunities.reduce((sum, item) => sum + (item.annualLimit ?? 0), 0), 10000);
   assert.deepEqual(result.opportunities.map((item) => item.annualLimit), [7500, 2500]);
 });
@@ -63,7 +63,7 @@ test("limited MFJ household compensation is allocated deterministically and neve
 test("non-joint zero-earner IRA receives targeted missing data, not spousal capacity", () => {
   const result = evaluateRetirementAccountOpportunities(make([
     { id: "b", owner_person_id: "b", name: "B", account_type: "traditional_ira", employee_contributed_ytd: 0 },
-  ], [person("b", 1990, 0, "spouse")], profile({ tax_filing_status: "married_filing_separately", lived_with_spouse_during_tax_year: true })));
+  ], [person("b", 1990, 0, "spouse_partner")], profile({ tax_filing_status: "married_filing_separately", lived_with_spouse_during_tax_year: true })));
   assert.equal(result.opportunities[0]?.state, "more_information_needed");
   assert.ok(result.opportunities[0]?.missingData.some((item) => item.includes("spousal-IRA")));
 });
