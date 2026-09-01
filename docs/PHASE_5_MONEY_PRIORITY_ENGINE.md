@@ -77,6 +77,10 @@ legal contribution capacity
 
 Employer match remains exclusively a Secure concern. Additional retirement routing respects account ownership, annual capacity, shared statutory limits, tax eligibility, and supported account mechanics. Missing legal or tax facts produce targeted information-needed states rather than fabricated capacity.
 
+For 401(k), 403(b), and TSP opportunities, the 2026 employee-deferral ceiling is coordinated by participant and then constrained by the defined-contribution annual-additions ceiling: the lesser of the versioned $72,000 limit or supported participant compensation. Known employee and employer YTD additions count toward that ceiling. Eligible age-based catch-up amounts are kept outside the ordinary annual-additions calculation, while still remaining subject to the applicable employee-deferral and compensation bounds. Multiple workplace accounts for one owner use a conservative shared ceiling and return `more_information_needed` because employer/plan identity and plan-specific compensation are not persisted well enough to allocate separate §415(c) limits precisely. Missing employer YTD additions or supported compensation likewise blocks a definitive legal-capacity state.
+
+The special 403(b) 15-years-of-service catch-up is intentionally not granted. The snapshot does not contain plan permission, qualifying service, lifetime special-catch-up usage, or prior deferral history needed for its ordered calculation; ordinary age-based catch-up remains supported. The governmental 457(b) ordinary limit remains separate from the 401(k)/403(b)/TSP deferral group, but the special last-three-years catch-up is not granted because plan normal-retirement-age and unused prior-year deferral records are not modeled. These are explicit Phase 5 boundaries, not assumed zero-risk eligibility.
+
 ## Optimize
 Optimize receives only capacity remaining after Secure and Build. It handles genuine low-interest-debt/investing tradeoffs and later wealth-building choices. User preferences may influence gray zones but cannot rewrite hard guardrails.
 

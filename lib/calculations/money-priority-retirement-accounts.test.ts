@@ -58,8 +58,8 @@ test("HSA age-55 catch-up adds $1,000", () => {
 
 test("401k and 403b deferrals are aggregated by owner", () => {
   const value = snapshot([
-    { id: "k", owner_person_id: "p1", name: "401k", account_type: "401k", employee_contributed_ytd: 10000 },
-    { id: "b", owner_person_id: "p1", name: "403b", account_type: "403b", employee_contributed_ytd: 5000 },
+    { id: "k", owner_person_id: "p1", name: "401k", account_type: "401k", employee_contributed_ytd: 10000, employer_contributed_ytd: 0 },
+    { id: "b", owner_person_id: "p1", name: "403b", account_type: "403b", employee_contributed_ytd: 5000, employer_contributed_ytd: 0 },
   ], [adult()]);
   const result = evaluateRetirementAccountOpportunities(value);
   assert.deepEqual(result.opportunities.map((item) => item.contributedYtd), [15000, 15000]);
@@ -68,7 +68,7 @@ test("401k and 403b deferrals are aggregated by owner", () => {
 
 test("governmental 457b room is evaluated separately", () => {
   const value = snapshot([
-    { id: "k", owner_person_id: "p1", name: "401k", account_type: "401k", employee_contributed_ytd: 20000 },
+    { id: "k", owner_person_id: "p1", name: "401k", account_type: "401k", employee_contributed_ytd: 20000, employer_contributed_ytd: 0 },
     { id: "v", owner_person_id: "p1", name: "457", account_type: "457", employee_contributed_ytd: 5000 },
   ], [adult()]);
   const four57 = evaluateRetirementAccountOpportunities(value).opportunities.find((item) => item.accountId === "v");

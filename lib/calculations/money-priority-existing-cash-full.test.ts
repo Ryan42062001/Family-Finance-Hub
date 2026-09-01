@@ -86,6 +86,7 @@ test("Build existing cash closes only the deadline shortfall when monthly capaci
 
 test("retirement cash catch-up is capped by known annual contribution room", () => {
   const raw = baseRaw();
+  raw.people![0]!.estimated_taxable_compensation_annual = 84000;
   raw.income = [{
     id: "i1", owner_person_id: "p1", name: "Salary", monthly_amount: 2600,
     monthly_gross_amount: 7000, is_active: true, is_variable: false,
@@ -93,7 +94,7 @@ test("retirement cash catch-up is capped by known annual contribution room", () 
   raw.retirementAccounts = [{
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
-    employee_contributed_ytd: 24000, match_status: "fully_captured",
+    employee_contributed_ytd: 24000, employer_contributed_ytd: 0, match_status: "fully_captured",
   }];
 
   const result = runMoneyPriorityEngine(raw, "2026-08-29");

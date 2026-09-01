@@ -169,6 +169,7 @@ test("one-time debt payoff removes the debt from downstream recurring claims", (
 
 test("retirement catch-up remains distinct from recurring retirement trajectory funding", () => {
   const raw = baseRaw();
+  raw.people![0]!.estimated_taxable_compensation_annual = 84000;
   raw.income = [{
     id: "i1",
     owner_person_id: "p1",
@@ -191,6 +192,7 @@ test("retirement catch-up remains distinct from recurring retirement trajectory 
     monthly_employee_contribution: 0,
     monthly_employer_contribution: 0,
     employee_contributed_ytd: 24000,
+    employer_contributed_ytd: 0,
     match_status: "fully_captured",
   }];
 
