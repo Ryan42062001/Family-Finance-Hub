@@ -54,7 +54,7 @@ test("new high-interest debt is detected through authoritative outputs", () => {
 
 test("goal addition is detected without title-based identity", () => {
   const before = raw(); const after = structuredClone(before);
-  after.goals!.push({ id: "goal-1", name: "Car", target_amount: 12000, current_amount: 1000, target_date: "2027-08-30", priority: 3, goal_class: "required", necessity: "necessary", deadline_flexibility: "fixed", consequence_level: "high" });
+  after.goals!.push({ id: "goal-1", name: "Car", target_amount: 12000, current_amount: 1000, target_date: "2027-08-30", priority: 3, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" });
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.ok(result.detectedChanges.some((c) => c.category === "goal" && c.entityId === "goal-1"));
 });
@@ -148,7 +148,7 @@ test("age-boundary date change is explicit even when recommendations remain equi
 
 test("recommendation and allocation diffs are inspectable", () => {
   const before = raw(); const after = structuredClone(before);
-  after.goals!.push({ id: "urgent", target_amount: 6000, current_amount: 0, target_date: "2027-02-28", priority: 1, goal_class: "required", necessity: "necessary", deadline_flexibility: "fixed", consequence_level: "high" });
+  after.goals!.push({ id: "urgent", target_amount: 6000, current_amount: 0, target_date: "2027-02-28", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" });
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.ok(result.recommendationChanges.length > 0 || result.allocationChanges.length > 0);
   assert.equal(result.recommendationFingerprint === result.previousRecommendationFingerprint, false);

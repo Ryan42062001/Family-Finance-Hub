@@ -81,3 +81,16 @@ test("missing mortgage APR requests information instead of guessing", () => {
   assert.equal(result.recommendations[0]?.decision, "more_information_needed");
   assert.equal(result.recommendations[0]?.state, "more_information_needed");
 });
+
+test("equal-APR debt allocation uses stable ID and ignores display-name changes", () => {
+  const debts = [
+    { id: "debt-a", name: "Zulu", debt_type: "mortgage", current_balance: 150000, interest_rate: 6, minimum_payment: 1000, rate_type: "fixed" },
+    { id: "debt-b", name: "Alpha", debt_type: "mortgage", current_balance: 150000, interest_rate: 6, minimum_payment: 1000, rate_type: "fixed" },
+  ];
+  const before = snapshot({ debts });
+  const renamed = snapshot({ debts: debts.map((debt) => ({ ...debt, name: debt.id === "debt-a" ? "Alpha" : "Zulu" })) });
+  const beforeResult = evaluateOptimizeStage(before, buildFor(before), true);
+  const renamedResult = evaluateOptimizeStage(renamed, buildFor(renamed), true);
+  assert.deepEqual(beforeResult.recommendations.map((item) => [item.relatedDebtId, item.debtMonthlyAmount]), renamedResult.recommendations.map((item) => [item.relatedDebtId, item.debtMonthlyAmount]));
+  assert.equal(beforeResult.recommendations[0]?.relatedDebtId, "debt-a");
+});

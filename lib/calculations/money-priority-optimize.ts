@@ -98,7 +98,7 @@ export function evaluateOptimizeStage(
 
   const eligibleDebts = snapshot.debts
     .filter((debt) => debt.balance > 0 && classifyDebt(debt, policy).band === "optimize")
-    .sort((a, b) => (b.annualInterestRate ?? -1) - (a.annualInterestRate ?? -1) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    .sort((a, b) => (b.annualInterestRate ?? -1) - (a.annualInterestRate ?? -1) || a.id.localeCompare(b.id));
 
   for (const debt of eligibleDebts) {
     const assessment = chooseOptimizeDecision(snapshot, debt, policy);

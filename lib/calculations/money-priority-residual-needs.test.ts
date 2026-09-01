@@ -193,6 +193,7 @@ test("retirement catch-up remains distinct from recurring retirement trajectory 
     monthly_employer_contribution: 0,
     employee_contributed_ytd: 24000,
     employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 84000,
     match_status: "fully_captured",
   }];
 

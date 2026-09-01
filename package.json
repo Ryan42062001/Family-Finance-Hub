@@ -10,7 +10,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test lib/calculations/*.test.ts"
+    "test": "node --experimental-strip-types --test lib/calculations/*.test.ts",
+    "test:security": "node --experimental-strip-types --test tests/security/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm test && npm run test:security && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.5",

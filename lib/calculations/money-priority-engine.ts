@@ -159,8 +159,10 @@ function optimizeRecommendations(optimize: OptimizeStageResult): MoneyPriorityRe
   return optimize.recommendations.map((item) => ({ id: item.id, rank: 0, stage: "optimize" as const, state: item.state, urgency: item.urgency, title: item.title, explanation: item.reasons.join(" "), allocations: [...(item.debtMonthlyAmount > 0 ? [{ category: "debt", relatedEntityId: item.relatedDebtId, monthlyAmount: item.debtMonthlyAmount, annualAmount: roundMoney(item.debtMonthlyAmount * 12), rationale: item.reasons }] : []), ...(item.investingMonthlyAmount > 0 ? [{ category: "investing", relatedEntityId: null, monthlyAmount: item.investingMonthlyAmount, annualAmount: roundMoney(item.investingMonthlyAmount * 12), rationale: item.reasons }] : [])], whyNow: item.reasons, tradeoffs: item.tradeoffs, sourceInputs: [item.relatedDebtId ? `debt:${item.relatedDebtId}` : "household_snapshot", "debtVsInvesting"], assumptions: ["No assumed market return is used; the decision compares the guaranteed avoided debt interest with liquidity, horizon, and household preference."], missingData: item.missingData }));
 }
 
-export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1): MoneyPriorityEngineResult {
-  const snapshot = buildMoneyPrioritySnapshot(raw);
+export type MoneyPriorityEngineOptions = { allowSignedHypotheticalExpenseAdjustments?: boolean };
+
+export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1, options: MoneyPriorityEngineOptions = {}): MoneyPriorityEngineResult {
+  const snapshot = buildMoneyPrioritySnapshot(raw, options);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
 
   // Build a provisional recurring plan only to identify eligible one-time cash uses.

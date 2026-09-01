@@ -59,7 +59,7 @@ test("non-money APR precision is not incorrectly rounded to cents", () => {
 
 test("stable-id entity ordering is fingerprint independent", () => {
   const before = raw(); before.accounts!.push({ id: "z", name: "Z", account_type: "savings", balance: 200, cash_purpose: "earmarked_goal", related_goal_id: "g" });
-  before.goals!.push({ id: "g", name: "Goal", target_amount: 200, current_amount: 200, target_date: "2027-01-01", priority: 3, goal_class: "important", necessity: "important", deadline_flexibility: "flexible", consequence_level: "low" });
+  before.goals!.push({ id: "g", name: "Goal", target_amount: 200, current_amount: 200, target_date: "2027-01-01", priority: 3, goal_class: "major_life_goal", necessity: "important", deadline_flexibility: "flexible", consequence_level: "low" });
   const after = structuredClone(before); after.accounts!.reverse(); after.goals!.reverse();
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.state, "current");
@@ -199,7 +199,7 @@ test("added removed and changed recommendation collections mirror the combined d
 });
 
 test("display names do not change goal identity or financial fingerprint", () => {
-  const before = raw(); before.goals!.push({ id: "goal", name: "Original", target_amount: 1000, current_amount: 500, target_date: "2027-08-30", priority: 3, goal_class: "important", necessity: "important", deadline_flexibility: "flexible", consequence_level: "low" });
+  const before = raw(); before.goals!.push({ id: "goal", name: "Original", target_amount: 1000, current_amount: 500, target_date: "2027-08-30", priority: 3, goal_class: "major_life_goal", necessity: "important", deadline_flexibility: "flexible", consequence_level: "low" });
   const after = structuredClone(before); after.goals![0].name = "Renamed";
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.financialBasisFingerprint, result.previousFinancialBasisFingerprint);
@@ -213,7 +213,7 @@ test("removed recommendation is exposed separately", () => {
 });
 
 test("previous overrides are reconciled after the current Recommended Plan and are not mutated", () => {
-  const source = raw(); source.goals!.push({ id: "goal", name: "Goal", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 2, goal_class: "important", necessity: "important", deadline_flexibility: "flexible", consequence_level: "medium" });
+  const source = raw(); source.goals!.push({ id: "goal", name: "Goal", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 2, goal_class: "major_life_goal", necessity: "important", deadline_flexibility: "flexible", consequence_level: "moderate" });
   const current = engine(source);
   const allocation = current.recommendations.flatMap((recommendation) => recommendation.allocations.map((item) => ({ recommendation, item }))).find(({ item }) => item.relatedEntityId === "goal");
   assert.ok(allocation);

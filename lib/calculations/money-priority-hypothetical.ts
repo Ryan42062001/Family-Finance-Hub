@@ -140,6 +140,7 @@ function snapshotToRaw(snapshot: MoneyPrioritySnapshot): MoneyPriorityRawSnapsho
       hsa_eligible: item.hsaEligible,
       simple_higher_limit_eligible: item.simpleHigherLimitEligible,
       employer_contribution_type: item.employerContributionType,
+      plan_eligible_compensation_annual: item.planEligibleCompensationAnnual,
       prior_year_sponsor_wages: item.priorYearSponsorWages,
       roth_catch_up_supported: item.rothCatchUpSupported,
       sep_eligible_compensation_annual: item.sepEligibleCompensationAnnual,
@@ -291,7 +292,7 @@ export function runHypotheticalMoneyPriorityEngine(
   }
 
   return {
-    engine: runMoneyPriorityEngine(raw, current.asOfDate, policy),
+    engine: runMoneyPriorityEngine(raw, current.asOfDate, policy, { allowSignedHypotheticalExpenseAdjustments: true }),
     cashUsed,
     cashInflowAdded: roundMoney(cashInflow),
     completedGoalIds,

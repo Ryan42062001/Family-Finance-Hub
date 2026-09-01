@@ -140,6 +140,7 @@ export function assessEmergencyReserve(
   const warnings: string[] = [];
   const triggerExists = snapshot.preferences?.knownIncomeDisruption === true;
   const endDateValue = snapshot.preferences?.knownIncomeDisruptionEndDate;
+  const invalidEndDateWasNormalized = snapshot.warnings.some((warning) => warning.includes("preferences.known_income_disruption_end_date must be a real YYYY-MM-DD"));
   let disruptionMonths: number | null = null;
   let exceptionalCandidateMonths: number | null = null;
   let exceptionalRecommendedMonths: number | null = null;
@@ -149,7 +150,9 @@ export function assessEmergencyReserve(
   if (triggerExists) {
     if (!endDateValue) {
       exceptionalMode = "more_information_needed";
-      missingData.push("A known income disruption is recorded, but its expected duration is unknown. Add an estimated end date to evaluate whether more than six months of reserves is warranted.");
+      missingData.push(invalidEndDateWasNormalized
+        ? "The known income disruption end date is invalid. Add a valid expected end date to evaluate exceptional reserve needs."
+        : "A known income disruption is recorded, but its expected duration is unknown. Add an estimated end date to evaluate whether more than six months of reserves is warranted.");
     } else {
       const endDate = parseStrictIsoDate(endDateValue);
       if (!endDate) {

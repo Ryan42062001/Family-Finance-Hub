@@ -94,7 +94,7 @@ test("retirement cash catch-up is capped by known annual contribution room", () 
   raw.retirementAccounts = [{
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
-    employee_contributed_ytd: 24000, employer_contributed_ytd: 0, match_status: "fully_captured",
+    employee_contributed_ytd: 24000, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 84000, match_status: "fully_captured",
   }];
 
   const result = runMoneyPriorityEngine(raw, "2026-08-29");

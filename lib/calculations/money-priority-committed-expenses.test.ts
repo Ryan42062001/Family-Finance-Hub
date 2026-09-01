@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { buildMoneyPrioritySnapshot, MoneyPrioritySnapshotValidationError, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { evaluateUserPlan, deriveRecommendedPlanAllocations } from "./money-priority-user-plan.ts";
 import { evaluateHomeAffordability, type HomePurchaseScenario } from "./home-affordability.ts";
@@ -163,8 +163,9 @@ test("zero-dollar required expense is safe", () => {
   assert.equal(buildMoneyPrioritySnapshot(withCommitted(0)).aggregates.monthlyCommittedNonEssentialExpenses, 0);
 });
 
-test("negative raw expense preserves existing numeric normalization behavior", () => {
-  assert.equal(buildMoneyPrioritySnapshot(withCommitted(-25)).aggregates.monthlyCommittedNonEssentialExpenses, -25);
+test("negative raw expense is rejected before it can inflate plan capacity", () => {
+  assert.throws(() => buildMoneyPrioritySnapshot(withCommitted(-25)), (error) => error instanceof MoneyPrioritySnapshotValidationError
+    && error.issues.some((issue) => issue.path.includes("monthly_amount") && issue.code === "invalid_number"));
 });
 
 test("decimal cents arithmetic is stable", () => {

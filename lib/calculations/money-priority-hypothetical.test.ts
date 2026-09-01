@@ -17,7 +17,7 @@ function raw(): MoneyPriorityRawSnapshot {
       { id: "reserve", name: "Reserve", account_type: "savings", balance: 9000, cash_purpose: "protected_reserve" },
     ],
     debts: [],
-    goals: [{ id: "car", name: "Car", target_amount: 10000, current_amount: 3000, target_date: "2027-08-30", priority: 1, goal_class: "required", necessity: "necessary", deadline_flexibility: "fixed", consequence_level: "high" }],
+    goals: [{ id: "car", name: "Car", target_amount: 10000, current_amount: 3000, target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" }],
     retirementAccounts: [], insuranceExposures: [],
     preferences: { emergency_fund_months_override: 3, debt_vs_investing: "balanced", job_replacement_difficulty: "easy", desired_retirement_monthly_spending: null, retirement_spending_basis: "unknown", tax_profile_year: 2026, tax_filing_status: "single", estimated_modified_agi: 100000 },
   };

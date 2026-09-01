@@ -25,7 +25,7 @@ function snapshot() {
       rate_type: "promotional",
       promo_rate_expires_on: "2027-08-29",
       post_promo_interest_rate: 24.99,
-    }],
+    }, { id: "other1", name: "Other reserved debt", debt_type: "other", current_balance: 0, minimum_payment: 0 }],
     goals: [{ id: "g1", name: "Car", target_amount: 10000, current_amount: 5000, priority: 1 }],
     insuranceExposures: [{ id: "x1", name: "Home", insurance_type: "homeowners", deductible_amount: 5000, is_relevant_to_reserve: true }],
     preferences: { debt_vs_investing: "balanced", job_replacement_difficulty: "unknown" },

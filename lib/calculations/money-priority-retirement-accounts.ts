@@ -132,15 +132,12 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
   const warnings: string[] = [];
   const sharedWorkplaceTypes = new Set(["401k", "403b", "tsp"]);
   const workplaceYtdByOwner = new Map<string, number | null>();
-  const workplaceEmployerYtdByOwner = new Map<string, number | null>();
   const workplaceAccountCountByOwner = new Map<string, number>();
   const workplaceOwnerHas403b = new Set<string>();
   for (const account of snapshot.retirementAccounts.filter((item) => sharedWorkplaceTypes.has(item.type))) {
     if (!account.ownerPersonId) continue;
     const existing = workplaceYtdByOwner.get(account.ownerPersonId);
     workplaceYtdByOwner.set(account.ownerPersonId, existing === null || account.employeeContributedYtd === null ? null : roundMoney((existing ?? 0) + account.employeeContributedYtd));
-    const existingEmployer = workplaceEmployerYtdByOwner.get(account.ownerPersonId);
-    workplaceEmployerYtdByOwner.set(account.ownerPersonId, existingEmployer === null || account.employerContributedYtd === null ? null : roundMoney((existingEmployer ?? 0) + account.employerContributedYtd));
     workplaceAccountCountByOwner.set(account.ownerPersonId, (workplaceAccountCountByOwner.get(account.ownerPersonId) ?? 0) + 1);
     if (account.type === "403b") workplaceOwnerHas403b.add(account.ownerPersonId);
   }
@@ -227,10 +224,13 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (missingOwner) missingData.push("Account owner is required to evaluate catch-up eligibility and shared deferral limits.");
       const contributedYtd = account.type === "457b" ? account.employeeContributedYtd : account.type === "simple_ira" ? account.ownerPersonId ? (simpleYtdByOwner.get(account.ownerPersonId) ?? null) : null : account.ownerPersonId ? (workplaceYtdByOwner.get(account.ownerPersonId) ?? null) : null;
       if (contributedYtd === null) missingData.push("Employee contributions YTD are required to calculate remaining elective-deferral room.");
-      const compensation = owner?.estimatedTaxableCompensationAnnual ?? null;
-      if (compensation === null) missingData.push("Supported participant compensation is required to apply the 100%-of-compensation contribution ceiling.");
+      const compensation = sharedWorkplaceTypes.has(account.type)
+        ? account.planEligibleCompensationAnnual ?? null
+        : owner?.estimatedTaxableCompensationAnnual ?? null;
+      if (sharedWorkplaceTypes.has(account.type) && compensation === null) missingData.push("Current-year compensation attributable to this specific plan and sponsoring employer is required to apply the 100%-of-compensation annual-additions ceiling.");
+      if (!sharedWorkplaceTypes.has(account.type) && compensation === null) missingData.push("Participant compensation is required to calculate the applicable employee contribution ceiling.");
       if (sharedWorkplaceTypes.has(account.type) && account.employerContributedYtd === null) missingData.push("Employer contributions YTD are required to apply the defined-contribution annual-additions limit.");
-      if (sharedWorkplaceTypes.has(account.type) && account.ownerPersonId && (workplaceAccountCountByOwner.get(account.ownerPersonId) ?? 0) > 1) missingData.push("Employer/plan identity and plan-specific compensation are required to allocate annual-additions capacity precisely across multiple workplace accounts; the displayed room is a conservative owner-level ceiling.");
+      if (sharedWorkplaceTypes.has(account.type) && account.ownerPersonId && (workplaceAccountCountByOwner.get(account.ownerPersonId) ?? 0) > 1) missingData.push("Employer/plan identity is required to allocate annual-additions capacity precisely across multiple workplace accounts; each account's plan-specific compensation remains separate and no separate plan limit is inferred.");
       if (account.type === "simple_ira" && account.simpleHigherLimitEligible == null) missingData.push("Whether this SIMPLE plan qualifies for the higher applicable-plan limit is unknown; the standard limit is used.");
       const catchUp = catchUpAmount(age, account.type, taxPolicy);
       let catchUpMustBeRoth: boolean | null = false;
@@ -246,8 +246,8 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       let annualAdditionsLimit: number | null = null;
       let annualAdditionsYtd: number | null = null;
       if (sharedWorkplaceTypes.has(account.type)) {
-        const employeeYtd = account.ownerPersonId ? (workplaceYtdByOwner.get(account.ownerPersonId) ?? null) : null;
-        const employerYtd = account.ownerPersonId ? (workplaceEmployerYtdByOwner.get(account.ownerPersonId) ?? null) : null;
+        const employeeYtd = account.employeeContributedYtd;
+        const employerYtd = account.employerContributedYtd;
         annualAdditionsLimit = compensation === null ? null : roundMoney(Math.min(taxPolicy.definedContributionAnnualAdditionsLimit, compensation));
         if (employeeYtd !== null && employerYtd !== null) {
           const has403bAmbiguity = account.ownerPersonId !== null && workplaceOwnerHas403b.has(account.ownerPersonId);

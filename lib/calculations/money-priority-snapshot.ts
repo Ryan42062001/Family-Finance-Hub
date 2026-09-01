@@ -108,6 +108,7 @@ export type MoneyPrioritySnapshot = {
     hsaEligible: boolean | null;
     simpleHigherLimitEligible?: boolean | null;
     employerContributionType?: string | null;
+    planEligibleCompensationAnnual?: number | null;
     priorYearSponsorWages?: number | null;
     rothCatchUpSupported?: boolean | null;
     sepEligibleCompensationAnnual?: number | null;
@@ -193,6 +194,115 @@ export type MoneyPriorityRawSnapshot = {
   preferences?: Raw | null;
 };
 
+export type SnapshotValidationIssue = {
+  path: string;
+  code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number" | "missing_id";
+  message: string;
+};
+
+export class MoneyPrioritySnapshotValidationError extends Error {
+  readonly issues: SnapshotValidationIssue[];
+
+  constructor(issues: SnapshotValidationIssue[]) {
+    super(`Money Priority snapshot validation failed with ${issues.length} issue${issues.length === 1 ? "" : "s"}.`);
+    this.name = "MoneyPrioritySnapshotValidationError";
+    this.issues = issues;
+  }
+}
+
+export type SnapshotValidationOptions = { allowSignedHypotheticalExpenseAdjustments?: boolean };
+
+const ENUMS = {
+  relationship: ["self", "spouse_partner", "child", "dependent_adult", "other"],
+  cashPurpose: ["unallocated", "protected_reserve", "earmarked_goal", "debt_backed_reserve", "operating_cash", "not_applicable"],
+  studentLoanSource: ["federal", "private", "unknown"],
+  studentLoanRepaymentPlan: ["standard", "tiered_standard", "ibr", "icr", "paye", "rap", "other", "unknown"],
+  studentLoanForgivenessStrategy: ["none", "pslf", "idr", "teacher", "health_service", "other", "unknown"],
+  forgivenessTaxTreatment: ["federally_tax_free", "potentially_taxable", "unknown"],
+  goalClass: ["necessary_protective", "major_life_goal", "education", "home_purchase", "lifestyle_optional", "other", "unknown"],
+  necessity: ["required", "important", "optional", "unknown"],
+  deadlineFlexibility: ["fixed", "somewhat_flexible", "flexible", "unknown"],
+  consequenceLevel: ["high", "moderate", "low", "unknown"],
+  filingStatus: ["single", "head_of_household", "married_filing_jointly", "married_filing_separately"],
+  retirementType: ["401k", "403b", "457", "457b", "tsp", "simple_ira", "traditional_ira", "roth_ira", "sep_ira", "hsa", "pension", "other"],
+} as const;
+
+function isIsoDate(value: unknown): boolean {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month && date.getUTCDate() === day;
+}
+
+function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options: SnapshotValidationOptions): SnapshotValidationIssue[] {
+  const issues: SnapshotValidationIssue[] = [];
+  const collections: Array<[string, Raw[]]> = [
+    ["people", raw.people ?? []], ["income", raw.income ?? []], ["expenses", raw.expenses ?? []], ["accounts", raw.accounts ?? []],
+    ["debts", raw.debts ?? []], ["retirementAccounts", raw.retirementAccounts ?? []], ["goals", raw.goals ?? []], ["insuranceExposures", raw.insuranceExposures ?? []],
+  ];
+  for (const [name, rows] of collections) {
+    const ids = new Set<string>();
+    rows.forEach((row, index) => {
+      const id = typeof row.id === "string" ? row.id : "";
+      if (!id) issues.push({ path: `${name}[${index}].id`, code: "missing_id", message: `${name} entries require a nonempty stable ID.` });
+      else if (ids.has(id)) issues.push({ path: `${name}[${index}].id`, code: "duplicate_id", message: `Duplicate ${name} ID '${id}' is not allowed.` });
+      else ids.add(id);
+    });
+  }
+
+  const peopleIds = new Set((raw.people ?? []).map((row) => String(row.id ?? "")));
+  const goalIds = new Set((raw.goals ?? []).map((row) => String(row.id ?? "")));
+  const debtIds = new Set((raw.debts ?? []).map((row) => String(row.id ?? "")));
+  const reference = (value: unknown, ids: Set<string>, path: string, label: string) => {
+    if (value !== null && value !== undefined && value !== "" && !ids.has(String(value))) issues.push({ path, code: "invalid_reference", message: `${label} does not reference an entity in this snapshot.` });
+  };
+  (raw.income ?? []).forEach((row, index) => reference(row.owner_person_id, peopleIds, `income[${index}].owner_person_id`, "Income owner"));
+  (raw.retirementAccounts ?? []).forEach((row, index) => reference(row.owner_person_id, peopleIds, `retirementAccounts[${index}].owner_person_id`, "Retirement owner"));
+  (raw.insuranceExposures ?? []).forEach((row, index) => reference(row.person_id, peopleIds, `insuranceExposures[${index}].person_id`, "Insurance person"));
+  (raw.accounts ?? []).forEach((row, index) => {
+    reference(row.related_goal_id, goalIds, `accounts[${index}].related_goal_id`, "Related goal");
+    reference(row.related_debt_id, debtIds, `accounts[${index}].related_debt_id`, "Related debt");
+  });
+
+  const enumValue = (value: unknown, allowed: readonly string[], path: string) => {
+    if (value !== null && value !== undefined && value !== "" && (typeof value !== "string" || !allowed.includes(value))) issues.push({ path, code: "invalid_enum", message: `${path} contains an unsupported value.` });
+  };
+  (raw.people ?? []).forEach((row, index) => enumValue(row.relationship, ENUMS.relationship, `people[${index}].relationship`));
+  (raw.accounts ?? []).forEach((row, index) => enumValue(row.cash_purpose, ENUMS.cashPurpose, `accounts[${index}].cash_purpose`));
+  (raw.debts ?? []).forEach((row, index) => {
+    enumValue(row.student_loan_source, ENUMS.studentLoanSource, `debts[${index}].student_loan_source`);
+    enumValue(row.student_loan_repayment_plan, ENUMS.studentLoanRepaymentPlan, `debts[${index}].student_loan_repayment_plan`);
+    enumValue(row.student_loan_forgiveness_strategy, ENUMS.studentLoanForgivenessStrategy, `debts[${index}].student_loan_forgiveness_strategy`);
+    enumValue(row.forgiveness_tax_treatment, ENUMS.forgivenessTaxTreatment, `debts[${index}].forgiveness_tax_treatment`);
+  });
+  (raw.retirementAccounts ?? []).forEach((row, index) => enumValue(row.account_type, ENUMS.retirementType, `retirementAccounts[${index}].account_type`));
+  (raw.goals ?? []).forEach((row, index) => {
+    enumValue(row.goal_class, ENUMS.goalClass, `goals[${index}].goal_class`); enumValue(row.necessity, ENUMS.necessity, `goals[${index}].necessity`);
+    enumValue(row.deadline_flexibility, ENUMS.deadlineFlexibility, `goals[${index}].deadline_flexibility`); enumValue(row.consequence_level, ENUMS.consequenceLevel, `goals[${index}].consequence_level`);
+  });
+  if (raw.preferences) enumValue(raw.preferences.tax_filing_status, ENUMS.filingStatus, "preferences.tax_filing_status");
+
+  const dateValue = (value: unknown, path: string) => { if (value !== null && value !== undefined && value !== "" && !isIsoDate(value)) issues.push({ path, code: "invalid_date", message: `${path} must be a real YYYY-MM-DD calendar date.` }); };
+  (raw.people ?? []).forEach((row, index) => dateValue(row.birth_date, `people[${index}].birth_date`));
+  (raw.debts ?? []).forEach((row, index) => { dateValue(row.promo_rate_expires_on, `debts[${index}].promo_rate_expires_on`); dateValue(row.scheduled_payoff_date, `debts[${index}].scheduled_payoff_date`); dateValue(row.estimated_forgiveness_date, `debts[${index}].estimated_forgiveness_date`); });
+  (raw.goals ?? []).forEach((row, index) => dateValue(row.target_date, `goals[${index}].target_date`));
+  if (raw.preferences) dateValue(raw.preferences.known_income_disruption_end_date, "preferences.known_income_disruption_end_date");
+
+  const nonnegative = (value: unknown, path: string, allowNegative = false) => {
+    if (value === null || value === undefined || value === "") return;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || (!allowNegative && parsed < 0)) issues.push({ path, code: "invalid_number", message: `${path} must be a finite nonnegative number.` });
+  };
+  (raw.income ?? []).forEach((row, index) => { nonnegative(row.monthly_amount, `income[${index}].monthly_amount`); nonnegative(row.monthly_gross_amount, `income[${index}].monthly_gross_amount`); });
+  (raw.expenses ?? []).forEach((row, index) => nonnegative(row.monthly_amount, `expenses[${index}].monthly_amount`, options.allowSignedHypotheticalExpenseAdjustments === true));
+  (raw.accounts ?? []).forEach((row, index) => nonnegative(row.balance, `accounts[${index}].balance`));
+  (raw.debts ?? []).forEach((row, index) => { nonnegative(row.current_balance, `debts[${index}].current_balance`); nonnegative(row.minimum_payment, `debts[${index}].minimum_payment`); });
+  (raw.retirementAccounts ?? []).forEach((row, index) => { for (const field of ["balance", "monthly_employee_contribution", "monthly_employer_contribution", "employee_contributed_ytd", "employer_contributed_ytd", "annual_contribution_target", "full_match_employee_contribution_monthly", "plan_eligible_compensation_annual", "prior_year_sponsor_wages", "sep_eligible_compensation_annual"] as const) nonnegative(row[field], `retirementAccounts[${index}].${field}`); });
+  (raw.goals ?? []).forEach((row, index) => { nonnegative(row.target_amount, `goals[${index}].target_amount`); nonnegative(row.current_amount, `goals[${index}].current_amount`); nonnegative(row.planned_monthly_contribution, `goals[${index}].planned_monthly_contribution`); nonnegative(row.core_need_amount, `goals[${index}].core_need_amount`); });
+  (raw.insuranceExposures ?? []).forEach((row, index) => { for (const field of ["deductible_amount", "family_deductible_amount", "out_of_pocket_max", "percentage_deductible", "insured_value"] as const) nonnegative(row[field], `insuranceExposures[${index}].${field}`); });
+  return issues;
+}
+
 function numberValue(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -212,6 +322,10 @@ function nullableString(value: unknown): string | null {
   return typeof value === "string" && value.length ? value : null;
 }
 
+function nullableIsoDate(value: unknown): string | null {
+  return isIsoDate(value) ? value as string : null;
+}
+
 function booleanValue(value: unknown, fallback = false): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -227,14 +341,17 @@ function normalizeRetirementType(value: unknown): RetirementAccountType {
   return allowed.includes(raw as RetirementAccountType) ? (raw as RetirementAccountType) : "other";
 }
 
-export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): MoneyPrioritySnapshot {
-  const warnings: string[] = [];
+export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, options: SnapshotValidationOptions = {}): MoneyPrioritySnapshot {
+  const validationIssues = validateMoneyPriorityRawSnapshot(raw, options);
+  const fatalIssues = validationIssues.filter((issue) => issue.code !== "invalid_date");
+  if (fatalIssues.length) throw new MoneyPrioritySnapshotValidationError(fatalIssues);
+  const warnings: string[] = validationIssues.map((issue) => issue.message);
 
   const people = (raw.people ?? []).map((row) => ({
     id: stringValue(row.id),
     displayName: stringValue(row.display_name),
     relationship: stringValue(row.relationship, "other"),
-    birthDate: nullableString(row.birth_date),
+    birthDate: nullableIsoDate(row.birth_date),
     plannedRetirementAge: nullableNumber(row.planned_retirement_age),
     coveredByWorkplaceRetirementPlan: nullableBoolean(row.covered_by_workplace_retirement_plan),
     estimatedTaxableCompensationAnnual: nullableNumber(row.estimated_taxable_compensation_annual),
@@ -289,13 +406,13 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     annualInterestRate: nullableNumber(row.interest_rate),
     minimumPayment: numberValue(row.minimum_payment),
     rateType: stringValue(row.rate_type, "fixed"),
-    promoRateExpiresOn: nullableString(row.promo_rate_expires_on),
+    promoRateExpiresOn: nullableIsoDate(row.promo_rate_expires_on),
     postPromoInterestRate: nullableNumber(row.post_promo_interest_rate),
     isPastDue: booleanValue(row.is_past_due),
     isInCollections: booleanValue(row.is_in_collections),
     hasLegalOrTaxPriority: booleanValue(row.has_legal_or_tax_priority),
     forgivenessOrRepaymentProgram: nullableString(row.forgiveness_or_repayment_program),
-    scheduledPayoffDate: nullableString(row.scheduled_payoff_date),
+    scheduledPayoffDate: nullableIsoDate(row.scheduled_payoff_date),
     studentLoanSource: nullableString(row.student_loan_source) as StudentLoanSource | null,
     studentLoanRepaymentPlan: nullableString(row.student_loan_repayment_plan) as StudentLoanRepaymentPlan | null,
     studentLoanForgivenessStrategy: nullableString(row.student_loan_forgiveness_strategy) as StudentLoanForgivenessStrategy | null,
@@ -304,7 +421,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     qualifyingPaymentsMade: nullableNumber(row.qualifying_payments_made),
     qualifyingPaymentsRequired: nullableNumber(row.qualifying_payments_required),
     estimatedForgivenessAmount: nullableNumber(row.estimated_forgiveness_amount),
-    estimatedForgivenessDate: nullableString(row.estimated_forgiveness_date),
+    estimatedForgivenessDate: nullableIsoDate(row.estimated_forgiveness_date),
     forgivenessTaxTreatment: nullableString(row.forgiveness_tax_treatment) as StudentLoanForgivenessTaxTreatment | null,
     estimatedForgivenessTaxLiability: nullableNumber(row.estimated_forgiveness_tax_liability),
     employerDirectLoanAssistanceMonthly: nullableNumber(row.employer_direct_loan_assistance_monthly),
@@ -332,6 +449,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     hsaEligible: nullableBoolean(row.hsa_eligible),
     simpleHigherLimitEligible: nullableBoolean(row.simple_higher_limit_eligible),
     employerContributionType: nullableString(row.employer_contribution_type),
+    planEligibleCompensationAnnual: nullableNumber(row.plan_eligible_compensation_annual),
     priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
     rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported),
     sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
@@ -343,7 +461,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     name: stringValue(row.name),
     targetAmount: numberValue(row.target_amount),
     currentAmount: numberValue(row.current_amount),
-    targetDate: nullableString(row.target_date),
+    targetDate: nullableIsoDate(row.target_date),
     priority: numberValue(row.priority),
     goalClass: stringValue(row.goal_class, "major_life_goal"),
     necessity: stringValue(row.necessity, "important"),
@@ -374,7 +492,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot): Money
     retirementPriority: stringValue(raw.preferences.retirement_priority, "balanced"),
     jobReplacementDifficulty: stringValue(raw.preferences.job_replacement_difficulty, "unknown"),
     knownIncomeDisruption: booleanValue(raw.preferences.known_income_disruption),
-    knownIncomeDisruptionEndDate: nullableString(raw.preferences.known_income_disruption_end_date),
+    knownIncomeDisruptionEndDate: nullableIsoDate(raw.preferences.known_income_disruption_end_date),
     desiredRetirementMonthlySpending: nullableNumber(raw.preferences.desired_retirement_monthly_spending),
     retirementSpendingBasis: stringValue(raw.preferences.retirement_spending_basis, "unknown"),
     planningSocialSecurityMonthly: nullableNumber(raw.preferences.planning_social_security_monthly),

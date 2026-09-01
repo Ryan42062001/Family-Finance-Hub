@@ -407,6 +407,7 @@ test("known retirement contribution-room conflict is surfaced without clamping",
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 500, monthly_employer_contribution: 0,
     employee_contributed_ytd: 24000, employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 100000,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
   const plan = engine(raw);

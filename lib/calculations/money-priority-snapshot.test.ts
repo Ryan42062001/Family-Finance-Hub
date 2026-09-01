@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
+import { buildMoneyPrioritySnapshot, MoneyPrioritySnapshotValidationError } from "./money-priority-snapshot.ts";
 
 test("normalizes numeric strings, cash purposes, and 457 account type", () => {
   const snapshot = buildMoneyPrioritySnapshot({
@@ -74,4 +74,44 @@ test("ignores inactive income in planning aggregates", () => {
 
   assert.equal(snapshot.aggregates.monthlyTakeHomeIncome, 5000);
   assert.equal(snapshot.aggregates.monthlyGrossIncomeKnown, 7000);
+});
+
+test("rejects duplicate decision-driving IDs with structured diagnostics", () => {
+  assert.throws(() => buildMoneyPrioritySnapshot({ householdId: "h", debts: [
+    { id: "same", current_balance: 100, minimum_payment: 10 },
+    { id: "same", current_balance: 200, minimum_payment: 20 },
+  ] }), (error) => error instanceof MoneyPrioritySnapshotValidationError
+    && error.issues.some((issue) => issue.code === "duplicate_id" && issue.path === "debts[1].id"));
+});
+
+test("rejects orphaned owner, goal, debt, and person references", () => {
+  assert.throws(() => buildMoneyPrioritySnapshot({
+    householdId: "h",
+    income: [{ id: "income", owner_person_id: "missing-person", monthly_amount: 1 }],
+    retirementAccounts: [{ id: "retirement", owner_person_id: "missing-person", account_type: "roth_ira" }],
+    accounts: [{ id: "cash", account_type: "savings", balance: 1, cash_purpose: "earmarked_goal", related_goal_id: "missing-goal" }],
+    insuranceExposures: [{ id: "insurance", person_id: "missing-person" }],
+  }), (error) => error instanceof MoneyPrioritySnapshotValidationError
+    && error.issues.filter((issue) => issue.code === "invalid_reference").length === 4);
+});
+
+test("rejects malformed decision enums instead of using unchecked casts", () => {
+  assert.throws(() => buildMoneyPrioritySnapshot({ householdId: "h", debts: [{
+    id: "loan", debt_type: "student_loan", current_balance: 1, minimum_payment: 0,
+    student_loan_source: "not-a-source", student_loan_forgiveness_strategy: "invented",
+  }], accounts: [{ id: "cash", account_type: "savings", balance: 1, cash_purpose: "anything" }] }),
+  (error) => error instanceof MoneyPrioritySnapshotValidationError
+    && error.issues.filter((issue) => issue.code === "invalid_enum").length === 3);
+});
+
+test("rejects negative financial inputs before they can inflate capacity", () => {
+  assert.throws(() => buildMoneyPrioritySnapshot({ householdId: "h", expenses: [{ id: "expense", monthly_amount: -10 }], debts: [{ id: "debt", current_balance: 1, minimum_payment: -5 }] }),
+    (error) => error instanceof MoneyPrioritySnapshotValidationError
+      && error.issues.filter((issue) => issue.code === "invalid_number").length === 2);
+});
+
+test("malformed decision dates are diagnosed and remain conservative", () => {
+  const snapshot = buildMoneyPrioritySnapshot({ householdId: "h", goals: [{ id: "goal", target_amount: 100, current_amount: 0, target_date: "2026-02-30" }] });
+  assert.ok(snapshot.warnings.some((warning) => warning.includes("real YYYY-MM-DD")));
+  assert.equal(snapshot.goals[0]?.targetDate, null);
 });
