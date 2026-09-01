@@ -85,6 +85,9 @@ test("employer match remains a recurring payroll need after one-time cash planni
     balance: 0,
     monthly_employee_contribution: 0,
     monthly_employer_contribution: 0,
+    employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 84000,
     full_match_employee_contribution_monthly: 300,
     match_status: "not_fully_captured",
   }];

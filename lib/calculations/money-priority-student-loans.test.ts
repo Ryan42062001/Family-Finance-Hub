@@ -195,6 +195,7 @@ test("existing ordinary employer retirement match remains first-class", () => {
   raw.retirementAccounts = [{
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
+    employee_contributed_ytd: 0, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 84000,
     full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured",
   }];
   const result = engineWith([pslf()], raw);

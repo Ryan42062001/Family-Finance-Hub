@@ -26,7 +26,7 @@ function snapshot(retirementAccounts: Record<string, unknown>[], people: Record<
     debts: [],
     goals: [],
     insuranceExposures: [],
-    retirementAccounts,
+    retirementAccounts: retirementAccounts.map((account) => ({ balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, ...account })),
   });
 }
 

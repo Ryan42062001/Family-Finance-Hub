@@ -94,7 +94,7 @@ test("employer match does not consume one-time existing cash", () => {
     { id: "cash", name: "Extra savings", account_type: "savings", balance: 1000, cash_purpose: "unallocated" },
     { id: "ef", name: "Emergency", account_type: "savings", balance: 7500, cash_purpose: "protected_reserve" },
   ];
-  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", monthly_employee_contribution: 0, monthly_employer_contribution: 0, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
+  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 84000, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
   const { result } = evaluate(raw);
   assert.equal(result.deployments.some((item) => item.id.includes("match")), false);
   assert.equal(result.remainingUnallocatedCash, 1000);

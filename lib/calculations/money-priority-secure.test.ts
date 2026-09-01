@@ -90,7 +90,8 @@ test("uncaptured employer match creates required monthly gap", () => {
   snapshot.retirementAccounts = [{
     id: "r1", ownerPersonId: "p1", name: "401(k)", type: "401k", balance: 10000,
     monthlyEmployeeContribution: 200, monthlyEmployerContribution: 100, taxTreatment: "traditional",
-    employeeContributedYtd: null, employerContributedYtd: null, annualContributionTarget: null,
+    employeeContributedYtd: 0, employerContributedYtd: 0, annualContributionTarget: null,
+    planEligibleCompensationAnnual: 84000,
     fullMatchEmployeeContributionMonthly: 300, matchStatus: "not_fully_captured", hsaCoverageType: null, hsaEligible: null,
   }];
   const result = evaluateSecureStage(snapshot);

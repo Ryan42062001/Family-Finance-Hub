@@ -4,7 +4,7 @@ import test from "node:test";
 import { assessEmergencyReserve } from "./money-priority-core.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { evaluateSecureStage } from "./money-priority-secure.ts";
-import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { buildMoneyPrioritySnapshot, MoneyPrioritySnapshotValidationError, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 
 function raw(overrides: Partial<MoneyPriorityRawSnapshot> = {}): MoneyPriorityRawSnapshot {
   return {
@@ -194,24 +194,21 @@ test("lower override cannot erase a concrete exceptional need", () => {
   assert.equal(result.source, "exceptional_policy");
 });
 
-test("equal override preserves engine rationale and override above twelve remains explicit preference", () => {
+test("equal override preserves engine rationale and override above twelve is rejected", () => {
   const equal = assess({ preferences: {
     known_income_disruption: true, known_income_disruption_end_date: "2026-09-01",
     emergency_fund_months_override: 10, job_replacement_difficulty: "easy",
   } });
   assert.equal(equal.source, "exceptional_policy");
-  const higher = assess({ preferences: {
+  assert.throws(() => assess({ preferences: {
     known_income_disruption: true, known_income_disruption_end_date: "2028-01-01",
     emergency_fund_months_override: 15, job_replacement_difficulty: "easy",
-  } });
-  assert.equal(higher.engineRecommendedMonths, 12);
-  assert.equal(higher.effectiveRecommendedMonths, 15);
-  assert.equal(higher.source, "household_override");
+  } }), MoneyPrioritySnapshotValidationError);
 });
 
-test("negative and nonnumeric overrides are safely ignored", () => {
-  assert.equal(assess({ preferences: { emergency_fund_months_override: -3 } }).householdOverrideMonths, null);
-  assert.equal(assess({ preferences: { emergency_fund_months_override: "not-a-number" } }).householdOverrideMonths, null);
+test("negative and nonnumeric overrides are rejected", () => {
+  assert.throws(() => assess({ preferences: { emergency_fund_months_override: -3 } }), MoneyPrioritySnapshotValidationError);
+  assert.throws(() => assess({ preferences: { emergency_fund_months_override: "not-a-number" } }), MoneyPrioritySnapshotValidationError);
 });
 
 test("Secure uses one exceptional target based only on essentials plus debt minimums", () => {

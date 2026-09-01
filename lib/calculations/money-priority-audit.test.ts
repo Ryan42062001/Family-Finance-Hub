@@ -27,7 +27,7 @@ function totalMonthlyAllocated(result: ReturnType<typeof runMoneyPriorityEngine>
 
 test("cross-stage allocations never exceed monthly plan capacity", () => {
   const raw = baseRaw();
-  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
+  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 84000, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
   assert.ok(totalMonthlyAllocated(result) <= Math.max(0, result.snapshot.aggregates.monthlyCashFlowBeforeSavings));
   assert.equal(result.build.allocationMonthlyCapacity, 1200);
@@ -35,7 +35,7 @@ test("cross-stage allocations never exceed monthly plan capacity", () => {
 
 test("employer match consumes capacity before Build allocations", () => {
   const raw = baseRaw();
-  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
+  raw.retirementAccounts = [{ id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 84000, full_match_employee_contribution_monthly: 300, match_status: "not_fully_captured" }];
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
   assert.equal(result.recommendations.find((item) => item.id === "secure-match-gap-r1")?.allocations[0]?.monthlyAmount, 300);
   assert.equal(result.build.allocationMonthlyCapacity, 1200);

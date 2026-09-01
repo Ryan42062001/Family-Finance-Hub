@@ -111,7 +111,7 @@ test("rejects negative financial inputs before they can inflate capacity", () =>
 });
 
 test("malformed decision dates are diagnosed and remain conservative", () => {
-  const snapshot = buildMoneyPrioritySnapshot({ householdId: "h", goals: [{ id: "goal", target_amount: 100, current_amount: 0, target_date: "2026-02-30" }] });
+  const snapshot = buildMoneyPrioritySnapshot({ householdId: "h", goals: [{ id: "goal", target_amount: 100, current_amount: 0, target_date: "2026-02-30", priority: 3 }] });
   assert.ok(snapshot.warnings.some((warning) => warning.includes("real YYYY-MM-DD")));
   assert.equal(snapshot.goals[0]?.targetDate, null);
 });

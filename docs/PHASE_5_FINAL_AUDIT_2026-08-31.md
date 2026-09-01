@@ -60,3 +60,16 @@ Foundation CI verifies deterministic calculations, migration-policy structure, T
 ## Next decision
 
 Run a new adversarial, read-only audit against the final remediation commit. Only that independent audit may issue a clean merge recommendation.
+
+## Final HIGH-severity remediation (2026-09-01)
+
+Parent checkpoint: `25baaa4314a5cf64f7e31f072931c7cf487e0e63`
+
+Two HIGH findings identified after the earlier remediation are closed in this focused package:
+
+- **P5-FINAL-01 — Secure employer-match legal capacity.** Secure now consumes the same authoritative retirement-account opportunity result used by Build. An uncaptured match produces an allocation only when legal employee-contribution capacity is known and available. Exhausted capacity produces no allocation; missing employee YTD, employer YTD, plan-specific compensation, or another required limit fact produces `more_information_needed`. Partial remaining room caps both the monthly recommendation over the remaining tax-year months and the recommendation's annual claim. Fully captured matches remain absent. Employer-match payroll behavior remains distinct from one-time cash deployment.
+- **P5-FINAL-02 — required numeric values.** The raw snapshot boundary now has a centralized required-versus-nullable numeric contract. Missing required income, expense, account, debt, retirement-contribution, and goal numbers produce structured `missing_required_number` issues instead of being coerced to zero. Explicit zero remains valid where allowed, while absent nullable values remain `null`. Finite, sign, percentage, integer, and bounded-domain checks run before authoritative recommendations.
+
+Adversarial regression coverage includes exhausted elective deferrals, exhausted annual additions, partial room, missing capacity facts, fully captured matches, available and catch-up room, every core required numeric family, explicit-zero/null separation, invalid bounds, and a combined optimistic-capacity attack. The cross-stage monthly-capacity invariant remains enforced.
+
+**Final HIGH-severity remediation complete — pending independent clean audit.**

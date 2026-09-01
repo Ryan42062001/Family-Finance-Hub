@@ -10,7 +10,7 @@ function evaluate(accounts: Record<string, unknown>[], compensation: number | nu
       estimated_taxable_compensation_annual: compensation, covered_by_workplace_retirement_plan: true,
       is_active: true, is_dependent: false }],
     income: [], expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [],
-    retirementAccounts: accounts,
+    retirementAccounts: accounts.map((account) => ({ balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, ...account })),
   })).opportunities;
 }
 
@@ -62,7 +62,7 @@ test("IRA capacity continues to use individual compensation rather than plan com
   const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot({
     householdId: "ira-control",
     people: [{ id: "p", display_name: "Person", relationship: "self", birth_date: "1990-01-01", estimated_taxable_compensation_annual: 4000, is_active: true }],
-    retirementAccounts: [{ id: "ira", owner_person_id: "p", name: "IRA", account_type: "traditional_ira", employee_contributed_ytd: 0 }],
+    retirementAccounts: [{ id: "ira", owner_person_id: "p", name: "IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0 }],
     preferences: { tax_profile_year: 2026, tax_filing_status: "single", estimated_modified_agi: 4000 },
   })).opportunities[0]!;
   assert.equal(result.annualLimit, 4000);

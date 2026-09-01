@@ -13,6 +13,10 @@ import {
   assessStudentLoanStrategy,
   type StudentLoanStrategyAssessment,
 } from "./money-priority-student-loans.ts";
+import {
+  evaluateRetirementAccountOpportunities,
+  type RetirementAccountOpportunityResult,
+} from "./money-priority-retirement-accounts.ts";
 
 export type SecureRecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -27,6 +31,7 @@ export type SecureStageRecommendation = {
   gapAmount: number | null;
   relatedEntityId: string | null;
   reasons: string[];
+  legalRemainingAnnualRoom?: number | null;
 };
 
 export type SecureStageResult = {
@@ -67,10 +72,17 @@ function debtBackedReserveFor(snapshot: MoneyPrioritySnapshot, debtId: string): 
   }, 0));
 }
 
+function remainingContributionMonths(asOfDate: string, taxYear: number): number {
+  const date = parseIsoDate(asOfDate);
+  if (!date || date.getUTCFullYear() !== taxYear) return 12;
+  return 12 - date.getUTCMonth();
+}
+
 export function evaluateSecureStage(
   snapshot: MoneyPrioritySnapshot,
   asOfDate = "1970-01-01",
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  retirementOpportunities: RetirementAccountOpportunityResult = evaluateRetirementAccountOpportunities(snapshot),
 ): SecureStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
@@ -97,6 +109,7 @@ export function evaluateSecureStage(
   }
 
   let employerMatchMonthlyGap = 0;
+  const opportunityByAccountId = new Map(retirementOpportunities.opportunities.map((item) => [item.accountId, item]));
   for (const account of snapshot.retirementAccounts) {
     if (account.type === "sep_ira") continue;
     if (account.type === "simple_ira" && account.employerContributionType === "nonelective") continue;
@@ -112,13 +125,55 @@ export function evaluateSecureStage(
         continue;
       }
       const gap = roundMoney(Math.max(0, account.fullMatchEmployeeContributionMonthly - account.monthlyEmployeeContribution));
-      employerMatchMonthlyGap = roundMoney(employerMatchMonthlyGap + gap);
       if (gap > 0) {
+        const opportunity = opportunityByAccountId.get(account.id);
+        if (!opportunity || opportunity.state === "more_information_needed" || opportunity.remainingAnnualRoom === null) {
+          const missing = opportunity?.missingData.length
+            ? opportunity.missingData
+            : ["Known remaining legal employee contribution capacity is required before increasing this payroll contribution."];
+          recommendations.push({
+            id: `secure-match-capacity-missing-${account.id}`, rank: rank++, state: "more_information_needed", urgency: "high",
+            title: `Confirm legal contribution room before increasing ${account.name}`,
+            monthlyAmount: null, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: null, relatedEntityId: account.id,
+            reasons: [
+              "The employer match remains a Secure priority, but the engine cannot recommend a contribution without verified legal employee contribution room.",
+              ...missing,
+            ],
+            legalRemainingAnnualRoom: opportunity?.remainingAnnualRoom ?? null,
+          });
+          continue;
+        }
+        if (opportunity.state === "limit_reached" || opportunity.state === "not_eligible" || opportunity.remainingAnnualRoom <= 0) {
+          recommendations.push({
+            id: `secure-match-capacity-exhausted-${account.id}`, rank: rank++, state: "worth_considering", urgency: "high",
+            title: `Employer-match contribution room is exhausted in ${account.name}`,
+            monthlyAmount: null, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: 0, relatedEntityId: account.id,
+            reasons: [
+              "The account has no known legal employee contribution room remaining, so no additional payroll contribution is recommended even though the recorded match is not fully captured.",
+            ],
+            legalRemainingAnnualRoom: 0,
+          });
+          continue;
+        }
+        const contributionMonths = remainingContributionMonths(asOfDate, retirementOpportunities.taxYear);
+        const legalMonthlyEquivalent = roundMoney(opportunity.remainingAnnualRoom / contributionMonths);
+        const legallySupportedGap = roundMoney(Math.min(gap, legalMonthlyEquivalent));
+        if (legallySupportedGap <= 0) continue;
+        employerMatchMonthlyGap = roundMoney(employerMatchMonthlyGap + legallySupportedGap);
+        const capacityReason = legallySupportedGap < gap
+          ? `Only $${opportunity.remainingAnnualRoom.toFixed(2)} of legal employee contribution room remains for ${retirementOpportunities.taxYear}; over the remaining ${contributionMonths} modeled month${contributionMonths === 1 ? "" : "s"}, the recommendation is capped at $${legallySupportedGap.toFixed(2)} per month.`
+          : `$${opportunity.remainingAnnualRoom.toFixed(2)} of known legal employee contribution room remains for ${retirementOpportunities.taxYear}.`;
         recommendations.push({
           id: `secure-match-gap-${account.id}`, rank: rank++, state: "recommended", urgency: "required",
-          title: `Increase contributions to capture the full employer match in ${account.name}`,
-          monthlyAmount: gap, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: gap, relatedEntityId: account.id,
-          reasons: ["Capturing the available employer match is prioritized before ordinary debt-versus-investing optimization."],
+          title: legallySupportedGap < gap
+            ? `Increase contributions toward the employer match in ${account.name}`
+            : `Increase contributions to capture the full employer match in ${account.name}`,
+          monthlyAmount: legallySupportedGap, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: legallySupportedGap, relatedEntityId: account.id,
+          reasons: [
+            "Capturing the available employer match is prioritized before ordinary debt-versus-investing optimization, subject to verified legal contribution capacity.",
+            capacityReason,
+          ],
+          legalRemainingAnnualRoom: opportunity.remainingAnnualRoom,
         });
       }
     } else if (account.matchStatus === "unknown") {

@@ -156,7 +156,7 @@ test("protected reserve depletion that creates Secure action is critical", () =>
 
 test("new employer-match gap is a critical opportunity transition", () => {
   const before = raw();
-  before.retirementAccounts!.push({ id: "r", owner_person_id: "p", name: "401k", account_type: "401k", balance: 50000, monthly_employee_contribution: 500, monthly_employer_contribution: 250, full_match_employee_contribution_monthly: 500, match_status: "fully_captured" });
+  before.retirementAccounts!.push({ id: "r", owner_person_id: "p", name: "401k", account_type: "401k", balance: 50000, monthly_employee_contribution: 500, monthly_employer_contribution: 250, employee_contributed_ytd: 4000, employer_contributed_ytd: 2000, plan_eligible_compensation_annual: 120000, full_match_employee_contribution_monthly: 500, match_status: "fully_captured" });
   const after = structuredClone(before); after.retirementAccounts![0].monthly_employee_contribution = 0; after.retirementAccounts![0].match_status = "not_fully_captured";
   const result = assessRecommendationRefresh(engine(before), engine(after));
   assert.equal(result.state, "critical_change");

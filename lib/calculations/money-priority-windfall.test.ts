@@ -119,7 +119,7 @@ test("required, important, and optional goals preserve explicit phase order and 
   source.goals = [
     { id: "o", name: "Optional", target_amount: 1000, current_amount: 0, target_date: "2026-10-01", priority: 1, necessity: "optional" },
     { id: "i", name: "Important", target_amount: 1000, current_amount: 0, target_date: "2026-10-01", priority: 1, necessity: "important" },
-    { id: "r", name: "Required", target_amount: 1000, current_amount: 500, target_date: "2027-01-01", priority: 99, necessity: "required" },
+    { id: "r", name: "Required", target_amount: 1000, current_amount: 500, target_date: "2027-01-01", priority: 5, necessity: "required" },
   ];
   const { result } = evaluate({ amount: 5000 }, source);
   const goals = result.allocations.filter((item) => item.category === "goal");

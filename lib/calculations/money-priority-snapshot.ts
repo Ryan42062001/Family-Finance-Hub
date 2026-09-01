@@ -196,7 +196,7 @@ export type MoneyPriorityRawSnapshot = {
 
 export type SnapshotValidationIssue = {
   path: string;
-  code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number" | "missing_id";
+  code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number" | "missing_required_number" | "missing_id";
   message: string;
 };
 
@@ -211,6 +211,79 @@ export class MoneyPrioritySnapshotValidationError extends Error {
 }
 
 export type SnapshotValidationOptions = { allowSignedHypotheticalExpenseAdjustments?: boolean };
+
+type NumericFieldRule = {
+  field: string;
+  presence: "required" | "nullable";
+  min?: number;
+  max?: number;
+  integer?: boolean;
+};
+
+// Raw numeric contract. Required fields correspond to decision-driving values
+// that are non-null in persisted records. Nullable fields preserve absence as
+// unknown. Explicit zero remains valid whenever it satisfies the field bounds.
+const NUMERIC_CONTRACT = {
+  people: [
+    { field: "planned_retirement_age", presence: "nullable", min: 40, max: 100, integer: true },
+    { field: "estimated_taxable_compensation_annual", presence: "nullable", min: 0 },
+  ],
+  income: [
+    { field: "monthly_amount", presence: "required", min: 0 },
+    { field: "monthly_gross_amount", presence: "nullable", min: 0 },
+  ],
+  expenses: [{ field: "monthly_amount", presence: "required", min: 0 }],
+  accounts: [{ field: "balance", presence: "required", min: 0 }],
+  debts: [
+    { field: "current_balance", presence: "required", min: 0 },
+    { field: "interest_rate", presence: "nullable", min: 0, max: 100 },
+    { field: "minimum_payment", presence: "required", min: 0 },
+    { field: "post_promo_interest_rate", presence: "nullable", min: 0, max: 100 },
+    { field: "current_required_monthly_payment", presence: "nullable", min: 0 },
+    { field: "qualifying_payments_made", presence: "nullable", min: 0, integer: true },
+    { field: "qualifying_payments_required", presence: "nullable", min: 0, integer: true },
+    { field: "estimated_forgiveness_amount", presence: "nullable", min: 0 },
+    { field: "estimated_forgiveness_tax_liability", presence: "nullable", min: 0 },
+    { field: "employer_direct_loan_assistance_monthly", presence: "nullable", min: 0 },
+    { field: "employer_direct_loan_assistance_remaining", presence: "nullable", min: 0 },
+    { field: "qualified_payment_required_for_full_retirement_match", presence: "nullable", min: 0 },
+    { field: "expected_student_loan_based_employer_match_monthly", presence: "nullable", min: 0 },
+  ],
+  retirementAccounts: [
+    { field: "balance", presence: "required", min: 0 },
+    { field: "monthly_employee_contribution", presence: "required", min: 0 },
+    { field: "monthly_employer_contribution", presence: "required", min: 0 },
+    { field: "employee_contributed_ytd", presence: "nullable", min: 0 },
+    { field: "employer_contributed_ytd", presence: "nullable", min: 0 },
+    { field: "annual_contribution_target", presence: "nullable", min: 0 },
+    { field: "full_match_employee_contribution_monthly", presence: "nullable", min: 0 },
+    { field: "plan_eligible_compensation_annual", presence: "nullable", min: 0 },
+    { field: "prior_year_sponsor_wages", presence: "nullable", min: 0 },
+    { field: "sep_eligible_compensation_annual", presence: "nullable", min: 0 },
+  ],
+  goals: [
+    { field: "target_amount", presence: "required", min: 0 },
+    { field: "current_amount", presence: "required", min: 0 },
+    { field: "priority", presence: "required", min: 1, max: 5, integer: true },
+    { field: "planned_monthly_contribution", presence: "nullable", min: 0 },
+    { field: "core_need_amount", presence: "nullable", min: 0 },
+  ],
+  insuranceExposures: [
+    { field: "deductible_amount", presence: "nullable", min: 0 },
+    { field: "family_deductible_amount", presence: "nullable", min: 0 },
+    { field: "out_of_pocket_max", presence: "nullable", min: 0 },
+    { field: "percentage_deductible", presence: "nullable", min: 0, max: 1 },
+    { field: "insured_value", presence: "nullable", min: 0 },
+  ],
+  preferences: [
+    { field: "emergency_fund_months_override", presence: "nullable", min: 1, max: 12 },
+    { field: "desired_retirement_monthly_spending", presence: "nullable", min: 0 },
+    { field: "planning_social_security_monthly", presence: "nullable", min: 0 },
+    { field: "planning_pension_monthly", presence: "nullable", min: 0 },
+    { field: "tax_profile_year", presence: "nullable", min: 1900, max: 9999, integer: true },
+    { field: "estimated_modified_agi", presence: "nullable", min: 0 },
+  ],
+} satisfies Record<string, readonly NumericFieldRule[]>;
 
 const ENUMS = {
   relationship: ["self", "spouse_partner", "child", "dependent_adult", "other"],
@@ -288,24 +361,45 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   (raw.goals ?? []).forEach((row, index) => dateValue(row.target_date, `goals[${index}].target_date`));
   if (raw.preferences) dateValue(raw.preferences.known_income_disruption_end_date, "preferences.known_income_disruption_end_date");
 
-  const nonnegative = (value: unknown, path: string, allowNegative = false) => {
-    if (value === null || value === undefined || value === "") return;
+  const validateNumber = (value: unknown, path: string, rule: NumericFieldRule, allowNegative = false) => {
+    const missing = value === null || value === undefined || value === "";
+    if (missing) {
+      if (rule.presence === "required") issues.push({ path, code: "missing_required_number", message: `${path} is required and must not be inferred as zero.` });
+      return;
+    }
     const parsed = Number(value);
-    if (!Number.isFinite(parsed) || (!allowNegative && parsed < 0)) issues.push({ path, code: "invalid_number", message: `${path} must be a finite nonnegative number.` });
+    const belowMin = rule.min !== undefined && parsed < rule.min && !allowNegative;
+    const aboveMax = rule.max !== undefined && parsed > rule.max;
+    if (!Number.isFinite(parsed) || belowMin || aboveMax || (rule.integer === true && !Number.isInteger(parsed))) {
+      const bounds = [rule.min !== undefined ? `at least ${rule.min}` : null, rule.max !== undefined ? `at most ${rule.max}` : null, rule.integer ? "an integer" : null].filter(Boolean).join(", ");
+      issues.push({ path, code: "invalid_number", message: `${path} must be a finite number${bounds ? ` (${bounds})` : ""}.` });
+    }
   };
-  (raw.income ?? []).forEach((row, index) => { nonnegative(row.monthly_amount, `income[${index}].monthly_amount`); nonnegative(row.monthly_gross_amount, `income[${index}].monthly_gross_amount`); });
-  (raw.expenses ?? []).forEach((row, index) => nonnegative(row.monthly_amount, `expenses[${index}].monthly_amount`, options.allowSignedHypotheticalExpenseAdjustments === true));
-  (raw.accounts ?? []).forEach((row, index) => nonnegative(row.balance, `accounts[${index}].balance`));
-  (raw.debts ?? []).forEach((row, index) => { nonnegative(row.current_balance, `debts[${index}].current_balance`); nonnegative(row.minimum_payment, `debts[${index}].minimum_payment`); });
-  (raw.retirementAccounts ?? []).forEach((row, index) => { for (const field of ["balance", "monthly_employee_contribution", "monthly_employer_contribution", "employee_contributed_ytd", "employer_contributed_ytd", "annual_contribution_target", "full_match_employee_contribution_monthly", "plan_eligible_compensation_annual", "prior_year_sponsor_wages", "sep_eligible_compensation_annual"] as const) nonnegative(row[field], `retirementAccounts[${index}].${field}`); });
-  (raw.goals ?? []).forEach((row, index) => { nonnegative(row.target_amount, `goals[${index}].target_amount`); nonnegative(row.current_amount, `goals[${index}].current_amount`); nonnegative(row.planned_monthly_contribution, `goals[${index}].planned_monthly_contribution`); nonnegative(row.core_need_amount, `goals[${index}].core_need_amount`); });
-  (raw.insuranceExposures ?? []).forEach((row, index) => { for (const field of ["deductible_amount", "family_deductible_amount", "out_of_pocket_max", "percentage_deductible", "insured_value"] as const) nonnegative(row[field], `insuranceExposures[${index}].${field}`); });
+  const validateRows = (name: keyof Omit<typeof NUMERIC_CONTRACT, "preferences">, rows: Raw[]) => rows.forEach((row, index) => {
+    for (const rule of NUMERIC_CONTRACT[name]) {
+      const allowSignedExpense = name === "expenses" && rule.field === "monthly_amount" && options.allowSignedHypotheticalExpenseAdjustments === true;
+      validateNumber(row[rule.field], `${name}[${index}].${rule.field}`, rule, allowSignedExpense);
+    }
+  });
+  validateRows("people", raw.people ?? []);
+  validateRows("income", raw.income ?? []);
+  validateRows("expenses", raw.expenses ?? []);
+  validateRows("accounts", raw.accounts ?? []);
+  validateRows("debts", raw.debts ?? []);
+  validateRows("retirementAccounts", raw.retirementAccounts ?? []);
+  validateRows("goals", raw.goals ?? []);
+  validateRows("insuranceExposures", raw.insuranceExposures ?? []);
+  if (raw.preferences) for (const rule of NUMERIC_CONTRACT.preferences) validateNumber(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
   return issues;
 }
 
-function numberValue(value: unknown): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
+function requiredNumber(value: unknown): number {
+  if (value === null || value === undefined || value === "") {
+    throw new Error("Required numeric input reached normalization without a value.");
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error("Required numeric input reached normalization without validation.");
+  return parsed;
 }
 
 function nullableNumber(value: unknown): number | null {
@@ -364,7 +458,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     ownerPersonId: nullableString(row.owner_person_id),
     name: stringValue(row.name),
     type: stringValue(row.income_type, "employment"),
-    monthlyTakeHomeAmount: numberValue(row.monthly_amount),
+    monthlyTakeHomeAmount: requiredNumber(row.monthly_amount),
     monthlyGrossAmount: nullableNumber(row.monthly_gross_amount),
     isVariable: booleanValue(row.is_variable),
     isActive: booleanValue(row.is_active, true),
@@ -382,7 +476,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
       id: stringValue(row.id),
       name: stringValue(row.name),
       category: stringValue(row.category),
-      monthlyAmount: numberValue(row.monthly_amount),
+      monthlyAmount: requiredNumber(row.monthly_amount),
       isEssential,
       cashFlowTreatment,
     };
@@ -392,7 +486,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     id: stringValue(row.id),
     name: stringValue(row.name),
     type: stringValue(row.account_type),
-    balance: numberValue(row.balance),
+    balance: requiredNumber(row.balance),
     cashPurpose: stringValue(row.cash_purpose, "unallocated"),
     relatedGoalId: nullableString(row.related_goal_id),
     relatedDebtId: nullableString(row.related_debt_id),
@@ -402,9 +496,9 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     id: stringValue(row.id),
     name: stringValue(row.name),
     type: stringValue(row.debt_type),
-    balance: numberValue(row.current_balance),
+    balance: requiredNumber(row.current_balance),
     annualInterestRate: nullableNumber(row.interest_rate),
-    minimumPayment: numberValue(row.minimum_payment),
+    minimumPayment: requiredNumber(row.minimum_payment),
     rateType: stringValue(row.rate_type, "fixed"),
     promoRateExpiresOn: nullableIsoDate(row.promo_rate_expires_on),
     postPromoInterestRate: nullableNumber(row.post_promo_interest_rate),
@@ -436,9 +530,9 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     ownerPersonId: nullableString(row.owner_person_id),
     name: stringValue(row.name),
     type: normalizeRetirementType(row.account_type),
-    balance: numberValue(row.balance),
-    monthlyEmployeeContribution: numberValue(row.monthly_employee_contribution),
-    monthlyEmployerContribution: numberValue(row.monthly_employer_contribution),
+    balance: requiredNumber(row.balance),
+    monthlyEmployeeContribution: requiredNumber(row.monthly_employee_contribution),
+    monthlyEmployerContribution: requiredNumber(row.monthly_employer_contribution),
     taxTreatment: nullableString(row.tax_treatment),
     employeeContributedYtd: nullableNumber(row.employee_contributed_ytd),
     employerContributedYtd: nullableNumber(row.employer_contributed_ytd),
@@ -459,10 +553,10 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
   const goals = (raw.goals ?? []).map((row) => ({
     id: stringValue(row.id),
     name: stringValue(row.name),
-    targetAmount: numberValue(row.target_amount),
-    currentAmount: numberValue(row.current_amount),
+    targetAmount: requiredNumber(row.target_amount),
+    currentAmount: requiredNumber(row.current_amount),
     targetDate: nullableIsoDate(row.target_date),
-    priority: numberValue(row.priority),
+    priority: requiredNumber(row.priority),
     goalClass: stringValue(row.goal_class, "major_life_goal"),
     necessity: stringValue(row.necessity, "important"),
     deadlineFlexibility: stringValue(row.deadline_flexibility, "flexible"),

@@ -11,7 +11,8 @@ function person(id: string, birthYear: number, compensation = 100000, relationsh
 }
 
 function make(accounts: Record<string, unknown>[], people = [person("p1", 1990)], preferences: Record<string, unknown> | null = null) {
-  return buildMoneyPrioritySnapshot({ householdId: "h", people, retirementAccounts: accounts, preferences,
+  const completeAccounts = accounts.map((account) => ({ balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, ...account }));
+  return buildMoneyPrioritySnapshot({ householdId: "h", people, retirementAccounts: completeAccounts, preferences,
     income: [], expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [] });
 }
 

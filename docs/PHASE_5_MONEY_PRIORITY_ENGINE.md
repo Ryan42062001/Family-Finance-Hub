@@ -149,6 +149,21 @@ Persisted financial tables remain household-scoped and protected by role-aware r
 
 The raw snapshot boundary validates stable IDs, entity references, decision-driving enums, decision dates, and financial numeric domains before authoritative calculation. Fatal validation failures expose structured paths/codes without logging financial data. Calendar-invalid dates are diagnosed in snapshot warnings and continue only through conservative information-needed logic.
 
+### Shared legal-capacity reconciliation for Secure employer matches
+
+The engine evaluates retirement-account opportunities once from the normalized snapshot and passes that immutable derived result into both provisional and final Secure evaluation and into Build. Secure never treats the recorded employer-match gap as independent legal contribution room:
+
+- `available` room caps the recurring monthly payroll recommendation to the lesser of the match gap and remaining annual room spread over the remaining modeled tax-year months;
+- `limit_reached` or `not_eligible` creates no payroll allocation;
+- `more_information_needed` creates no payroll allocation and exposes the missing legal-capacity facts;
+- recommendation annual amounts cannot exceed the authoritative remaining annual room.
+
+This is derived reconciliation only. The normalized source retirement records are not mutated, and one-time retirement catch-up remains conceptually separate from recurring match capture.
+
+### Numeric snapshot contract
+
+Decision-driving raw numerics are classified centrally as required or nullable. Required values cannot be absent and cannot acquire a synthetic zero during normalization. Nullable values preserve absence as `null`; explicit zeros remain distinct and valid when the domain allows them. Invalid finite/sign/bounds/integer checks fail with structured snapshot validation issues before cash-flow capacity or recommendations can be calculated. Signed expense adjustments remain restricted to the explicit hypothetical-evaluation boundary.
+
 ## Phase 5 closure status
 The planned Phase 5 feature set includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, Home and Vehicle affordability with authoritative hypothetical reruns, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
 

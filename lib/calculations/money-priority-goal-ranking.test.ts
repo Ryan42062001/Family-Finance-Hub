@@ -43,7 +43,7 @@ function rank(overrides: Partial<RawGoal>) {
 }
 
 test("economic tier is lexicographically stronger than every lower-order factor", () => {
-  const requiredWorst = rank({ necessity: "required", deadline_flexibility: "flexible", consequence_level: "low", priority: 99 });
+  const requiredWorst = rank({ necessity: "required", deadline_flexibility: "flexible", consequence_level: "low", priority: 5 });
   const importantBest = rank({ necessity: "important", deadline_flexibility: "fixed", consequence_level: "high", priority: 1 });
   const optionalBest = rank({ necessity: "optional", goal_class: "lifestyle_optional", deadline_flexibility: "fixed", consequence_level: "high", priority: 1 });
   assert.ok(compareGoalRankingFactors(requiredWorst, importantBest) < 0);
@@ -76,14 +76,14 @@ test("unknown ranking metadata never outranks known high or fixed metadata", () 
 });
 
 test("lower numeric user priority wins only after economic factors, rigidity, consequence, and proximity", () => {
-  assert.ok(compareGoalRankingFactors(rank({ priority: 1 }), rank({ priority: 10 })) < 0);
+  assert.ok(compareGoalRankingFactors(rank({ priority: 1 }), rank({ priority: 5 })) < 0);
   assert.ok(compareGoalRankingFactors(
     rank({ necessity: "optional", goal_class: "lifestyle_optional", priority: 1 }),
-    rank({ necessity: "required", priority: 99 }),
+    rank({ necessity: "required", priority: 5 }),
   ) > 0);
   assert.ok(compareGoalRankingFactors(
     rank({ deadline_flexibility: "flexible", priority: 1 }),
-    rank({ deadline_flexibility: "fixed", priority: 99 }),
+    rank({ deadline_flexibility: "fixed", priority: 5 }),
   ) > 0);
 });
 

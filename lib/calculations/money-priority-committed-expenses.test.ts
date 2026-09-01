@@ -229,7 +229,7 @@ test("Your Plan does not squeeze untouched allocations", () => {
   const raw = withCommitted();
   raw.goals = [
     { id: "g1", name: "Required", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" },
-    { id: "g2", name: "Optional", target_amount: 6000, current_amount: 0, target_date: "2027-08-30", priority: 10, goal_class: "lifestyle_optional", necessity: "optional", deadline_flexibility: "flexible", consequence_level: "low" },
+    { id: "g2", name: "Optional", target_amount: 6000, current_amount: 0, target_date: "2027-08-30", priority: 5, goal_class: "lifestyle_optional", necessity: "optional", deadline_flexibility: "flexible", consequence_level: "low" },
   ];
   const plan = engine(raw);
   const allocations = deriveRecommendedPlanAllocations(plan);

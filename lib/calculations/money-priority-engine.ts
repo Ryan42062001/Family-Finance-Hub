@@ -7,6 +7,7 @@ import { evaluateExistingCashDeployment, type ExistingCashDeploymentResult } fro
 import { buildResidualNeedsSnapshot, deriveResidualNeedsContext, type ResidualNeedsContext } from "./money-priority-residual-needs.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
+import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 
 export type RecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -117,7 +118,15 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
     recommendations.push({
       id: item.id, rank: 0, stage: "secure", state: item.state, urgency: item.urgency, title: item.title,
       explanation: item.reasons.join(" "),
-      allocations: allocatedMonthlyAmount > 0 ? [{ category, relatedEntityId: item.relatedEntityId, monthlyAmount: allocatedMonthlyAmount, annualAmount: roundMoney(allocatedMonthlyAmount * 12), rationale: item.reasons }] : [],
+      allocations: allocatedMonthlyAmount > 0 ? [{
+        category,
+        relatedEntityId: item.relatedEntityId,
+        monthlyAmount: allocatedMonthlyAmount,
+        annualAmount: item.legalRemainingAnnualRoom === undefined || item.legalRemainingAnnualRoom === null
+          ? roundMoney(allocatedMonthlyAmount * 12)
+          : roundMoney(Math.min(allocatedMonthlyAmount * 12, item.legalRemainingAnnualRoom)),
+        rationale: item.reasons,
+      }] : [],
       whyNow: item.reasons, tradeoffs,
       sourceInputs: [item.relatedEntityId ? `entity:${item.relatedEntityId}` : "household_snapshot"], assumptions: [],
       missingData: item.state === "more_information_needed" ? item.reasons : [],
@@ -164,10 +173,11 @@ export type MoneyPriorityEngineOptions = { allowSignedHypotheticalExpenseAdjustm
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1, options: MoneyPriorityEngineOptions = {}): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw, options);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
+  const retirementOpportunities = evaluateRetirementAccountOpportunities(snapshot);
 
   // Build a provisional recurring plan only to identify eligible one-time cash uses.
   // The authoritative recurring plan is recomputed from immutable residual needs below.
-  const provisionalSecure = evaluateSecureStage(snapshot, asOfDate, policy);
+  const provisionalSecure = evaluateSecureStage(snapshot, asOfDate, policy, retirementOpportunities);
   const provisionalSecurePlan = allocateSecureRecommendations(provisionalSecure, monthlyPlanCapacity);
   const provisionalBuild = evaluateBuildStage(snapshot, asOfDate, policy, provisionalSecurePlan.remainingMonthlyCapacity);
   const provisionalFeasibility = calculatePlanFeasibility(
@@ -191,7 +201,7 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
   const residualNeeds = deriveResidualNeedsContext(existingCash);
   const residualSnapshot = buildResidualNeedsSnapshot(snapshot, residualNeeds);
 
-  const secure = evaluateSecureStage(residualSnapshot, asOfDate, policy);
+  const secure = evaluateSecureStage(residualSnapshot, asOfDate, policy, retirementOpportunities);
   const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
   const build = evaluateBuildStage(residualSnapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
   const feasibility = calculatePlanFeasibility(

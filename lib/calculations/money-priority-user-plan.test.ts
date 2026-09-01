@@ -45,7 +45,7 @@ function baseRaw(): MoneyPriorityRawSnapshot {
       },
       {
         id: "optional-goal", name: "Vacation", target_amount: 6000, current_amount: 0,
-        target_date: "2027-08-30", priority: 10, goal_class: "lifestyle_optional",
+        target_date: "2027-08-30", priority: 5, goal_class: "lifestyle_optional",
         necessity: "optional", deadline_flexibility: "flexible", consequence_level: "low",
       },
     ],
@@ -84,6 +84,7 @@ function matchEngine() {
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 250000,
     monthly_employee_contribution: 300, monthly_employer_contribution: 0,
     employee_contributed_ytd: 3000, employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 120000,
     full_match_employee_contribution_monthly: 600, match_status: "not_fully_captured",
   }];
   return engine(raw);
