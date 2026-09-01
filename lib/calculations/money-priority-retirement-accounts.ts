@@ -5,19 +5,9 @@ import {
   type MoneyPriorityTaxPolicy,
 } from "./money-priority-tax-policy.ts";
 
-export type RetirementAccountOpportunityState =
-  | "available"
-  | "limit_reached"
-  | "not_eligible"
-  | "more_information_needed";
-
+export type RetirementAccountOpportunityState = "available" | "limit_reached" | "not_eligible" | "more_information_needed";
 export type RetirementTaxStatus = "full" | "partial" | "none" | "unknown" | "not_applicable";
-export type RetirementOpportunityTier =
-  | "employer_match"
-  | "strong_tax_advantaged"
-  | "diversification_opportunity"
-  | "secondary_tax_advantaged"
-  | "unavailable_or_unknown";
+export type RetirementOpportunityTier = "employer_match" | "strong_tax_advantaged" | "diversification_opportunity" | "secondary_tax_advantaged" | "unavailable_or_unknown";
 
 export type RetirementAccountOpportunity = {
   accountId: string;
@@ -47,45 +37,33 @@ export type RetirementAccountOpportunityResult = {
   warnings: string[];
 };
 
-function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function parseIsoDate(value: string): Date | null {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
+function roundMoney(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
+function parseIsoDate(value: string): Date | null { const date = new Date(`${value}T00:00:00.000Z`); return Number.isNaN(date.getTime()) ? null : date; }
 function ageAtYearEnd(snapshot: MoneyPrioritySnapshot, personId: string | null, taxYear: number): number | null {
   if (!personId) return null;
   const person = snapshot.people.find((item) => item.id === personId);
   if (!person?.birthDate) return null;
   const birth = parseIsoDate(person.birthDate);
-  if (!birth) return null;
-  return taxYear - birth.getUTCFullYear();
+  return birth ? taxYear - birth.getUTCFullYear() : null;
 }
-
 function workplaceLimit(age: number | null, taxPolicy: MoneyPriorityTaxPolicy): number {
   const base = taxPolicy.workplaceEmployeeDeferralLimit;
   if (age !== null && age >= 60 && age <= 63) return base + taxPolicy.workplaceCatchUpAge60To63;
   if (age !== null && age >= 50) return base + taxPolicy.workplaceCatchUpAge50;
   return base;
 }
-
 function simpleLimit(age: number | null, higherLimit: boolean, taxPolicy: MoneyPriorityTaxPolicy): number {
   const base = higherLimit ? taxPolicy.simpleApplicableHigherEmployeeDeferralLimit : taxPolicy.simpleEmployeeDeferralLimit;
   if (age !== null && age >= 60 && age <= 63) return base + taxPolicy.simpleCatchUpAge60To63;
   if (age !== null && age >= 50) return base + taxPolicy.simpleCatchUpAge50;
   return base;
 }
-
 function catchUpAmount(age: number | null, type: string, taxPolicy: MoneyPriorityTaxPolicy): number {
   if (age === null || age < 50) return 0;
-  if (type === "simple_ira") return age <= 63 && age >= 60 ? taxPolicy.simpleCatchUpAge60To63 : taxPolicy.simpleCatchUpAge50;
+  if (type === "simple_ira") return age >= 60 && age <= 63 ? taxPolicy.simpleCatchUpAge60To63 : taxPolicy.simpleCatchUpAge50;
   if (type === "traditional_ira" || type === "roth_ira") return taxPolicy.iraCatchUpAge50;
-  return age <= 63 && age >= 60 ? taxPolicy.workplaceCatchUpAge60To63 : taxPolicy.workplaceCatchUpAge50;
+  return age >= 60 && age <= 63 ? taxPolicy.workplaceCatchUpAge60To63 : taxPolicy.workplaceCatchUpAge50;
 }
-
 function qualityTier(account: MoneyPrioritySnapshot["retirementAccounts"][number], state: RetirementAccountOpportunityState, eligibility: RetirementTaxStatus, deductibility: RetirementTaxStatus, householdHasPretax: boolean, householdHasRoth: boolean): RetirementOpportunityTier {
   if (account.matchStatus === "not_fully_captured") return "employer_match";
   if (state !== "available") return "unavailable_or_unknown";
@@ -97,23 +75,18 @@ function qualityTier(account: MoneyPrioritySnapshot["retirementAccounts"][number
   }
   return "secondary_tax_advantaged";
 }
-
-function iraStatutoryLimit(age: number | null, taxPolicy: MoneyPriorityTaxPolicy): number {
-  return taxPolicy.iraCombinedLimit + (age !== null && age >= 50 ? taxPolicy.iraCatchUpAge50 : 0);
-}
-
+function iraStatutoryLimit(age: number | null, taxPolicy: MoneyPriorityTaxPolicy): number { return taxPolicy.iraCombinedLimit + (age !== null && age >= 50 ? taxPolicy.iraCatchUpAge50 : 0); }
 function taxProfile(snapshot: MoneyPrioritySnapshot, taxPolicy: MoneyPriorityTaxPolicy) {
   const missingData: string[] = [];
   const prefs = snapshot.preferences;
   if (!prefs || prefs.taxProfileYear !== taxPolicy.taxYear) missingData.push(`Tax profile year must be ${taxPolicy.taxYear}.`);
-  const filingStatus = prefs?.taxFilingStatus as FilingStatus | null ?? null;
+  const filingStatus = (prefs?.taxFilingStatus as FilingStatus | null) ?? null;
   if (!filingStatus) missingData.push("Tax filing status is required for IRA tax eligibility guidance.");
   const modifiedAgi = prefs?.estimatedModifiedAgi ?? null;
   if (modifiedAgi === null) missingData.push("Estimated modified AGI is required for IRA tax eligibility guidance.");
   if (filingStatus === "married_filing_separately" && prefs?.livedWithSpouseDuringTaxYear === null) missingData.push("Married-filing-separately IRA rules require whether the spouses lived together during the tax year.");
   return { filingStatus, modifiedAgi, livedWithSpouse: prefs?.livedWithSpouseDuringTaxYear ?? null, missingData };
 }
-
 function rothPhaseoutRange(filingStatus: FilingStatus, livedWithSpouse: boolean | null, taxPolicy: MoneyPriorityTaxPolicy): { start: number; end: number } | null {
   if (filingStatus === "single" || filingStatus === "head_of_household") return taxPolicy.rothIraPhaseout.singleOrHeadOfHousehold;
   if (filingStatus === "married_filing_jointly") return taxPolicy.rothIraPhaseout.marriedFilingJointly;
@@ -121,7 +94,6 @@ function rothPhaseoutRange(filingStatus: FilingStatus, livedWithSpouse: boolean 
   if (livedWithSpouse === true) return taxPolicy.rothIraPhaseout.marriedFilingSeparately;
   return null;
 }
-
 function reducedRothLimit(maxContribution: number, modifiedAgi: number, range: { start: number; end: number }): { limit: number; status: RetirementTaxStatus } {
   if (modifiedAgi < range.start) return { limit: maxContribution, status: "full" };
   if (modifiedAgi >= range.end) return { limit: 0, status: "none" };
@@ -130,7 +102,6 @@ function reducedRothLimit(maxContribution: number, modifiedAgi: number, range: {
   if (limit > 0 && limit < 200) limit = 200;
   return { limit: roundMoney(Math.min(maxContribution, limit)), status: "partial" };
 }
-
 function traditionalDeductibility(snapshot: MoneyPrioritySnapshot, ownerPersonId: string, filingStatus: FilingStatus, modifiedAgi: number, livedWithSpouse: boolean | null, taxPolicy: MoneyPriorityTaxPolicy): { status: RetirementTaxStatus; reason: string; missingData: string[] } {
   const owner = snapshot.people.find((item) => item.id === ownerPersonId);
   if (!owner || owner.coveredByWorkplaceRetirementPlan === null) return { status: "unknown", reason: "", missingData: ["Workplace-retirement-plan coverage is required for the IRA owner."] };
@@ -172,6 +143,26 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
     const coordinatedExisting = coordinatedDeferralYtdByOwner.get(account.ownerPersonId);
     coordinatedDeferralYtdByOwner.set(account.ownerPersonId, coordinatedExisting === null || account.employeeContributedYtd === null ? null : roundMoney((coordinatedExisting ?? 0) + account.employeeContributedYtd));
   }
+
+  const hsaAccounts = snapshot.retirementAccounts.filter((item) => item.type === "hsa");
+  const hsaYtdByOwner = new Map<string, number | null>();
+  for (const account of hsaAccounts) {
+    if (!account.ownerPersonId) continue;
+    const accountYtd = account.employeeContributedYtd === null || account.employerContributedYtd === null ? null : roundMoney(account.employeeContributedYtd + account.employerContributedYtd);
+    const existing = hsaYtdByOwner.get(account.ownerPersonId);
+    hsaYtdByOwner.set(account.ownerPersonId, existing === null || accountYtd === null ? null : roundMoney((existing ?? 0) + accountYtd));
+  }
+  const eligibleMarriedHsaOwners = [...new Set(hsaAccounts
+    .filter((account) => account.ownerPersonId && account.hsaEligible === true)
+    .map((account) => account.ownerPersonId as string)
+    .filter((ownerId) => snapshot.people.some((person) => person.id === ownerId && person.isActive && (person.relationship === "self" || person.relationship === "spouse_partner"))))].sort();
+  const marriedHsaFamilySharing = eligibleMarriedHsaOwners.length === 2 && hsaAccounts.some((account) => account.hsaEligible === true && account.hsaCoverageType === "family" && account.ownerPersonId && eligibleMarriedHsaOwners.includes(account.ownerPersonId));
+  const hsaBaseLimitByOwner = new Map<string, number>();
+  if (marriedHsaFamilySharing) {
+    const equalShare = roundMoney(taxPolicy.hsaFamilyLimit / 2);
+    for (const ownerId of eligibleMarriedHsaOwners) hsaBaseLimitByOwner.set(ownerId, equalShare);
+  }
+
   const iraAccounts = snapshot.retirementAccounts.filter((item) => item.type === "traditional_ira" || item.type === "roth_ira");
   const iraYtdByOwner = new Map<string, number | null>();
   const rothYtdByOwner = new Map<string, number | null>();
@@ -192,18 +183,13 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
     let householdCompensation = roundMoney(marriedPair.reduce((sum, person) => sum + (person.estimatedTaxableCompensationAnnual ?? 0), 0));
     for (const ownerId of iraOwners) {
       const owner = snapshot.people.find((person) => person.id === ownerId);
-      if (!owner || !marriedPair.some((person) => person.id === ownerId)) {
-        iraCompensationLimitByOwner.set(ownerId, owner?.estimatedTaxableCompensationAnnual ?? 0);
-        continue;
-      }
+      if (!owner || !marriedPair.some((person) => person.id === ownerId)) { iraCompensationLimitByOwner.set(ownerId, owner?.estimatedTaxableCompensationAnnual ?? 0); continue; }
       const limit = iraStatutoryLimit(ageAtYearEnd(snapshot, ownerId, taxPolicy.taxYear), taxPolicy);
       const allocated = Math.min(limit, householdCompensation);
       iraCompensationLimitByOwner.set(ownerId, allocated);
       householdCompensation = roundMoney(Math.max(0, householdCompensation - allocated));
     }
-  } else {
-    for (const ownerId of iraOwners) iraCompensationLimitByOwner.set(ownerId, snapshot.people.find((item) => item.id === ownerId)?.estimatedTaxableCompensationAnnual ?? 0);
-  }
+  } else for (const ownerId of iraOwners) iraCompensationLimitByOwner.set(ownerId, snapshot.people.find((item) => item.id === ownerId)?.estimatedTaxableCompensationAnnual ?? 0);
 
   for (const account of snapshot.retirementAccounts) {
     const age = ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear);
@@ -214,15 +200,17 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (missingOwner) missingData.push("HSA owner is required to evaluate age-based catch-up eligibility.");
       if (account.hsaEligible === null) missingData.push("HSA eligibility is unknown.");
       if (!account.hsaCoverageType) missingData.push("HSA coverage type is required to select the annual contribution limit.");
-      if (account.employeeContributedYtd === null || account.employerContributedYtd === null) missingData.push("Both employee and employer HSA contributions YTD are required because both count toward the annual limit.");
+      const ownerYtd = account.ownerPersonId ? (hsaYtdByOwner.get(account.ownerPersonId) ?? null) : null;
+      if (ownerYtd === null) missingData.push("Both employee and employer HSA contributions YTD are required for every HSA owned by this person because all HSAs share one contribution limit.");
       if (account.hsaEligible === false) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "not_eligible", annualLimit: null, contributedYtd: null, remainingAnnualRoom: null, taxEligibility: "none", taxDeductibility: "not_applicable", reasons: ["The household profile marks this account owner as not currently HSA-eligible."], missingData: [] }); continue; }
-      if (missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: null, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData }); continue; }
-      const baseLimit = account.hsaCoverageType === "family" ? taxPolicy.hsaFamilyLimit : account.hsaCoverageType === "self_only" ? taxPolicy.hsaSelfOnlyLimit : null;
-      if (baseLimit === null) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: null, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData: ["HSA coverage type must be self_only or family."] }); continue; }
-      const annualLimit = baseLimit + (age !== null && age >= 55 ? taxPolicy.hsaCatchUpAge55 : 0);
-      const contributedYtd = roundMoney(account.employeeContributedYtd! + account.employerContributedYtd!);
+      if (missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData }); continue; }
+      let baseLimit = account.hsaCoverageType === "family" ? taxPolicy.hsaFamilyLimit : account.hsaCoverageType === "self_only" ? taxPolicy.hsaSelfOnlyLimit : null;
+      if (baseLimit === null) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData: ["HSA coverage type must be self_only or family."] }); continue; }
+      if (account.ownerPersonId && hsaBaseLimitByOwner.has(account.ownerPersonId)) baseLimit = hsaBaseLimitByOwner.get(account.ownerPersonId)!;
+      const annualLimit = roundMoney(baseLimit + (age !== null && age >= 55 ? taxPolicy.hsaCatchUpAge55 : 0));
+      const contributedYtd = roundMoney(ownerYtd!);
       const remainingAnnualRoom = roundMoney(Math.max(0, annualLimit - contributedYtd));
-      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit, contributedYtd, remainingAnnualRoom, taxEligibility: "full", taxDeductibility: "not_applicable", reasons: ["HSA employee and employer contributions are combined against the annual HSA limit."], missingData: [] }); continue;
+      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit, contributedYtd, remainingAnnualRoom, taxEligibility: "full", taxDeductibility: "not_applicable", reasons: [marriedHsaFamilySharing && account.ownerPersonId && hsaBaseLimitByOwner.has(account.ownerPersonId) ? "Both eligible spouses share the family HSA base limit; without an explicit different allocation, the statutory default equal split is used. Age-55 catch-up remains person-specific and must go to that spouse's own HSA." : "All HSAs owned by the same person share one annual contribution limit, and employee plus employer contributions are aggregated against that limit."], missingData: [], sharedCapacityGroup: marriedHsaFamilySharing ? "hsa:married-family" : `hsa:${account.ownerPersonId}` }); continue;
     }
     if (sharedWorkplaceTypes.has(account.type) || account.type === "457b" || account.type === "simple_ira") {
       const missingData: string[] = [];
@@ -289,10 +277,10 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
   for (const opportunity of opportunities) {
     const account = snapshot.retirementAccounts.find((item) => item.id === opportunity.accountId)!;
     opportunity.contributionSource ??= "employee";
-    opportunity.catchUpEligible ??= catchUpAmount(ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear), account.type, taxPolicy) > 0;
-    opportunity.catchUpAmount ??= catchUpAmount(ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear), account.type, taxPolicy);
+    opportunity.catchUpEligible ??= account.type === "hsa" ? ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear) !== null && ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear)! >= 55 : catchUpAmount(ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear), account.type, taxPolicy) > 0;
+    opportunity.catchUpAmount ??= account.type === "hsa" && opportunity.catchUpEligible ? taxPolicy.hsaCatchUpAge55 : catchUpAmount(ageAtYearEnd(snapshot, account.ownerPersonId, taxPolicy.taxYear), account.type, taxPolicy);
     if (opportunity.catchUpMustBeRoth === undefined) opportunity.catchUpMustBeRoth = false;
-    opportunity.sharedCapacityGroup = account.ownerPersonId ? account.type === "traditional_ira" || account.type === "roth_ira" ? `ira:${account.ownerPersonId}` : sharedWorkplaceTypes.has(account.type) || account.type === "simple_ira" ? `elective-deferral:${account.ownerPersonId}` : null : null;
+    if (opportunity.sharedCapacityGroup === undefined) opportunity.sharedCapacityGroup = account.ownerPersonId ? account.type === "traditional_ira" || account.type === "roth_ira" ? `ira:${account.ownerPersonId}` : sharedWorkplaceTypes.has(account.type) || account.type === "simple_ira" ? `elective-deferral:${account.ownerPersonId}` : account.type === "hsa" ? `hsa:${account.ownerPersonId}` : null : null;
     opportunity.opportunityTier = qualityTier(account, opportunity.state, opportunity.taxEligibility, opportunity.taxDeductibility, householdHasPretax, householdHasRoth);
   }
   return { taxYear: taxPolicy.taxYear, taxPolicyVersion: taxPolicy.version, opportunities, warnings };
