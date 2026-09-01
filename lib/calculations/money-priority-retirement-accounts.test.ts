@@ -198,7 +198,7 @@ test("MFJ contributor not covered but spouse covered uses the $242k-$252k deduct
   ], [
     adult({ covered_by_workplace_retirement_plan: false }),
     {
-      id: "p2", display_name: "Spouse", relationship: "spouse", birth_date: "1990-01-01",
+      id: "p2", display_name: "Spouse", relationship: "spouse_partner", birth_date: "1990-01-01",
       estimated_taxable_compensation_annual: 100000, covered_by_workplace_retirement_plan: true, is_active: true,
     },
   ], taxProfile({ tax_filing_status: "married_filing_jointly", estimated_modified_agi: 247000 }));
