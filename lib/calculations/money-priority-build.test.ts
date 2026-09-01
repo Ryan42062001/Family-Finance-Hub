@@ -7,7 +7,11 @@ import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./mon
 function makeSnapshot(overrides: Partial<MoneyPriorityRawSnapshot> = {}) {
   return buildMoneyPrioritySnapshot({
     householdId: "household-1",
-    people: [],
+    people: [{
+      id: "person-1", display_name: "Adult", relationship: "self",
+      estimated_taxable_compensation_annual: 120000,
+      is_active: true, is_dependent: false,
+    }],
     income: [
       {
         id: "income-1",
@@ -35,11 +39,15 @@ function makeSnapshot(overrides: Partial<MoneyPriorityRawSnapshot> = {}) {
     retirementAccounts: [
       {
         id: "retirement-1",
+        owner_person_id: "person-1",
         name: "401k",
         account_type: "401k",
         balance: 0,
         monthly_employee_contribution: 400,
         monthly_employer_contribution: 100,
+        employee_contributed_ytd: 0,
+        employer_contributed_ytd: 0,
+        plan_eligible_compensation_annual: 120000,
         match_status: "fully_captured",
       },
     ],

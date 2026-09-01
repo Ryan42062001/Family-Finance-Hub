@@ -35,6 +35,7 @@ function baseRaw(): MoneyPriorityRawSnapshot {
       id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 250000,
       monthly_employee_contribution: 1200, monthly_employer_contribution: 300,
       employee_contributed_ytd: 12000, employer_contributed_ytd: 3000,
+      plan_eligible_compensation_annual: 120000,
       full_match_employee_contribution_monthly: 600, match_status: "fully_captured",
     }],
     goals: [
@@ -115,6 +116,7 @@ function retirementEngine(overrides: Partial<MoneyPriorityRawSnapshot> = {}) {
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 500, monthly_employer_contribution: 0,
     employee_contributed_ytd: 6000, employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 120000,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
   Object.assign(raw, overrides);
@@ -284,6 +286,7 @@ test("retirement reduction may remain the same projection state", () => {
     id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 1000000,
     monthly_employee_contribution: 500, monthly_employer_contribution: 0,
     employee_contributed_ytd: 6000, employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 120000,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
   raw.preferences = {

@@ -216,9 +216,29 @@ type NumericFieldRule = {
   field: string;
   presence: "required" | "nullable";
   min?: number;
+  exclusiveMin?: number;
   max?: number;
   integer?: boolean;
 };
+
+export type StrictNumberParseResult =
+  | { valid: true; value: number }
+  | { valid: false };
+
+// PostgREST numeric values may arrive as numbers or decimal strings. Deliberate
+// type checking prevents JavaScript coercions such as false -> 0 and [] -> 0.
+export function parseStrictNumber(value: unknown): StrictNumberParseResult {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? { valid: true, value } : { valid: false };
+  }
+  if (typeof value !== "string") return { valid: false };
+  const normalized = value.trim();
+  if (!normalized || !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) {
+    return { valid: false };
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? { valid: true, value: parsed } : { valid: false };
+}
 
 // Raw numeric contract. Required fields correspond to decision-driving values
 // that are non-null in persisted records. Nullable fields preserve absence as
@@ -262,7 +282,7 @@ const NUMERIC_CONTRACT = {
     { field: "sep_eligible_compensation_annual", presence: "nullable", min: 0 },
   ],
   goals: [
-    { field: "target_amount", presence: "required", min: 0 },
+    { field: "target_amount", presence: "required", exclusiveMin: 0 },
     { field: "current_amount", presence: "required", min: 0 },
     { field: "priority", presence: "required", min: 1, max: 5, integer: true },
     { field: "planned_monthly_contribution", presence: "nullable", min: 0 },
@@ -367,11 +387,13 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
       if (rule.presence === "required") issues.push({ path, code: "missing_required_number", message: `${path} is required and must not be inferred as zero.` });
       return;
     }
-    const parsed = Number(value);
+    const parsedResult = parseStrictNumber(value);
+    const parsed = parsedResult.valid ? parsedResult.value : Number.NaN;
     const belowMin = rule.min !== undefined && parsed < rule.min && !allowNegative;
+    const belowExclusiveMin = rule.exclusiveMin !== undefined && parsed <= rule.exclusiveMin && !allowNegative;
     const aboveMax = rule.max !== undefined && parsed > rule.max;
-    if (!Number.isFinite(parsed) || belowMin || aboveMax || (rule.integer === true && !Number.isInteger(parsed))) {
-      const bounds = [rule.min !== undefined ? `at least ${rule.min}` : null, rule.max !== undefined ? `at most ${rule.max}` : null, rule.integer ? "an integer" : null].filter(Boolean).join(", ");
+    if (!parsedResult.valid || belowMin || belowExclusiveMin || aboveMax || (rule.integer === true && !Number.isInteger(parsed))) {
+      const bounds = [rule.min !== undefined ? `at least ${rule.min}` : null, rule.exclusiveMin !== undefined ? `greater than ${rule.exclusiveMin}` : null, rule.max !== undefined ? `at most ${rule.max}` : null, rule.integer ? "an integer" : null].filter(Boolean).join(", ");
       issues.push({ path, code: "invalid_number", message: `${path} must be a finite number${bounds ? ` (${bounds})` : ""}.` });
     }
   };
@@ -388,6 +410,19 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   validateRows("debts", raw.debts ?? []);
   validateRows("retirementAccounts", raw.retirementAccounts ?? []);
   validateRows("goals", raw.goals ?? []);
+  (raw.goals ?? []).forEach((row, index) => {
+    const target = parseStrictNumber(row.target_amount);
+    const coreNeed = row.core_need_amount === null || row.core_need_amount === undefined || row.core_need_amount === ""
+      ? null
+      : parseStrictNumber(row.core_need_amount);
+    if (target.valid && target.value > 0 && coreNeed?.valid && coreNeed.value > target.value) {
+      issues.push({
+        path: `goals[${index}].core_need_amount`,
+        code: "invalid_number",
+        message: `goals[${index}].core_need_amount must be less than or equal to target_amount.`,
+      });
+    }
+  });
   validateRows("insuranceExposures", raw.insuranceExposures ?? []);
   if (raw.preferences) for (const rule of NUMERIC_CONTRACT.preferences) validateNumber(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
   return issues;
@@ -397,15 +432,16 @@ function requiredNumber(value: unknown): number {
   if (value === null || value === undefined || value === "") {
     throw new Error("Required numeric input reached normalization without a value.");
   }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) throw new Error("Required numeric input reached normalization without validation.");
-  return parsed;
+  const parsed = parseStrictNumber(value);
+  if (!parsed.valid) throw new Error("Required numeric input reached normalization without validation.");
+  return parsed.value;
 }
 
 function nullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  const parsed = parseStrictNumber(value);
+  if (!parsed.valid) throw new Error("Nullable numeric input reached normalization without validation.");
+  return parsed.value;
 }
 
 function stringValue(value: unknown, fallback = ""): string {

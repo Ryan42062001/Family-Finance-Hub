@@ -8,6 +8,14 @@ import { buildResidualNeedsSnapshot, deriveResidualNeedsContext, type ResidualNe
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
+import {
+  cloneRetirementCapacityLedger,
+  consumeRetirementCapacity,
+  createRetirementCapacityLedger,
+  remainingRetirementCapacity,
+  retirementCapacityInvariantHolds,
+  type RetirementCapacityLedger,
+} from "./money-priority-retirement-capacity.ts";
 
 export type RecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -45,6 +53,7 @@ export type MoneyPriorityEngineResult = {
   feasibility: PlanFeasibility;
   existingCash: ExistingCashDeploymentResult;
   residualNeeds: ResidualNeedsContext;
+  retirementCapacityLedger: RetirementCapacityLedger;
   secure: SecureStageResult;
   build: BuildStageResult;
   optimize: OptimizeStageResult;
@@ -79,7 +88,18 @@ type SecureAllocationPlan = {
   hasUnfundedPriority: boolean;
 };
 
-function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacity: number): SecureAllocationPlan {
+function remainingContributionMonths(asOfDate: string, taxYear: number): number {
+  const date = new Date(`${asOfDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
+  return 12 - date.getUTCMonth();
+}
+
+function allocateSecureRecommendations(
+  secure: SecureStageResult,
+  monthlyCapacity: number,
+  asOfDate: string,
+  retirementCapacityLedger: RetirementCapacityLedger,
+): SecureAllocationPlan {
   let remainingMonthlyCapacity = roundMoney(Math.max(0, monthlyCapacity));
   let protectedMonthlyNeed = 0;
   let hasUnfundedPriority = false;
@@ -93,13 +113,36 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
 
     const category = item.id.includes("match") ? "employer_match" : item.id.includes("debt") || item.id.includes("promo") ? "debt" : "reserve";
     let allocatedMonthlyAmount = 0;
+    let legalConsumedAnnualAmount: number | null = null;
     let tradeoffs: string[] = [];
     const rawBalanceGap = Math.max(0, item.gapAmount ?? 0);
     const effectiveBalanceGap = category === "reserve" ? Math.max(0, rawBalanceGap - reserveAllocatedThisPlan) : rawBalanceGap;
 
     if (isProtectedPriority && remainingMonthlyCapacity > 0) {
-      const requestedThisMonth = explicitMonthlyNeed > 0 ? explicitMonthlyNeed : effectiveBalanceGap;
+      let requestedThisMonth = explicitMonthlyNeed > 0 ? explicitMonthlyNeed : effectiveBalanceGap;
+      if (category === "employer_match" && item.relatedEntityId) {
+        const annualRoom = remainingRetirementCapacity(retirementCapacityLedger, item.relatedEntityId) ?? 0;
+        const contributionMonths = remainingContributionMonths(
+          asOfDate,
+          retirementCapacityLedger.taxYear,
+        );
+        requestedThisMonth = Math.min(requestedThisMonth, roundMoney(annualRoom / contributionMonths));
+      }
       allocatedMonthlyAmount = roundMoney(Math.min(requestedThisMonth, remainingMonthlyCapacity));
+      if (category === "employer_match" && item.relatedEntityId && allocatedMonthlyAmount > 0) {
+        const contributionMonths = remainingContributionMonths(
+          asOfDate,
+          retirementCapacityLedger.taxYear,
+        );
+        const consumption = consumeRetirementCapacity(
+          retirementCapacityLedger,
+          item.relatedEntityId,
+          "secure",
+          roundMoney(allocatedMonthlyAmount * contributionMonths),
+        );
+        legalConsumedAnnualAmount = consumption.consumedAnnualAmount;
+        allocatedMonthlyAmount = roundMoney(consumption.consumedAnnualAmount / contributionMonths);
+      }
       remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocatedMonthlyAmount));
       if (category === "reserve") reserveAllocatedThisPlan = roundMoney(reserveAllocatedThisPlan + allocatedMonthlyAmount);
       if (explicitMonthlyNeed > allocatedMonthlyAmount) {
@@ -122,7 +165,9 @@ function allocateSecureRecommendations(secure: SecureStageResult, monthlyCapacit
         category,
         relatedEntityId: item.relatedEntityId,
         monthlyAmount: allocatedMonthlyAmount,
-        annualAmount: item.legalRemainingAnnualRoom === undefined || item.legalRemainingAnnualRoom === null
+        annualAmount: legalConsumedAnnualAmount !== null
+          ? legalConsumedAnnualAmount
+          : item.legalRemainingAnnualRoom === undefined || item.legalRemainingAnnualRoom === null
           ? roundMoney(allocatedMonthlyAmount * 12)
           : roundMoney(Math.min(allocatedMonthlyAmount * 12, item.legalRemainingAnnualRoom)),
         rationale: item.reasons,
@@ -151,12 +196,34 @@ function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendat
         : allocation.rankingFactors?.economicTier === "important"
           ? "medium"
           : "optional";
-    recommendations.push({ id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state: allocation.allocatedMonthlyAmount > 0 ? "recommended" : "worth_considering", urgency, title: allocation.title, explanation: allocation.reasons.join(" "), allocations: allocation.allocatedMonthlyAmount > 0 ? [{ category: allocation.category, relatedEntityId: allocation.relatedEntityId, monthlyAmount: allocation.allocatedMonthlyAmount, annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12), rationale: allocation.reasons }] : [], whyNow: allocation.reasons, tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains unfunded at current capacity.`] : [], sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [] });
+    const actionableAllocations: MoneyPriorityAllocation[] = allocation.category === "retirement"
+      ? build.retirementAccountAllocations.map((accountAllocation) => ({
+          category: "retirement",
+          relatedEntityId: accountAllocation.accountId,
+          monthlyAmount: accountAllocation.allocatedMonthlyAmount,
+          annualAmount: roundMoney(accountAllocation.allocatedMonthlyAmount * 12),
+          rationale: [
+            ...allocation.reasons,
+            "This account-specific amount is backed by the shared retirement legal-capacity ledger.",
+          ],
+        }))
+      : allocation.allocatedMonthlyAmount > 0
+        ? [{
+            category: allocation.category,
+            relatedEntityId: allocation.relatedEntityId,
+            monthlyAmount: allocation.allocatedMonthlyAmount,
+            annualAmount: roundMoney(allocation.allocatedMonthlyAmount * 12),
+            rationale: allocation.reasons,
+          }]
+        : [];
+    recommendations.push({ id: `build-${allocation.category}-${allocation.relatedEntityId ?? "household"}`, rank: 0, stage: "build", state: actionableAllocations.length > 0 ? "recommended" : "worth_considering", urgency, title: allocation.title, explanation: allocation.reasons.join(" "), allocations: actionableAllocations, whyNow: allocation.reasons, tradeoffs: allocation.unfundedMonthlyAmount > 0 ? [`$${allocation.unfundedMonthlyAmount.toFixed(2)} per month remains an unfunded planning need; it is not an actionable contribution without verified legal account room.`] : [], sourceInputs: [allocation.category === "retirement" ? "retirementAccounts" : `goal:${allocation.relatedEntityId}`], assumptions: allocation.category === "retirement" ? build.retirement.projection.assumptions : [], missingData: [] });
   }
-  const availableAccounts = build.retirementAccounts.opportunities.filter((item) => item.state === "available");
+  const availableAccounts = build.retirementAccounts.opportunities.filter((item) =>
+    item.state === "available"
+      && (remainingRetirementCapacity(build.retirementCapacityLedger, item.accountId) ?? 0) > 0);
   const accountDataNeeded = build.retirementAccounts.opportunities.filter((item) => item.state === "more_information_needed");
   if (availableAccounts.length || accountDataNeeded.length) {
-    const roomSummary = availableAccounts.map((item) => `${item.accountName}: $${(item.remainingAnnualRoom ?? 0).toFixed(2)} of known ${build.retirementAccounts.taxYear} contribution room`).join("; ");
+    const roomSummary = availableAccounts.map((item) => `${item.accountName}: $${(remainingRetirementCapacity(build.retirementCapacityLedger, item.accountId) ?? 0).toFixed(2)} of known ${build.retirementAccounts.taxYear} contribution room`).join("; ");
     const missing = accountDataNeeded.flatMap((item) => item.missingData.map((value) => `${item.accountName}: ${value}`));
     recommendations.push({ id: "build-retirement-account-options", rank: 0, stage: "build", state: availableAccounts.length ? "worth_considering" : "more_information_needed", urgency: "medium", title: "Choose the accounts for additional retirement funding", explanation: availableAccounts.length ? `Known account room: ${roomSummary}. The engine does not impose a universal account sequence.` : "Contribution room cannot yet be translated into an account-specific allocation safely.", allocations: [], whyNow: availableAccounts.length ? ["Account-specific room is known for at least one tax-advantaged account."] : [], tradeoffs: ["Tax treatment, eligibility, plan quality, and diversification can change which account is the better destination for the next dollar."], sourceInputs: build.retirementAccounts.opportunities.map((item) => `retirementAccount:${item.accountId}`), assumptions: [`Tax policy version ${build.retirementAccounts.taxPolicyVersion} for tax year ${build.retirementAccounts.taxYear}.`], missingData: missing });
   }
@@ -174,12 +241,34 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
   const snapshot = buildMoneyPrioritySnapshot(raw, options);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
   const retirementOpportunities = evaluateRetirementAccountOpportunities(snapshot);
+  const retirementCapacityLedger = createRetirementCapacityLedger(retirementOpportunities);
 
   // Build a provisional recurring plan only to identify eligible one-time cash uses.
   // The authoritative recurring plan is recomputed from immutable residual needs below.
-  const provisionalSecure = evaluateSecureStage(snapshot, asOfDate, policy, retirementOpportunities);
-  const provisionalSecurePlan = allocateSecureRecommendations(provisionalSecure, monthlyPlanCapacity);
-  const provisionalBuild = evaluateBuildStage(snapshot, asOfDate, policy, provisionalSecurePlan.remainingMonthlyCapacity);
+  const provisionalCapacityLedger = cloneRetirementCapacityLedger(retirementCapacityLedger);
+  const provisionalSecure = evaluateSecureStage(
+    snapshot,
+    asOfDate,
+    policy,
+    retirementOpportunities,
+    provisionalCapacityLedger,
+  );
+  const provisionalSecurePlan = allocateSecureRecommendations(
+    provisionalSecure,
+    monthlyPlanCapacity,
+    asOfDate,
+    provisionalCapacityLedger,
+  );
+  const provisionalBuild = evaluateBuildStage(
+    snapshot,
+    asOfDate,
+    policy,
+    provisionalSecurePlan.remainingMonthlyCapacity,
+    MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
+    undefined,
+    retirementOpportunities,
+    provisionalCapacityLedger,
+  );
   const provisionalFeasibility = calculatePlanFeasibility(
     snapshot,
     roundMoney(provisionalSecurePlan.protectedMonthlyNeed + provisionalBuild.protectedMonthlyFundingNeed),
@@ -197,13 +286,37 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
     provisionalBuild,
     provisionalOptimize,
     policy,
+    retirementCapacityLedger,
   );
   const residualNeeds = deriveResidualNeedsContext(existingCash);
   const residualSnapshot = buildResidualNeedsSnapshot(snapshot, residualNeeds);
 
-  const secure = evaluateSecureStage(residualSnapshot, asOfDate, policy, retirementOpportunities);
-  const securePlan = allocateSecureRecommendations(secure, monthlyPlanCapacity);
-  const build = evaluateBuildStage(residualSnapshot, asOfDate, policy, securePlan.remainingMonthlyCapacity);
+  const secure = evaluateSecureStage(
+    residualSnapshot,
+    asOfDate,
+    policy,
+    retirementOpportunities,
+    retirementCapacityLedger,
+  );
+  const securePlan = allocateSecureRecommendations(
+    secure,
+    monthlyPlanCapacity,
+    asOfDate,
+    retirementCapacityLedger,
+  );
+  const build = evaluateBuildStage(
+    residualSnapshot,
+    asOfDate,
+    policy,
+    securePlan.remainingMonthlyCapacity,
+    MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
+    undefined,
+    retirementOpportunities,
+    retirementCapacityLedger,
+  );
+  if (!retirementCapacityInvariantHolds(retirementCapacityLedger)) {
+    throw new Error("Cross-stage retirement legal-capacity invariant failed.");
+  }
   const feasibility = calculatePlanFeasibility(
     residualSnapshot,
     roundMoney(securePlan.protectedMonthlyNeed + build.protectedMonthlyFundingNeed),
@@ -227,6 +340,7 @@ export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: 
     feasibility,
     existingCash,
     residualNeeds,
+    retirementCapacityLedger: cloneRetirementCapacityLedger(retirementCapacityLedger),
     secure,
     build,
     optimize,

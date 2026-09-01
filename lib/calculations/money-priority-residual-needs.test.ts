@@ -170,7 +170,7 @@ test("one-time debt payoff removes the debt from downstream recurring claims", (
   assert.equal(result.snapshot.debts[0]?.balance, 5000);
 });
 
-test("retirement catch-up remains distinct from recurring retirement trajectory funding", () => {
+test("retirement catch-up remains distinct as a planning event while consuming shared legal room", () => {
   const raw = baseRaw();
   raw.people![0]!.estimated_taxable_compensation_annual = 84000;
   raw.income = [{
@@ -204,8 +204,9 @@ test("retirement catch-up remains distinct from recurring retirement trajectory 
   const retirement = result.build.allocations.find((item) => item.category === "retirement");
 
   assert.equal(result.residualNeeds.retirementCatchUpApplied, 500);
-  assert.equal(retirement?.allocatedMonthlyAmount, 100);
-  assert.equal(retirement?.unfundedMonthlyAmount, 740);
+  assert.equal(result.residualNeeds.retirementAppliedByAccountId.r1, 500);
+  assert.equal(retirement?.allocatedMonthlyAmount, 0);
+  assert.equal(retirement?.unfundedMonthlyAmount, 840);
 });
 
 test("residual reconciliation preserves the cross-stage monthly-capacity invariant", () => {

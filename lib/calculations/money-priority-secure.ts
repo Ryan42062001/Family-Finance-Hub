@@ -17,6 +17,13 @@ import {
   evaluateRetirementAccountOpportunities,
   type RetirementAccountOpportunityResult,
 } from "./money-priority-retirement-accounts.ts";
+import {
+  cloneRetirementCapacityLedger,
+  consumeRetirementCapacity,
+  createRetirementCapacityLedger,
+  remainingRetirementCapacity,
+  type RetirementCapacityLedger,
+} from "./money-priority-retirement-capacity.ts";
 
 export type SecureRecommendationState = "recommended" | "worth_considering" | "more_information_needed";
 
@@ -83,6 +90,7 @@ export function evaluateSecureStage(
   asOfDate = "1970-01-01",
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
   retirementOpportunities: RetirementAccountOpportunityResult = evaluateRetirementAccountOpportunities(snapshot),
+  retirementCapacityLedger?: RetirementCapacityLedger,
 ): SecureStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
@@ -110,7 +118,12 @@ export function evaluateSecureStage(
 
   let employerMatchMonthlyGap = 0;
   const opportunityByAccountId = new Map(retirementOpportunities.opportunities.map((item) => [item.accountId, item]));
-  for (const account of snapshot.retirementAccounts) {
+  const matchCapacityLedger = cloneRetirementCapacityLedger(
+    retirementCapacityLedger ?? createRetirementCapacityLedger(retirementOpportunities),
+  );
+  // Match opportunities have the same Secure urgency today. Stable account ID is
+  // the final financial tie-breaker so scarce capacity never depends on input order.
+  for (const account of [...snapshot.retirementAccounts].sort((a, b) => a.id.localeCompare(b.id))) {
     if (account.type === "sep_ira") continue;
     if (account.type === "simple_ira" && account.employerContributionType === "nonelective") continue;
     if (account.matchStatus === "not_offered" || account.matchStatus === "fully_captured") continue;
@@ -127,7 +140,8 @@ export function evaluateSecureStage(
       const gap = roundMoney(Math.max(0, account.fullMatchEmployeeContributionMonthly - account.monthlyEmployeeContribution));
       if (gap > 0) {
         const opportunity = opportunityByAccountId.get(account.id);
-        if (!opportunity || opportunity.state === "more_information_needed" || opportunity.remainingAnnualRoom === null) {
+        const ledgerRemaining = remainingRetirementCapacity(matchCapacityLedger, account.id);
+        if (!opportunity || opportunity.state === "more_information_needed" || ledgerRemaining === null) {
           const missing = opportunity?.missingData.length
             ? opportunity.missingData
             : ["Known remaining legal employee contribution capacity is required before increasing this payroll contribution."];
@@ -143,7 +157,7 @@ export function evaluateSecureStage(
           });
           continue;
         }
-        if (opportunity.state === "limit_reached" || opportunity.state === "not_eligible" || opportunity.remainingAnnualRoom <= 0) {
+        if (opportunity.state === "limit_reached" || opportunity.state === "not_eligible" || ledgerRemaining <= 0) {
           recommendations.push({
             id: `secure-match-capacity-exhausted-${account.id}`, rank: rank++, state: "worth_considering", urgency: "high",
             title: `Employer-match contribution room is exhausted in ${account.name}`,
@@ -156,24 +170,32 @@ export function evaluateSecureStage(
           continue;
         }
         const contributionMonths = remainingContributionMonths(asOfDate, retirementOpportunities.taxYear);
-        const legalMonthlyEquivalent = roundMoney(opportunity.remainingAnnualRoom / contributionMonths);
+        const legalMonthlyEquivalent = roundMoney(ledgerRemaining / contributionMonths);
         const legallySupportedGap = roundMoney(Math.min(gap, legalMonthlyEquivalent));
         if (legallySupportedGap <= 0) continue;
-        employerMatchMonthlyGap = roundMoney(employerMatchMonthlyGap + legallySupportedGap);
-        const capacityReason = legallySupportedGap < gap
-          ? `Only $${opportunity.remainingAnnualRoom.toFixed(2)} of legal employee contribution room remains for ${retirementOpportunities.taxYear}; over the remaining ${contributionMonths} modeled month${contributionMonths === 1 ? "" : "s"}, the recommendation is capped at $${legallySupportedGap.toFixed(2)} per month.`
-          : `$${opportunity.remainingAnnualRoom.toFixed(2)} of known legal employee contribution room remains for ${retirementOpportunities.taxYear}.`;
+        const reservedCapacity = consumeRetirementCapacity(
+          matchCapacityLedger,
+          account.id,
+          "secure",
+          roundMoney(legallySupportedGap * contributionMonths),
+        );
+        const reservedMonthlyGap = roundMoney(reservedCapacity.consumedAnnualAmount / contributionMonths);
+        if (reservedMonthlyGap <= 0) continue;
+        employerMatchMonthlyGap = roundMoney(employerMatchMonthlyGap + reservedMonthlyGap);
+        const capacityReason = reservedMonthlyGap < gap
+          ? `Only $${ledgerRemaining.toFixed(2)} of legal employee contribution room remains for ${retirementOpportunities.taxYear}; over the remaining ${contributionMonths} modeled month${contributionMonths === 1 ? "" : "s"}, the recommendation is capped at $${reservedMonthlyGap.toFixed(2)} per month.`
+          : `$${ledgerRemaining.toFixed(2)} of known legal employee contribution room remains for ${retirementOpportunities.taxYear}.`;
         recommendations.push({
           id: `secure-match-gap-${account.id}`, rank: rank++, state: "recommended", urgency: "required",
           title: legallySupportedGap < gap
             ? `Increase contributions toward the employer match in ${account.name}`
             : `Increase contributions to capture the full employer match in ${account.name}`,
-          monthlyAmount: legallySupportedGap, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: legallySupportedGap, relatedEntityId: account.id,
+          monthlyAmount: reservedMonthlyGap, targetAmount: account.fullMatchEmployeeContributionMonthly, gapAmount: reservedMonthlyGap, relatedEntityId: account.id,
           reasons: [
             "Capturing the available employer match is prioritized before ordinary debt-versus-investing optimization, subject to verified legal contribution capacity.",
             capacityReason,
           ],
-          legalRemainingAnnualRoom: opportunity.remainingAnnualRoom,
+          legalRemainingAnnualRoom: ledgerRemaining,
         });
       }
     } else if (account.matchStatus === "unknown") {
@@ -204,7 +226,20 @@ export function evaluateSecureStage(
   const debtById = new Map(snapshot.debts.map((debt) => [debt.id, debt]));
   const actionById = new Map(debtActionAssessments.map((item) => [item.debtId, item]));
 
-  for (const classification of debtClassifications.filter((item) => item.band === "special_priority")) {
+  const stableDebtPriority = (left: DebtClassification, right: DebtClassification) => {
+    const debtA = debtById.get(left.debtId)!;
+    const debtB = debtById.get(right.debtId)!;
+    const promoA = debtA.promoRateExpiresOn ?? "9999-12-31";
+    const promoB = debtB.promoRateExpiresOn ?? "9999-12-31";
+    return promoA.localeCompare(promoB)
+      || (debtB.postPromoInterestRate ?? debtB.annualInterestRate ?? -1)
+        - (debtA.postPromoInterestRate ?? debtA.annualInterestRate ?? -1)
+      || debtA.id.localeCompare(debtB.id);
+  };
+
+  for (const classification of debtClassifications
+    .filter((item) => item.band === "special_priority")
+    .sort(stableDebtPriority)) {
     const debt = debtById.get(classification.debtId)!;
     const studentStrategy = studentStrategyById.get(debt.id);
     if (studentStrategy && !studentStrategy.ordinaryDebtPolicyAllowed) {
@@ -287,7 +322,8 @@ export function evaluateSecureStage(
     .sort((a, b) => {
       const debtA = debtById.get(a.debtId)!;
       const debtB = debtById.get(b.debtId)!;
-      return (debtB.annualInterestRate ?? 0) - (debtA.annualInterestRate ?? 0);
+      return (debtB.annualInterestRate ?? 0) - (debtA.annualInterestRate ?? 0)
+        || debtA.id.localeCompare(debtB.id);
     });
 
   for (const classification of highInterestDebts) {
@@ -299,7 +335,7 @@ export function evaluateSecureStage(
     });
   }
 
-  for (const debt of snapshot.debts) {
+  for (const debt of [...snapshot.debts].sort((a, b) => a.id.localeCompare(b.id))) {
     const assessment = actionById.get(debt.id)!;
     if (assessment.band !== "payoff_favored" && assessment.band !== "gray_zone") continue;
     if (assessment.action === "accelerate") {
@@ -323,7 +359,9 @@ export function evaluateSecureStage(
     }
   }
 
-  for (const classification of debtClassifications.filter((item) => item.band === "unknown")) {
+  for (const classification of debtClassifications
+    .filter((item) => item.band === "unknown")
+    .sort((a, b) => a.debtId.localeCompare(b.debtId))) {
     const debt = debtById.get(classification.debtId)!;
     recommendations.push({
       id: `secure-debt-unknown-${debt.id}`, rank: rank++, state: "more_information_needed", urgency: "medium",

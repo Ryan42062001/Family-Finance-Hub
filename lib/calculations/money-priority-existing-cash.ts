@@ -3,6 +3,12 @@ import type { SecureStageResult } from "./money-priority-secure.ts";
 import type { BuildStageResult } from "./money-priority-build.ts";
 import type { OptimizeStageResult } from "./money-priority-optimize.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
+import {
+  consumeRetirementCapacity,
+  createRetirementCapacityLedger,
+  remainingRetirementCapacity,
+  type RetirementCapacityLedger,
+} from "./money-priority-retirement-capacity.ts";
 
 export type ExistingCashDeployment = {
   id: string;
@@ -10,6 +16,7 @@ export type ExistingCashDeployment = {
   stage: "secure" | "build" | "optimize";
   category: "reserve" | "debt" | "retirement" | "goal" | "investing";
   relatedEntityId: string | null;
+  retirementCapacityGroup?: string | null;
   title: string;
   amount: number;
   reasons: string[];
@@ -64,6 +71,7 @@ export function evaluateExistingCashDeployment(
   build?: BuildStageResult,
   optimize?: OptimizeStageResult,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  retirementCapacityLedger?: RetirementCapacityLedger,
 ): ExistingCashDeploymentResult {
   const availableUnallocatedCash = roundMoney(Math.max(0, snapshot.aggregates.unallocatedCash));
   let remaining = availableUnallocatedCash;
@@ -133,18 +141,20 @@ export function evaluateExistingCashDeployment(
 
   if (build && deployable > 0) {
     const goalAssessment = new Map(build.goals.map((goal) => [goal.goalId, goal]));
-    const retirementRoomByCapacity = new Map<string, number>();
-    for (const item of build.retirementAccounts.opportunities) {
-      if (item.state !== "available" || item.remainingAnnualRoom === null || item.contributionSource === "employer") continue;
-      const key = item.sharedCapacityGroup ?? `account:${item.accountId}`;
-      retirementRoomByCapacity.set(key, Math.max(
-        retirementRoomByCapacity.get(key) ?? 0,
-        Math.max(0, item.remainingAnnualRoom),
-      ));
-    }
-    const availableRetirementRoom = roundMoney(
-      [...retirementRoomByCapacity.values()].reduce((sum, room) => sum + room, 0),
-    );
+    const capacityLedger = retirementCapacityLedger
+      ?? createRetirementCapacityLedger(build.retirementAccounts);
+    const tierOrder = new Map([
+      ["strong_tax_advantaged", 1],
+      ["diversification_opportunity", 2],
+      ["secondary_tax_advantaged", 3],
+    ]);
+    const retirementDestinations = build.retirementAccounts.opportunities
+      .filter((item) => item.state === "available" && item.contributionSource !== "employer"
+        && item.opportunityTier !== "employer_match"
+        && item.opportunityTier !== "unavailable_or_unknown")
+      .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99)
+        - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
+        || a.accountId.localeCompare(b.accountId));
 
     for (const allocation of build.allocations) {
       if (deployable <= 0) break;
@@ -177,26 +187,40 @@ export function evaluateExistingCashDeployment(
         });
         deployable = result.remaining;
         remaining = roundMoney(remaining - result.amount);
-      } else if (allocation.category === "retirement" && availableRetirementRoom > 0) {
-        const requested = Math.min(
-          availableRetirementRoom,
-          roundMoney(allocation.unfundedMonthlyAmount * policy.existingCash.retirementCatchUpMonths),
-        );
-        if (requested <= 0) continue;
-        const result = deploy(deployments, deployable, requested, {
-          id: "existing-cash-build-retirement",
-          stage: "build",
-          category: "retirement",
-          relatedEntityId: null,
-          title: "Use existing cash for a one-time retirement catch-up contribution",
-          reasons: [
-            ...allocation.reasons,
-            `The one-time catch-up is capped at ${policy.existingCash.retirementCatchUpMonths} months of the unfunded retirement pace and known tax-advantaged contribution room.`,
-            "Account selection remains separate so tax treatment and eligibility can be respected.",
-          ],
-        });
-        deployable = result.remaining;
-        remaining = roundMoney(remaining - result.amount);
+      } else if (allocation.category === "retirement") {
+        let requested = roundMoney(Math.min(
+          deployable,
+          allocation.unfundedMonthlyAmount * policy.existingCash.retirementCatchUpMonths,
+        ));
+        for (const destination of retirementDestinations) {
+          if (requested <= 0 || deployable <= 0) break;
+          const availableRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
+          if (availableRoom === null || availableRoom <= 0) continue;
+          const amountForAccount = roundMoney(Math.min(requested, deployable, availableRoom));
+          const consumption = consumeRetirementCapacity(
+            capacityLedger,
+            destination.accountId,
+            "one_time",
+            amountForAccount,
+          );
+          if (consumption.consumedAnnualAmount <= 0) continue;
+          const result = deploy(deployments, deployable, consumption.consumedAnnualAmount, {
+            id: `existing-cash-build-retirement-${destination.accountId}`,
+            stage: "build",
+            category: "retirement",
+            relatedEntityId: destination.accountId,
+            retirementCapacityGroup: consumption.sharedCapacityGroup,
+            title: `Use existing cash for a one-time retirement contribution to ${destination.accountName}`,
+            reasons: [
+              ...allocation.reasons,
+              `The one-time contribution is capped at ${policy.existingCash.retirementCatchUpMonths} months of the unfunded retirement pace and the verified legal room remaining for this account and its shared statutory group.`,
+              "This concrete destination consumes the same legal-capacity ledger used by Secure and Build.",
+            ],
+          });
+          deployable = result.remaining;
+          remaining = roundMoney(remaining - result.amount);
+          requested = roundMoney(Math.max(0, requested - result.amount));
+        }
       }
     }
   }

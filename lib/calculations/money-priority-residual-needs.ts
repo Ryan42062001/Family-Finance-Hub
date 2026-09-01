@@ -6,6 +6,8 @@ export type ResidualNeedsContext = {
   debtAppliedById: Readonly<Record<string, number>>;
   goalAppliedById: Readonly<Record<string, number>>;
   retirementCatchUpApplied: number;
+  retirementAppliedByAccountId: Readonly<Record<string, number>>;
+  retirementAppliedByCapacityGroup: Readonly<Record<string, number>>;
   totalOneTimeDeployed: number;
 };
 
@@ -23,6 +25,8 @@ export function deriveResidualNeedsContext(
 ): ResidualNeedsContext {
   const debtAppliedById: Record<string, number> = {};
   const goalAppliedById: Record<string, number> = {};
+  const retirementAppliedByAccountId: Record<string, number> = {};
+  const retirementAppliedByCapacityGroup: Record<string, number> = {};
   let secureReserveApplied = 0;
   let retirementCatchUpApplied = 0;
 
@@ -35,6 +39,12 @@ export function deriveResidualNeedsContext(
       addAmount(goalAppliedById, deployment.relatedEntityId, deployment.amount);
     } else if (deployment.category === "retirement") {
       retirementCatchUpApplied = roundMoney(retirementCatchUpApplied + deployment.amount);
+      addAmount(retirementAppliedByAccountId, deployment.relatedEntityId, deployment.amount);
+      addAmount(
+        retirementAppliedByCapacityGroup,
+        deployment.retirementCapacityGroup ?? null,
+        deployment.amount,
+      );
     }
   }
 
@@ -43,6 +53,8 @@ export function deriveResidualNeedsContext(
     debtAppliedById: Object.freeze({ ...debtAppliedById }),
     goalAppliedById: Object.freeze({ ...goalAppliedById }),
     retirementCatchUpApplied,
+    retirementAppliedByAccountId: Object.freeze({ ...retirementAppliedByAccountId }),
+    retirementAppliedByCapacityGroup: Object.freeze({ ...retirementAppliedByCapacityGroup }),
     totalOneTimeDeployed: roundMoney(existingCash.deployedCash),
   };
 }

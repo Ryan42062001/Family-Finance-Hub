@@ -149,22 +149,33 @@ Persisted financial tables remain household-scoped and protected by role-aware r
 
 The raw snapshot boundary validates stable IDs, entity references, decision-driving enums, decision dates, and financial numeric domains before authoritative calculation. Fatal validation failures expose structured paths/codes without logging financial data. Calendar-invalid dates are diagnosed in snapshot warnings and continue only through conservative information-needed logic.
 
-### Shared legal-capacity reconciliation for Secure employer matches
+### Shared retirement legal-capacity ledger
 
-The engine evaluates retirement-account opportunities once from the normalized snapshot and passes that immutable derived result into both provisional and final Secure evaluation and into Build. Secure never treats the recorded employer-match gap as independent legal contribution room:
+The engine evaluates retirement opportunities once and creates one mutable *derived* ledger for the authoritative run. The normalized financial snapshot remains immutable. Ledger entries retain account ID/type, owner, verified or information-needed state, account room, supported shared statutory groups, elective-deferral room, annual-additions room, compensation room, and separately tracked catch-up room.
 
-- `available` room caps the recurring monthly payroll recommendation to the lesser of the match gap and remaining annual room spread over the remaining modeled tax-year months;
-- `limit_reached` or `not_eligible` creates no payroll allocation;
-- `more_information_needed` creates no payroll allocation and exposes the missing legal-capacity facts;
-- recommendation annual amounts cannot exceed the authoritative remaining annual room.
+Verified room is consumed in one fixed order:
 
-This is derived reconciliation only. The normalized source retirement records are not mutated, and one-time retirement catch-up remains conceptually separate from recurring match capture.
+1. eligible one-time existing-cash contribution to a concrete legal destination;
+2. Secure employer-match employee payroll contribution;
+3. Build account routing.
+
+Every consumption is limited by both the account entry and each supported shared group. The engine asserts that `one-time + Secure + Build <= original verified capacity` for every account and shared group. Multiple IRAs share the supported owner limit; HSA family capacity is coordinated without duplicating one owner's room; supported workplace deferral groups retain their existing coordination. Sponsor grouping is never fabricated when sponsor identity is unavailable. Unknown capacity produces `more_information_needed` and no confident actionable contribution.
+
+Employer-match behavior remains recurring payroll behavior, so an account whose only modeled opportunity is match capture is not presented as a direct one-time cash deposit. Build no longer recomputes fresh room. A retirement projection may continue to show a funding shortfall, but dollars above verified routable account room remain descriptive and do not appear in authoritative allocations. Ordinary room and catch-up room remain separately recorded instead of being collapsed into an undifferentiated balance.
 
 ### Numeric snapshot contract
 
-Decision-driving raw numerics are classified centrally as required or nullable. Required values cannot be absent and cannot acquire a synthetic zero during normalization. Nullable values preserve absence as `null`; explicit zeros remain distinct and valid when the domain allows them. Invalid finite/sign/bounds/integer checks fail with structured snapshot validation issues before cash-flow capacity or recommendations can be calculated. Signed expense adjustments remain restricted to the explicit hypothetical-evaluation boundary.
+Validation and normalization use the same strict raw-number parser. It accepts finite JavaScript numbers and trimmed plain decimal strings (for loader compatibility). It rejects empty or whitespace-only strings, booleans, arrays, objects, numeric junk, currency/comma formatting, and nonfinite values. Required values cannot be absent or acquire a synthetic zero; nullable values preserve absence as `null`; explicit zero remains distinct where its semantic domain permits it. Sign, percentage, integer, and bounded-domain checks run only after successful parsing. Signed expense adjustments remain restricted to the explicit hypothetical-evaluation boundary.
+
+### Secure deterministic destination ordering
+
+Every scarce Secure sequence terminates in stable entity ID. Employer-match opportunities currently share the same modeled urgency and are ordered by stable account ID after eligibility and match-state filtering. High-interest debt is ordered by APR descending, then debt ID. Promotional/special debt is ordered by expiration ascending, effective/post-promotion APR descending, then debt ID. Contextual and unknown debt paths use debt ID after their financial classification. Display names and source array position are never financial tie-breakers.
+
+### Goal runtime and persistence parity
+
+Ordinary authoritative snapshots require `targetAmount > 0`. A non-null `coreNeedAmount` must be nonnegative and no greater than `targetAmount`; equality is valid. Existing current-amount and priority semantics are unchanged. Home and Vehicle scenario reruns continue through their explicit hypothetical-input pathway; the ordinary raw contract is not weakened for temporary modeling.
 
 ## Phase 5 closure status
 The planned Phase 5 feature set includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, Home and Vehicle affordability with authoritative hypothetical reruns, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
 
-The adversarial-audit remediation is complete but Phase 5 remains pending a new independent clean audit. Closure requires green calculation/security/type/lint/build/dependency checks plus live role-aware RLS verification tied to the exact remediation commit.
+Phase 5 final audit remediation complete — pending independent clean audit. Closure still requires independent review of the exact remediation commit. No database migration was required for these calculation/runtime findings.

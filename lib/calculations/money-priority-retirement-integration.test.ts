@@ -17,7 +17,8 @@ function baseRaw(): MoneyPriorityRawSnapshot {
     retirementAccounts: [{
       id: "r1", owner_person_id: "p1", name: "401k", account_type: "401k", balance: 1000000,
       monthly_employee_contribution: 300, monthly_employer_contribution: 100,
-      employee_contributed_ytd: 3000, employer_contributed_ytd: 1000, match_status: "fully_captured",
+      employee_contributed_ytd: 3000, employer_contributed_ytd: 1000,
+      plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
     }],
     goals: [],
     insuranceExposures: [{ id: "x1", name: "Auto", insurance_type: "auto", deductible_amount: 1000, is_relevant_to_reserve: true }],
@@ -48,7 +49,8 @@ test("projection shortfall drives the retirement increase instead of the benchma
   raw.retirementAccounts = [{
     id: "r1", owner_person_id: "p1", name: "401k", account_type: "401k", balance: 0,
     monthly_employee_contribution: 300, monthly_employer_contribution: 100,
-    employee_contributed_ytd: 3000, employer_contributed_ytd: 1000, match_status: "fully_captured",
+    employee_contributed_ytd: 3000, employer_contributed_ytd: 1000,
+    plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
   }];
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
   assert.equal(result.build.retirement.guidanceMode, "projection");
@@ -60,7 +62,11 @@ test("projection shortfall drives the retirement increase instead of the benchma
   );
   const retirementAllocation = result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount ?? 0;
   const routed = result.build.retirementAccountAllocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount, 0);
-  assert.equal(Math.round((routed + result.build.unresolvedRetirementMonthlyAmount) * 100), Math.round(retirementAllocation * 100));
+  assert.equal(Math.round(routed * 100), Math.round(retirementAllocation * 100));
+  assert.equal(
+    Math.round((retirementAllocation + result.build.unresolvedRetirementMonthlyAmount) * 100),
+    Math.round((result.build.allocations.find((item) => item.category === "retirement")?.requestedMonthlyAmount ?? 0) * 100),
+  );
   assert.ok(result.build.retirementAccountAllocations.every((item) => item.allocatedMonthlyAmount * 12 <= 21500));
 });
 
@@ -72,7 +78,7 @@ test("Build routes retirement need across legal destinations and exposes any unr
       employer_contributed_ytd: 0, match_status: "not_offered" },
     { id: "r2", owner_person_id: "p1", name: "401k", account_type: "401k", balance: 0,
       monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 23900,
-      employer_contributed_ytd: 0, match_status: "fully_captured" },
+      employer_contributed_ytd: 0, plan_eligible_compensation_annual: 100000, match_status: "fully_captured" },
   ];
   raw.people![0]!.estimated_taxable_compensation_annual = 100000;
   raw.people![0]!.covered_by_workplace_retirement_plan = true;

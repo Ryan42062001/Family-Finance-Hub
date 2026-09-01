@@ -11,6 +11,13 @@ import {
   type RetirementAccountOpportunityResult,
 } from "./money-priority-retirement-accounts.ts";
 import {
+  cloneRetirementCapacityLedger,
+  consumeRetirementCapacity,
+  createRetirementCapacityLedger,
+  remainingRetirementCapacity,
+  type RetirementCapacityLedger,
+} from "./money-priority-retirement-capacity.ts";
+import {
   MONEY_PRIORITY_TAX_POLICY_2026,
   type MoneyPriorityTaxPolicy,
 } from "./money-priority-tax-policy.ts";
@@ -78,6 +85,7 @@ export type BuildStageResult = {
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
   retirementAccounts: RetirementAccountOpportunityResult;
+  retirementCapacityLedger: RetirementCapacityLedger;
   retirementAccountAllocations: Array<{
     accountId: string;
     opportunityTier: string;
@@ -329,12 +337,17 @@ export function evaluateBuildStage(
   allocationMonthlyCapacityOverride?: number,
   planningAssumptions: MoneyPriorityPlanningAssumptions = MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
   taxPolicy: MoneyPriorityTaxPolicy = MONEY_PRIORITY_TAX_POLICY_2026,
+  retirementOpportunitiesOverride?: RetirementAccountOpportunityResult,
+  retirementCapacityLedger?: RetirementCapacityLedger,
 ): BuildStageResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
   const warnings: string[] = [];
   const retirement = assessRetirementBuild(snapshot, asOfDate, policy, planningAssumptions);
-  const retirementAccounts = evaluateRetirementAccountOpportunities(snapshot, taxPolicy);
+  const retirementAccounts = retirementOpportunitiesOverride
+    ?? evaluateRetirementAccountOpportunities(snapshot, taxPolicy);
+  const capacityLedger = retirementCapacityLedger
+    ?? createRetirementCapacityLedger(retirementAccounts);
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
   const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
@@ -417,6 +430,29 @@ export function evaluateBuildStage(
   let remainingMonthlyCapacity = allocationMonthlyCapacity;
   const goalRequests = requests.filter((request) => request.category === "goal");
   const retirementRequest = requests.find((request) => request.category === "retirement");
+  const tierOrder = new Map([
+    ["strong_tax_advantaged", 1], ["diversification_opportunity", 2], ["secondary_tax_advantaged", 3],
+  ]);
+  const retirementDestinations = retirementAccounts.opportunities
+    .filter((item) => item.state === "available" && item.contributionSource !== "employer"
+      && item.opportunityTier !== "unavailable_or_unknown")
+    .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99)
+      - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
+      || a.accountId.localeCompare(b.accountId));
+  const routableLedger = cloneRetirementCapacityLedger(capacityLedger);
+  let routableAnnualRoom = 0;
+  for (const destination of retirementDestinations) {
+    const room = remainingRetirementCapacity(routableLedger, destination.accountId);
+    if (room === null || room <= 0) continue;
+    const consumed = consumeRetirementCapacity(
+      routableLedger,
+      destination.accountId,
+      "build",
+      room,
+    );
+    routableAnnualRoom = roundMoney(routableAnnualRoom + consumed.consumedAnnualAmount);
+  }
+  const routableRetirementMonthlyCapacity = roundMoney(routableAnnualRoom / 12);
   const allocate = (request: BuildStageAllocation, maximum: number, isProtected = false) => {
     const stillNeeded = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
     const allocated = roundMoney(Math.min(stillNeeded, maximum, remainingMonthlyCapacity));
@@ -441,7 +477,10 @@ export function evaluateBuildStage(
     allocate(request, request.requestedMonthlyAmount);
   }
 
-  if (retirementRequest) allocate(retirementRequest, retirementRequest.requestedMonthlyAmount);
+  if (retirementRequest) allocate(
+    retirementRequest,
+    Math.min(retirementRequest.requestedMonthlyAmount, routableRetirementMonthlyCapacity),
+  );
 
   for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "important")) {
     request.allocationPhase = "important_goal";
@@ -469,23 +508,18 @@ export function evaluateBuildStage(
 
   const retirementAccountAllocations: BuildStageResult["retirementAccountAllocations"] = [];
   let retirementToRoute = retirementRequest?.allocatedMonthlyAmount ?? 0;
-  const tierOrder = new Map([
-    ["strong_tax_advantaged", 1], ["diversification_opportunity", 2], ["secondary_tax_advantaged", 3],
-  ]);
-  const sharedRemaining = new Map<string, number>();
-  const destinations = retirementAccounts.opportunities
-    .filter((item) => item.state === "available" && item.contributionSource !== "employer"
-      && item.opportunityTier !== "employer_match" && item.opportunityTier !== "unavailable_or_unknown")
-    .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99) - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
-      || a.accountId.localeCompare(b.accountId));
-  for (const destination of destinations) {
+  for (const destination of retirementDestinations) {
     if (retirementToRoute <= 0) break;
-    let annualRoom = destination.remainingAnnualRoom ?? 0;
-    if (destination.sharedCapacityGroup) {
-      const remaining = sharedRemaining.get(destination.sharedCapacityGroup) ?? annualRoom;
-      annualRoom = Math.min(annualRoom, remaining);
-    }
-    const allocatedMonthlyAmount = roundMoney(Math.min(retirementToRoute, annualRoom / 12));
+    const annualRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
+    if (annualRoom === null || annualRoom <= 0) continue;
+    const requestedAnnualAmount = roundMoney(Math.min(retirementToRoute * 12, annualRoom));
+    const consumption = consumeRetirementCapacity(
+      capacityLedger,
+      destination.accountId,
+      "build",
+      requestedAnnualAmount,
+    );
+    const allocatedMonthlyAmount = roundMoney(consumption.consumedAnnualAmount / 12);
     if (allocatedMonthlyAmount <= 0) continue;
     retirementAccountAllocations.push({
       accountId: destination.accountId,
@@ -493,13 +527,13 @@ export function evaluateBuildStage(
       allocatedMonthlyAmount,
     });
     retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
-    if (destination.sharedCapacityGroup) {
-      sharedRemaining.set(destination.sharedCapacityGroup, roundMoney(Math.max(0, annualRoom - allocatedMonthlyAmount * 12)));
-    }
   }
-  const unresolvedRetirementMonthlyAmount = retirementToRoute;
-  if (unresolvedRetirementMonthlyAmount > 0 && (retirementRequest?.allocatedMonthlyAmount ?? 0) > 0) {
-    warnings.push(`$${unresolvedRetirementMonthlyAmount.toFixed(2)} of the monthly retirement allocation has no known legal account destination.`);
+  if (retirementToRoute > 0) {
+    throw new Error("Retirement capacity ledger routing invariant failed.");
+  }
+  const unresolvedRetirementMonthlyAmount = retirementRequest?.unfundedMonthlyAmount ?? 0;
+  if (unresolvedRetirementMonthlyAmount > 0 && (retirementRequest?.requestedMonthlyAmount ?? 0) > 0) {
+    warnings.push(`$${unresolvedRetirementMonthlyAmount.toFixed(2)} of monthly retirement planning need exceeds the verified current-year legal account capacity. The shortfall remains descriptive and is not included in actionable allocations.`);
   }
 
   if (requests.some((request) => request.unfundedMonthlyAmount > 0)) {
@@ -517,6 +551,7 @@ export function evaluateBuildStage(
     feasibility,
     retirement,
     retirementAccounts,
+    retirementCapacityLedger: cloneRetirementCapacityLedger(capacityLedger),
     retirementAccountAllocations,
     unresolvedRetirementMonthlyAmount,
     goals,

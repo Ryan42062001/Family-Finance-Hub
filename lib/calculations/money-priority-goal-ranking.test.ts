@@ -30,9 +30,14 @@ function goal(id: string, overrides: Partial<RawGoal> = {}): RawGoal {
 function raw(goals: RawGoal[], gross: number | null = null): MoneyPriorityRawSnapshot {
   return {
     householdId: "h",
-    people: [],
-    income: [{ id: "i", monthly_amount: 5000, monthly_gross_amount: gross, is_active: true }],
-    expenses: [], accounts: [], debts: [], retirementAccounts: [], goals,
+    people: [{ id: "p", display_name: "Adult", relationship: "self", estimated_taxable_compensation_annual: 100000, is_active: true, is_dependent: false }],
+    income: [{ id: "i", owner_person_id: "p", monthly_amount: 5000, monthly_gross_amount: gross, is_active: true }],
+    expenses: [], accounts: [], debts: [], retirementAccounts: [{
+      id: "retirement", owner_person_id: "p", name: "401(k)", account_type: "401k", balance: 0,
+      monthly_employee_contribution: 0, monthly_employer_contribution: 0,
+      employee_contributed_ytd: 0, employer_contributed_ytd: 0,
+      plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
+    }], goals,
     insuranceExposures: [], preferences: null,
   };
 }

@@ -98,11 +98,14 @@ test("retirement cash catch-up is capped by known annual contribution room", () 
   }];
 
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
-  const retirementDeployment = result.existingCash.deployments.find((item) => item.id === "existing-cash-build-retirement");
+  const retirementDeployment = result.existingCash.deployments.find((item) => item.id === "existing-cash-build-retirement-r1");
 
   assert.equal(result.build.retirement.recommendedMonthlyIncrease, 840);
-  assert.equal(result.build.allocations.find((item) => item.category === "retirement")?.unfundedMonthlyAmount, 740);
+  assert.equal(result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount, 0);
+  assert.equal(result.build.allocations.find((item) => item.category === "retirement")?.unfundedMonthlyAmount, 840);
   assert.equal(retirementDeployment?.amount, 500);
+  assert.equal(retirementDeployment?.relatedEntityId, "r1");
+  assert.equal(result.retirementCapacityLedger.entries.find((item) => item.accountId === "r1")?.remainingAnnualRoom, 0);
 });
 
 test("Optimize investing deploys only cash above the liquidity floor", () => {

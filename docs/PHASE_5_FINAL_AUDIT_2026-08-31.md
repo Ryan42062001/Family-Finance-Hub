@@ -2,13 +2,14 @@
 
 Date: 2026-09-01
 Branch: `phase-5-money-priority-engine`
-Audited predecessor: `0fb33e54e5a9d2216de4d6420aa3f92badc4425d`
+Original audited predecessor: `0fb33e54e5a9d2216de4d6420aa3f92badc4425d`
+Latest audited checkpoint: `3185577e1919123c4c41766fa41b2ae1dffaf6db`
 
 ## Status
 
-The fresh adversarial audit of the predecessor found material authorization and workplace-compensation defects plus input-validation, deterministic-ordering, CI, test-coverage, and documentation findings. This package remediates P5-AUD-01 through P5-AUD-08.
+The original adversarial audit found authorization, workplace-compensation, input-validation, deterministic-ordering, CI, test-coverage, and documentation findings. Subsequent audit passes found four additional calculation/runtime findings at the latest audited checkpoint. This package records their focused remediation without declaring the branch clean.
 
-**Remediation complete; pending final independent clean audit.** This document does not declare Phase 5 clean or ready to merge.
+**Phase 5 final audit remediation complete — pending independent clean audit.** This document does not declare Phase 5 clean or ready to merge.
 
 ## Remediation summary
 
@@ -73,3 +74,16 @@ Two HIGH findings identified after the earlier remediation are closed in this fo
 Adversarial regression coverage includes exhausted elective deferrals, exhausted annual additions, partial room, missing capacity facts, fully captured matches, available and catch-up room, every core required numeric family, explicit-zero/null separation, invalid bounds, and a combined optimistic-capacity attack. The cross-stage monthly-capacity invariant remains enforced.
 
 **Final HIGH-severity remediation complete — pending independent clean audit.**
+
+## Latest independent-audit remediation (checkpoint `3185577e1919123c4c41766fa41b2ae1dffaf6db`)
+
+- **P5-FA-01 — cross-stage retirement legal capacity.** One authoritative derived ledger now coordinates verified legal room by account, owner, and supported shared statutory group. Consumption order is one-time concrete account contribution, Secure employer-match payroll contribution, then Build account routing. Account and group invariants prevent those claims from exceeding original verified room, with catch-up tracked separately. Build leaves projection shortfall visible but does not emit generic actionable retirement dollars without a known legal destination. Ambiguous capacity remains `more_information_needed`.
+- **P5-FA-02 — strict required numbers.** Validation and normalization share `parseStrictNumber`. Finite numbers and plain trimmed decimal strings are supported; whitespace, booleans, arrays, objects, numeric junk, formatted currency, and nonfinite values fail validation. Malformed outflows therefore cannot become synthetic zero or create fake capacity.
+- **P5-FA-03 — Secure shuffle invariance.** Employer-match ties end in stable account ID. High-interest debt is APR descending then debt ID. Promotional/special debt is expiration ascending, effective APR descending, then debt ID; contextual and unknown debt paths also end in debt ID. Regression tests compare entity-level destinations across permutations of all authoritative collections.
+- **P5-FA-04 — goal schema parity.** Ordinary raw goals require a positive target and enforce `0 <= coreNeedAmount <= targetAmount` when core need is present. Explicit Home/Vehicle hypothetical reruns remain supported without weakening the authoritative raw-input contract.
+
+No migration required. These findings were calculation/runtime defects; the persisted goal constraints were already correct.
+
+Verification at implementation time: 608 calculation tests passed, 5 security-contract tests passed, production dependency audit found 0 vulnerabilities, typecheck passed, lint passed with one pre-existing warning and no errors, and the production build passed. Foundation CI evidence is recorded against the final commit after publication.
+
+**Phase 5 final audit remediation complete — pending independent clean audit.**

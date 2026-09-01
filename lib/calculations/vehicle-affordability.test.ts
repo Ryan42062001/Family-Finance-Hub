@@ -209,6 +209,7 @@ test("material retirement allocation displacement caps affordability at stretch"
   raw.retirementAccounts = [{
     id: "retirement-1", owner_person_id: "person-1", name: "401(k)", account_type: "401k", balance: 0,
     monthly_employee_contribution: 0, monthly_employer_contribution: 0,
+    employee_contributed_ytd: 0, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 180000,
     full_match_employee_contribution_monthly: 0, match_status: "fully_captured",
   }];
   const result = evaluateVehicleAffordability(engine(raw), scenario({
