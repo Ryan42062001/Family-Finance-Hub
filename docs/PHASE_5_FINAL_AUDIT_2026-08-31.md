@@ -113,3 +113,14 @@ The corrected ledger is shared by existing-cash deployment, Secure, and Build. W
 No migration required.
 
 Married-family HSA remediation complete — pending independent clean audit.
+
+## HSA household-uncertainty remediation (baseline `9e41c9e61a38a7b3b9ae7b81905b2e003c517815`)
+
+- **P5-FRESH-AUD-02 — household-wide HSA legal structure.** Married-spouse HSA eligibility and coverage are resolved across all HSA accounts before any actionable room is exposed. When an unknown or inconsistent spouse fact could change whether the married-family limit applies, every affected spouse HSA becomes `more_information_needed`. A known spouse therefore cannot receive optimistic independent room while the other spouse's sharing facts are unresolved. Explicit ineligibility remains a known non-sharing state, and two known self-only coverages remain independently modeled. Owner catch-up room, multiple accounts, Existing Cash, Secure, Build, Windfall, Your Plan, affordability reruns, and refresh fingerprints all inherit the same household decision.
+- **P5-FRESH-AUD-03 — exact authoritative annual amounts.** Build now records the exact annual retirement amount consumed from the legal-capacity ledger in addition to its cent-rounded monthly display pace. Recommended Plan and no-override Your Plan use that exact annual amount for capacity accounting. Explicit monthly overrides are still annualized, so a real four-cent excess remains a conflict while display rounding alone does not fabricate one.
+
+Adversarial coverage includes both spouse directions; unknown eligibility and coverage; unknown versus explicit ineligibility; safe known self-only treatment; family coverage; age-55 catch-up; multiple HSAs; Existing Cash, Secure, Build, Windfall, Your Plan, Home/Vehicle, Recommendation Refresh, unrelated IRA routing, collection reordering, and a combined reserve/debt/workplace/IRA/HSA scenario. The known `$8,000/$0` family case remains exactly `$750`.
+
+No migration required.
+
+HSA household-uncertainty remediation complete — pending independent clean audit.

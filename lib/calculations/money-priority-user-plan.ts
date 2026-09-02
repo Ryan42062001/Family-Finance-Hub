@@ -332,8 +332,14 @@ function retirementRoomAnalysis(
         : [`Legal contribution capacity is not verified for retirement account ${allocation.relatedEntityId}.`]));
       continue;
     }
-    const requestedAnnualAmount = roundMoney(allocation.userMonthlyAmount
-      * (allocation.category === "employer_match" ? contributionMonths : 12));
+    const authoritativeEntry = engine.retirementCapacityLedger.entries.find(
+      (item) => item.accountId === allocation.relatedEntityId,
+    );
+    const authoritativeConsumer = allocation.category === "employer_match" ? "secure" : "build";
+    const requestedAnnualAmount = !allocation.isOverridden && authoritativeEntry
+      ? authoritativeEntry.consumed[authoritativeConsumer]
+      : roundMoney(allocation.userMonthlyAmount
+        * (allocation.category === "employer_match" ? contributionMonths : 12));
     const consumption = consumeRetirementCapacity(
       ledger,
       allocation.relatedEntityId,

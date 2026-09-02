@@ -162,10 +162,55 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
     const existing = hsaYtdByOwner.get(account.ownerPersonId);
     hsaYtdByOwner.set(account.ownerPersonId, existing === null || accountYtd === null ? null : roundMoney((existing ?? 0) + accountYtd));
   }
-  const eligibleMarriedHsaOwners = [...new Set(hsaAccounts
-    .filter((account) => account.ownerPersonId && account.hsaEligible === true)
-    .map((account) => account.ownerPersonId as string)
-    .filter((ownerId) => snapshot.people.some((person) => person.id === ownerId && person.isActive && (person.relationship === "self" || person.relationship === "spouse_partner"))))].sort();
+  const marriedHsaOwners = [...new Set(hsaAccounts
+    .map((account) => account.ownerPersonId)
+    .filter((ownerId): ownerId is string => Boolean(ownerId)
+      && snapshot.people.some((person) => person.id === ownerId && person.isActive
+        && (person.relationship === "self" || person.relationship === "spouse_partner"))))].sort();
+  const hsaOwnerFacts = new Map(marriedHsaOwners.map((ownerId) => {
+    const ownerAccounts = hsaAccounts.filter((account) => account.ownerPersonId === ownerId);
+    const eligibilityValues = [...new Set(ownerAccounts.map((account) => account.hsaEligible))];
+    const coverageValues = [...new Set(ownerAccounts.map((account) => account.hsaCoverageType))];
+    const eligibility = eligibilityValues.length === 1 ? eligibilityValues[0] : null;
+    const coverage = coverageValues.length === 1 ? coverageValues[0] : null;
+    return [ownerId, {
+      eligibility,
+      eligibilityKnown: eligibility === true || eligibility === false,
+      coverage,
+      coverageKnown: coverage === "family" || coverage === "self_only",
+    }] as const;
+  }));
+  const marriedPairHsaFacts = marriedHsaOwners.length === 2;
+  const bothKnownSelfOnly = marriedPairHsaFacts && marriedHsaOwners.every((ownerId) => {
+    const facts = hsaOwnerFacts.get(ownerId)!;
+    return facts.coverageKnown && facts.coverage === "self_only";
+  });
+  const knownIneligibleOwner = marriedPairHsaFacts && marriedHsaOwners.some(
+    (ownerId) => hsaOwnerFacts.get(ownerId)?.eligibility === false,
+  );
+  const marriedHsaStructureUnknown = marriedPairHsaFacts && !knownIneligibleOwner && (
+    marriedHsaOwners.some((ownerId) => !hsaOwnerFacts.get(ownerId)?.coverageKnown)
+    || (!bothKnownSelfOnly
+      && marriedHsaOwners.some((ownerId) => !hsaOwnerFacts.get(ownerId)?.eligibilityKnown))
+  );
+  const marriedHsaStructureMissingData = marriedHsaStructureUnknown
+    ? [...new Set(marriedHsaOwners.flatMap((ownerId) => {
+        const facts = hsaOwnerFacts.get(ownerId)!;
+        const ownerLabel = snapshot.people.find((person) => person.id === ownerId)?.displayName
+          || `owner ${ownerId}`;
+        const missing: string[] = [];
+        if (!facts.eligibilityKnown && !bothKnownSelfOnly) {
+          missing.push(`${ownerLabel}'s HSA eligibility is needed to determine whether the married-family contribution limit applies.`);
+        }
+        if (!facts.coverageKnown) {
+          missing.push(`${ownerLabel}'s HSA coverage type is needed to determine the shared married-family contribution limit.`);
+        }
+        return missing;
+      }))].sort()
+    : [];
+  const eligibleMarriedHsaOwners = marriedHsaStructureUnknown ? [] : marriedHsaOwners.filter(
+    (ownerId) => hsaOwnerFacts.get(ownerId)?.eligibility === true,
+  );
   const marriedHsaFamilySharing = eligibleMarriedHsaOwners.length === 2 && hsaAccounts.some((account) => account.hsaEligible === true && account.hsaCoverageType === "family" && account.ownerPersonId && eligibleMarriedHsaOwners.includes(account.ownerPersonId));
   const marriedHsaCatchUpOwners = new Set(eligibleMarriedHsaOwners.filter((ownerId) => {
     const age = ageAtYearEnd(snapshot, ownerId, taxPolicy.taxYear);
@@ -231,6 +276,33 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (!account.hsaCoverageType) missingData.push("HSA coverage type is required to select the annual contribution limit.");
       const ownerYtd = account.ownerPersonId ? (hsaYtdByOwner.get(account.ownerPersonId) ?? null) : null;
       if (ownerYtd === null) missingData.push("Both employee and employer HSA contributions YTD are required for every HSA owned by this person because all HSAs share one contribution limit.");
+      if (marriedHsaStructureUnknown && account.ownerPersonId && marriedHsaOwners.includes(account.ownerPersonId)) {
+        opportunities.push({
+          accountId: account.id, accountName: account.name, accountType: account.type,
+          ownerPersonId: account.ownerPersonId, state: "more_information_needed",
+          annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null,
+          taxEligibility: "unknown", taxDeductibility: "not_applicable",
+          reasons: ["The married household's HSA legal structure must be established before either spouse receives confident actionable contribution room."],
+          missingData: marriedHsaStructureMissingData,
+          sharedCapacityGroup: "hsa:married-family",
+          sharedOrdinaryRemainingRoom: null, ownerCatchUpRemainingRoom: null,
+          hsaCatchUpAttributionVerified: false,
+        });
+        continue;
+      }
+      const ownerFacts = account.ownerPersonId ? hsaOwnerFacts.get(account.ownerPersonId) : undefined;
+      if (ownerFacts && !ownerFacts.eligibilityKnown) {
+        const ownerLabel = owner?.displayName || `owner ${account.ownerPersonId}`;
+        opportunities.push({
+          accountId: account.id, accountName: account.name, accountType: account.type,
+          ownerPersonId: account.ownerPersonId, state: "more_information_needed",
+          annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null,
+          taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [],
+          missingData: [`${ownerLabel}'s HSA eligibility must be consistent across all of that owner's HSA accounts before contribution room can be verified.`],
+          sharedCapacityGroup: `hsa:${account.ownerPersonId}`,
+        });
+        continue;
+      }
       if (account.hsaEligible === false) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "not_eligible", annualLimit: null, contributedYtd: null, remainingAnnualRoom: null, taxEligibility: "none", taxDeductibility: "not_applicable", reasons: ["The household profile marks this account owner as not currently HSA-eligible."], missingData: [] }); continue; }
       if (missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData }); continue; }
       const baseLimit = account.hsaCoverageType === "family" ? taxPolicy.hsaFamilyLimit : account.hsaCoverageType === "self_only" ? taxPolicy.hsaSelfOnlyLimit : null;

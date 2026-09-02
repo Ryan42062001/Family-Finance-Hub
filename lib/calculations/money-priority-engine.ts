@@ -201,7 +201,7 @@ function buildRecommendations(build: BuildStageResult): MoneyPriorityRecommendat
           category: "retirement",
           relatedEntityId: accountAllocation.accountId,
           monthlyAmount: accountAllocation.allocatedMonthlyAmount,
-          annualAmount: roundMoney(accountAllocation.allocatedMonthlyAmount * 12),
+          annualAmount: accountAllocation.allocatedAnnualAmount,
           rationale: [
             ...allocation.reasons,
             "This account-specific amount is backed by the shared retirement legal-capacity ledger.",

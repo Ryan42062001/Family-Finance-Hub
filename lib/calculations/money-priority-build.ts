@@ -90,6 +90,7 @@ export type BuildStageResult = {
     accountId: string;
     opportunityTier: string;
     allocatedMonthlyAmount: number;
+    allocatedAnnualAmount: number;
   }>;
   unresolvedRetirementMonthlyAmount: number;
   goals: GoalFundingAssessment[];
@@ -525,6 +526,7 @@ export function evaluateBuildStage(
       accountId: destination.accountId,
       opportunityTier: destination.opportunityTier!,
       allocatedMonthlyAmount,
+      allocatedAnnualAmount: consumption.consumedAnnualAmount,
     });
     retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
   }
