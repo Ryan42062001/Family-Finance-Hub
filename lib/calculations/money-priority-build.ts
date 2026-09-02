@@ -361,6 +361,7 @@ export function evaluateBuildStage(
     planningAssumptions,
     retirementAccounts,
     capacityLedger,
+    taxPolicy,
   );
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));

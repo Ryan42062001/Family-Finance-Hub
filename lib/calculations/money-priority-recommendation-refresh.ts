@@ -150,7 +150,10 @@ function recommendationBasis(engine: MoneyPriorityEngineResult) {
     },
     retirementFloor: {
       status: engine.build.retirementFloor.status,
+      reportedScheduledContributionAnnual: engine.build.retirementFloor.reportedScheduledContributionAnnual,
       currentRetirementSavingsAnnual: engine.build.retirementFloor.currentRetirementSavingsAnnual,
+      unsupportedScheduledContributionAnnual: engine.build.retirementFloor.unsupportedScheduledContributionAnnual,
+      remainingLegalCapacityAfterScheduledAnnual: engine.build.retirementFloor.remainingLegalCapacityAfterScheduledAnnual,
       projectionRequiredCorrectiveRate: engine.build.retirementFloor.projectionRequiredCorrectiveRate,
       protectedAnnualAmount: engine.build.retirementFloor.protectedAnnualAmount,
       protectedFloorShortfallAnnual: engine.build.retirementFloor.protectedFloorShortfallAnnual,

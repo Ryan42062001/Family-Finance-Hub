@@ -7,6 +7,7 @@ import { allocateWindfall } from "./money-priority-windfall.ts";
 import { evaluateUserPlan } from "./money-priority-user-plan.ts";
 import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { MONEY_PRIORITY_POLICY_V1 } from "./money-priority-policy.ts";
 
 const AS_OF_DATE = "2026-09-01";
 
@@ -96,8 +97,9 @@ test("a generous employer contribution does not make zero employee saving the pr
   raw.retirementAccounts![0].balance = 500000;
   const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.employerContributionAnnual, 18000);
-  assert.equal(floor.employeeSavingGuardrailAnnualAmount, 6000);
-  assert.equal(floor.targetProtectedAnnualAmount, 24000);
+  assert.equal(floor.status, "ahead");
+  assert.equal(floor.employeeSavingGuardrailAnnualAmount, 0);
+  assert.equal(floor.targetProtectedAnnualAmount, 18000);
 });
 
 test("employee workplace, employer, IRA, and long-term HSA components combine exactly", () => {
@@ -190,8 +192,296 @@ test("legal capacity above a satisfied floor remains a separate additional oppor
   const floor = runMoneyPriorityEngine(baseRaw(), AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.protectedFloorShortfallAnnual, 0);
   assert.equal(floor.additionalRetirementOpportunityAnnual,
-    floor.additionalVerifiedLegalCapacityAnnual);
+    floor.remainingLegalCapacityAfterScheduledAnnual);
+  assert.ok(floor.additionalRetirementOpportunityAnnual
+    < floor.additionalVerifiedLegalCapacityAnnual);
   assert.ok(floor.additionalRetirementOpportunityAnnual > 0);
+});
+
+test("unlawful workplace schedule is constrained before projection and cannot create AHEAD", () => {
+  const raw = baseRaw();
+  raw.income![0].monthly_gross_amount = 8333.333333;
+  raw.people![0].estimated_taxable_compensation_annual = 100000;
+  raw.retirementAccounts![0].plan_eligible_compensation_annual = 100000;
+  raw.retirementAccounts![0].balance = 0;
+  raw.retirementAccounts![0].monthly_employee_contribution = 5000;
+  raw.retirementAccounts![0].monthly_employer_contribution = 0;
+  raw.retirementAccounts![0].full_match_employee_contribution_monthly = 0;
+  raw.retirementAccounts![0].match_status = "not_offered";
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.reportedScheduledContributionAnnual, 60000);
+  assert.equal(floor.currentRetirementSavingsAnnual, 24500);
+  assert.equal(floor.projectionAnnualContributionAssumption, 24500);
+  assert.equal(floor.unsupportedScheduledContributionAnnual, 35500);
+  assert.notEqual(floor.status, "ahead");
+  assert.ok(floor.reasonCodes.includes("scheduled_pace_constrained_by_legal_capacity"));
+});
+
+test("lawful remaining workplace schedule reserves room before additional opportunity", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts![0].employee_contributed_ytd = 10000;
+  raw.retirementAccounts![0].employer_contributed_ytd = 2000;
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.scheduledContributionReservedCurrentYear, 6000);
+  assert.equal(floor.additionalVerifiedLegalCapacityAnnual, 14500);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 9500);
+  assert.equal(floor.additionalRetirementOpportunityAnnual, 9500);
+});
+
+test("same-owner Traditional and Roth IRA schedules share prospective capacity", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts = [
+    { id: "traditional", owner_person_id: "p1", name: "Traditional",
+      account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 500,
+      monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+      employer_contributed_ytd: 0, match_status: "not_offered" },
+    { id: "roth", owner_person_id: "p1", name: "Roth", account_type: "roth_ira",
+      balance: 0, monthly_employee_contribution: 500, monthly_employer_contribution: 0,
+      employee_contributed_ytd: 0, employer_contributed_ytd: 0,
+      match_status: "not_offered" },
+  ];
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.reportedScheduledContributionAnnual, 12000);
+  assert.equal(floor.currentRetirementSavingsAnnual, 7500);
+  assert.equal(floor.unsupportedScheduledContributionAnnual, 4500);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 3500);
+});
+
+test("different spouses retain separate prospective IRA limits", () => {
+  const raw = baseRaw();
+  raw.people!.push({ id: "p2", display_name: "Spouse", relationship: "spouse_partner",
+    birth_date: "1990-01-01", planned_retirement_age: 65,
+    estimated_taxable_compensation_annual: 60000,
+    covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false });
+  raw.preferences = { ...raw.preferences, tax_filing_status: "married_filing_jointly" };
+  raw.retirementAccounts = ["p1", "p2"].map((owner, index) => ({
+    id: `ira-${index}`, owner_person_id: owner, name: `IRA ${index}`,
+    account_type: "roth_ira", balance: 0, monthly_employee_contribution: 500,
+    monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0, match_status: "not_offered",
+  }));
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.currentRetirementSavingsAnnual, 12000);
+  assert.equal(floor.unsupportedScheduledContributionAnnual, 0);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 11000);
+});
+
+test("married-family HSA schedules reserve one shared ordinary bucket", () => {
+  const raw = baseRaw();
+  raw.people!.push({ id: "p2", display_name: "Spouse", relationship: "spouse_partner",
+    birth_date: "1990-01-01", planned_retirement_age: 65,
+    estimated_taxable_compensation_annual: 60000,
+    covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false });
+  raw.preferences = { ...raw.preferences, tax_filing_status: "married_filing_jointly" };
+  raw.retirementAccounts = ["p1", "p2"].map((owner, index) => ({
+    id: `hsa-${index}`, owner_person_id: owner, name: `HSA ${index}`, account_type: "hsa",
+    balance: 0, monthly_employee_contribution: 500, monthly_employer_contribution: 0,
+    employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
+    hsa_eligible: true, hsa_coverage_type: "family",
+  }));
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.hsaTotalContributionAnnual, 8750);
+  assert.equal(floor.unsupportedScheduledContributionAnnual, 3250);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 4750);
+});
+
+test("married HSA catch-up schedule remains owner-specific", () => {
+  const raw = baseRaw();
+  raw.people![0].birth_date = "1960-01-01";
+  raw.people!.push({ id: "p2", display_name: "Spouse", relationship: "spouse_partner",
+    birth_date: "1960-01-01", planned_retirement_age: 70,
+    estimated_taxable_compensation_annual: 60000,
+    covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false });
+  raw.preferences = { ...raw.preferences, tax_filing_status: "married_filing_jointly" };
+  raw.retirementAccounts = [
+    { id: "hsa-a", owner_person_id: "p1", name: "HSA A", account_type: "hsa",
+      balance: 0, monthly_employee_contribution: 900, monthly_employer_contribution: 0,
+      employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
+      hsa_eligible: true, hsa_coverage_type: "family" },
+    { id: "hsa-b", owner_person_id: "p2", name: "HSA B", account_type: "hsa",
+      balance: 0, monthly_employee_contribution: 100, monthly_employer_contribution: 0,
+      employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
+      hsa_eligible: true, hsa_coverage_type: "family" },
+  ];
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.hsaTotalContributionAnnual, 10750);
+  assert.equal(floor.unsupportedScheduledContributionAnnual, 1250);
+});
+
+test("direct IRA contribution is removed from incremental take-home feasibility", () => {
+  const raw = baseRaw();
+  raw.income![0].monthly_amount = 5000;
+  raw.expenses![0].monthly_amount = 4000;
+  raw.retirementAccounts = [{ id: "ira", owner_person_id: "p1", name: "IRA",
+    account_type: "traditional_ira", balance: 500000, monthly_employee_contribution: 1000,
+    monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0, match_status: "not_offered" }];
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.directTakeHomeRetirementContributionAnnual, 7500);
+  assert.equal(floor.currentRetirementSavingsAnnual, 7500);
+  assert.equal(floor.protectedAnnualAmount, 7500);
+});
+
+test("employee HSA is conservatively removed from take-home feasibility once", () => {
+  const raw = baseRaw();
+  raw.income![0].monthly_amount = 4500;
+  raw.expenses![0].monthly_amount = 4000;
+  raw.retirementAccounts = [{ id: "hsa", owner_person_id: "p1", name: "HSA",
+    account_type: "hsa", balance: 500000, monthly_employee_contribution: 500,
+    monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0, match_status: "not_offered", hsa_eligible: true,
+    hsa_coverage_type: "family" }];
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.directTakeHomeRetirementContributionAnnual, 6000);
+  assert.equal(floor.protectedAnnualAmount, 6000);
+  assert.equal(floor.hsaEmployeeFundingSourceAssumption, "conservative_take_home");
+});
+
+test("payroll workplace contribution is not subtracted again from take-home capacity", () => {
+  const raw = baseRaw();
+  raw.income![0].monthly_amount = 5000;
+  raw.expenses![0].monthly_amount = 4000;
+  raw.retirementAccounts![0].monthly_employee_contribution = 1000;
+  raw.retirementAccounts![0].monthly_employer_contribution = 0;
+  raw.retirementAccounts![0].balance = 500000;
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.directTakeHomeRetirementContributionAnnual, 0);
+  assert.equal(floor.protectedAnnualAmount, 14400);
+});
+
+test("AHEAD relaxes employee guardrail when employer contributes 20 percent", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts![0].monthly_employee_contribution = 0;
+  raw.retirementAccounts![0].monthly_employer_contribution = 2000;
+  raw.retirementAccounts![0].full_match_employee_contribution_monthly = 0;
+  raw.retirementAccounts![0].match_status = "not_offered";
+  raw.retirementAccounts![0].balance = 500000;
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.status, "ahead");
+  assert.equal(floor.employeeSavingGuardrailAnnualAmount, 0);
+  assert.equal(floor.targetProtectedAnnualAmount, 24000);
+  assert.equal(floor.protectedFloorShortfallAnnual, 0);
+});
+
+test("a six-percent employee match requirement remains protected above the soft guardrail", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts![0].monthly_employee_contribution = 0;
+  raw.retirementAccounts![0].monthly_employer_contribution = 0;
+  raw.retirementAccounts![0].full_match_employee_contribution_monthly = 600;
+  raw.retirementAccounts![0].match_status = "not_fully_captured";
+  raw.retirementAccounts![0].balance = 500000;
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.employerMatchProtectedAnnualAmount, 7200);
+  assert.ok((floor.targetProtectedAnnualAmount ?? 0) >= 7200);
+});
+
+test("corrective protected ceiling is deterministic at 24.99, 25, and 25.01 percent", () => {
+  for (const rate of [0.2499, 0.25, 0.2501]) {
+    const raw = baseRaw();
+    raw.retirementAccounts![0].balance = 0;
+    raw.retirementAccounts![0].monthly_employee_contribution = 0;
+    raw.retirementAccounts![0].monthly_employer_contribution = 0;
+    raw.preferences = { ...raw.preferences, desired_retirement_monthly_spending: 12000 };
+    const policy = structuredClone(MONEY_PRIORITY_POLICY_V1);
+    policy.hybridRetirementFloor.maximumProtectedCorrectiveRate = rate;
+    const floor = runMoneyPriorityEngine(raw, AS_OF_DATE, policy).build.retirementFloor;
+    assert.equal(Number((floor.targetProtectedFloorRate ?? 0).toFixed(4)), rate);
+    assert.ok((floor.projectionRequiredCorrectiveRate ?? 0) > rate);
+  }
+});
+
+test("AHEAD materiality boundaries require every threshold", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts![0].balance = 500000;
+  const baseline = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  const surplus = (baseline.projection.projectedPortfolioAtRetirement ?? 0)
+    - (baseline.projection.targetPortfolio ?? 0);
+  const ratio = surplus / (baseline.projection.targetPortfolio ?? 1);
+  for (const delta of [-0.01, 0, 0.01]) {
+    const policy = structuredClone(MONEY_PRIORITY_POLICY_V1);
+    policy.hybridRetirementFloor.aheadMinimumSurplusAmount = surplus + delta;
+    policy.hybridRetirementFloor.aheadMinimumSurplusRatio = 0;
+    policy.hybridRetirementFloor.aheadMinimumYearsToRetirement = 0;
+    const status = runMoneyPriorityEngine(raw, AS_OF_DATE, policy).build.retirementFloor.status;
+    assert.equal(status, delta <= 0 ? "ahead" : "on_track");
+  }
+  for (const delta of [-0.000001, 0, 0.000001]) {
+    const policy = structuredClone(MONEY_PRIORITY_POLICY_V1);
+    policy.hybridRetirementFloor.aheadMinimumSurplusAmount = 0;
+    policy.hybridRetirementFloor.aheadMinimumSurplusRatio = ratio + delta;
+    policy.hybridRetirementFloor.aheadMinimumYearsToRetirement = 0;
+    const status = runMoneyPriorityEngine(raw, AS_OF_DATE, policy).build.retirementFloor.status;
+    assert.equal(status, delta <= 0 ? "ahead" : "on_track");
+  }
+  for (const threshold of [30, 29, 28]) {
+    const policy = structuredClone(MONEY_PRIORITY_POLICY_V1);
+    policy.hybridRetirementFloor.aheadMinimumSurplusAmount = 0;
+    policy.hybridRetirementFloor.aheadMinimumSurplusRatio = 0;
+    policy.hybridRetirementFloor.aheadMinimumYearsToRetirement = threshold;
+    const status = runMoneyPriorityEngine(raw, AS_OF_DATE, policy).build.retirementFloor.status;
+    assert.equal(status, threshold <= 29 ? "ahead" : "on_track");
+  }
+});
+
+test("HSA spending above contributions never creates negative retirement saving", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts = [{ id: "hsa", owner_person_id: "p1", name: "HSA",
+    account_type: "hsa", balance: 0, monthly_employee_contribution: 300,
+    monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0, match_status: "not_offered", hsa_eligible: true,
+    hsa_coverage_type: "family" }];
+  raw.preferences = { ...raw.preferences, expected_hsa_medical_spending_annual: 5000 };
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.longTermHsaContributionAnnual, 0);
+  assert.equal(floor.currentRetirementSavingsAnnual, 0);
+  assert.ok(floor.projectionAnnualContributionAssumption < 0);
+});
+
+test("null HSA intent with zero HSA contribution is not information-needed", () => {
+  const raw = baseRaw();
+  raw.preferences = { ...raw.preferences, expected_hsa_medical_spending_annual: null };
+  raw.retirementAccounts![0].monthly_employee_contribution = 0;
+  raw.retirementAccounts![0].monthly_employer_contribution = 0;
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.hsaLongTermIntentKnown, true);
+  assert.notEqual(floor.status, "more_information_needed");
+});
+
+test("multiple HSA accounts subtract household medical spending exactly once", () => {
+  const raw = baseRaw();
+  raw.retirementAccounts = ["a", "b"].map((id) => ({ id, owner_person_id: "p1",
+    name: id, account_type: "hsa", balance: 0, monthly_employee_contribution: 200,
+    monthly_employer_contribution: 0, employee_contributed_ytd: 0,
+    employer_contributed_ytd: 0, match_status: "not_offered", hsa_eligible: true,
+    hsa_coverage_type: "family" }));
+  raw.preferences = { ...raw.preferences, expected_hsa_medical_spending_annual: 3000 };
+  const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  assert.equal(floor.hsaTotalContributionAnnual, 4800);
+  assert.equal(floor.longTermHsaContributionAnnual, 1800);
+});
+
+test("spouse HSA contributions share one deterministic household spending intent", () => {
+  const raw = baseRaw();
+  raw.people!.push({ id: "p2", display_name: "Spouse", relationship: "spouse_partner",
+    birth_date: "1990-01-01", planned_retirement_age: 65,
+    estimated_taxable_compensation_annual: 60000,
+    covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false });
+  raw.preferences = { ...raw.preferences, tax_filing_status: "married_filing_jointly",
+    expected_hsa_medical_spending_annual: 3000 };
+  raw.retirementAccounts = ["p1", "p2"].map((owner, index) => ({
+    id: `hsa-${index}`, owner_person_id: owner, name: `HSA ${index}`, account_type: "hsa",
+    balance: 0, monthly_employee_contribution: 200, monthly_employer_contribution: 0,
+    employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
+    hsa_eligible: true, hsa_coverage_type: "family",
+  }));
+  const forward = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
+  const reversed = structuredClone(raw);
+  reversed.people = [...reversed.people!].reverse();
+  reversed.retirementAccounts = [...reversed.retirementAccounts!].reverse();
+  const backward = runMoneyPriorityEngine(reversed, AS_OF_DATE).build.retirementFloor;
+  assert.equal(forward.hsaTotalContributionAnnual, 4800);
+  assert.equal(forward.longTermHsaContributionAnnual, 1800);
+  assert.deepEqual(backward, forward);
 });
 
 test("an extreme corrective rate is exposed but capped by protected and feasible ceilings", () => {
@@ -248,6 +538,19 @@ test("HSA intent changes refresh recommendations while collection reorder remain
   reordered.retirementAccounts = [...reordered.retirementAccounts!].reverse();
   assert.equal(assessRecommendationRefresh(before,
     runMoneyPriorityEngine(reordered, AS_OF_DATE)).state, "current");
+});
+
+test("a scheduled contribution change refreshes sustainable pace and legal opportunity", () => {
+  const raw = baseRaw();
+  const changed = structuredClone(raw);
+  changed.retirementAccounts![0].monthly_employee_contribution = 1000;
+  const before = runMoneyPriorityEngine(raw, AS_OF_DATE);
+  const after = runMoneyPriorityEngine(changed, AS_OF_DATE);
+  assert.notEqual(before.build.retirementFloor.currentRetirementSavingsAnnual,
+    after.build.retirementFloor.currentRetirementSavingsAnnual);
+  assert.notEqual(before.build.retirementFloor.remainingLegalCapacityAfterScheduledAnnual,
+    after.build.retirementFloor.remainingLegalCapacityAfterScheduledAnnual);
+  assert.equal(assessRecommendationRefresh(before, after).state, "materially_changed");
 });
 
 test("Phase 5A does not change existing Build goal competition", () => {

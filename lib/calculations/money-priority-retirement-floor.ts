@@ -5,13 +5,18 @@ import {
   projectRetirement,
   type RetirementProjectionResult,
 } from "./money-priority-retirement-projection.ts";
-import type { RetirementAccountOpportunityResult } from "./money-priority-retirement-accounts.ts";
+import {
+  evaluateRetirementAccountOpportunities,
+  type RetirementAccountOpportunityResult,
+} from "./money-priority-retirement-accounts.ts";
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
+  createRetirementCapacityLedger,
   remainingRetirementCapacity,
   type RetirementCapacityLedger,
 } from "./money-priority-retirement-capacity.ts";
+import type { MoneyPriorityTaxPolicy } from "./money-priority-tax-policy.ts";
 
 export type HybridRetirementStatus = "behind" | "on_track" | "ahead" | "more_information_needed";
 
@@ -21,6 +26,11 @@ export type HybridRetirementFloorResult = {
   normalBaselineRate: number;
   currentRetirementSavingsRate: number | null;
   currentRetirementSavingsAnnual: number;
+  reportedScheduledContributionAnnual: number;
+  unsupportedScheduledContributionAnnual: number;
+  unverifiedScheduledContributionAnnual: number;
+  scheduledContributionReservedCurrentYear: number;
+  remainingLegalCapacityAfterScheduledAnnual: number;
   projectionAnnualContributionAssumption: number;
   employeeWorkplaceContributionAnnual: number;
   employerContributionAnnual: number;
@@ -40,6 +50,8 @@ export type HybridRetirementFloorResult = {
   additionalRetirementOpportunityAnnual: number;
   employerMatchProtectedAnnualAmount: number;
   employeeSavingGuardrailAnnualAmount: number | null;
+  directTakeHomeRetirementContributionAnnual: number;
+  hsaEmployeeFundingSourceAssumption: "conservative_take_home" | "not_applicable";
   structurallyInfeasibleCorrectiveRate: boolean;
   projection: RetirementProjectionResult;
   state: "calculated" | "more_information_needed";
@@ -53,6 +65,144 @@ function roundMoney(value: number): number {
 }
 
 const IRA_TYPES = new Set(["traditional_ira", "roth_ira"]);
+
+type ScheduledReservation = {
+  ledger: RetirementCapacityLedger;
+  requestedAnnual: number;
+  supportedAnnual: number;
+  unsupportedAnnual: number;
+  unverifiedAnnual: number;
+  employeeWorkplaceAnnual: number;
+  employerAnnual: number;
+  iraAnnual: number;
+  hsaEmployeeAnnual: number;
+  hsaEmployerAnnual: number;
+};
+
+function reserveEmployerAnnualAdditions(
+  ledger: RetirementCapacityLedger,
+  accountId: string,
+  requestedAnnual: number,
+): number {
+  const entry = ledger.entries.find((item) => item.accountId === accountId);
+  if (!entry?.verified || requestedAnnual <= 0) return 0;
+  if (entry.annualAdditionsRemainingRoom === null) return requestedAnnual;
+  const supported = roundMoney(Math.min(requestedAnnual, entry.annualAdditionsRemainingRoom));
+  entry.annualAdditionsRemainingRoom = roundMoney(
+    Math.max(0, entry.annualAdditionsRemainingRoom - supported),
+  );
+  if (entry.remainingAnnualRoom !== null) {
+    entry.remainingAnnualRoom = roundMoney(Math.min(
+      entry.remainingAnnualRoom,
+      entry.annualAdditionsRemainingRoom,
+    ));
+    entry.accountSpecificRemainingRoom = entry.remainingAnnualRoom;
+  }
+  return supported;
+}
+
+function reserveScheduledContributions(
+  snapshot: MoneyPrioritySnapshot,
+  ledger: RetirementCapacityLedger,
+  modeledMonths: number,
+): ScheduledReservation {
+  const clone = cloneRetirementCapacityLedger(ledger);
+  const result: ScheduledReservation = {
+    ledger: clone,
+    requestedAnnual: 0,
+    supportedAnnual: 0,
+    unsupportedAnnual: 0,
+    unverifiedAnnual: 0,
+    employeeWorkplaceAnnual: 0,
+    employerAnnual: 0,
+    iraAnnual: 0,
+    hsaEmployeeAnnual: 0,
+    hsaEmployerAnnual: 0,
+  };
+
+  for (const account of [...snapshot.retirementAccounts].sort((a, b) => a.id.localeCompare(b.id))) {
+    const requestedEmployee = roundMoney(account.monthlyEmployeeContribution * modeledMonths);
+    const requestedEmployer = roundMoney(account.monthlyEmployerContribution * modeledMonths);
+    const requested = roundMoney(requestedEmployee + requestedEmployer);
+    if (requested <= 0) continue;
+    result.requestedAnnual = roundMoney(result.requestedAnnual + requested);
+    const entry = clone.entries.find((item) => item.accountId === account.id);
+    if (!entry?.verified) {
+      result.unverifiedAnnual = roundMoney(result.unverifiedAnnual + requested);
+      continue;
+    }
+
+    if (account.type === "hsa") {
+      const supported = consumeRetirementCapacity(
+        clone,
+        account.id,
+        "build",
+        requested,
+      ).consumedAnnualAmount;
+      const supportedEmployer = Math.min(requestedEmployer, supported);
+      const supportedEmployee = roundMoney(Math.max(0, supported - supportedEmployer));
+      result.hsaEmployerAnnual = roundMoney(result.hsaEmployerAnnual + supportedEmployer);
+      result.hsaEmployeeAnnual = roundMoney(result.hsaEmployeeAnnual + supportedEmployee);
+      result.supportedAnnual = roundMoney(result.supportedAnnual + supported);
+      result.unsupportedAnnual = roundMoney(result.unsupportedAnnual + requested - supported);
+      continue;
+    }
+
+    if (account.type === "sep_ira") {
+      const supported = consumeRetirementCapacity(
+        clone,
+        account.id,
+        "build",
+        requestedEmployer,
+      ).consumedAnnualAmount;
+      result.employerAnnual = roundMoney(result.employerAnnual + supported);
+      result.supportedAnnual = roundMoney(result.supportedAnnual + supported);
+      result.unsupportedAnnual = roundMoney(result.unsupportedAnnual + requested - supported);
+      continue;
+    }
+
+    const supportedEmployer = reserveEmployerAnnualAdditions(
+      clone,
+      account.id,
+      requestedEmployer,
+    );
+    const supportedEmployee = consumeRetirementCapacity(
+      clone,
+      account.id,
+      "build",
+      requestedEmployee,
+    ).consumedAnnualAmount;
+    result.employerAnnual = roundMoney(result.employerAnnual + supportedEmployer);
+    if (IRA_TYPES.has(account.type)) {
+      result.iraAnnual = roundMoney(result.iraAnnual + supportedEmployee);
+    } else {
+      result.employeeWorkplaceAnnual = roundMoney(
+        result.employeeWorkplaceAnnual + supportedEmployee,
+      );
+    }
+    const supported = roundMoney(supportedEmployer + supportedEmployee);
+    result.supportedAnnual = roundMoney(result.supportedAnnual + supported);
+    result.unsupportedAnnual = roundMoney(result.unsupportedAnnual + requested - supported);
+  }
+  return result;
+}
+
+function remainingContributionMonths(asOfDate: string, taxYear: number): number {
+  const date = new Date(`${asOfDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
+  return 12 - date.getUTCMonth();
+}
+
+function fullYearCapacitySnapshot(snapshot: MoneyPrioritySnapshot): MoneyPrioritySnapshot {
+  return {
+    ...snapshot,
+    retirementAccounts: snapshot.retirementAccounts.map((account) => ({
+      ...account,
+      employeeContributedYtd: account.employeeContributedYtd === null ? null : 0,
+      employerContributedYtd: account.employerContributedYtd === null ? null : 0,
+    })),
+  };
+}
 
 function availableLegalCapacity(
   opportunities: RetirementAccountOpportunityResult,
@@ -82,20 +232,45 @@ export function evaluateHybridRetirementFloor(
   assumptions: MoneyPriorityPlanningAssumptions,
   opportunities: RetirementAccountOpportunityResult,
   ledger: RetirementCapacityLedger,
+  taxPolicy: MoneyPriorityTaxPolicy,
 ): HybridRetirementFloorResult {
-  const employeeWorkplaceContributionAnnual = roundMoney(snapshot.retirementAccounts
+  const reportedEmployeeWorkplaceContributionAnnual = roundMoney(snapshot.retirementAccounts
     .filter((account) => account.type !== "hsa" && !IRA_TYPES.has(account.type))
     .reduce((sum, account) => sum + account.monthlyEmployeeContribution * 12, 0));
-  const employerContributionAnnual = roundMoney(snapshot.retirementAccounts
+  const reportedEmployerContributionAnnual = roundMoney(snapshot.retirementAccounts
     .filter((account) => account.type !== "hsa")
     .reduce((sum, account) => sum + account.monthlyEmployerContribution * 12, 0));
-  const iraContributionAnnual = roundMoney(snapshot.retirementAccounts
+  const reportedIraContributionAnnual = roundMoney(snapshot.retirementAccounts
     .filter((account) => IRA_TYPES.has(account.type))
     .reduce((sum, account) => sum + account.monthlyEmployeeContribution * 12, 0));
-  const hsaTotalContributionAnnual = roundMoney(snapshot.retirementAccounts
+  const reportedHsaTotalContributionAnnual = roundMoney(snapshot.retirementAccounts
     .filter((account) => account.type === "hsa")
     .reduce((sum, account) => sum
       + (account.monthlyEmployeeContribution + account.monthlyEmployerContribution) * 12, 0));
+  const fullYearSnapshot = fullYearCapacitySnapshot(snapshot);
+  const fullYearOpportunities = evaluateRetirementAccountOpportunities(fullYearSnapshot, taxPolicy);
+  const fullYearReservation = reserveScheduledContributions(
+    fullYearSnapshot,
+    createRetirementCapacityLedger(fullYearOpportunities),
+    12,
+  );
+  const currentYearReservation = reserveScheduledContributions(
+    snapshot,
+    ledger,
+    remainingContributionMonths(asOfDate, opportunities.taxYear),
+  );
+  const employeeWorkplaceContributionAnnual = fullYearReservation.employeeWorkplaceAnnual;
+  const employerContributionAnnual = fullYearReservation.employerAnnual;
+  const iraContributionAnnual = fullYearReservation.iraAnnual;
+  const hsaTotalContributionAnnual = roundMoney(
+    fullYearReservation.hsaEmployeeAnnual + fullYearReservation.hsaEmployerAnnual,
+  );
+  const reportedScheduledContributionAnnual = roundMoney(
+    reportedEmployeeWorkplaceContributionAnnual
+      + reportedEmployerContributionAnnual
+      + reportedIraContributionAnnual
+      + reportedHsaTotalContributionAnnual,
+  );
   const expectedHsaMedicalSpendingAnnual = snapshot.preferences?.expectedHsaMedicalSpendingAnnual ?? null;
   const hsaLongTermIntentKnown = hsaTotalContributionAnnual === 0
     || expectedHsaMedicalSpendingAnnual !== null;
@@ -135,6 +310,9 @@ export function evaluateHybridRetirementFloor(
   if (!hsaLongTermIntentKnown) {
     missingData.push("Expected annual current HSA medical spending is required before HSA contributions can be counted as long-term retirement saving.");
   }
+  if (fullYearReservation.unverifiedAnnual > 0 || currentYearReservation.unverifiedAnnual > 0) {
+    missingData.push("Verified account and shared-group contribution capacity is required before scheduled retirement contributions can be treated as sustainable.");
+  }
 
   const normalRate = policy.hybridRetirementFloor.normalRate;
   const projectedSurplus = projection.targetPortfolio !== null && projection.projectedPortfolioAtRetirement !== null
@@ -172,7 +350,9 @@ export function evaluateHybridRetirementFloor(
     : baseTargetRate;
   const employeeSavingGuardrailAnnualAmount = grossHouseholdIncomeAnnual === null
     ? null
-    : roundMoney(grossHouseholdIncomeAnnual * policy.hybridRetirementFloor.employeeGuardrailRate);
+    : status === "ahead"
+      ? 0
+      : roundMoney(grossHouseholdIncomeAnnual * policy.hybridRetirementFloor.employeeGuardrailRate);
   const employerMatchProtectedAnnualAmount = roundMoney(snapshot.retirementAccounts.reduce(
     (sum, account) => account.matchStatus === "not_offered"
       ? sum
@@ -191,9 +371,16 @@ export function evaluateHybridRetirementFloor(
   const targetProtectedFloorRate = targetProtectedAnnualAmount === null || grossHouseholdIncomeAnnual === null
     ? null
     : targetProtectedAnnualAmount / grossHouseholdIncomeAnnual;
-  const incrementalCashAvailableAnnual = roundMoney(
-    Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings) * 12,
+  const reportedDirectTakeHomeMonthly = roundMoney(snapshot.retirementAccounts
+    .filter((account) => IRA_TYPES.has(account.type) || account.type === "hsa")
+    .reduce((sum, account) => sum + account.monthlyEmployeeContribution, 0));
+  const directTakeHomeRetirementContributionAnnual = roundMoney(
+    fullYearReservation.iraAnnual + fullYearReservation.hsaEmployeeAnnual,
   );
+  const incrementalCashAvailableAnnual = roundMoney(Math.max(
+    0,
+    snapshot.aggregates.monthlyCashFlowBeforeSavings - reportedDirectTakeHomeMonthly,
+  ) * 12);
   const feasibleAnnualCeiling = roundMoney(currentRetirementSavingsAnnual + incrementalCashAvailableAnnual);
   const protectedAnnualAmount = targetProtectedAnnualAmount === null
     ? null
@@ -209,11 +396,15 @@ export function evaluateHybridRetirementFloor(
       || (grossHouseholdIncomeAnnual !== null
         && projectionRequiredCorrectiveRate * grossHouseholdIncomeAnnual > feasibleAnnualCeiling));
   const additionalVerifiedLegalCapacityAnnual = availableLegalCapacity(opportunities, ledger);
+  const remainingLegalCapacityAfterScheduledAnnual = availableLegalCapacity(
+    opportunities,
+    currentYearReservation.ledger,
+  );
   const additionalRetirementOpportunityAnnual = missingData.length || protectedFloorShortfallAnnual === null
     ? 0
     : roundMoney(Math.max(
         0,
-        additionalVerifiedLegalCapacityAnnual - protectedFloorShortfallAnnual,
+        remainingLegalCapacityAfterScheduledAnnual - protectedFloorShortfallAnnual,
       ));
 
   const reasonCodes = [
@@ -222,6 +413,9 @@ export function evaluateHybridRetirementFloor(
     status === "ahead" ? "durable_projection_surplus" : null,
     status === "more_information_needed" ? "material_retirement_floor_input_missing" : null,
     structurallyInfeasibleCorrectiveRate ? "corrective_rate_exceeds_protected_or_feasible_ceiling" : null,
+    fullYearReservation.unsupportedAnnual > 0 ? "scheduled_pace_constrained_by_legal_capacity" : null,
+    currentYearReservation.supportedAnnual > 0 ? "scheduled_contributions_reserve_current_year_room" : null,
+    fullYearReservation.hsaEmployeeAnnual > 0 ? "hsa_employee_funding_source_conservatively_treated_as_take_home" : null,
     employerMatchProtectedAnnualAmount > 0 ? "employer_match_protected" : null,
     additionalRetirementOpportunityAnnual > 0 ? "legal_opportunity_above_floor" : null,
   ].filter((value): value is string => Boolean(value));
@@ -239,6 +433,14 @@ export function evaluateHybridRetirementFloor(
     normalBaselineRate: normalRate,
     currentRetirementSavingsRate,
     currentRetirementSavingsAnnual,
+    reportedScheduledContributionAnnual,
+    unsupportedScheduledContributionAnnual: fullYearReservation.unsupportedAnnual,
+    unverifiedScheduledContributionAnnual: roundMoney(Math.max(
+      fullYearReservation.unverifiedAnnual,
+      currentYearReservation.unverifiedAnnual,
+    )),
+    scheduledContributionReservedCurrentYear: currentYearReservation.supportedAnnual,
+    remainingLegalCapacityAfterScheduledAnnual,
     projectionAnnualContributionAssumption,
     employeeWorkplaceContributionAnnual,
     employerContributionAnnual,
@@ -258,6 +460,10 @@ export function evaluateHybridRetirementFloor(
     additionalRetirementOpportunityAnnual,
     employerMatchProtectedAnnualAmount,
     employeeSavingGuardrailAnnualAmount,
+    directTakeHomeRetirementContributionAnnual,
+    hsaEmployeeFundingSourceAssumption: fullYearReservation.hsaEmployeeAnnual > 0
+      ? "conservative_take_home"
+      : "not_applicable",
     structurallyInfeasibleCorrectiveRate,
     projection,
     state: missingData.length ? "more_information_needed" : "calculated",
