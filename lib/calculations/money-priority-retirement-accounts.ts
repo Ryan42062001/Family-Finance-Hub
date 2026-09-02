@@ -28,6 +28,9 @@ export type RetirementAccountOpportunity = {
   catchUpAmount?: number;
   catchUpMustBeRoth?: boolean | null;
   sharedCapacityGroup?: string | null;
+  sharedOrdinaryRemainingRoom?: number | null;
+  ownerCatchUpRemainingRoom?: number | null;
+  hsaCatchUpAttributionVerified?: boolean;
   annualAdditionsLimit?: number | null;
   annualAdditionsYtd?: number | null;
   compensationLimitApplied?: number | null;
@@ -164,11 +167,30 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
     .map((account) => account.ownerPersonId as string)
     .filter((ownerId) => snapshot.people.some((person) => person.id === ownerId && person.isActive && (person.relationship === "self" || person.relationship === "spouse_partner"))))].sort();
   const marriedHsaFamilySharing = eligibleMarriedHsaOwners.length === 2 && hsaAccounts.some((account) => account.hsaEligible === true && account.hsaCoverageType === "family" && account.ownerPersonId && eligibleMarriedHsaOwners.includes(account.ownerPersonId));
-  const hsaBaseLimitByOwner = new Map<string, number>();
-  if (marriedHsaFamilySharing) {
-    const equalShare = roundMoney(taxPolicy.hsaFamilyLimit / 2);
-    for (const ownerId of eligibleMarriedHsaOwners) hsaBaseLimitByOwner.set(ownerId, equalShare);
-  }
+  const marriedHsaCatchUpOwners = new Set(eligibleMarriedHsaOwners.filter((ownerId) => {
+    const age = ageAtYearEnd(snapshot, ownerId, taxPolicy.taxYear);
+    return age !== null && age >= 55;
+  }));
+  const marriedHsaYtdKnown = marriedHsaFamilySharing
+    && eligibleMarriedHsaOwners.every((ownerId) => hsaYtdByOwner.get(ownerId) !== null
+      && hsaYtdByOwner.get(ownerId) !== undefined);
+  const marriedHsaTotalYtd = marriedHsaYtdKnown
+    ? roundMoney(eligibleMarriedHsaOwners.reduce(
+        (sum, ownerId) => sum + (hsaYtdByOwner.get(ownerId) ?? 0),
+        0,
+      ))
+    : null;
+  const marriedHsaCatchUpAttributionAmbiguous = marriedHsaYtdKnown
+    && [...marriedHsaCatchUpOwners].some((ownerId) => (hsaYtdByOwner.get(ownerId) ?? 0) > 0);
+  const marriedHsaMaximum = roundMoney(
+    taxPolicy.hsaFamilyLimit + marriedHsaCatchUpOwners.size * taxPolicy.hsaCatchUpAge55,
+  );
+  const marriedHsaCertainlyOverLimit = marriedHsaTotalYtd !== null
+    && marriedHsaTotalYtd > marriedHsaMaximum;
+  const marriedHsaSharedOrdinaryRemaining = marriedHsaTotalYtd === null
+    || marriedHsaCatchUpAttributionAmbiguous
+    ? null
+    : roundMoney(Math.max(0, taxPolicy.hsaFamilyLimit - marriedHsaTotalYtd));
 
   const iraAccounts = snapshot.retirementAccounts.filter((item) => item.type === "traditional_ira" || item.type === "roth_ira");
   const iraYtdByOwner = new Map<string, number | null>();
@@ -211,13 +233,77 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (ownerYtd === null) missingData.push("Both employee and employer HSA contributions YTD are required for every HSA owned by this person because all HSAs share one contribution limit.");
       if (account.hsaEligible === false) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "not_eligible", annualLimit: null, contributedYtd: null, remainingAnnualRoom: null, taxEligibility: "none", taxDeductibility: "not_applicable", reasons: ["The household profile marks this account owner as not currently HSA-eligible."], missingData: [] }); continue; }
       if (missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData }); continue; }
-      let baseLimit = account.hsaCoverageType === "family" ? taxPolicy.hsaFamilyLimit : account.hsaCoverageType === "self_only" ? taxPolicy.hsaSelfOnlyLimit : null;
+      const baseLimit = account.hsaCoverageType === "family" ? taxPolicy.hsaFamilyLimit : account.hsaCoverageType === "self_only" ? taxPolicy.hsaSelfOnlyLimit : null;
       if (baseLimit === null) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: null, contributedYtd: ownerYtd, remainingAnnualRoom: null, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: [], missingData: ["HSA coverage type must be self_only or family."] }); continue; }
-      if (account.ownerPersonId && hsaBaseLimitByOwner.has(account.ownerPersonId)) baseLimit = hsaBaseLimitByOwner.get(account.ownerPersonId)!;
-      const annualLimit = roundMoney(baseLimit + (age !== null && age >= 55 ? taxPolicy.hsaCatchUpAge55 : 0));
       const contributedYtd = roundMoney(ownerYtd!);
+      if (marriedHsaFamilySharing && account.ownerPersonId) {
+        const catchUpEligible = marriedHsaCatchUpOwners.has(account.ownerPersonId);
+        const catchUpAmountForOwner = catchUpEligible ? taxPolicy.hsaCatchUpAge55 : 0;
+        const annualLimit = roundMoney(taxPolicy.hsaFamilyLimit + catchUpAmountForOwner);
+        const sharedReason = "Married eligible spouses share one couple-wide family HSA ordinary limit. Aggregate employee and employer HSA contributions YTD reduce that shared limit regardless of which spouse's HSA received them.";
+        if (!marriedHsaYtdKnown) {
+          const attributionMissing = "Employee and employer HSA contributions YTD are required for every HSA owned by both spouses before shared family capacity can be verified.";
+          opportunities.push({
+            accountId: account.id, accountName: account.name, accountType: account.type,
+            ownerPersonId: account.ownerPersonId, state: "more_information_needed",
+            annualLimit, contributedYtd, remainingAnnualRoom: null, taxEligibility: "unknown",
+            taxDeductibility: "not_applicable", reasons: [sharedReason],
+            missingData: [attributionMissing], catchUpEligible,
+            catchUpAmount: catchUpAmountForOwner, sharedCapacityGroup: "hsa:married-family",
+            sharedOrdinaryRemainingRoom: null, ownerCatchUpRemainingRoom: null,
+            hsaCatchUpAttributionVerified: false,
+          });
+          continue;
+        }
+        if (marriedHsaCertainlyOverLimit) {
+          opportunities.push({
+            accountId: account.id, accountName: account.name, accountType: account.type,
+            ownerPersonId: account.ownerPersonId, state: "limit_reached", annualLimit,
+            contributedYtd, remainingAnnualRoom: 0, taxEligibility: "full",
+            taxDeductibility: "not_applicable",
+            reasons: [sharedReason, `Aggregate spouse HSA contributions YTD exceed the supported family ordinary limit plus all age-55 catch-up limits by $${roundMoney(marriedHsaTotalYtd! - marriedHsaMaximum).toFixed(2)}; no additional contribution is recommended.`],
+            missingData: [], catchUpEligible, catchUpAmount: catchUpAmountForOwner,
+            sharedCapacityGroup: "hsa:married-family", sharedOrdinaryRemainingRoom: 0,
+            ownerCatchUpRemainingRoom: 0, hsaCatchUpAttributionVerified: true,
+          });
+          continue;
+        }
+        if (marriedHsaCatchUpAttributionAmbiguous) {
+          const attributionMissing = "Existing HSA contributions for an age-55-eligible spouse are not identified as ordinary family contributions versus owner-specific catch-up contributions. Confirm that attribution before recommending additional HSA dollars.";
+          opportunities.push({
+            accountId: account.id, accountName: account.name, accountType: account.type,
+            ownerPersonId: account.ownerPersonId, state: "more_information_needed",
+            annualLimit, contributedYtd, remainingAnnualRoom: null, taxEligibility: "unknown",
+            taxDeductibility: "not_applicable", reasons: [sharedReason,
+              "Each spouse's age-55 catch-up is owner-specific and can be contributed only to that spouse's HSA."],
+            missingData: [attributionMissing], catchUpEligible,
+            catchUpAmount: catchUpAmountForOwner, sharedCapacityGroup: "hsa:married-family",
+            sharedOrdinaryRemainingRoom: null, ownerCatchUpRemainingRoom: null,
+            hsaCatchUpAttributionVerified: false,
+          });
+          continue;
+        }
+        const ownerCatchUpRemainingRoom = catchUpAmountForOwner;
+        const remainingAnnualRoom = roundMoney(
+          (marriedHsaSharedOrdinaryRemaining ?? 0) + ownerCatchUpRemainingRoom,
+        );
+        opportunities.push({
+          accountId: account.id, accountName: account.name, accountType: account.type,
+          ownerPersonId: account.ownerPersonId,
+          state: remainingAnnualRoom > 0 ? "available" : "limit_reached",
+          annualLimit, contributedYtd, remainingAnnualRoom, taxEligibility: "full",
+          taxDeductibility: "not_applicable", reasons: [sharedReason,
+            "Each spouse's age-55 catch-up is tracked separately and can be consumed only through that spouse's HSA."],
+          missingData: [], catchUpEligible, catchUpAmount: catchUpAmountForOwner,
+          sharedCapacityGroup: "hsa:married-family",
+          sharedOrdinaryRemainingRoom: marriedHsaSharedOrdinaryRemaining,
+          ownerCatchUpRemainingRoom, hsaCatchUpAttributionVerified: true,
+        });
+        continue;
+      }
+      const annualLimit = roundMoney(baseLimit + (age !== null && age >= 55 ? taxPolicy.hsaCatchUpAge55 : 0));
       const remainingAnnualRoom = roundMoney(Math.max(0, annualLimit - contributedYtd));
-      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit, contributedYtd, remainingAnnualRoom, taxEligibility: "full", taxDeductibility: "not_applicable", reasons: [marriedHsaFamilySharing && account.ownerPersonId && hsaBaseLimitByOwner.has(account.ownerPersonId) ? "Both eligible spouses share the family HSA base limit; without an explicit different allocation, the statutory default equal split is used. Age-55 catch-up remains person-specific and must go to that spouse's own HSA." : "All HSAs owned by the same person share one annual contribution limit, and employee plus employer contributions are aggregated against that limit."], missingData: [], sharedCapacityGroup: marriedHsaFamilySharing ? "hsa:married-family" : `hsa:${account.ownerPersonId}` }); continue;
+      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit, contributedYtd, remainingAnnualRoom, taxEligibility: "full", taxDeductibility: "not_applicable", reasons: ["All HSAs owned by the same person share one annual contribution limit, and employee plus employer contributions are aggregated against that limit."], missingData: [], sharedCapacityGroup: `hsa:${account.ownerPersonId}` }); continue;
     }
     if (sharedWorkplaceTypes.has(account.type) || account.type === "457b" || account.type === "simple_ira") {
       const missingData: string[] = [];

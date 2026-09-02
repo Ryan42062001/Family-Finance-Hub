@@ -18,6 +18,7 @@ export type RetirementCapacityLedgerEntry = {
   employeeElectiveDeferralRemainingRoom: number | null;
   annualAdditionsRemainingRoom: number | null;
   compensationBasedRemainingRoom: number | null;
+  sharedOrdinaryRemainingRoom: number | null;
   catchUpRemainingRoom: number | null;
   accountSpecificRemainingRoom: number | null;
   consumed: Record<RetirementCapacityConsumer, number>;
@@ -68,6 +69,9 @@ function compensationRoom(opportunity: RetirementAccountOpportunity): number | n
 }
 
 function catchUpRoom(opportunity: RetirementAccountOpportunity): number | null {
+  if (opportunity.ownerCatchUpRemainingRoom !== undefined) {
+    return opportunity.ownerCatchUpRemainingRoom;
+  }
   if (!opportunity.catchUpEligible) return 0;
   if (opportunity.catchUpAmount === null || opportunity.catchUpAmount === undefined) return null;
   if (opportunity.contributedYtd === null) return null;
@@ -85,15 +89,10 @@ function groupOriginalRoom(
 ): number {
   const groupEntries = entries.filter((entry) => entry.sharedCapacityGroup === groupId && entry.verified);
   if (groupId === "hsa:married-family") {
-    const byOwner = new Map<string, number>();
-    for (const entry of groupEntries) {
-      if (!entry.ownerPersonId || entry.originalRemainingAnnualRoom === null) continue;
-      byOwner.set(entry.ownerPersonId, Math.max(
-        byOwner.get(entry.ownerPersonId) ?? 0,
-        entry.originalRemainingAnnualRoom,
-      ));
-    }
-    return roundMoney([...byOwner.values()].reduce((sum, room) => sum + room, 0));
+    return roundMoney(groupEntries.reduce(
+      (largest, entry) => Math.max(largest, entry.sharedOrdinaryRemainingRoom ?? 0),
+      0,
+    ));
   }
   return roundMoney(groupEntries.reduce(
     (largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0),
@@ -129,6 +128,7 @@ export function createRetirementCapacityLedger(
           : null,
         annualAdditionsRemainingRoom: annualAdditionsRoom(opportunity),
         compensationBasedRemainingRoom: compensationRoom(opportunity),
+        sharedOrdinaryRemainingRoom: opportunity.sharedOrdinaryRemainingRoom ?? null,
         catchUpRemainingRoom: catchUpRoom(opportunity),
         accountSpecificRemainingRoom: originalRemainingAnnualRoom,
         consumed: zeroConsumption(),
@@ -143,7 +143,7 @@ export function createRetirementCapacityLedger(
     const originalRemainingAnnualRoom = id.startsWith("hsa-owner:")
       ? roundMoney(entries
           .filter((entry) => entry.ownerCapacityGroup === id && entry.verified)
-          .reduce((largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0), 0))
+          .reduce((largest, entry) => Math.max(largest, entry.catchUpRemainingRoom ?? 0), 0))
       : groupOriginalRoom(id, entries);
     return {
       id,
@@ -196,11 +196,15 @@ export function remainingRetirementCapacity(
   const ownerGroup = entry.ownerCapacityGroup
     ? ledger.groups.find((item) => item.id === entry.ownerCapacityGroup)
     : null;
-  return roundMoney(Math.max(0, Math.min(
-    entry.remainingAnnualRoom,
+  if (entry.sharedCapacityGroup === "hsa:married-family") {
+    const componentRoom = roundMoney(
+      (group?.remainingAnnualRoom ?? 0) + (ownerGroup?.remainingAnnualRoom ?? 0),
+    );
+    return roundMoney(Math.max(0, Math.min(entry.remainingAnnualRoom, componentRoom)));
+  }
+  return roundMoney(Math.max(0, Math.min(entry.remainingAnnualRoom,
     group?.remainingAnnualRoom ?? entry.remainingAnnualRoom,
-    ownerGroup?.remainingAnnualRoom ?? entry.remainingAnnualRoom,
-  )));
+    ownerGroup?.remainingAnnualRoom ?? entry.remainingAnnualRoom)));
 }
 
 function reduceKnownRoom(value: number | null, consumed: number): number | null {
@@ -228,8 +232,16 @@ export function consumeRetirementCapacity(
     };
   }
 
-  const catchUpAvailable = Math.min(entry.catchUpRemainingRoom ?? 0, available);
-  const ordinaryAvailable = Math.max(0, available - catchUpAvailable);
+  const marriedFamilyHsa = entry.sharedCapacityGroup === "hsa:married-family";
+  const sharedGroup = marriedFamilyHsa
+    ? ledger.groups.find((item) => item.id === entry.sharedCapacityGroup)
+    : null;
+  const ownerCatchUpGroup = marriedFamilyHsa && entry.ownerCapacityGroup
+    ? ledger.groups.find((item) => item.id === entry.ownerCapacityGroup)
+    : null;
+  const ordinaryAvailable = marriedFamilyHsa
+    ? Math.min(sharedGroup?.remainingAnnualRoom ?? 0, available)
+    : Math.max(0, available - Math.min(entry.catchUpRemainingRoom ?? 0, available));
   const ordinaryConsumed = Math.min(consumed, ordinaryAvailable);
   const catchUpConsumed = roundMoney(Math.max(0, consumed - ordinaryConsumed));
   entry.remainingAnnualRoom = reduceKnownRoom(entry.remainingAnnualRoom, consumed);
@@ -243,16 +255,41 @@ export function consumeRetirementCapacity(
     ordinaryConsumed,
   );
   entry.compensationBasedRemainingRoom = reduceKnownRoom(entry.compensationBasedRemainingRoom, consumed);
+  entry.sharedOrdinaryRemainingRoom = reduceKnownRoom(
+    entry.sharedOrdinaryRemainingRoom,
+    ordinaryConsumed,
+  );
   entry.catchUpRemainingRoom = reduceKnownRoom(entry.catchUpRemainingRoom, catchUpConsumed);
   entry.accountSpecificRemainingRoom = reduceKnownRoom(entry.accountSpecificRemainingRoom, consumed);
   entry.consumed[consumer] = roundMoney(entry.consumed[consumer] + consumed);
 
-  for (const groupId of [entry.sharedCapacityGroup, entry.ownerCapacityGroup]) {
-    if (!groupId) continue;
-    const group = ledger.groups.find((item) => item.id === groupId);
-    if (group) {
-      group.remainingAnnualRoom = roundMoney(Math.max(0, group.remainingAnnualRoom - consumed));
-      group.consumed[consumer] = roundMoney(group.consumed[consumer] + consumed);
+  if (marriedFamilyHsa) {
+    if (sharedGroup && ordinaryConsumed > 0) {
+      sharedGroup.remainingAnnualRoom = roundMoney(Math.max(
+        0,
+        sharedGroup.remainingAnnualRoom - ordinaryConsumed,
+      ));
+      sharedGroup.consumed[consumer] = roundMoney(
+        sharedGroup.consumed[consumer] + ordinaryConsumed,
+      );
+    }
+    if (ownerCatchUpGroup && catchUpConsumed > 0) {
+      ownerCatchUpGroup.remainingAnnualRoom = roundMoney(Math.max(
+        0,
+        ownerCatchUpGroup.remainingAnnualRoom - catchUpConsumed,
+      ));
+      ownerCatchUpGroup.consumed[consumer] = roundMoney(
+        ownerCatchUpGroup.consumed[consumer] + catchUpConsumed,
+      );
+    }
+  } else {
+    for (const groupId of [entry.sharedCapacityGroup, entry.ownerCapacityGroup]) {
+      if (!groupId) continue;
+      const group = ledger.groups.find((item) => item.id === groupId);
+      if (group) {
+        group.remainingAnnualRoom = roundMoney(Math.max(0, group.remainingAnnualRoom - consumed));
+        group.consumed[consumer] = roundMoney(group.consumed[consumer] + consumed);
+      }
     }
   }
 

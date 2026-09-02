@@ -101,3 +101,15 @@ The adversarial tests include Build-, Secure-, and one-time-exhausted Windfall r
 No migration required.
 
 Fresh final-audit remediation complete — pending independent clean audit.
+
+## Married-family HSA remediation (baseline `3572888d3f411ec9f28b28ab4a61d3684c6b06f2`)
+
+The remaining HIGH finding was rooted in the married-family HSA source capacity. Ordinary family room is now a single couple-wide bucket: the 2026 family base limit minus aggregate known spouse YTD contributions. Uneven contribution histories are never forced into equal halves, and multiple accounts cannot multiply the shared limit.
+
+Age-55 catch-up capacity remains owner-specific and can be routed only to that owner's HSA. The persisted snapshot does not identify which YTD dollars are ordinary versus catch-up. When a catch-up-eligible spouse has positive YTD contributions, the engine therefore returns `more_information_needed` for the ambiguous capacity instead of fabricating ordinary or catch-up room. A certainly over-limit aggregate clamps remaining room to zero and exposes a diagnostic.
+
+The corrected ledger is shared by existing-cash deployment, Secure, and Build. Windfall continues to clone the final ledger, and Your Plan continues to use replacement semantics while evaluating the corrected HSA groups. Direct coverage includes the `$8,000/$0` failure, the uneven-YTD matrix, one and two age-55 spouses, ambiguous attribution, over-limit YTD, multiple HSA accounts, every downstream consumer, and collection permutations.
+
+No migration required.
+
+Married-family HSA remediation complete — pending independent clean audit.

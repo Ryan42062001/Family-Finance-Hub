@@ -41,14 +41,14 @@ test("multiple HSAs owned by one person share one annual contribution limit", ()
   assert.deepEqual(result.map((item) => item.sharedCapacityGroup), ["hsa:self", "hsa:self"]);
 });
 
-test("two eligible spouses with family HSA coverage do not each receive the full family base limit", () => {
+test("two eligible spouses expose one shared family base limit rather than two independent limits", () => {
   const result = evaluateRetirementAccountOpportunities(snapshot([
     { id: "a", owner_person_id: "self", name: "Self HSA", account_type: "hsa", hsa_eligible: true, hsa_coverage_type: "family", employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
     { id: "b", owner_person_id: "spouse", name: "Spouse HSA", account_type: "hsa", hsa_eligible: true, hsa_coverage_type: "family", employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
   ], [person("self", "self"), person("spouse", "spouse_partner")])).opportunities;
 
-  assert.deepEqual(result.map((item) => item.annualLimit), [4375, 4375]);
-  assert.equal(result.reduce((sum, item) => sum + (item.annualLimit ?? 0), 0), 8750);
+  assert.deepEqual(result.map((item) => item.sharedOrdinaryRemainingRoom), [8750, 8750]);
+  assert.deepEqual(result.map((item) => item.ownerCatchUpRemainingRoom), [0, 0]);
   assert.deepEqual(result.map((item) => item.sharedCapacityGroup), ["hsa:married-family", "hsa:married-family"]);
 });
 
@@ -58,8 +58,8 @@ test("married family HSA sharing preserves each age-55 catch-up in that spouse's
     { id: "b", owner_person_id: "spouse", name: "Spouse HSA", account_type: "hsa", hsa_eligible: true, hsa_coverage_type: "family", employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
   ], [person("self", "self", "1970-01-01"), person("spouse", "spouse_partner", "1970-01-01")])).opportunities;
 
-  assert.deepEqual(result.map((item) => item.annualLimit), [5375, 5375]);
-  assert.equal(result.reduce((sum, item) => sum + (item.annualLimit ?? 0), 0), 10750);
+  assert.deepEqual(result.map((item) => item.sharedOrdinaryRemainingRoom), [8750, 8750]);
+  assert.deepEqual(result.map((item) => item.ownerCatchUpRemainingRoom), [1000, 1000]);
   assert.deepEqual(result.map((item) => item.catchUpAmount), [1000, 1000]);
 });
 
