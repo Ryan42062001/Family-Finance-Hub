@@ -124,3 +124,10 @@ Adversarial coverage includes both spouse directions; unknown eligibility and co
 No migration required.
 
 HSA household-uncertainty remediation complete — pending independent clean audit.
+
+## Low follow-up closure
+
+- The Your Plan regression suite now distinguishes the rounded `$729.17` display of an exact `$8,750.00` authoritative annual HSA allocation from an explicit user override of `$729.17` per month. The no-override path remains conflict-free; the explicit override requests `$8,750.04` annually and reports the real `$0.04` legal-capacity excess without mutating Recommended Plan.
+- The current HSA data boundary is explicit: eligibility and coverage facts come from recorded HSA retirement-account records, so household resolution covers represented HSA participants/accounts. No HSA record is not treated as known ineligibility, no facts are invented for an unrepresented spouse, and complete authoritative results depend on the snapshot containing all relevant HSA participant facts. Independent person-level HSA eligibility/coverage persistence remains future scope.
+
+No production calculation or database migration was required for these LOW test/documentation follow-ups.

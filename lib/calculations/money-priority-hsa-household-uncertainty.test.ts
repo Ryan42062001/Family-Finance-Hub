@@ -5,7 +5,10 @@ import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
-import { evaluateUserPlan } from "./money-priority-user-plan.ts";
+import {
+  deriveRecommendedPlanAllocations,
+  evaluateUserPlan,
+} from "./money-priority-user-plan.ts";
 import { allocateWindfall } from "./money-priority-windfall.ts";
 import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 import { evaluateHomeAffordability, type HomePurchaseScenario } from "./home-affordability.ts";
@@ -358,4 +361,31 @@ test("no-override Your Plan replays exact authoritative annual room", () => {
   const plan = evaluateUserPlan(engine, []);
   assert.ok(!plan.impacts.some((item) => item.id === "user-plan-retirement-room-conflict"));
   assert.equal(plan.recommendedPlan.totalAllocated, plan.yourPlan.totalAllocated);
+});
+
+test("explicit $729.17 HSA override annualizes to a real $0.04 room conflict", () => {
+  const engine = runMoneyPriorityEngine(raw([
+    { id: "hsa-a", owner: "a", eligible: true, coverage: "family" },
+    { id: "hsa-b", owner: "b", eligible: true, coverage: "family" },
+  ]), AS_OF_DATE);
+  const before = structuredClone(engine);
+  const allocation = deriveRecommendedPlanAllocations(engine)
+    .find((item) => item.category === "retirement");
+  assert.ok(allocation);
+  assert.equal(allocation.recommendedMonthlyAmount, 729.17);
+
+  const plan = evaluateUserPlan(engine, [{
+    allocationId: allocation.allocationId,
+    monthlyAmount: 729.17,
+  }]);
+  const conflict = plan.impacts.find(
+    (item) => item.id === "user-plan-retirement-room-conflict",
+  )?.retirement?.contributionRoomConflict;
+
+  assert.equal(plan.overrides.active.length, 1);
+  assert.equal(plan.yourPlan.allocations.find(
+    (item) => item.allocationId === allocation.allocationId,
+  )?.userMonthlyAmount, 729.17);
+  assert.equal(conflict, 0.04);
+  assert.deepEqual(engine, before);
 });
