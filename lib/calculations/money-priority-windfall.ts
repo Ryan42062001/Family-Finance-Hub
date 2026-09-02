@@ -3,6 +3,12 @@ import { assessDebtAction } from "./money-priority-core.ts";
 import type { MoneyPriorityEngineResult } from "./money-priority-engine.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { buildResidualNeedsSnapshot } from "./money-priority-residual-needs.ts";
+import {
+  cloneRetirementCapacityLedger,
+  consumeRetirementCapacity,
+  remainingRetirementCapacity,
+  retirementCapacityInvariantHolds,
+} from "./money-priority-retirement-capacity.ts";
 
 export const WINDFALL_POLICY_VERSION = "2026.1";
 
@@ -127,6 +133,10 @@ export function allocateWindfall(
   const deployableAmount = uncertainTax ? 0 : afterKnownReservations;
   let remaining = deployableAmount;
   const allocations: WindfallAllocation[] = [];
+  // Windfall is a post-engine one-time consumer. It starts from an immutable
+  // clone of the final authoritative ledger, where existing cash, Secure, and
+  // Build have already consumed their account and shared-group capacity.
+  const retirementCapacityLedger = cloneRetirementCapacityLedger(engine.retirementCapacityLedger);
   const residualSnapshot = buildResidualNeedsSnapshot(engine.snapshot, engine.residualNeeds);
   const debtRemaining = new Map(residualSnapshot.debts.map((debt) => [debt.id, debt.balance]));
   const goalRemaining = new Map(residualSnapshot.goals.map((goal) => [goal.id, roundMoney(Math.max(0, goal.targetAmount - goal.currentAmount))]));
@@ -194,35 +204,35 @@ export function allocateWindfall(
   ]);
   const directOpportunities = engine.build.retirementAccounts.opportunities
     .filter((item) => item.state === "available" && directTypes.has(item.accountType)
-      && item.contributionSource !== "employer" && (item.remainingAnnualRoom ?? 0) > 0)
+      && item.contributionSource !== "employer"
+      && (remainingRetirementCapacity(retirementCapacityLedger, item.accountId) ?? 0) > 0)
     .sort((a, b) => (opportunityOrder.get(a.opportunityTier ?? "") ?? 99) - (opportunityOrder.get(b.opportunityTier ?? "") ?? 99)
       || a.accountId.localeCompare(b.accountId));
-  const roomByGroup = new Map<string, number>();
-  for (const item of directOpportunities) {
-    const key = item.sharedCapacityGroup ?? `account:${item.accountId}`;
-    roomByGroup.set(key, Math.max(roomByGroup.get(key) ?? 0, item.remainingAnnualRoom ?? 0));
-  }
-  let priorCatchUp = engine.residualNeeds.retirementCatchUpApplied;
-  for (const key of [...roomByGroup.keys()].sort()) {
-    const room = roomByGroup.get(key) ?? 0;
-    const consumed = Math.min(room, priorCatchUp);
-    roomByGroup.set(key, roundMoney(room - consumed));
-    priorCatchUp = roundMoney(priorCatchUp - consumed);
-  }
+  // Existing-cash retirement funding still reduces the modeled planning need,
+  // but it is never used as a proxy for legal room. The cloned ledger carries
+  // the exact account/group consumption.
   let retirementNeed = roundMoney(Math.max(0,
     engine.build.retirement.recommendedMonthlyIncrease * policy.existingCash.retirementCatchUpMonths
       - engine.residualNeeds.retirementCatchUpApplied,
   ));
   for (const opportunity of directOpportunities) {
     if (remaining <= 0 || retirementNeed <= 0) break;
-    const key = opportunity.sharedCapacityGroup ?? `account:${opportunity.accountId}`;
-    const room = roomByGroup.get(key) ?? 0;
-    const requested = Math.min(retirementNeed, room);
+    const room = remainingRetirementCapacity(retirementCapacityLedger, opportunity.accountId);
+    if (room === null || room <= 0) continue;
+    const requested = Math.min(retirementNeed, room, remaining);
+    const consumption = consumeRetirementCapacity(
+      retirementCapacityLedger,
+      opportunity.accountId,
+      "windfall",
+      requested,
+    );
     const amount = deploy("retirement", "retirement", opportunity.accountId,
-      `Use the windfall for ${opportunity.accountName}`, requested,
+      `Use the windfall for ${opportunity.accountName}`, consumption.consumedAnnualAmount,
       [...opportunity.reasons, `This is a modeled direct one-time contribution destination in the ${opportunity.opportunityTier} tier.`]);
     retirementNeed = roundMoney(retirementNeed - amount);
-    roomByGroup.set(key, roundMoney(room - amount));
+  }
+  if (!retirementCapacityInvariantHolds(retirementCapacityLedger)) {
+    throw new Error("Windfall retirement legal-capacity invariant failed.");
   }
   if (retirementNeed > 0 && engine.build.retirement.recommendedMonthlyIncrease > 0) {
     warnings.push(`$${retirementNeed.toFixed(2)} of modeled one-time retirement need has no known direct legal destination.`);

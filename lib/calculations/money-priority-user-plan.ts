@@ -1,6 +1,10 @@
 import type { MoneyPriorityEngineResult, MoneyPriorityRecommendation } from "./money-priority-engine.ts";
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { projectRetirement, type RetirementProjectionResult } from "./money-priority-retirement-projection.ts";
+import {
+  consumeRetirementCapacity,
+  createRetirementCapacityLedger,
+} from "./money-priority-retirement-capacity.ts";
 
 export type MoneyPlanOverride = {
   allocationId: string;
@@ -54,6 +58,18 @@ export type RetirementPlanImpact = {
   recommendedProjection: RetirementProjectionResult | null;
   userProjection: RetirementProjectionResult | null;
   contributionRoomConflict: number;
+  contributionCapacityKnown: boolean;
+  contributionCapacityMissingData: string[];
+};
+
+export type UserPlanAdditionalRetirementContribution = {
+  accountId: string;
+  annualAmount: number;
+  source: "windfall" | "other";
+};
+
+export type UserPlanEvaluationOptions = {
+  additionalRetirementContributions?: readonly UserPlanAdditionalRetirementContribution[];
 };
 
 export type UserPlanImpact = {
@@ -263,17 +279,99 @@ function debtImpact(
   };
 }
 
-function retirementRoomConflict(
+type RetirementRoomAnalysis = {
+  conflictAmount: number;
+  capacityKnown: boolean;
+  missingData: string[];
+};
+
+function remainingContributionMonths(asOfDate: string, taxYear: number): number {
+  const date = new Date(`${asOfDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
+  return 12 - date.getUTCMonth();
+}
+
+function retirementRoomAnalysis(
   engine: MoneyPriorityEngineResult,
-  userRetirementMonthly: number,
-): number {
-  const knownRoom = engine.build.retirementAccounts.opportunities
-    .filter((item) => item.state === "available" && item.remainingAnnualRoom !== null)
-    .reduce((sum, item) => sum + Math.max(0, item.remainingAnnualRoom ?? 0), 0);
-  const hasKnownOpportunity = engine.build.retirementAccounts.opportunities
-    .some((item) => item.state === "available" && item.remainingAnnualRoom !== null);
-  if (!hasKnownOpportunity) return 0;
-  return roundMoney(Math.max(0, userRetirementMonthly * 12 - knownRoom));
+  allocations: readonly UserPlanAllocation[],
+  options: UserPlanEvaluationOptions,
+): RetirementRoomAnalysis {
+  // Your Plan amounts replace the corresponding Recommended Plan amounts. Start
+  // from original verified room, retain fixed one-time use, then route the user
+  // Secure/Build amounts through the same account/shared-group ledger model.
+  const ledger = createRetirementCapacityLedger(engine.build.retirementAccounts);
+  for (const finalEntry of [...engine.retirementCapacityLedger.entries]
+    .sort((a, b) => a.accountId.localeCompare(b.accountId))) {
+    consumeRetirementCapacity(
+      ledger,
+      finalEntry.accountId,
+      "one_time",
+      finalEntry.consumed.one_time,
+    );
+  }
+
+  const missingData: string[] = [];
+  let conflictAmount = 0;
+  const contributionMonths = remainingContributionMonths(engine.asOfDate, ledger.taxYear);
+  const employeeAllocations = allocations
+    .filter((item) => (item.category === "employer_match" || item.category === "retirement")
+      && item.userMonthlyAmount > 0)
+    .sort((a, b) => (a.category === "employer_match" ? 0 : 1) - (b.category === "employer_match" ? 0 : 1)
+      || (a.relatedEntityId ?? "").localeCompare(b.relatedEntityId ?? "")
+      || a.allocationId.localeCompare(b.allocationId));
+
+  for (const allocation of employeeAllocations) {
+    if (!allocation.relatedEntityId) {
+      missingData.push(`${allocation.title} needs a concrete retirement account destination before legal capacity can be verified.`);
+      continue;
+    }
+    const entry = ledger.entries.find((item) => item.accountId === allocation.relatedEntityId);
+    if (!entry?.verified || entry.remainingAnnualRoom === null) {
+      missingData.push(...(entry?.informationNeeded.length
+        ? entry.informationNeeded
+        : [`Legal contribution capacity is not verified for retirement account ${allocation.relatedEntityId}.`]));
+      continue;
+    }
+    const requestedAnnualAmount = roundMoney(allocation.userMonthlyAmount
+      * (allocation.category === "employer_match" ? contributionMonths : 12));
+    const consumption = consumeRetirementCapacity(
+      ledger,
+      allocation.relatedEntityId,
+      allocation.category === "employer_match" ? "secure" : "build",
+      requestedAnnualAmount,
+    );
+    conflictAmount = roundMoney(conflictAmount
+      + Math.max(0, requestedAnnualAmount - consumption.consumedAnnualAmount));
+  }
+
+  for (const contribution of [...(options.additionalRetirementContributions ?? [])]
+    .sort((a, b) => a.accountId.localeCompare(b.accountId) || a.source.localeCompare(b.source))) {
+    if (!Number.isFinite(contribution.annualAmount) || contribution.annualAmount < 0) {
+      missingData.push(`Additional ${contribution.source} retirement contribution for ${contribution.accountId} is invalid.`);
+      continue;
+    }
+    const entry = ledger.entries.find((item) => item.accountId === contribution.accountId);
+    if (!entry?.verified || entry.remainingAnnualRoom === null) {
+      missingData.push(...(entry?.informationNeeded.length
+        ? entry.informationNeeded
+        : [`Legal contribution capacity is not verified for retirement account ${contribution.accountId}.`]));
+      continue;
+    }
+    const consumption = consumeRetirementCapacity(
+      ledger,
+      contribution.accountId,
+      "windfall",
+      contribution.annualAmount,
+    );
+    conflictAmount = roundMoney(conflictAmount
+      + Math.max(0, contribution.annualAmount - consumption.consumedAnnualAmount));
+  }
+
+  return {
+    conflictAmount,
+    capacityKnown: missingData.length === 0,
+    missingData: [...new Set(missingData)].sort(),
+  };
 }
 
 function impactSeverityRank(severity: UserPlanImpactSeverity): number {
@@ -283,6 +381,7 @@ function impactSeverityRank(severity: UserPlanImpactSeverity): number {
 export function evaluateUserPlan(
   engine: MoneyPriorityEngineResult,
   overrides: readonly MoneyPlanOverride[],
+  options: UserPlanEvaluationOptions = {},
 ): UserMoneyPlanResult {
   const recommendedAllocations = deriveRecommendedPlanAllocations(engine);
   const allocationById = new Map(recommendedAllocations.map((item) => [item.allocationId, item]));
@@ -397,7 +496,8 @@ export function evaluateUserPlan(
     engine.asOfDate,
     userRetirementMonthly,
   );
-  const roomConflict = retirementRoomConflict(engine, userRetirementMonthly);
+  const roomAnalysis = retirementRoomAnalysis(engine, yourAllocations, options);
+  const roomConflict = roomAnalysis.conflictAmount;
 
   for (const allocation of yourAllocations.filter((item) => item.isOverridden)) {
     const difference = allocation.monthlyDifference;
@@ -458,6 +558,8 @@ export function evaluateUserPlan(
         recommendedProjection,
         userProjection,
         contributionRoomConflict: roomConflict,
+        contributionCapacityKnown: roomAnalysis.capacityKnown,
+        contributionCapacityMissingData: roomAnalysis.missingData,
       };
       if (difference < 0) {
         const worsensToShortfall = recommendedProjection?.state === "on_track"
@@ -510,7 +612,39 @@ export function evaluateUserPlan(
       remainingUnfundedNeed: roomConflict,
       goal: null,
       debt: null,
-      retirement: { recommendedProjection, userProjection, contributionRoomConflict: roomConflict },
+      retirement: {
+        recommendedProjection,
+        userProjection,
+        contributionRoomConflict: roomConflict,
+        contributionCapacityKnown: roomAnalysis.capacityKnown,
+        contributionCapacityMissingData: roomAnalysis.missingData,
+      },
+    });
+    warnings.push(explanation);
+  }
+
+  if (!roomAnalysis.capacityKnown) {
+    const explanation = `Your Plan includes retirement dollars whose legal account capacity cannot be verified: ${roomAnalysis.missingData.join(" ")}`;
+    impacts.push({
+      id: "user-plan-retirement-room-unknown",
+      allocationId: null,
+      category: "retirement",
+      relatedEntityId: null,
+      severity: "high",
+      title: "Retirement contribution capacity needs more information",
+      explanation,
+      monthlyDifference: roundMoney(userRetirementMonthly - recommendedRetirementMonthly),
+      employerMatchShortfall: 0,
+      remainingUnfundedNeed: null,
+      goal: null,
+      debt: null,
+      retirement: {
+        recommendedProjection,
+        userProjection,
+        contributionRoomConflict: roomConflict,
+        contributionCapacityKnown: false,
+        contributionCapacityMissingData: roomAnalysis.missingData,
+      },
     });
     warnings.push(explanation);
   }

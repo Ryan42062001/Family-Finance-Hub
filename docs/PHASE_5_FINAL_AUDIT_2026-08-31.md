@@ -87,3 +87,17 @@ No migration required. These findings were calculation/runtime defects; the pers
 Verification at implementation time: 608 calculation tests passed, 5 security-contract tests passed, production dependency audit found 0 vulnerabilities, typecheck passed, lint passed with one pre-existing warning and no errors, and the production build passed. Foundation CI evidence is recorded against the final commit after publication.
 
 **Phase 5 final audit remediation complete — pending independent clean audit.**
+
+## Fresh final-audit remediation (baseline `dd615405da67bb4a67bf49caec285752669be331`)
+
+The next independent audit identified two HIGH cross-module retirement-capacity gaps and one MEDIUM raw-boundary gap. This focused package preserves the verified core one-time existing-cash → Secure → Build ledger and extends its semantics:
+
+- **P5-FRESH-01 — Windfall final capacity.** Windfall now clones the final authoritative ledger and consumes only remaining verified direct IRA/HSA account and supported shared-group room as the `windfall` consumer. Original opportunity room is not reconstructed. The former scalar cross-group subtraction is removed; `retirementCatchUpApplied` may reduce only the descriptive planning need and never legal capacity. The account/group invariant now covers one-time + Secure + Build + Windfall.
+- **P5-FRESH-02 — Your Plan ledger-aware conflicts.** Your Plan semantics remain replacement, not additive: an override replaces its account-specific Recommended Plan amount. Conflict analysis rebuilds the authoritative ledger model from original verified opportunity room, retains fixed one-time consumption, then routes the complete Your Plan employer-match and Build retirement amounts. IRA, HSA, owner, workplace, compensation, YTD, annual-additions, and catch-up constraints remain coordinated through the ledger. Optional additional current-year contributions permit a combined Windfall/Your Plan analysis. Overrides are preserved, while known excess produces a high-severity warning and unknown capacity produces an information-needed warning.
+- **P5-FRESH-03 — strict booleans.** `parseStrictBoolean` accepts only actual `true`/`false`. Every decision-relevant raw boolean is explicitly nullable or optional-default. Strings, numbers, arrays, objects, and boxed/coercible values fail with structured `invalid_boolean` diagnostics before calculation; nullable absence remains `null`, and only documented optional defaults apply.
+
+The adversarial tests include Build-, Secure-, and one-time-exhausted Windfall room; partial room; multiple IRAs; owner and married-family HSAs; separate groups; catch-up; unknown capacity; large projection shortfall; Your Plan shared-limit, prior-consumption, spouse, employer-match, catch-up, and unknown-capacity cases; a combined existing-cash/Secure/Build/Windfall/Your Plan immutability scenario; and every audited boolean field. The earlier 25 latest-remediation tests and all prior calculation/security tests remain enabled.
+
+No migration required.
+
+Fresh final-audit remediation complete — pending independent clean audit.

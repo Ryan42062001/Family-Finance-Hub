@@ -167,6 +167,9 @@ test("low-rate mortgage is not a mandatory windfall sink", () => {
 
 test("retirement requires modeled need and only direct IRA/HSA destinations", () => {
   const source = raw();
+  // Leave the direct-account room unconsumed by recurring Build so this test
+  // isolates Windfall destination filtering rather than reopening prior room.
+  source.income![0].monthly_amount = 3000;
   source.preferences = { ...source.preferences, desired_retirement_monthly_spending: 5000,
     retirement_spending_basis: "today_dollars", planning_social_security_monthly: 0, planning_pension_monthly: 0 };
   source.retirementAccounts = [

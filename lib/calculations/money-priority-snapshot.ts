@@ -196,7 +196,8 @@ export type MoneyPriorityRawSnapshot = {
 
 export type SnapshotValidationIssue = {
   path: string;
-  code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number" | "missing_required_number" | "missing_id";
+  code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number"
+    | "missing_required_number" | "invalid_boolean" | "missing_required_boolean" | "missing_id";
   message: string;
 };
 
@@ -224,6 +225,14 @@ type NumericFieldRule = {
 export type StrictNumberParseResult =
   | { valid: true; value: number }
   | { valid: false };
+
+export type StrictBooleanParseResult =
+  | { valid: true; value: boolean }
+  | { valid: false };
+
+export function parseStrictBoolean(value: unknown): StrictBooleanParseResult {
+  return typeof value === "boolean" ? { valid: true, value } : { valid: false };
+}
 
 // PostgREST numeric values may arrive as numbers or decimal strings. Deliberate
 // type checking prevents JavaScript coercions such as false -> 0 and [] -> 0.
@@ -304,6 +313,48 @@ const NUMERIC_CONTRACT = {
     { field: "estimated_modified_agi", presence: "nullable", min: 0 },
   ],
 } satisfies Record<string, readonly NumericFieldRule[]>;
+
+type BooleanFieldRule = {
+  field: string;
+  presence: "required" | "nullable" | "optional_default";
+  defaultValue?: boolean;
+};
+
+// Persisted NOT NULL booleans with database defaults remain optional-default at
+// the raw compatibility boundary; explicit values must still be real booleans.
+// Planning facts whose absence means unknown remain nullable and never default.
+const BOOLEAN_CONTRACT = {
+  people: [
+    { field: "covered_by_workplace_retirement_plan", presence: "nullable" },
+    { field: "is_dependent", presence: "optional_default", defaultValue: false },
+    { field: "is_active", presence: "optional_default", defaultValue: true },
+  ],
+  income: [
+    { field: "is_variable", presence: "optional_default", defaultValue: false },
+    { field: "is_active", presence: "optional_default", defaultValue: true },
+  ],
+  expenses: [{ field: "is_essential", presence: "optional_default", defaultValue: true }],
+  debts: [
+    { field: "is_past_due", presence: "optional_default", defaultValue: false },
+    { field: "is_in_collections", presence: "optional_default", defaultValue: false },
+    { field: "has_legal_or_tax_priority", presence: "optional_default", defaultValue: false },
+    { field: "student_loan_strategy_active", presence: "nullable" },
+    { field: "qualified_student_loan_payment_retirement_match_offered", presence: "nullable" },
+  ],
+  retirementAccounts: [
+    { field: "hsa_eligible", presence: "nullable" },
+    { field: "simple_higher_limit_eligible", presence: "nullable" },
+    { field: "roth_catch_up_supported", presence: "nullable" },
+    { field: "sep_compensation_calculation_supported", presence: "nullable" },
+  ],
+  insuranceExposures: [
+    { field: "is_relevant_to_reserve", presence: "optional_default", defaultValue: true },
+  ],
+  preferences: [
+    { field: "known_income_disruption", presence: "optional_default", defaultValue: false },
+    { field: "lived_with_spouse_during_tax_year", presence: "nullable" },
+  ],
+} satisfies Record<string, readonly BooleanFieldRule[]>;
 
 const ENUMS = {
   relationship: ["self", "spouse_partner", "child", "dependent_adult", "other"],
@@ -425,6 +476,38 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   });
   validateRows("insuranceExposures", raw.insuranceExposures ?? []);
   if (raw.preferences) for (const rule of NUMERIC_CONTRACT.preferences) validateNumber(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
+
+  const validateBoolean = (value: unknown, path: string, rule: BooleanFieldRule) => {
+    const missing = value === null || value === undefined;
+    if (missing) {
+      if (rule.presence === "required") {
+        issues.push({ path, code: "missing_required_boolean", message: `${path} is required and must be true or false.` });
+      }
+      return;
+    }
+    if (!parseStrictBoolean(value).valid) {
+      issues.push({ path, code: "invalid_boolean", message: `${path} must be the boolean true or false without coercion.` });
+    }
+  };
+  const validateBooleanRows = (
+    name: keyof Omit<typeof BOOLEAN_CONTRACT, "preferences">,
+    rows: Raw[],
+  ) => rows.forEach((row, index) => {
+    for (const rule of BOOLEAN_CONTRACT[name]) {
+      validateBoolean(row[rule.field], `${name}[${index}].${rule.field}`, rule);
+    }
+  });
+  validateBooleanRows("people", raw.people ?? []);
+  validateBooleanRows("income", raw.income ?? []);
+  validateBooleanRows("expenses", raw.expenses ?? []);
+  validateBooleanRows("debts", raw.debts ?? []);
+  validateBooleanRows("retirementAccounts", raw.retirementAccounts ?? []);
+  validateBooleanRows("insuranceExposures", raw.insuranceExposures ?? []);
+  if (raw.preferences) {
+    for (const rule of BOOLEAN_CONTRACT.preferences) {
+      validateBoolean(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
+    }
+  }
   return issues;
 }
 
@@ -457,11 +540,17 @@ function nullableIsoDate(value: unknown): string | null {
 }
 
 function booleanValue(value: unknown, fallback = false): boolean {
-  return typeof value === "boolean" ? value : fallback;
+  if (value === null || value === undefined) return fallback;
+  const parsed = parseStrictBoolean(value);
+  if (!parsed.valid) throw new Error("Boolean input reached normalization without validation.");
+  return parsed.value;
 }
 
 function nullableBoolean(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
+  if (value === null || value === undefined) return null;
+  const parsed = parseStrictBoolean(value);
+  if (!parsed.valid) throw new Error("Nullable boolean input reached normalization without validation.");
+  return parsed.value;
 }
 
 function normalizeRetirementType(value: unknown): RetirementAccountType {

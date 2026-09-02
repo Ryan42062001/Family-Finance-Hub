@@ -3,7 +3,7 @@ import type {
   RetirementAccountOpportunityResult,
 } from "./money-priority-retirement-accounts.ts";
 
-export type RetirementCapacityConsumer = "one_time" | "secure" | "build";
+export type RetirementCapacityConsumer = "one_time" | "secure" | "build" | "windfall";
 
 export type RetirementCapacityLedgerEntry = {
   accountId: string;
@@ -52,7 +52,7 @@ function roundMoney(value: number): number {
 }
 
 function zeroConsumption(): Record<RetirementCapacityConsumer, number> {
-  return { one_time: 0, secure: 0, build: 0 };
+  return { one_time: 0, secure: 0, build: 0, windfall: 0 };
 }
 
 function annualAdditionsRoom(opportunity: RetirementAccountOpportunity): number | null {
