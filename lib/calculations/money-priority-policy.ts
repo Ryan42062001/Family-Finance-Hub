@@ -48,6 +48,15 @@ export type MoneyPriorityPolicy = {
     wealthBuildingLower: number;
     wealthBuildingUpper: number;
   };
+  hybridRetirementFloor: {
+    normalRate: number;
+    aheadRate: number;
+    employeeGuardrailRate: number;
+    maximumProtectedCorrectiveRate: number;
+    aheadMinimumSurplusRatio: number;
+    aheadMinimumSurplusAmount: number;
+    aheadMinimumYearsToRetirement: number;
+  };
   goalRiskHorizonsMonths: {
     shortTermMax: number;
     mediumTermMax: number;
@@ -56,7 +65,7 @@ export type MoneyPriorityPolicy = {
 };
 
 export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
-  version: "2026.2",
+  version: "2026.3",
   highInterestDebtApr: 0.10,
   payoffFavoredDebtApr: 0.06,
   grayZoneDebtApr: 0.04,
@@ -107,6 +116,15 @@ export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
     healthyUpper: 0.15,
     wealthBuildingLower: 0.20,
     wealthBuildingUpper: 0.25,
+  },
+  hybridRetirementFloor: {
+    normalRate: 0.15,
+    aheadRate: 0.12,
+    employeeGuardrailRate: 0.05,
+    maximumProtectedCorrectiveRate: 0.25,
+    aheadMinimumSurplusRatio: 0.20,
+    aheadMinimumSurplusAmount: 50000,
+    aheadMinimumYearsToRetirement: 10,
   },
   goalRiskHorizonsMonths: {
     shortTermMax: 36,

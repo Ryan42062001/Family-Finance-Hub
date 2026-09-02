@@ -57,7 +57,7 @@ function yearsToHouseholdRetirement(snapshot: MoneyPrioritySnapshot, asOfDate: s
 }
 
 function futureValueOfAnnualContributions(annualContribution: number, rate: number, years: number): number {
-  if (years <= 0 || annualContribution <= 0) return 0;
+  if (years <= 0 || annualContribution === 0) return 0;
   if (rate === 0) return annualContribution * years;
   return annualContribution * ((Math.pow(1 + rate, years) - 1) / rate);
 }
@@ -66,13 +66,14 @@ export function projectRetirement(
   snapshot: MoneyPrioritySnapshot,
   asOfDate: string,
   assumptions: MoneyPriorityPlanningAssumptions = MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1,
+  currentAnnualContributionsOverride?: number,
 ): RetirementProjectionResult {
   if (!parseIsoDate(asOfDate)) throw new Error("asOfDate must be a valid YYYY-MM-DD date.");
 
   const currentRetirementAssets = roundMoney(
     snapshot.retirementAccounts.reduce((sum, account) => sum + account.balance, 0),
   );
-  const currentAnnualContributions = roundMoney(
+  const currentAnnualContributions = roundMoney(currentAnnualContributionsOverride ??
     snapshot.retirementAccounts.reduce(
       (sum, account) => sum + (account.monthlyEmployeeContribution + account.monthlyEmployerContribution) * 12,
       0,

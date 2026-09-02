@@ -153,6 +153,7 @@ export type MoneyPrioritySnapshot = {
     retirementSpendingBasis: string;
     planningSocialSecurityMonthly: number | null;
     planningPensionMonthly: number | null;
+    expectedHsaMedicalSpendingAnnual: number | null;
     taxProfileYear: number | null;
     taxFilingStatus: string | null;
     estimatedModifiedAgi: number | null;
@@ -309,6 +310,7 @@ const NUMERIC_CONTRACT = {
     { field: "desired_retirement_monthly_spending", presence: "nullable", min: 0 },
     { field: "planning_social_security_monthly", presence: "nullable", min: 0 },
     { field: "planning_pension_monthly", presence: "nullable", min: 0 },
+    { field: "expected_hsa_medical_spending_annual", presence: "nullable", min: 0 },
     { field: "tax_profile_year", presence: "nullable", min: 1900, max: 9999, integer: true },
     { field: "estimated_modified_agi", presence: "nullable", min: 0 },
   ],
@@ -716,6 +718,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     retirementSpendingBasis: stringValue(raw.preferences.retirement_spending_basis, "unknown"),
     planningSocialSecurityMonthly: nullableNumber(raw.preferences.planning_social_security_monthly),
     planningPensionMonthly: nullableNumber(raw.preferences.planning_pension_monthly),
+    expectedHsaMedicalSpendingAnnual: nullableNumber(raw.preferences.expected_hsa_medical_spending_annual),
     taxProfileYear: nullableNumber(raw.preferences.tax_profile_year),
     taxFilingStatus: nullableString(raw.preferences.tax_filing_status),
     estimatedModifiedAgi: nullableNumber(raw.preferences.estimated_modified_agi),

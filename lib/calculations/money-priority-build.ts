@@ -21,6 +21,10 @@ import {
   MONEY_PRIORITY_TAX_POLICY_2026,
   type MoneyPriorityTaxPolicy,
 } from "./money-priority-tax-policy.ts";
+import {
+  evaluateHybridRetirementFloor,
+  type HybridRetirementFloorResult,
+} from "./money-priority-retirement-floor.ts";
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
@@ -84,6 +88,7 @@ export type BuildStageResult = {
   protectedMonthlyFundingNeed: number;
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
+  retirementFloor: HybridRetirementFloorResult;
   retirementAccounts: RetirementAccountOpportunityResult;
   retirementCapacityLedger: RetirementCapacityLedger;
   retirementAccountAllocations: Array<{
@@ -349,6 +354,14 @@ export function evaluateBuildStage(
     ?? evaluateRetirementAccountOpportunities(snapshot, taxPolicy);
   const capacityLedger = retirementCapacityLedger
     ?? createRetirementCapacityLedger(retirementAccounts);
+  const retirementFloor = evaluateHybridRetirementFloor(
+    snapshot,
+    asOfDate,
+    policy,
+    planningAssumptions,
+    retirementAccounts,
+    capacityLedger,
+  );
   const goals = assessGoalFunding(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
   const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
@@ -552,6 +565,7 @@ export function evaluateBuildStage(
     protectedMonthlyFundingNeed,
     feasibility,
     retirement,
+    retirementFloor,
     retirementAccounts,
     retirementCapacityLedger: cloneRetirementCapacityLedger(capacityLedger),
     retirementAccountAllocations,

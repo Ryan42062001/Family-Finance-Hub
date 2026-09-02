@@ -131,3 +131,11 @@ HSA household-uncertainty remediation complete — pending independent clean aud
 - The current HSA data boundary is explicit: eligibility and coverage facts come from recorded HSA retirement-account records, so household resolution covers represented HSA participants/accounts. No HSA record is not treated as known ineligibility, no facts are invented for an unrepresented spouse, and complete authoritative results depend on the snapshot containing all relevant HSA participant facts. Independent person-level HSA eligibility/coverage persistence remains future scope.
 
 No production calculation or database migration was required for these LOW test/documentation follow-ups.
+
+## Phase 5A — Hybrid Retirement Floor
+
+Phase 5A introduces an explicit derived retirement-floor assessment alongside, not inside, the coordinated legal-capacity ledger. It classifies the plan as `BEHIND`, `ON_TRACK`, `AHEAD`, or `more_information_needed`; uses a 15% normal gross-income baseline; raises the corrective target for projection shortfalls; applies deterministic durable-surplus thresholds before reducing an AHEAD floor to 12%; protects employer match and an employee-saving guardrail; and separates target, feasible protected, and legal opportunity amounts.
+
+The retirement savings-rate numerator is intent-aware. Workplace employee, non-HSA employer, IRA, and long-term HSA contributions count. Expected current HSA medical spending, persisted as one nullable nonnegative household preference, is excluded. Unknown HSA intent counts no HSA dollars toward the rate and blocks an optimistic AHEAD status. Taxable brokerage contributions, emergency savings, goals, mortgage principal, and general cash savings do not count by default.
+
+One additive migration adds `household_financial_preferences.expected_hsa_medical_spending_annual`; it inherits the table's existing role-aware RLS. Phase 5A does not alter goal competition, Windfall ordering, Your Plan policy, or legal-capacity consumption.

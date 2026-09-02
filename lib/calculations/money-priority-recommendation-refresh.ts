@@ -148,6 +148,16 @@ function recommendationBasis(engine: MoneyPriorityEngineResult) {
       status: engine.feasibility.status,
       planFundingGap: engine.feasibility.status === "funding_gap" ? roundMoney(engine.feasibility.planFundingGap) : 0,
     },
+    retirementFloor: {
+      status: engine.build.retirementFloor.status,
+      currentRetirementSavingsAnnual: engine.build.retirementFloor.currentRetirementSavingsAnnual,
+      projectionRequiredCorrectiveRate: engine.build.retirementFloor.projectionRequiredCorrectiveRate,
+      protectedAnnualAmount: engine.build.retirementFloor.protectedAnnualAmount,
+      protectedFloorShortfallAnnual: engine.build.retirementFloor.protectedFloorShortfallAnnual,
+      additionalRetirementOpportunityAnnual: engine.build.retirementFloor.additionalRetirementOpportunityAnnual,
+      state: engine.build.retirementFloor.state,
+      missingData: engine.build.retirementFloor.missingData,
+    },
   };
 }
 

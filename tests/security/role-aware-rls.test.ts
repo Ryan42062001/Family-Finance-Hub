@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync(new URL("../../supabase/migrations/20260901020220_phase_5_adversarial_audit_remediation.sql", import.meta.url), "utf8");
+const phase5aMigration = readFileSync(new URL("../../supabase/migrations/20260902190000_phase_5a_hybrid_retirement_floor.sql", import.meta.url), "utf8");
+const snapshotLoader = readFileSync(new URL("../../lib/supabase/money-priority-snapshot.ts", import.meta.url), "utf8");
 const financialTables = [
   "accounts", "income_sources", "expenses", "debts", "retirement_accounts", "goals",
   "household_people", "insurance_exposures", "household_financial_preferences",
@@ -44,4 +46,12 @@ test("plan compensation is account-specific, nonnegative, and documented as dist
   assert.match(migration, /alter table public\.retirement_accounts[\s\S]*?plan_eligible_compensation_annual numeric\(14,2\)/i);
   assert.match(migration, /plan_eligible_compensation_annual is null or plan_eligible_compensation_annual >= 0/i);
   assert.match(migration, /distinct from person-wide compensation and prior-year sponsor wages/i);
+});
+
+test("HSA intent preference is nullable, nonnegative, loader-aligned, and inherits existing RLS", () => {
+  assert.match(phase5aMigration, /alter table public\.household_financial_preferences/);
+  assert.match(phase5aMigration, /expected_hsa_medical_spending_annual numeric\(14,2\) null/);
+  assert.match(phase5aMigration, /expected_hsa_medical_spending_annual is null[\s\S]*expected_hsa_medical_spending_annual >= 0/);
+  assert.match(snapshotLoader, /planning_pension_monthly, expected_hsa_medical_spending_annual, tax_profile_year/);
+  assert.doesNotMatch(phase5aMigration, /create policy|drop policy|security definer/i);
 });

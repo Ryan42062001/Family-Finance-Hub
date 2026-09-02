@@ -185,6 +185,7 @@ function snapshotToRaw(snapshot: MoneyPrioritySnapshot): MoneyPriorityRawSnapsho
       retirement_spending_basis: snapshot.preferences.retirementSpendingBasis,
       planning_social_security_monthly: snapshot.preferences.planningSocialSecurityMonthly,
       planning_pension_monthly: snapshot.preferences.planningPensionMonthly,
+      expected_hsa_medical_spending_annual: snapshot.preferences.expectedHsaMedicalSpendingAnnual,
       tax_profile_year: snapshot.preferences.taxProfileYear,
       tax_filing_status: snapshot.preferences.taxFilingStatus,
       estimated_modified_agi: snapshot.preferences.estimatedModifiedAgi,
