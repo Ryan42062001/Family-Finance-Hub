@@ -4,6 +4,7 @@ import test from "node:test";
 
 const migration = readFileSync(new URL("../../supabase/migrations/20260901020220_phase_5_adversarial_audit_remediation.sql", import.meta.url), "utf8");
 const phase5aMigration = readFileSync(new URL("../../supabase/migrations/20260902190000_phase_5a_hybrid_retirement_floor.sql", import.meta.url), "utf8");
+const phase5bMigration = readFileSync(new URL("../../supabase/migrations/20260903134156_phase_5b_goal_intelligence.sql", import.meta.url), "utf8");
 const snapshotLoader = readFileSync(new URL("../../lib/supabase/money-priority-snapshot.ts", import.meta.url), "utf8");
 const financialTables = [
   "accounts", "income_sources", "expenses", "debts", "retirement_accounts", "goals",
@@ -54,4 +55,16 @@ test("HSA intent preference is nullable, nonnegative, loader-aligned, and inheri
   assert.match(phase5aMigration, /expected_hsa_medical_spending_annual is null[\s\S]*expected_hsa_medical_spending_annual >= 0/);
   assert.match(snapshotLoader, /planning_pension_monthly, expected_hsa_medical_spending_annual, tax_profile_year/);
   assert.doesNotMatch(phase5aMigration, /create policy|drop policy|security definer/i);
+});
+
+test("Goal Intelligence metadata is additive, constrained, loader-aligned, and inherits goal RLS", () => {
+  assert.match(phase5bMigration, /alter table public\.goals/);
+  assert.match(phase5bMigration, /goal_intelligence_confirmed boolean not null default false/);
+  assert.match(phase5bMigration, /underlying_need text null/);
+  assert.match(phase5bMigration, /goals_nature_check/);
+  assert.match(phase5bMigration, /goals_underfunding_consequence_check/);
+  assert.match(phase5bMigration, /expected_borrowing_amount is null or expected_borrowing_amount >= 0/);
+  assert.match(phase5bMigration, /expected_borrowing_apr >= 0 and expected_borrowing_apr <= 100/);
+  assert.match(snapshotLoader, /goal_intelligence_confirmed, underlying_need, desired_solution, goal_nature, underfunding_consequence, borrowing_likelihood, expected_borrowing_amount, expected_borrowing_apr/);
+  assert.doesNotMatch(phase5bMigration, /create policy|drop policy|security definer/i);
 });

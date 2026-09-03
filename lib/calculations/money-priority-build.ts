@@ -25,6 +25,10 @@ import {
   evaluateHybridRetirementFloor,
   type HybridRetirementFloorResult,
 } from "./money-priority-retirement-floor.ts";
+import {
+  evaluateGoalIntelligence,
+  type GoalIntelligenceResult,
+} from "./money-priority-goal-intelligence.ts";
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
@@ -99,6 +103,7 @@ export type BuildStageResult = {
   }>;
   unresolvedRetirementMonthlyAmount: number;
   goals: GoalFundingAssessment[];
+  goalIntelligence: GoalIntelligenceResult[];
   allocations: BuildStageAllocation[];
   totalAllocatedMonthly: number;
   remainingMonthlyCapacity: number;
@@ -364,6 +369,7 @@ export function evaluateBuildStage(
     taxPolicy,
   );
   const goals = assessGoalFunding(snapshot, asOfDate);
+  const goalIntelligence = evaluateGoalIntelligence(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
   const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
 
@@ -572,6 +578,7 @@ export function evaluateBuildStage(
     retirementAccountAllocations,
     unresolvedRetirementMonthlyAmount,
     goals,
+    goalIntelligence,
     allocations: requests,
     totalAllocatedMonthly,
     remainingMonthlyCapacity,

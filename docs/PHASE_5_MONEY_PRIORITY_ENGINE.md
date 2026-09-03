@@ -193,6 +193,22 @@ Every scarce Secure sequence terminates in stable entity ID. Employer-match oppo
 
 Ordinary authoritative snapshots require `targetAmount > 0`. A non-null `coreNeedAmount` must be nonnegative and no greater than `targetAmount`; equality is valid. Existing current-amount and priority semantics are unchanged. Home and Vehicle scenario reruns continue through their explicit hypothetical-input pathway; the ordinary raw contract is not weakened for temporary modeling.
 
+### Phase 5B Goal Intelligence
+
+Phase 5B adds a deterministic, derived `goalIntelligence` result alongside the existing Build goal assessment. It explains what a goal represents and what Phase 5C may later use when deciding goal-versus-retirement competition. Phase 5B does **not** replace the existing Build allocator, protect new goal dollars, reduce retirement contributions, accelerate goals, alter Windfall ordering, or change Your Plan policy.
+
+Goal Intelligence separates the underlying household need from the desired solution. Necessity is recorded as Essential, Important, Optional, or unknown evidence; it is never inferred from category. Preservation/restoration is distinguished from improvement/upgrade. A core-need amount, when explicitly known, remains separate from the full desired target, so an essential transportation need does not automatically make every dollar of a luxury vehicle target essential. No category price cap or invented core amount is used.
+
+Deadline flexibility is Fixed, Limited, Flexible, or unknown and remains distinct from necessity. A fixed date on an optional goal does not make it essential. Calendar-month funding periods produce the required monthly pace from the remaining target; funded goals require $0, and past-due unfunded goals are flagged without dividing by zero. Schedule state (`funded`, `on_track`, `behind`, `past_due`, or `more_information_needed`) remains separate from the intelligence priority band.
+
+Concrete underfunding consequences and their explicit Low/Moderate/High/Critical severity provide explainable evidence. Borrowing likelihood, expected amount, and APR produce a debt-exposure signal, but financing amplifies a legitimate need rather than upgrading discretionary spending into an essential goal. Target reasonableness is limited to explicit core-versus-target evidence: equal is `reasonable`, a larger desired target is `potentially_high`, and missing core evidence is `more_information_needed` rather than an appraisal guess.
+
+Goal priority bands are `high`, `medium`, `low`, `discretionary`, and `unclassified`; `protected` remains reserved for existing Secure and retirement protections. Results use lexicographic evidence and stable goal ID as the final tie-break, not a user-facing magic score. Reason codes and explanations expose necessity, flexibility, consequence, preservation/improvement, schedule, debt exposure, and solution/core distinction.
+
+Existing goal rows predate Goal Intelligence input collection. `goal_intelligence_confirmed = false` prevents their historical database defaults from masquerading as confirmed user evidence; they continue to load and retain existing Build behavior while Goal Intelligence remains conservatively unclassified until reviewed. New inputs use nullable facts and strict enum/numeric validation. Goal metadata participates in Recommendation Refresh, survives Home/Vehicle hypothetical reconstruction, and does not consume cash or raid emergency reserves merely to calculate intelligence.
+
+Phase 5C will consume this derived evidence when actual allocation competition is intentionally introduced.
+
 ## Phase 5 closure status
 The planned Phase 5 feature set includes the authoritative priority engine, existing-cash reconciliation, committed expenses, student-loan policy, goal ranking/two-pass Build allocation, advanced retirement-account cases, exceptional emergency reserves, Recommended Plan versus Your Plan, Home and Vehicle affordability with authoritative hypothetical reruns, Windfall Mode, and Material Profile Change / Recommendation Refresh V1.
 

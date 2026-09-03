@@ -161,6 +161,19 @@ function recommendationBasis(engine: MoneyPriorityEngineResult) {
       state: engine.build.retirementFloor.state,
       missingData: engine.build.retirementFloor.missingData,
     },
+    goalIntelligence: engine.build.goalIntelligence.map((goal) => ({
+      goalId: goal.goalId,
+      priorityBand: goal.priorityBand,
+      scheduleState: goal.scheduleState,
+      requiredMonthlyFunding: goal.requiredMonthlyFunding,
+      remainingTargetAmount: goal.remainingTargetAmount,
+      remainingCoreNeedAmount: goal.remainingCoreNeedAmount,
+      consequenceSeverity: goal.consequenceSeverity,
+      debtExposure: goal.debtExposure,
+      targetReasonableness: goal.targetReasonableness,
+      state: goal.state,
+      missingData: goal.missingData,
+    })),
   };
 }
 

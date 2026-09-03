@@ -127,6 +127,14 @@ export type MoneyPrioritySnapshot = {
     consequenceLevel: string;
     plannedMonthlyContribution: number | null;
     coreNeedAmount: number | null;
+    goalIntelligenceConfirmed: boolean;
+    underlyingNeed: string | null;
+    desiredSolution: string | null;
+    goalNature: string | null;
+    underfundingConsequence: string | null;
+    borrowingLikelihood: string | null;
+    expectedBorrowingAmount: number | null;
+    expectedBorrowingApr: number | null;
   }>;
   insuranceExposures: Array<{
     id: string;
@@ -297,6 +305,8 @@ const NUMERIC_CONTRACT = {
     { field: "priority", presence: "required", min: 1, max: 5, integer: true },
     { field: "planned_monthly_contribution", presence: "nullable", min: 0 },
     { field: "core_need_amount", presence: "nullable", min: 0 },
+    { field: "expected_borrowing_amount", presence: "nullable", min: 0 },
+    { field: "expected_borrowing_apr", presence: "nullable", min: 0, max: 100 },
   ],
   insuranceExposures: [
     { field: "deductible_amount", presence: "nullable", min: 0 },
@@ -349,6 +359,9 @@ const BOOLEAN_CONTRACT = {
     { field: "roth_catch_up_supported", presence: "nullable" },
     { field: "sep_compensation_calculation_supported", presence: "nullable" },
   ],
+  goals: [
+    { field: "goal_intelligence_confirmed", presence: "optional_default", defaultValue: false },
+  ],
   insuranceExposures: [
     { field: "is_relevant_to_reserve", presence: "optional_default", defaultValue: true },
   ],
@@ -368,7 +381,10 @@ const ENUMS = {
   goalClass: ["necessary_protective", "major_life_goal", "education", "home_purchase", "lifestyle_optional", "other", "unknown"],
   necessity: ["required", "important", "optional", "unknown"],
   deadlineFlexibility: ["fixed", "somewhat_flexible", "flexible", "unknown"],
-  consequenceLevel: ["high", "moderate", "low", "unknown"],
+  consequenceLevel: ["critical", "high", "moderate", "low", "unknown"],
+  goalNature: ["preservation", "improvement", "mixed", "unknown"],
+  underfundingConsequence: ["safely_delay", "reduce_solution", "inconvenience", "likely_financing", "higher_future_cost", "employment_disruption", "housing_disruption", "health_safety", "caregiving_disruption", "contractual_payment", "other_material", "unknown"],
+  borrowingLikelihood: ["unlikely", "possible", "likely", "unknown"],
   filingStatus: ["single", "head_of_household", "married_filing_jointly", "married_filing_separately"],
   retirementType: ["401k", "403b", "457", "457b", "tsp", "simple_ira", "traditional_ira", "roth_ira", "sep_ira", "hsa", "pension", "other"],
 } as const;
@@ -425,6 +441,9 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   (raw.goals ?? []).forEach((row, index) => {
     enumValue(row.goal_class, ENUMS.goalClass, `goals[${index}].goal_class`); enumValue(row.necessity, ENUMS.necessity, `goals[${index}].necessity`);
     enumValue(row.deadline_flexibility, ENUMS.deadlineFlexibility, `goals[${index}].deadline_flexibility`); enumValue(row.consequence_level, ENUMS.consequenceLevel, `goals[${index}].consequence_level`);
+    enumValue(row.goal_nature, ENUMS.goalNature, `goals[${index}].goal_nature`);
+    enumValue(row.underfunding_consequence, ENUMS.underfundingConsequence, `goals[${index}].underfunding_consequence`);
+    enumValue(row.borrowing_likelihood, ENUMS.borrowingLikelihood, `goals[${index}].borrowing_likelihood`);
   });
   if (raw.preferences) enumValue(raw.preferences.tax_filing_status, ENUMS.filingStatus, "preferences.tax_filing_status");
 
@@ -504,6 +523,7 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   validateBooleanRows("expenses", raw.expenses ?? []);
   validateBooleanRows("debts", raw.debts ?? []);
   validateBooleanRows("retirementAccounts", raw.retirementAccounts ?? []);
+  validateBooleanRows("goals", raw.goals ?? []);
   validateBooleanRows("insuranceExposures", raw.insuranceExposures ?? []);
   if (raw.preferences) {
     for (const rule of BOOLEAN_CONTRACT.preferences) {
@@ -690,6 +710,14 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     consequenceLevel: stringValue(row.consequence_level, "moderate"),
     plannedMonthlyContribution: nullableNumber(row.planned_monthly_contribution),
     coreNeedAmount: nullableNumber(row.core_need_amount),
+    goalIntelligenceConfirmed: booleanValue(row.goal_intelligence_confirmed, false),
+    underlyingNeed: nullableString(row.underlying_need),
+    desiredSolution: nullableString(row.desired_solution),
+    goalNature: nullableString(row.goal_nature),
+    underfundingConsequence: nullableString(row.underfunding_consequence),
+    borrowingLikelihood: nullableString(row.borrowing_likelihood),
+    expectedBorrowingAmount: nullableNumber(row.expected_borrowing_amount),
+    expectedBorrowingApr: nullableNumber(row.expected_borrowing_apr),
   }));
 
   const insuranceExposures = (raw.insuranceExposures ?? []).map((row) => ({

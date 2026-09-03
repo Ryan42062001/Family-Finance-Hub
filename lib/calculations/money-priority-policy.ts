@@ -65,7 +65,7 @@ export type MoneyPriorityPolicy = {
 };
 
 export const MONEY_PRIORITY_POLICY_V1: MoneyPriorityPolicy = {
-  version: "2026.4",
+  version: "2026.5",
   highInterestDebtApr: 0.10,
   payoffFavoredDebtApr: 0.06,
   grayZoneDebtApr: 0.04,

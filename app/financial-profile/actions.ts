@@ -9,6 +9,13 @@ const ACCOUNT_TYPES = ["checking", "savings", "cash", "brokerage", "other_asset"
 const EXPENSE_CATEGORIES = ["housing", "utilities", "groceries", "transportation", "insurance", "healthcare", "childcare", "subscriptions", "personal", "giving", "other"] as const;
 const DEBT_TYPES = ["mortgage", "student_loan", "auto_loan", "credit_card", "personal_loan", "medical", "other"] as const;
 const RETIREMENT_TYPES = ["401k", "403b", "457", "traditional_ira", "roth_ira", "hsa", "pension", "other"] as const;
+const GOAL_CLASSES = ["necessary_protective", "major_life_goal", "education", "home_purchase", "lifestyle_optional", "other", "unknown"] as const;
+const GOAL_NECESSITIES = ["required", "important", "optional", "unknown"] as const;
+const DEADLINE_FLEXIBILITIES = ["fixed", "somewhat_flexible", "flexible", "unknown"] as const;
+const CONSEQUENCE_LEVELS = ["critical", "high", "moderate", "low", "unknown"] as const;
+const GOAL_NATURES = ["preservation", "improvement", "mixed", "unknown"] as const;
+const UNDERFUNDING_CONSEQUENCES = ["safely_delay", "reduce_solution", "inconvenience", "likely_financing", "higher_future_cost", "employment_disruption", "housing_disruption", "health_safety", "caregiving_disruption", "contractual_payment", "other_material", "unknown"] as const;
+const BORROWING_LIKELIHOODS = ["unlikely", "possible", "likely", "unknown"] as const;
 
 function requiredText(formData: FormData, key: string, max = 100) {
   const value = String(formData.get(key) ?? "").trim();
@@ -19,14 +26,33 @@ function requiredText(formData: FormData, key: string, max = 100) {
 function amount(formData: FormData, key: string, { min = 0, required = true } = {}) {
   const raw = String(formData.get(key) ?? "").trim();
   if (!raw && !required) return null;
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) throw new Error(`Invalid ${key}`);
   const value = Number(raw);
   if (!Number.isFinite(value) || value < min || value > 999999999999.99) throw new Error(`Invalid ${key}`);
   return Math.round(value * 100) / 100;
 }
 
+function optionalText(formData: FormData, key: string, max = 500) {
+  const value = String(formData.get(key) ?? "").trim();
+  if (!value) return null;
+  if (value.length > max) throw new Error(`Invalid ${key}`);
+  return value;
+}
+
+function optionalDate(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim();
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)
+    || new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value) {
+    throw new Error(`Invalid ${key}`);
+  }
+  return value;
+}
+
 function percent(formData: FormData, key: string) {
   const raw = String(formData.get(key) ?? "").trim();
   if (!raw) return null;
+  if (!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) throw new Error(`Invalid ${key}`);
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0 || value > 100) throw new Error(`Invalid ${key}`);
   return Math.round(value * 10000) / 10000;
@@ -65,6 +91,35 @@ function priority(formData: FormData) {
   const value = Number(String(formData.get("priority") ?? "3"));
   if (!Number.isInteger(value) || value < 1 || value > 5) throw new Error("Invalid priority");
   return value;
+}
+
+function goalPayload(formData: FormData) {
+  const targetAmount = amount(formData, "target_amount", { min: 0.01 })!;
+  const coreNeedAmount = amount(formData, "core_need_amount", { required: false });
+  if (coreNeedAmount !== null && coreNeedAmount > targetAmount) {
+    throw new Error("Core need amount cannot exceed target amount");
+  }
+  return {
+    name: requiredText(formData, "name"),
+    target_amount: targetAmount,
+    current_amount: amount(formData, "current_amount"),
+    target_date: optionalDate(formData, "target_date"),
+    priority: priority(formData),
+    goal_class: allowed(requiredText(formData, "goal_class", 30), GOAL_CLASSES, "goal class"),
+    necessity: allowed(requiredText(formData, "necessity", 30), GOAL_NECESSITIES, "goal necessity"),
+    deadline_flexibility: allowed(requiredText(formData, "deadline_flexibility", 30), DEADLINE_FLEXIBILITIES, "deadline flexibility"),
+    consequence_level: allowed(requiredText(formData, "consequence_level", 30), CONSEQUENCE_LEVELS, "consequence level"),
+    planned_monthly_contribution: amount(formData, "planned_monthly_contribution", { required: false }),
+    core_need_amount: coreNeedAmount,
+    goal_intelligence_confirmed: true,
+    underlying_need: optionalText(formData, "underlying_need"),
+    desired_solution: optionalText(formData, "desired_solution"),
+    goal_nature: allowed(requiredText(formData, "goal_nature", 30), GOAL_NATURES, "goal nature"),
+    underfunding_consequence: allowed(requiredText(formData, "underfunding_consequence", 40), UNDERFUNDING_CONSEQUENCES, "underfunding consequence"),
+    borrowing_likelihood: allowed(requiredText(formData, "borrowing_likelihood", 20), BORROWING_LIKELIHOODS, "borrowing likelihood"),
+    expected_borrowing_amount: amount(formData, "expected_borrowing_amount", { required: false }),
+    expected_borrowing_apr: percent(formData, "expected_borrowing_apr"),
+  };
 }
 
 export async function addAccount(formData: FormData) {
@@ -114,8 +169,7 @@ export async function addRetirementAccount(formData: FormData) {
 
 export async function addGoal(formData: FormData) {
   const { supabase, householdId } = await context();
-  const targetDate = String(formData.get("target_date") ?? "").trim() || null;
-  const { error } = await supabase.from("goals").insert({ household_id: householdId, name: requiredText(formData, "name"), target_amount: amount(formData, "target_amount", { min: 0.01 }), current_amount: amount(formData, "current_amount"), target_date: targetDate, priority: priority(formData) });
+  const { error } = await supabase.from("goals").insert({ household_id: householdId, ...goalPayload(formData) });
   if (error) throw new Error(error.message);
   done("Goal added.");
 }
@@ -172,8 +226,7 @@ export async function updateRetirementAccount(formData: FormData) {
 export async function updateGoal(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
-  const targetDate = String(formData.get("target_date") ?? "").trim() || null;
-  const { data, error } = await supabase.from("goals").update({ name: requiredText(formData, "name"), target_amount: amount(formData, "target_amount", { min: 0.01 }), current_amount: amount(formData, "current_amount"), target_date: targetDate, priority: priority(formData), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const { data, error } = await supabase.from("goals").update({ ...goalPayload(formData), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Record not found");
   done("Goal updated.");
