@@ -5,6 +5,8 @@ import { evaluateGoalIntelligence } from "./money-priority-goal-intelligence.ts"
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
+import { evaluateHomeAffordability } from "./home-affordability.ts";
+import { evaluateVehicleAffordability } from "./vehicle-affordability.ts";
 
 const AS_OF = "2026-09-01";
 
@@ -254,6 +256,41 @@ test("hypothetical rerun preserves Goal Intelligence metadata", () => {
   const rerun = runHypotheticalMoneyPriorityEngine(before, { completeGoalIds: ["goal"] });
   const completed = rerun.engine.build.goalIntelligence[0];
   assert.equal(completed.coreNeedAmount, 6000); assert.equal(completed.scheduleState, "funded");
+});
+
+test("Home affordability accepts Goal Intelligence without mutating the authoritative plan", () => {
+  const plan = runMoneyPriorityEngine(raw([goal("home-goal")]), AS_OF);
+  const before = structuredClone(plan);
+  const result = evaluateHomeAffordability(plan, {
+    purchasePrice: 300000, downPayment: 60000,
+    mortgage: { rateType: "fixed", interestRate: 4, termYears: 30, arm: null,
+      hasBalloonPayment: false, allowsNegativeAmortization: false },
+    closing: { closingCosts: 8000, prepaidCosts: 2000, initialEscrowDeposit: 2000,
+      earnestMoneyAlreadyPaid: 5000, sellerCredits: 0, lenderCredits: 0, otherCredits: 0 },
+    propertyTaxesAnnual: 6000,
+    insurance: { homeownersAnnual: 1800, floodAnnual: 0, otherRequiredAnnual: 0 },
+    hoaMonthly: 0, mortgageInsurance: { type: "none", monthlyAmount: 0 },
+    monthlyMaintenancePlanningAmount: 300, monthlyUtilityChange: 100,
+    otherMonthlyPropertyCosts: 0, immediateRequiredRepairs: 0, plannedNearTermRepairs: 0,
+    currentHousingMonthlyCost: 4000, currentHousingCostDisappears: true,
+    relatedGoalId: "home-goal", homeSale: null,
+  });
+  assert.ok(result.reasons.some((reason) => reason.includes("hypothetical post-purchase")));
+  assert.deepEqual(plan, before);
+});
+
+test("Vehicle affordability accepts Goal Intelligence without mutating the authoritative plan", () => {
+  const plan = runMoneyPriorityEngine(raw([goal("vehicle-goal")]), AS_OF);
+  const before = structuredClone(plan);
+  const result = evaluateVehicleAffordability(plan, {
+    needType: "planned_replacement", purchasePrice: 20000, tradeInValue: 0,
+    tradeInLoanPayoff: 0, cashDownPayment: 5000, salesTax: 1200,
+    titleRegistrationFees: 300, otherPurchaseFees: 0, loanApr: 3, loanTermMonths: 48,
+    monthlyInsuranceChange: 50, monthlyFuelChange: -20, monthlyMaintenanceChange: 20,
+    monthlyRegistrationTaxChange: 10, monthlyParkingTollsChange: 0,
+  });
+  assert.ok(result.reasons.some((reason) => reason.includes("hypothetical purchase")));
+  assert.deepEqual(plan, before);
 });
 
 test("Phase 5B metadata does not alter existing Build allocation economics", () => {
