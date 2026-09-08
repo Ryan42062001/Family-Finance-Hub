@@ -2,9 +2,11 @@
 
 Family Finance Hub is a private-first household financial planning application designed to help a household understand where it stands and decide what to do with the next dollar.
 
-## Current milestone: v0.3 Dashboard
+## Current status
 
-The application now includes the secure foundation, household financial profile, and completed Phase 3 dashboard:
+`main` contains the completed foundation, financial profile, dashboard, and Phase 4 planning tools. **Phase 5 — Money Priority Engine — is actively in development in PR #5 and is not yet part of the stable `main` baseline.**
+
+The stable application currently includes:
 
 - Next.js + TypeScript application structure
 - Supabase cookie-based authentication
@@ -28,13 +30,19 @@ The application now includes the secure foundation, household financial profile,
 - Goal progress tracking
 - Financial profile completeness guidance
 - Conservative Financial Health Summary that withholds scoring when core data is incomplete
-- Pure dashboard calculation helpers with automated tests in CI
-- Responsive dashboard and empty/partial profile states
+- Paycheck planning
+- Emergency-fund planning
+- Debt payoff planning
+- Mortgage extra-payment planning
+- Savings-goal projections
+- Retirement contribution pacing
+- Pure calculation helpers with automated tests in CI
+- Responsive dashboard and planning states for empty or partial profiles
 - Verified cross-household read and update isolation from the secure foundation
 
 ## Privacy model
 
-Every sensitive financial record belongs to a `household_id`. Access is enforced in Postgres Row Level Security, not merely hidden in the frontend. Server actions derive the current household from the authenticated session and constrain mutations by both record ID and household ID. Dashboard reads remain explicitly constrained to the server-derived authenticated household.
+Every sensitive financial record belongs to a `household_id`. Access is enforced in Postgres Row Level Security, not merely hidden in the frontend. Server actions derive the current household from the authenticated session and constrain mutations by both record ID and household ID. Dashboard and planning reads remain explicitly constrained to the server-derived authenticated household.
 
 Sharing a generic Family Finance Hub link creates a separate private account/workspace by default. Household sharing will only occur through an explicit invitation flow added later.
 
@@ -72,8 +80,9 @@ npm run build
 - `docs/SECURITY_MODEL.md`
 - `docs/SECURITY_TESTS.md`
 - `docs/PHASE_3_DASHBOARD.md`
+- `docs/PHASE_4_PLANNING_TOOLS.md`
 - `docs/PRIORITY_ENGINE.md`
 
-## Next milestone
+## Active milestone
 
-Phase 4 adds planning tools, including the paycheck planner, emergency-fund calculator, debt and mortgage payoff calculators, savings-goal projections, and retirement contribution pacing.
+Phase 5 builds the Money Priority Engine on top of the stable Phase 4 baseline. That work stays isolated on `phase-5-money-priority-engine` until PR #5 is reviewed and merged.
