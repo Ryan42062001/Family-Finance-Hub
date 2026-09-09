@@ -2,85 +2,92 @@
 
 HANDOFF
 
-Task ID: FFH-007
+Task ID: FFH-009
 
 Role: Retirement & Tax-Advantaged Policy Analyst
 
-Status: COMPLETE — READY FOR MANAGER SYNTHESIS WITH FFH-008
+Status: COMPLETE — READY FOR MANAGER SYNTHESIS
 
-Verified starting state: Session refresh verified `phase-5-money-priority-engine` at `71705039f0abf1945202631109975edeb5632920`. Canonical `.ai/shared/PROJECT_STATE.md`, `ROADMAP.md`, `DECISIONS.md`, `WORKFLOW.md`, Manager `ACTIVE_ASSIGNMENTS.md`, this role's prior handoff, FFH-005 Regulatory Research/revalidation, current HSA capacity implementation, snapshot semantics, HSA tests, and persistence migration were read before policy writes. Manager state explicitly assigns FFH-007 and queues FFH-009 with a hard scheduling dependency on FFH-007.
+Verified starting state: Session refresh verified `phase-5-money-priority-engine` at `7dd306e5d4a4e7d254bccbc9613159fe78d7ed1c`. Canonical `.ai/shared/PROJECT_STATE.md`, `.ai/shared/DECISIONS.md`, Manager `ACTIVE_ASSIGNMENTS.md`, prior Retirement handoff, FFH-005 revalidation/R6 research, current IRA capacity implementation, and IRA tests were read before policy writes. Canonical Manager state explicitly assigns FFH-009 as ACTIVE under FFH-PW-003 and limits it to R6 without production code.
 
-Assigned objective: Resolve FFH-005 R3/R4 HSA legal-capacity policy/modeling questions without production code: define safe `hsa_eligible` semantics, partial-year/coverage/Medicare/last-month-rule behavior, targeted uncertainty, married-family ordinary allocation, ordinary-vs-catch-up YTD treatment, spouse catch-up ownership, legacy-record expectations, and scenario acceptance cases. Do not begin FFH-009.
+Assigned objective: Resolve FFH-005 R6 only. Define implementation-ready MFJ spousal-IRA scarce-compensation legal-capacity semantics; distinguish statutory feasible set from deterministic routing; handle actual YTD, multiple IRAs, missing facts, one-time/Build/Windfall/Your Plan consumers, deterministic behavior, and acceptance scenarios; do not write production code.
 
 Work completed:
-- Created `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` as the implementation-ready Retirement Policy recommendation.
-- Defined HSA eligibility/coverage as person-and-tax-year legal facts rather than facts established by account existence.
-- Determined that existing `hsa_eligible` / `hsa_coverage_type` must not silently be interpreted as full-year certification; preferred future semantics keep them as current/as-of or legacy hints while annual legal capacity uses period-aware tax-year facts or an explicit equivalent basis.
-- Defined month/period-aware handling for partial-year eligibility, coverage changes, Medicare effective/retroactive dates, and unknown material months.
-- Defined last-month rule as explicit conditional treatment: never inferred; household may elect to rely on it only within statutory constraints; result must carry testing-period risk rather than masquerading as ordinary full-year eligibility.
-- Adopted the statutory equal married-family ordinary-base allocation as FFH's no-agreement default; an explicit alternate spouse allocation is permitted only within the legal shared base.
-- Replaced R4's blanket historical ordinary-vs-catch-up deposit-label blocker with an owner-ceiling model once spouse ordinary allocation is known: owner ceiling = allocated ordinary base + owner-specific catch-up; owner YTD employee+employer contributions reduce that combined ceiling exactly once.
-- Preserved spouse-specific age-55 catch-up ownership and multiple-HSA/YTD aggregation invariants.
-- Defined targeted `more_information_needed` behavior when period facts, Medicare timing, spouse structure/allocation, or YTD inputs do not establish legal room.
-- Defined conservative legacy policy: preserve balances/YTD/current fields, but do not backfill twelve months of eligibility/coverage from one legacy boolean/current coverage value; legacy rows require reconfirmation before new affirmative legal room is exposed.
-- Defined user-preference boundaries and deterministic behavior.
-- Analyzed 16 acceptance scenarios covering full-year, partial-year, coverage changes, Medicare/retroactivity, last-month rule, married-family allocation/catch-ups, alternate allocation, account absence, multiple HSAs, and legacy records.
-- Did not start or analyze FFH-009 spousal-IRA policy.
+- Created `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`.
+- Defined scarce-compensation MFJ IRA capacity as a legal feasible set plus shared joint-compensation ledger rather than a fixed owner-room split.
+- Preserved the higher-compensation spouse's own-compensation ceiling while allowing the lower-compensation spouse's spousal-IRA capacity to use combined compensation remaining after the other spouse's actual contributions.
+- Defined equal-compensation behavior without inventing a lower/higher spouse.
+- Defined exact YTD consumption semantics and formulas for shared remaining compensation, owner conditional maximum additional room, and household maximum additional IRA compensation capacity.
+- Required conditional owner maxima to be labeled/handled as jointly constrained rather than summed as independent room.
+- Preserved one combined Traditional + Roth annual limit per owner and separate Roth direct-eligibility / Traditional deductibility logic.
+- Defined a shared planning ledger consumed/reserved across actual YTD, authoritative schedules, one-time routing, Build, Windfall, Your Plan, and hypothetical reruns without double counting.
+- Defined recommendation-vs-execution behavior: actual YTD consumes statutory room; active schedules reserve current-plan room; stale recommendations alone do not.
+- Defined order-invariant deterministic routing. Existing approved financial/account routing factors apply first; if spouse IRA routes remain genuinely equivalent, scarce shared capacity is split by equal fulfillment ratio, with stable ID only for unavoidable final-cent remainder.
+- Defined missing-information behavior: do not infer unknown compensation as zero; do not infer spouse YTD = zero solely from absence of an IRA account when shared compensation matters.
+- Defined possible-excess behavior where authoritative YTD already violates individual/shared supported ceilings: no additional room, high-severity warning, no invented correction/tax advice.
+- Preserved the boundary that current compensation fields must not silently be claimed to cover every statutory IRA-compensation category beyond their documented product meaning.
+- Evaluated 20 scenario acceptance cases.
+- No production code, schema, tests, HSA behavior, SIMPLE behavior, or Phase 5C behavior was changed.
 
 Evidence produced:
-- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md`
-- Policy artifact commit: `e0f637fdfa705a2d103bcee23e0f0e2d9bbd2b42`.
-- Repository evidence inspected: `lib/calculations/money-priority-retirement-accounts.ts`, `money-priority-snapshot.ts`, `money-priority-retirement-accounts.test.ts`, `supabase/migrations/20260829223642_phase_5_ownership_and_planning_foundation.sql`, FFH-005 handoff/revalidation, and canonical `.ai` state.
-- Authoritative evidence relied upon through FFH-005: IRS Rev. Proc. 2025-19, Publication 969, 2026 Publication 15-B, and Form 8889 mechanics. Specific HSA mechanics were also rechecked against current IRS Publication 969 / Rev. Proc. 2025-19 during this session; no contrary external fact was found.
+- `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`.
+- Policy artifact commit: `6e6680a968246d53f068809b323b41c944ac6107`.
+- Repository evidence inspected: `.ai/manager/ACTIVE_ASSIGNMENTS.md`, `.ai/shared/PROJECT_STATE.md`, `.ai/shared/DECISIONS.md`, `.ai/research/regulatory/FFH-005_REVALIDATION_ADDENDUM.md`, `lib/calculations/money-priority-retirement-accounts.ts`, and `lib/calculations/money-priority-retirement-accounts.test.ts`.
+- Authoritative external evidence relied upon through FFH-005 and rechecked in current IRS Publication 590-A / IRS 2026 IRA-limit guidance: 2026 IRA $7,500 base limit, $8,600 age-50+ limit, per-person Traditional+Roth combined limit, own-compensation general rule, and Kay Bailey Hutchison spousal-IRA formula based on combined compensation reduced by the other spouse's actual IRA contributions.
 
-Tests / validation actually performed: No production tests were run because FFH-007 is policy/documentation-only and production code was not changed. Validation consisted of repository-state refresh, direct HSA calculation/snapshot/schema/test inspection, consistency review against FFH-005 authoritative findings, 16 policy acceptance scenarios, and current IRS source cross-checking for month-sensitive eligibility, last-month rule/testing period, Medicare retroactivity, married-family equal default, catch-up ownership, and 2026 limits. No code-test or audit pass claim is made.
+Tests / validation actually performed: No production tests were run because FFH-009 is policy/documentation-only. Validation consisted of canonical repository refresh, direct current IRA source/test inspection, formula/ledger analysis, 20 scenario acceptance cases, order-invariance review, and current IRS source cross-checking. No code-test, CI, runtime, or audit pass is claimed for the documentation commits.
 
 Files updated:
-- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` — created.
-- `.ai/policy/retirement/HANDOFF.md` — updated to this FFH-007 handoff.
+- `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md` — created.
+- `.ai/policy/retirement/HANDOFF.md` — updated to this FFH-009 handoff.
 
 Open findings:
-- FFH-008 has not yet persisted its App/Data analysis in `.ai/engineering/app/` at the FFH-007 completion checkpoint, so exact schema/storage/UI choices remain for Manager synthesis after FFH-008.
-- Manager must select the minimum lossless period representation (monthly facts, effective-dated intervals, or equivalent), persistence location for alternate married-family allocation, and legacy reconfirmation UX.
-- Manager may decide whether projected future-month HSA capacity should be displayed distinctly from confirmed/actual-period capacity; the Retirement Policy principle is that projected inputs must be explicit and refreshable, not silently treated as historical facts.
-- R1/R2 remain FFH-006 scope. R6/FFH-009 remains queued and untouched.
+- Manager must decide whether current FFH account-inventory semantics are authoritative enough to treat a spouse with no recorded IRA account as having $0 IRA YTD. Retirement Policy recommends **no** unless an explicit completeness guarantee exists; otherwise scarce shared capacity remains `more_information_needed` until spouse YTD is established.
+- Exact TypeScript output/ledger field names remain Engineering choices. Semantics must preserve owner conditional maxima plus shared compensation rather than collapse back to a sorted-owner split.
+- FFH-005 already notes that statutory IRA compensation includes categories beyond a naive wage-only field. FFH-009 does not widen the current persisted compensation field's meaning; a real data-contract gap discovered during Engineering must be routed rather than guessed.
+- FFH-010 may proceed independently; no HSA files or policy were changed by FFH-009.
 
-Blocking issues: None for completion of FFH-007. HSA production implementation remains blocked until Manager synthesizes FFH-007 with FFH-008 and issues an explicit Engineering task. Phase 5 remains not merge-ready while R1/R2/R3/R6 remediation is incomplete.
+Blocking issues: None for FFH-009 policy completion. R6 remains a Phase 5 merge blocker until Manager approves this policy and a narrow Core Engine remediation is implemented and later audited. This handoff does not authorize production changes.
 
 Unverified items:
-- Exact future persistence/schema/UI representation because FFH-008 is still outstanding.
-- Household-specific HSA plan/coverage facts.
-- No post-FFH-007 CI result is claimed; this task changes documentation only.
+- Whether current product/account-inventory semantics constitute an explicit completeness guarantee for spouse IRA YTD when no account record exists.
+- Household-specific IRA compensation categories not represented by the current supported compensation input.
+- No post-FFH-009 CI result is claimed because the role changed documentation only.
 
-Recommended next role: Manager / Architect after FFH-008 completes. Manager should synthesize the policy and persistence/runtime contract and authorize HSA implementation. Under the current scheduling rule, FFH-009 may be activated for this Retirement Policy role only after this FFH-007 completion is recognized by Manager/canonical assignment state.
+Recommended next role: Manager / Architect.
 
-Exact next action: Manager reads `FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` with FFH-008's eventual handoff, records the approved HSA legal-capacity/data-contract decision, and issues implementation work. Do not infer implementation authorization from this policy handoff alone.
+Exact next action: Manager reviews `FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`, records the durable R6 decision, resolves the narrow no-recorded-IRA/YTD completeness question, and issues a Core Financial Engine remediation task. That Engineering task should replace the sorted-owner compensation allocation with owner + shared-capacity ledgers, preserve existing Roth/Traditional tax logic, and add adversarial scarcity/order-invariance tests.
 
-Checkpoint / SHA: FFH-007 policy artifact commit `e0f637fdfa705a2d103bcee23e0f0e2d9bbd2b42`; this HANDOFF update creates a subsequent documentation-only commit whose exact SHA must be verified after write.
+Checkpoint / SHA: FFH-009 policy artifact commit `6e6680a968246d53f068809b323b41c944ac6107`; this HANDOFF update creates a subsequent documentation-only commit whose exact SHA must be verified after write.
 
 Policy classification:
-- 2026 HSA self-only/family limits, age-55 catch-up ownership, monthly eligibility/coverage, Medicare effects, last-month rule/testing period, employer contribution treatment, married-family equal-default rule: STATUTORY / VERIFIED CURRENT EXTERNAL FACT through FFH-005 authoritative evidence.
-- Historical ordinary-vs-catch-up deposit labeling is not a verified statutory prerequisite: VERIFIED CURRENT EXTERNAL FACT / R4 classification.
-- Person/tax-year period model, current-field semantics, targeted uncertainty, R4 owner-ceiling replacement, legacy handling, deterministic routing boundary: PROPOSED FFH PROJECT POLICY pending Manager approval.
-- Alternate married-family ordinary allocation and explicit last-month-rule reliance: USER-CONFIGURABLE PREFERENCE within statutory constraints.
-- Exact schema/field/UI design: PRODUCT/DATA DESIGN CHOICE for Manager + FFH-008/Engineering.
+- 2026 $7,500 IRA limit / $8,600 age-50+ limit, own-compensation rule, Kay Bailey Hutchison spousal-IRA formula, and no statutory fixed owner-ID split: STATUTORY / VERIFIED CURRENT EXTERNAL FACT through FFH-005 and current IRS evidence.
+- Scarce-compensation feasible-set formulas and shared-capacity consequences: MATHEMATICAL CONSEQUENCE.
+- Conditional-owner-room representation, shared planning ledger, equal-fulfillment true-tie routing, missing-data behavior, and possible-excess warning boundary: PROPOSED FFH PROJECT POLICY pending Manager approval.
+- Existing Roth-vs-Traditional preference: USER-CONFIGURABLE PREFERENCE that may affect routing only inside legal capacity; no new spouse-priority preference is required.
+- Exact code/type/UI representation: PRODUCT/ENGINEERING DESIGN CHOICE subject to the approved semantics.
 
 Retirement invariants established:
-- HSA account existence cannot create person eligibility.
-- Current annual boolean/current coverage cannot silently become twelve-month legal facts.
-- One ordinary married-family base cannot be counted twice.
-- Spouse age-55 catch-ups are owner-specific and nontransferable.
-- Multiple HSAs cannot multiply capacity.
-- Employee and employer contributions consume one legal ceiling and YTD is deducted exactly once.
-- Unknown material period/Medicare/spouse-allocation facts cannot create optimistic room.
-- Legal capacity remains distinct from retirement need, cash-flow capacity, HSA long-term intent, and account routing.
-- Legacy unknowns are not backfilled optimistically.
-- Equivalent facts in different account/order arrangements produce the same legal capacity.
+- no owner-ID statutory priority;
+- both spouses' routed IRA contributions remain inside supported joint compensation where spousal treatment applies;
+- each spouse remains inside the age-appropriate combined Traditional + Roth individual limit;
+- higher-compensation spouse cannot use the spousal rule to exceed own supported compensation;
+- equal compensation does not create an invented lower spouse;
+- actual YTD is consumed exactly once;
+- multiple IRA accounts do not multiply owner room;
+- owner conditional maxima are not additive independent room;
+- schedules/recommendations remain distinct from actual YTD;
+- all current-plan consumers share one owner/shared capacity ledger;
+- unknown compensation/YTD cannot create optimistic room;
+- negative capacity clamps to zero with explicit warning/state;
+- Roth direct eligibility and Traditional deductibility remain separate from compensation capacity;
+- person/account array order cannot change substantive legal capacity;
+- stable ID is only a final-cent routing tie-break, not a legal-capacity rule.
 
-Scenarios evaluated: 16 acceptance scenarios in the FFH-007 artifact.
+Scenarios evaluated: 20 acceptance cases in the FFH-009 policy artifact, including non-scarce capacity, one-earner $10k examples, actual contribution sequencing, higher-spouse own-compensation cap, equal compensation, age-different limits, multiple IRAs, Roth destination constraints, absent spouse account/YTD, missing compensation/YTD, prior recommendations, active schedules, one-time then Build, Windfall cloning, equal-fulfillment routing ties, over-joint-compensation YTD, and higher-spouse own-compensation excess.
 
-External facts relied upon: FFH-005 Regulatory Research/revalidation and its authoritative IRS source set; specific current IRS HSA mechanics were cross-checked in this session.
+External facts relied upon: FFH-005 Regulatory Research/revalidation plus current IRS Publication 590-A and IRS 2026 IRA-limit guidance. No new statutory premise was invented by Retirement Policy.
 
-External facts still required: None for FFH-007 policy completion. Route any newly discovered statutory edge case from FFH-008/Engineering back to Regulatory Research.
+External facts still required: None to complete FFH-009. If Engineering exposes a genuinely unsupported IRA-compensation category or interpretation, route that narrow fact question to Regulatory Research.
 
-Implementation readiness: READY FOR MANAGER SYNTHESIS WITH FFH-008. NOT READY FOR ENGINEERING UNTIL MANAGER APPROVAL.
+Implementation readiness: READY FOR MANAGER SYNTHESIS. AFTER MANAGER APPROVAL, READY FOR A NARROW CORE ENGINE R6 REMEDIATION TASK. NOT PRODUCTION-AUTHORIZED BY THIS HANDOFF ALONE.
