@@ -6,409 +6,440 @@ Task ID: FFH-008
 
 Role: Application, Data & Integration Engineer
 
-Status: COMPLETE — ANALYSIS ONLY / READY FOR MANAGER SYNTHESIS
+Status: COMPLETE — ANALYSIS ONLY / RECONCILED WITH FFH-007 / READY FOR MANAGER SYNTHESIS
 
-Verified starting state: Analysis began after refreshing `phase-5-money-priority-engine` at `71705039f0abf1945202631109975edeb5632920`. During the session the branch advanced to `247af1866490521c69b08ca2fbac3926444730e3`. A direct compare showed the intervening two commits changed only `.ai/manager/HANDOFF.md` and `.ai/shared/PROJECT_STATE.md`; no production, schema, migration, snapshot, application, or HSA calculation files changed. The current Manager assignment still marks FFH-008 `ASSIGNED — ANALYSIS ONLY` and requires Manager synthesis with FFH-007 before any HSA implementation.
+Verified starting state: FFH-008 analysis began after refreshing `phase-5-money-priority-engine` at `71705039f0abf1945202631109975edeb5632920`. During the analysis the branch advanced through Manager/shared documentation. Before the first FFH-008 handoff write, `247af1866490521c69b08ca2fbac3926444730e3` was observed. A concurrent wave then landed FFH-006 production remediation and `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md`; the first FFH-008 handoff commit was `fa5f1223d6fab7208d31b2f09bfaf76682610f28`. A compare from `247af186...` to `fa5f1223...` showed only the FFH-006 retirement-account source/test changes, the FFH-007 policy artifact, and this role-owned handoff. No App/Data production/schema/migration/UI file was modified by FFH-008.
 
-Assigned objective: Map the current HSA persistence/runtime architecture and propose minimum safe data-contract options needed to implement future Manager-approved FFH-007 policy and resolve FFH-005 R3/R4. Do not implement schema, application, UI, migration, or calculation changes.
+Assigned objective: Map the current HSA persistence/runtime architecture and propose minimum safe data-contract options needed to implement Manager-approved FFH-007 policy and resolve FFH-005 R3/R4. Do not implement schema, application, UI, migration, or calculation changes.
 
 ## Work completed
 
-- Refreshed canonical shared state, Manager assignments/handoff, Retirement Policy handoff, Regulatory Research handoff, current branch/head, and relevant repository architecture.
-- Inspected the HSA-relevant Supabase migration history, `household_people`, `retirement_accounts`, household financial preferences, role-aware RLS, financial-profile forms/actions, Supabase snapshot loader, normalized snapshot contract, authoritative retirement-account opportunity logic, HSA capacity ledger-facing behavior, and focused HSA tests.
-- Mapped the exact current HSA data path from persistence through UI/application capture, snapshot loading, normalization, and authoritative legal-capacity calculation.
-- Identified current data ownership/null/default semantics and the mismatch between account-level persistence and person/couple-level legal semantics.
-- Produced technical data-contract options for R3 and R4 without defining HSA financial policy.
-- No production code, schema, migration, UI, HSA behavior, live data, or canonical Manager/shared files were modified.
+- Refreshed canonical project/Manager state and verified FFH-008 is `ASSIGNED — ANALYSIS ONLY` under FFH-PW-002.
+- Inspected HSA-relevant Supabase migrations/schema, person/account ownership, role-aware RLS, financial-profile forms/actions, Supabase snapshot loader, runtime normalization, authoritative HSA legal-capacity calculation, and focused HSA tests.
+- Mapped the exact current HSA persistence -> application -> snapshot -> normalization -> Core Engine path.
+- Identified current null/default semantics, data-capture gaps, tax-year/versioning gaps, and the mismatch between account-level storage and person/couple-level HSA legal semantics.
+- Produced minimal interim, minimum-complete, and richer long-term data-contract options.
+- Re-read the concurrently landed FFH-007 policy artifact and reconciled the technical recommendation with its completed policy recommendation.
+- No production schema, migration, application code, UI, HSA calculation behavior, or live Supabase data was modified.
 
-## Exact current HSA persistence/runtime contract
+# 1. Exact current HSA data flow
 
-### Persisted account/person fields
+## Database / persistence
 
-`household_people` is the financial-person model and is deliberately separate from authenticated household membership. Relevant existing fields include stable `id`, `household_id`, `relationship`, `birth_date`, `planned_retirement_age`, `is_dependent`, `is_active`, and later tax/retirement-planning fields. It currently has no person-level HSA eligibility, HSA coverage history, Medicare date, HSA tax-year profile, or HSA contribution-attribution fields.
+`household_people` is the existing financial-person model and is separate from authenticated household membership. It stores person identity/relationship/birth-date/planning facts but no HSA eligibility history, coverage history, Medicare timing, last-month-rule choice/status, married-family allocation, or HSA contribution attribution.
 
-`retirement_accounts` is currently the only persisted HSA legal-fact location. HSA-relevant fields are:
-- `owner_person_id uuid null` — household-scoped FK to `household_people`; nullable and `ON DELETE SET NULL`;
-- `account_type` includes `hsa`;
+`retirement_accounts` is currently the only persisted HSA legal-fact location. Relevant fields include:
+
+- `owner_person_id uuid null` -> household-scoped `household_people` FK, `ON DELETE SET NULL`;
+- `account_type` including `hsa`;
 - `employee_contributed_ytd numeric(14,2) null`;
 - `employer_contributed_ytd numeric(14,2) null`;
 - `hsa_coverage_type text null`, constrained to `self_only | family | unknown` when non-null;
 - `hsa_eligible boolean null`;
 - normal account balance and recurring contribution fields.
 
-There is no HSA-specific affirmative database default. `hsa_eligible` and `hsa_coverage_type` remain nullable. That is important: legacy absence is already representable as unknown.
+There is no affirmative HSA database default. Legacy absence is representable as unknown.
 
-`household_financial_preferences` contains the tax-profile year/status/AGI context and later `expected_hsa_medical_spending_annual`, but no HSA legal-eligibility facts. `expected_hsa_medical_spending_annual` is a Phase 5A planning-intent input for long-term HSA accumulation, not statutory contribution eligibility.
+The HSA account YTD fields and account-level HSA eligibility/coverage facts are not independently keyed by tax year. Their annual meaning therefore relies on surrounding planning context and data freshness. Adding more timeless annual legal facts to the account row would repeat that weakness.
 
-Current HSA account YTD fields are not independently tax-year-keyed on `retirement_accounts`; their year semantics depend on surrounding planning context and application freshness. This makes adding more unversioned annual HSA legal facts directly to the account row undesirable.
+`household_financial_preferences.expected_hsa_medical_spending_annual` is a Phase 5A planning-intent fact used to distinguish long-term HSA accumulation from expected medical spending. It is not HSA contribution eligibility.
 
-### Application capture path
+Current financial tables use household-scoped role-aware authorization. Any later HSA financial tables should preserve the current `can_read_household` / `can_write_household_financials` pattern rather than invent a weaker authorization model.
 
-The normal `/financial-profile` retirement UI currently loads and edits only:
-- account name;
+## Application capture
+
+The current `/financial-profile` retirement UI reads/edits only:
+- name;
 - account type;
 - balance;
 - monthly employee contribution;
 - monthly employer contribution.
 
-The add/update server actions write only those same basic retirement-account fields. Although `hsa` is selectable as an account type, the normal UI/actions do not capture or update:
+The corresponding add/update actions write only those basic fields. Selecting `hsa` does **not** collect:
 - `owner_person_id`;
-- `employee_contributed_ytd` / `employer_contributed_ytd`;
+- employee/employer YTD contributions;
 - `hsa_eligible`;
 - `hsa_coverage_type`;
-- person-level HSA facts;
+- monthly/period eligibility or coverage;
 - Medicare timing;
-- partial-year/monthly eligibility;
-- last-month-rule facts;
-- ordinary-vs-catch-up YTD attribution.
+- last-month-rule facts/choice;
+- married-family allocation;
+- historical ordinary/catch-up attribution.
 
-Therefore a newly created HSA through the normal financial-profile path does not, by itself, contain enough persisted legal-capacity facts to become an actionable HSA destination in the current engine. This is a current data-capture boundary, not a reason to infer the missing fields.
+Therefore an HSA created through the normal financial-profile flow does not, by itself, contain enough legal-capacity facts to become confidently actionable in the current engine. Missing fields must not be inferred merely because the UI created an HSA row.
 
-There is also no normal application workflow in the inspected path for creating/editing the Phase 5 `household_people` HSA facts because such HSA person-level facts do not exist yet. Onboarding creates the household/profile but does not establish HSA person-year eligibility semantics.
+## Snapshot loader / normalization
 
-### Snapshot loader and normalized runtime
+`lib/supabase/money-priority-snapshot.ts` explicitly selects the HSA account fields and passes them to `buildMoneyPrioritySnapshot`.
 
-`lib/supabase/money-priority-snapshot.ts` explicitly selects the HSA account fields from `retirement_accounts` and passes raw PostgREST rows into `buildMoneyPrioritySnapshot`.
-
-The normalized snapshot preserves:
+The normalized account contract preserves:
 - `ownerPersonId: string | null`;
 - `employeeContributedYtd: number | null`;
 - `employerContributedYtd: number | null`;
 - `hsaCoverageType: string | null`;
 - `hsaEligible: boolean | null`.
 
-The boolean validation contract marks `hsa_eligible` as nullable, not defaulted. Missing/null remains `null`; only actual booleans are accepted. The coverage string is preserved as nullable text and the evaluator accepts actionable base-limit semantics only for `self_only` or `family`; `unknown`/missing remains information-needed. Numeric YTD values remain nullable and use strict numeric parsing.
+`hsa_eligible` is intentionally nullable and not defaulted. Only actual booleans are accepted; missing/null remains `null`. Coverage remains nullable; only `self_only`/`family` can support the current base-limit path. YTD numeric fields are nullable and strictly parsed.
 
-This is currently good null-preservation behavior: the runtime does not coerce legacy missing HSA facts into affirmative eligibility.
+This null preservation is a good compatibility invariant and should remain after remediation.
 
-### Authoritative HSA calculation entry
+## Authoritative calculation entry
 
-`evaluateRetirementAccountOpportunities` is where the normalized HSA fields become legal-capacity inputs. Current behavior:
+`evaluateRetirementAccountOpportunities` currently:
 
-1. HSA employee + employer YTD is aggregated by owner across every represented HSA account. If any required owner/account YTD component is unknown, owner YTD is unknown.
-2. HSA participants are inferred only from represented HSA accounts with `ownerPersonId` pointing to active `self`/`spouse_partner` people.
-3. Account-level `hsaEligible` and `hsaCoverageType` values are collapsed per owner. Conflicting values across one owner's multiple HSA accounts become unknown.
-4. Married-spouse structure is then derived across represented spouse owners. Unknown eligibility/coverage that could change family sharing propagates `more_information_needed` to affected spouse HSAs.
-5. Explicit ineligibility remains distinct from unknown.
-6. Current annual base limit is chosen from the account/owner coverage fact (`self_only` or `family`) plus age-55 catch-up from person birth date.
-7. Married-family ordinary room is one shared couple bucket; owner-specific age-55 catch-ups are separate owner-only buckets.
-8. Current R4 behavior treats positive YTD for a catch-up-eligible spouse as attribution-ambiguous when persisted YTD does not identify ordinary family dollars versus owner catch-up dollars. That case becomes `more_information_needed` rather than fabricating additional room.
-9. Multiple HSA accounts cannot multiply owner/couple room.
+1. aggregates employee + employer HSA YTD across every HSA owned by the same person;
+2. derives HSA participants from represented HSA accounts linked to active people;
+3. collapses account-level eligibility/coverage facts to owner facts; conflicting copies become unknown;
+4. resolves married-spouse HSA structure before exposing actionable room;
+5. distinguishes explicit ineligibility from unknown;
+6. chooses an annual self-only/family base from current account-level coverage, then adds age-55 catch-up based on person age;
+7. maintains one couple-wide ordinary family bucket and separate owner catch-up buckets;
+8. currently blocks positive YTD for catch-up-eligible spouses when ordinary-vs-catch-up attribution is unknown;
+9. prevents multiple HSA accounts from multiplying capacity.
 
-The key R3 limitation is structural: the evaluator currently treats account-level annual `hsaEligible` + `hsaCoverageType` as if they are sufficient annual-capacity facts. There is no tax-year-bound month/period eligibility, coverage transition history, Medicare timing, or last-month-rule status in the normalized snapshot.
+R3 exists because no month/tax-year coverage history, Medicare timing, or last-month-rule basis reaches this path. Current account-level booleans/coverage are too weak to prove annual room for every case.
 
-The repository documentation explicitly acknowledges that HSA eligibility/coverage are currently derived only from recorded HSA account rows and that person-level HSA eligibility independent of account records remains future scope.
+Repository documentation already states that person-level HSA eligibility independent of account rows is future scope and that absence of an HSA account is not affirmative evidence of spouse ineligibility.
 
-## Current tests and compatibility behavior
+# 2. Current tests/invariants that future work should preserve
 
-Focused tests establish several existing invariants that future persistence work must preserve unless Manager-approved policy intentionally changes them:
-- multiple HSAs for one person share one annual limit;
-- two eligible spouses with family coverage expose one shared family ordinary bucket rather than duplicated limits;
-- each age-55 catch-up remains owner-specific;
-- unknown spouse eligibility/coverage blocks optimistic married-family room when it could change the structure;
+Existing focused HSA tests establish:
+
+- multiple HSAs for one person share one annual capacity;
+- married eligible spouses share one ordinary family bucket;
+- age-55 catch-up remains owner-specific;
+- material unknown spouse eligibility/coverage blocks optimistic family room;
 - explicit ineligibility is distinct from unknown;
-- unresolved HSA structure does not block unrelated IRA routing;
-- Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and recommendation refresh consume/preserve the same information-needed HSA semantics;
-- positive YTD for a catch-up-eligible spouse currently blocks additional HSA room when ordinary-vs-catch-up attribution is absent;
-- people/account array permutation does not change entity-level financial output.
+- unresolved HSA facts do not block unrelated retirement destinations;
+- Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and refresh paths use the same HSA uncertainty/capacity model;
+- person/account input order does not change entity-level output;
+- current R4 implementation blocks positive YTD for catch-up-eligible spouses when attribution is absent.
 
-These tests are implementation evidence, not authority to decide whether R4 must remain policy.
+The last item is implementation evidence, not proof the blocker is required policy.
 
-## Data ownership analysis
+# 3. Data ownership recommendation
 
-### Facts that belong to a person + tax year, not to an HSA account
+## Person + tax year
 
-The following are fundamentally person/tax-year legal-context facts because a person can own multiple HSAs and HSA contribution eligibility is not created by the existence of one account:
-- HSA eligibility by month/period;
-- HDHP coverage type by month/period (`self_only` / `family` / unknown/ineligible state);
-- Medicare coverage/enrollment effective timing when used to determine HSA eligibility;
-- other person-specific eligibility state needed by approved policy;
-- last-month-rule qualification/election/testing-period status if FFH-007 requires it as an input;
-- owner-specific age-55 catch-up YTD attribution if Manager chooses an aggregate R4 solution.
+The following should be canonical person/tax-year facts because one person may own multiple HSAs and account existence does not create eligibility:
 
-These facts must be tax-year-bound. Putting them as timeless columns on `household_people` would create cross-year stale-state risk.
+- month/period HSA eligibility;
+- month/period coverage type;
+- Medicare effective timing when relevant;
+- last-month-rule use/status and required testing-period basis under approved policy;
+- whether future-month values are confirmed facts or planning assumptions;
+- any owner-level HSA legal-context facts needed by the approved model.
 
-### Facts that still belong to an HSA account
+Do **not** put tax-year-specific HSA status as timeless columns on `household_people`.
 
-- account identity/name/provider metadata if later modeled;
-- `owner_person_id` linkage;
-- account balance;
-- actual contributions that landed in that account, if the product continues using account-level YTD aggregates or later introduces contribution transactions;
-- recurring contribution schedule when the schedule is truly account-specific.
+## HSA account
 
-Eligibility/coverage should not be duplicated independently on every HSA account once a canonical person-year source exists.
+Keep on the destination/account model:
 
-### Facts that belong to the household/couple tax-year relationship
+- account identity;
+- `owner_person_id`;
+- balance;
+- actual contribution totals/transactions that landed in that account;
+- account-specific contribution schedule.
 
-A married-family ordinary-base allocation choice, if FFH-007/Manager decides the product needs an explicit spouse split, is a couple/tax-year fact because the ordinary family base is shared. It should not be stored independently on each HSA account.
+Once a canonical person-year source exists, eligibility/coverage should not remain independently authoritative on every HSA account.
 
-The current shared-capacity ledger does not require a permanent spouse split to enforce the couple-wide cap. Therefore Engineering should not create a persisted allocation split merely for convenience. If FFH-007 chooses an IRS/default/user allocation rule, Manager should approve the semantic contract first; only then should persistence encode a household/couple tax-year choice or explicit spouse allocations.
+## Household/couple + tax year
 
-### Derived values that should remain runtime-derived
+An explicit alternate married-family ordinary-base agreement belongs to the couple/household tax-year relationship, not individual HSA accounts.
 
-Do not persist as competing sources of truth unless a later task explicitly authorizes snapshots/history:
-- remaining annual HSA room;
-- shared family remaining room;
-- owner catch-up remaining room;
-- final legal-capacity ledger;
-- information-needed state;
-- contribution recommendation amount.
+FFH-007 now proposes equal allocation absent another agreement. The equal default can be derived from policy and **does not need to be persisted as duplicated spouse/account values**. Persist only a user-confirmed alternate agreement/allocation when one exists, if Manager adopts this policy.
 
-Those should continue to be deterministically derived from canonical stored facts + tax policy + explicit tax year.
+## Derived runtime-only values
 
-## Technical data-contract options
+Continue deriving rather than persisting as competing sources of truth:
 
-### Option 0 — Reinterpret current account fields as full-year facts
+- legal annual ceiling;
+- owner remaining room;
+- shared married-family remaining room;
+- catch-up remaining room;
+- capacity-ledger entries/groups;
+- `more_information_needed` state;
+- recommendation amounts.
 
-NOT RECOMMENDED / NOT SAFE as a silent migration.
+# 4. Data-contract options
 
-It would redefine historical `hsa_eligible=true` and `hsa_coverage_type` values without evidence that users originally supplied them as full-tax-year or last-month-rule-qualified facts. The fields are not tax-year-bound, are duplicated across accounts, and are not collected by the normal financial-profile workflow. Treating existing `true` as full-year eligibility would violate the repository rule that stale/ambiguous data must not silently become affirmative financial meaning.
+## Option 0 — silently reinterpret legacy account fields
 
-A no-schema approach can remain safe only by continuing to treat ambiguous existing values conservatively; it cannot provide complete R3 partial-year/Medicare/coverage-change modeling.
+**REJECT / NOT SAFE.**
 
-### Option A — Minimal safe interim: explicit person-tax-year annual certification, fail closed outside supported cases
+Do not reinterpret legacy `hsa_eligible=true` as full-year eligibility or legacy `hsa_coverage_type` as unchanged 12-month coverage. Those rows are not tax-year-bound, are duplicated across accounts, and were not captured by a UI that explained full-year semantics. Silent promotion would turn ambiguous legacy data into affirmative legal capacity.
 
-Purpose: close the overstatement risk quickly without pretending to model every partial-year case.
+## Option A — minimal safe interim bridge
 
-Conceptual model (names intentionally non-binding pending Manager/FFH-007):
-- one `person_hsa_tax_year_profile` row per `(household_id, person_id, tax_year)`;
-- explicit status describing whether actionable annual capacity is established under the Manager-approved policy;
-- any required last-month-rule status/evidence on that person-year row;
-- optional Medicare effective date/source fact when policy uses it;
-- explicit confirmation/version metadata sufficient to distinguish newly confirmed semantics from legacy account fields.
+Create an explicit **person + tax-year annual HSA basis** that distinguishes newly confirmed semantics from legacy account hints. Exact names await Manager approval, but conceptually one row per `(household_id, person_id, tax_year)` would hold:
 
-Under this option, only the policy-defined supported annual cases become actionable. Partial-year, coverage-change, Medicare/retroactivity, or last-month-rule-uncertain cases remain targeted `more_information_needed` rather than being prorated from insufficient facts.
+- an explicit annual-capacity basis/status;
+- Medicare effective timing if needed by the approved basis;
+- explicit last-month-rule choice/status when used;
+- confirmation/source/version metadata sufficient to identify newly reconfirmed data.
 
-Advantages:
-- smallest safe semantic bridge;
-- additive migration;
-- easy legacy behavior: no new person-year row => unknown, not eligible=true;
-- avoids duplicating a new annual certification across multiple HSA accounts.
+Only Manager-approved supported annual cases become actionable. Partial-year/coverage-change/Medicare/last-month-rule-uncertain cases remain targeted `more_information_needed`.
 
-Limitations:
-- does not calculate all partial-year legal room;
-- still needs FFH-007 to define exactly what annual certification means;
-- if product requirements demand month-accurate R3 resolution now, this option is insufficient.
+Pros: smallest safe remediation and simple legacy behavior (`no new confirmed profile = unknown`).
 
-### Option B — Recommended minimum complete R3 model: person-tax-year + month-level HSA status
+Cons: cannot fully calculate every partial-year R3 case.
 
-Purpose: represent month-sensitive eligibility and coverage changes without persisting a derived legal limit.
+## Option B — recommended minimum complete R3 model
 
-Recommended normalized persistence shape:
+Use a canonical **person-tax-year profile + month-level HSA status**.
 
-1. `person_hsa_tax_year_profile`
+Conceptual storage:
+
+### `person_hsa_tax_year_profile`
+
+One row per person/tax year for tax-year-wide context, such as:
 - household/person/tax-year identity;
-- raw/legal-context facts that are tax-year-wide, such as Medicare effective timing if FFH-007 requires it;
-- last-month-rule status/evidence fields if approved;
+- Medicare effective date/month when applicable;
+- last-month-rule choice/status/testing-period basis under Manager-approved semantics;
 - confirmation/version metadata;
-- optional owner-level R4 attribution aggregate only if Manager selects that strategy.
+- optional flags identifying planned future values versus confirmed historical/current facts.
 
-2. `person_hsa_month_status` (12-row maximum per person/tax year)
-- `household_id`;
-- `person_id`;
-- `tax_year`;
-- `month` 1..12;
-- tri-state eligibility (`eligible | ineligible | unknown`) or equivalent nullable/enum contract;
-- coverage type (`self_only | family | none/unknown`) as approved;
-- unique `(person_id, tax_year, month)` plus household-scoped FK integrity.
+### `person_hsa_month_status`
 
-Why month rows rather than account fields or a single annual boolean:
-- directly represents eligibility proration inputs;
-- directly represents self-only/family coverage changes;
-- deterministic and easy to validate for exactly 12 calendar months;
-- avoids range-overlap bugs from arbitrary start/end period records;
-- does not multiply facts when one person has multiple HSA accounts;
-- allows a spouse with no HSA account to contribute legally relevant household HSA facts;
-- remains tax-year-specific;
-- lets the Core Engine derive legal annual room rather than storing a stale derived limit.
+At most 12 rows per person/tax year:
+- household ID;
+- person ID;
+- tax year;
+- month 1..12;
+- tri-state eligibility (`eligible | ineligible | unknown` or equivalent);
+- coverage (`self_only | family | none/unknown` under approved enum);
+- fact-vs-planning-assumption marker if Manager adopts FFH-007's projected future-month distinction;
+- uniqueness on `(person_id, tax_year, month)` plus household-scoped FK integrity.
 
-Medicare should never be inferred from age alone. If FFH policy wants Medicare timing to drive month eligibility, store the actual effective date/status as a person-year source fact and have one approved normalization path derive affected months. Do not keep two independent authoritative sources (manual monthly status and Medicare-derived monthly status) without a documented precedence/conflict rule.
+Why month rows:
+- directly represent proration inputs and coverage changes;
+- no interval-overlap bugs;
+- tax-year explicit;
+- one canonical person fact regardless of number of HSA accounts;
+- spouse facts can exist even without a spouse HSA account;
+- Core Engine can derive the annual limit instead of persistence storing a stale derived legal maximum.
 
-Last-month-rule qualification is also a person/tax-year legal-context fact, not an account property. Exact enum/status semantics must come from FFH-007/Manager; Application/Data should not invent the legal interpretation.
+Medicare must not be inferred from age. If Medicare effective timing is stored as a raw source fact and monthly status can also be manually supplied, there must be one documented precedence/conflict rule; do not allow two independent authorities to disagree silently.
 
-This is the recommended technical target if Manager wants full R3 resolution rather than a fail-closed bridge.
+Last-month-rule use belongs at person/tax-year scope. It is not an account fact.
 
-### Option C — Richer long-term contribution/event model
+## Option C — richer long-term contribution/event model
 
-Purpose: eliminate ambiguous YTD aggregates and support transaction synchronization/history later.
+If future product value justifies it, replace manually maintained HSA YTD aggregates with contribution records keyed to:
+- household;
+- HSA account;
+- owner person;
+- tax year/date;
+- amount;
+- source (employee/employer/etc. as supported);
+- optional contribution classification/provenance.
 
-Conceptual additive model:
-- HSA contribution records keyed to household, HSA account, owner person, tax year, contribution date/period, amount, source (`employee`, `employer`, `other` as supported), and approved contribution classification (`ordinary`, `catch_up`, `unknown`) when known;
-- derive employee/employer/ordinary/catch-up YTD totals from events;
-- preserve account ownership and couple-wide/owner-specific ledger constraints in Core Engine.
+This improves auditability, corrections, multiple-account aggregation, and future account-sync compatibility, but is not required for R3 and should not be introduced solely as speculative scope.
 
-Advantages:
-- strongest R4 provenance/auditability;
-- supports corrections, imports, multiple accounts, and future account aggregation;
-- avoids manually maintaining several cumulative YTD columns.
+# 5. FFH-007 reconciliation
 
-Costs/risks:
-- substantially larger application/data scope;
-- transaction idempotency/import reconciliation needed;
-- existing aggregate YTD columns require a compatibility strategy;
-- unnecessary for R3 alone.
+During FFH-008 execution, `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` landed with status `COMPLETE POLICY RECOMMENDATION — READY FOR MANAGER SYNTHESIS WITH FFH-008`.
 
-Do not adopt this solely to keep Engineering busy; it is a future-capability choice unless Manager finds it justified for current correctness.
+Its proposed policy aligns strongly with Option B:
 
-## R4 technical options (policy decision remains FFH-007/Manager)
+- HSA legal eligibility is person + tax year, not account existence;
+- legacy `hsa_eligible`/coverage must not silently become full-year certification;
+- annual capacity needs month-granular eligibility/coverage or lossless equivalent;
+- Medicare effective timing matters and uncertain material timing produces targeted information-needed;
+- last-month rule is explicit/user-selected conditional treatment, never inferred from December eligibility;
+- future-month planning assumptions must be distinguishable from established facts;
+- married-family ordinary base uses equal allocation by default absent another agreement, with explicit alternate allocation allowed;
+- age-55 catch-up remains owner-specific;
+- R4's historical ordinary-vs-catch-up deposit-label blocker should be replaced by owner annual ceilings once spouse ordinary allocation is known.
 
-R4 is not a verified statutory requirement to label historical HSA YTD dollars as ordinary versus catch-up. Engineering therefore must not decide the policy outcome.
+## R4 technical consequence if Manager adopts FFH-007
 
-Technical options:
+My earlier generic technical options included an owner-level catch-up-YTD attribution aggregate. **That additional data is not needed if Manager adopts FFH-007's owner-ceiling policy.**
 
-1. **Retain current conservative blocker.** No new R4 schema is required. Positive YTD for a catch-up-eligible spouse can remain `more_information_needed` if FFH-007 explicitly approves that as project policy. This is the smallest and safest persistence change.
+Under FFH-007's proposed model:
 
-2. **Minimal aggregate attribution.** If FFH-007 wants actionable room without a full contribution ledger, persist a tax-year-bound owner-level catch-up YTD amount/status on the person HSA tax-year profile. Existing aggregate owner HSA YTD minus verified owner catch-up YTD can then derive ordinary family YTD. This is materially safer than adding another unversioned value to each HSA account and avoids duplication across multiple accounts.
+`owner annual ceiling = owner ordinary allocation + owner-specific age-55 catch-up capacity`
 
-3. **Contribution ledger.** Use Option C when provenance/history/import needs justify it.
+`owner remaining room = owner annual ceiling - aggregate employee/employer HSA YTD for that owner`
 
-Any aggregate-attribution solution needs validation that catch-up YTD cannot exceed aggregate owner HSA YTD and must preserve unknown when attribution is not confirmed. Exact financial semantics remain policy-owned.
+Therefore persistence needs:
+- aggregate account/owner YTD (already conceptually present, subject to tax-year freshness);
+- the couple's ordinary-base allocation (derived equal default or explicit alternate agreement);
+- owner age/eligible periods;
+- no historical per-dollar ordinary-vs-catch-up label solely for capacity math.
 
-## Married-family allocation choice
+A catch-up-attribution field or contribution classification ledger remains optional future provenance, not minimum R4 data, **if** Manager adopts FFH-007.
 
-Current engine capacity is represented as one couple-wide shared ordinary group plus separate owner catch-up groups. That architecture can enforce the legal shared ceiling without pre-splitting ordinary capacity between spouses.
+## Married-family alternate allocation storage if FFH-007 is adopted
 
-Therefore the persistence layer should **not** invent an equal/default spouse allocation unless FFH-007/Manager approves that policy. If a user-selectable or default split is required, use a household/couple tax-year model with either:
-- one explicit allocation method + validated spouse allocation amounts; or
-- explicit spouse allocation amounts whose sum is constrained to the approved ordinary family base.
+Recommended technical shape:
 
-Do not store independent account-level shares that can multiply when a spouse owns multiple HSAs.
+- do not persist the equal default; derive it from approved policy + legal shared base;
+- when the household records a different agreement, persist a tax-year-bound couple allocation object/table with explicit person allocations;
+- constrain values to nonnegative amounts and prevent aggregate allocation above the legally derived shared ordinary base at the application/engine validation layer; DB structural constraints can validate shape/nonnegative values but must not duplicate versioned tax-law formulas as hard-coded schema policy;
+- do not infer alternate allocation from YTD, account order, IDs, balances, or account existence;
+- if YTD cannot fit equal default but could fit a legal alternate, capture an explicit agreement rather than silently rewriting allocations.
 
-## Migration and backward-compatibility requirements
+# 6. Migration / legacy / default requirements
 
-For any later authorized implementation:
+Any later Manager-approved implementation should:
 
-- prefer additive tables/columns; no destructive rewrite is needed for R3/R4;
-- new legal-fact columns/statuses must default to NULL/unknown, never `true`, `self_only`, `family`, full-year, or last-month-qualified;
-- do not backfill legacy `retirement_accounts.hsa_eligible=true` into a verified person-year full-year eligibility record;
-- do not infer HSA owner from household creator, authenticated user, account name, or sole active adult; legacy `owner_person_id=null` must remain information-needed until explicitly resolved;
-- do not infer spouse HSA ineligibility from absence of an HSA account;
-- do not carry one tax year's person/month HSA status into a later tax year by default;
-- if old account-level HSA eligibility/coverage fields remain during transition, define exactly one canonical precedence rule. Recommended architecture: new person-year/month facts become canonical when explicitly confirmed; legacy account fields remain compatibility evidence and must not compete as a second source of truth;
-- preserve current null semantics at the raw and normalized boundaries;
-- use household-scoped FK integrity and the current role-aware RLS helpers (`can_read_household` / `can_write_household_financials`) for any new financial table;
-- no migration file existence may be described as live deployment; live Supabase application must be independently verified later.
+- use additive schema changes;
+- default all new legal-fact/status fields to NULL/unknown, never eligible/full-year/family/last-month-qualified;
+- never backfill legacy `hsa_eligible=true` into 12 affirmative months;
+- never treat legacy `hsa_eligible=false` as proof of zero annual room if later period history shows earlier eligible months;
+- never infer owner from household creator, authenticated user, account name, or sole adult;
+- never infer spouse ineligibility from absence of a spouse HSA account;
+- never carry person/month HSA status into a later tax year by default;
+- define exactly one canonical source during transition. Recommended direction: newly confirmed person-year/month data becomes authoritative; account-level HSA eligibility/coverage becomes legacy/current hint only and cannot compete;
+- preserve existing balance/owner/YTD data without changing its meaning;
+- use current household-scoped role-aware RLS for new financial tables;
+- treat migration-file creation and live Supabase deployment as separate evidence.
 
-## Runtime/database parity requirements
+Legacy rows should temporarily produce targeted reconfirmation/information-needed rather than optimistic legal room. That is a deliberate compatibility cost to avoid legal-capacity overstatement.
 
-A later production task should require all of the following before acceptance:
+# 7. Runtime/database parity requirements
 
-- DB constraints and application enums agree exactly on month, coverage, eligibility, last-month-rule, allocation, and attribution states;
-- PostgREST nulls remain runtime unknowns without boolean/string coercion;
-- tax-year keys are explicit and match the tax-policy year used for HSA capacity;
-- person/month rows reconstruct deterministically after reload;
-- multiple HSA accounts for one person consume one person/couple legal structure, not duplicated account facts;
-- spouse/person facts remain available even when that spouse has no HSA account;
-- changes to person HSA legal facts participate in recommendation-basis/material-profile-change detection as appropriate;
-- hypothetical reruns, Windfall, Your Plan, Existing Cash, Secure, Build, and Recommendation Refresh receive the same normalized HSA facts rather than reconstructing separate application-layer rules;
-- no persisted derived remaining-room value overrides fresher source facts;
-- cents/amount precision and tax-year attribution reconcile across persistence and runtime;
-- reload of the same stored facts produces equivalent normalized snapshot and capacity state.
+Future acceptance should require:
 
-## Likely future affected files/systems — NOT AUTHORIZED YET
+- DB enums/checks and runtime unions agree exactly;
+- null/unknown survives PostgREST -> loader -> normalized snapshot without coercion;
+- tax year is explicit and matches the HSA tax-policy year;
+- month rows reconstruct deterministically after reload;
+- person-level facts are not multiplied by multiple HSA accounts;
+- spouse facts can affect married-family structure even without a spouse HSA destination;
+- new HSA facts participate in Recommendation Refresh/material-basis invalidation where relevant;
+- projected future-month assumptions are distinguishable from confirmed values if Manager adopts that policy;
+- Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and refresh paths all consume the same normalized HSA contract rather than app-layer duplicate logic;
+- no persisted derived legal-room field overrides newer source facts;
+- cents/YTD values reconcile exactly;
+- same persisted facts reload to the same normalized HSA legal-capacity basis.
 
-Application/Data surfaces likely involved after Manager approval:
-- new additive migration(s) under `supabase/migrations/`;
-- `app/financial-profile/page.tsx` or a dedicated tax/HSA profile UI;
+# 8. Likely future files/systems — NOT AUTHORIZED IN FFH-008
+
+Application/Data:
+- additive migration(s) under `supabase/migrations/`;
+- `app/financial-profile/page.tsx` or a dedicated HSA/tax profile UI;
 - `app/financial-profile/actions.ts` or dedicated HSA actions;
 - `lib/supabase/money-priority-snapshot.ts`;
-- `lib/calculations/money-priority-snapshot.ts` shared input contract/normalization (coordinate with Core Engine ownership);
-- security/RLS contract tests for any new table;
-- snapshot/persistence/reload tests;
-- recommendation-refresh basis tests if new normalized HSA facts affect fingerprints.
+- `lib/calculations/money-priority-snapshot.ts` shared input contract/normalization, coordinated with Core Engine;
+- security/RLS tests;
+- persistence/reload tests;
+- recommendation-refresh basis tests.
 
-Core Engine surfaces likely involved only under a separate Core Engine assignment:
+Core Engine under separate authorization:
 - `lib/calculations/money-priority-retirement-accounts.ts`;
-- `lib/calculations/money-priority-retirement-capacity.ts` if group semantics change;
-- focused HSA tests including `phase-5-closure-hsa-capacity.test.ts`, `money-priority-married-hsa-remediation.test.ts`, `money-priority-hsa-household-uncertainty.test.ts`, plus new partial-year/Medicare/last-month-rule tests.
+- potentially `money-priority-retirement-capacity.ts` depending on approved owner/married allocation representation;
+- current HSA closure/married/household-uncertainty tests plus new partial-year/Medicare/last-month-rule scenarios.
 
-## Required future test/scenario coverage
+# 9. Required future scenarios/tests
 
-A later implementation task should include, at minimum:
-- full-year self-only and family cases;
-- partial-year eligibility with explicit unknown months;
-- self-only -> family and family -> self-only coverage transitions;
-- Medicare effective mid-year / retroactive-effective-date cases under approved policy;
-- December eligibility with last-month-rule qualified, not qualified, and unknown states;
-- spouse with legally relevant person-level HSA facts but no HSA account;
-- one person with multiple HSA accounts and one canonical person-year/month status;
-- married family sharing with one/both age-55 catch-ups;
-- legacy HSA rows with `hsa_eligible=true` but no new verified person-year facts remain non-affirmative under migration policy;
-- missing owner remains information-needed;
-- R4 known/unknown catch-up attribution according to approved policy;
-- database reload produces same normalized facts and legal-capacity result;
-- RLS owner/member/viewer/nonmember behavior for any new financial table;
-- unrelated IRA/workplace routing remains unaffected by unresolved HSA facts;
-- deterministic output under account/person/month row permutations where order is semantically irrelevant.
+Manager-approved implementation should cover at least:
 
-## Parallel/collision assessment
+- full-year self-only/family;
+- partial-year eligibility;
+- self-only -> family and family -> self-only changes;
+- more than one coverage/eligibility transition;
+- known Medicare mid-year effective date;
+- retroactive Medicare recomputation and possible-excess state;
+- December eligibility with last-month rule not selected;
+- explicit last-month-rule use with conditional/testing-period state;
+- unknown material month -> targeted information-needed;
+- future projected month changed -> refresh/recalculation;
+- married equal default;
+- explicit alternate married allocation;
+- equal default incompatible with YTD but legal alternate possible -> ask for agreement, do not infer;
+- one/both spouse age-55 catch-ups;
+- spouse has no HSA account but person facts still affect family structure;
+- multiple HSA accounts for one owner;
+- legacy `hsa_eligible=true` without new period facts remains non-affirmative;
+- missing account owner remains information-needed;
+- R4 owner-ceiling calculation using aggregate owner YTD if FFH-007 is approved;
+- unresolved HSA facts do not block unrelated IRA/workplace routing;
+- DB reload parity;
+- RLS owner/member/viewer/nonmember behavior;
+- order invariance.
 
-FFH-008 analysis itself has no production collision with FFH-006.
+# 10. Parallel/collision assessment
 
-Future HSA implementation will overlap Core Engine-owned surfaces, especially `money-priority-snapshot.ts` and `money-priority-retirement-accounts.ts`. Manager should not authorize concurrent edits to those shared files without an explicit branch/integration plan. Application/Data can own schema, persistence, forms/actions, and loader changes while Core Engine owns pure HSA capacity algorithms, but the normalized input contract must be agreed first.
+FFH-008 itself was documentation-only and had no production collision.
 
-The branch advanced during this analysis only through Manager/shared documentation files, so this role-owned handoff does not overwrite those changes.
+FFH-006 concurrently modified `lib/calculations/money-priority-retirement-accounts.ts`, which is also the principal future HSA Core Engine surface. Future HSA production work should start only from the post-FFH-006 stable checkpoint and must not apply stale patches to that file.
 
-## Technical recommendation to Manager
+Application/Data can own new schema, persistence, forms/actions, loader, and reload parity. Core Engine should own HSA legal-capacity calculation. `money-priority-snapshot.ts` is a shared contract surface and needs one agreed interface before parallel implementation.
 
-1. Do not silently redefine current account-level `hsa_eligible` as full-year eligibility.
-2. For a quick safe bridge, use Option A and keep unsupported partial-year cases information-needed.
-3. If R3 must be fully resolved now, adopt Option B: canonical person + tax-year HSA profile plus month-level eligibility/coverage status, with last-month-rule/Medicare source facts at person-year scope as required by FFH-007.
-4. Keep account ownership/contribution destinations on `retirement_accounts`; move legal eligibility/coverage semantics away from duplicated account rows once the new source is live.
-5. For R4, retain the current conservative blocker unless FFH-007 specifically requires more actionable capacity. If it does, a tax-year-bound owner catch-up aggregate is the minimum additional data; a contribution ledger is the richer long-term model.
-6. Persist a married-family allocation split only if FFH-007/Manager decides the product needs one; the existing shared capacity group does not technically require a permanent split.
-7. Require explicit unknown/null defaults and user re-confirmation for legacy rows before any new fact becomes affirmative/actionable.
+Manager should either serialize shared-contract work or issue separate branches/tasks with explicit integration order. Do not optimize worker utilization at the cost of contract drift.
 
-This is an Application/Data architecture recommendation only. It does not decide HSA statutory interpretation, equal-allocation policy, last-month-rule policy, or whether R4's conservative blocker should remain.
+# 11. Technical recommendation to Manager
+
+Subject to Manager synthesis of the now-complete FFH-007 recommendation:
+
+1. **Approve Option B** as the minimum complete R3 architecture: person-tax-year profile + month-level HSA eligibility/coverage facts.
+2. Keep `retirement_accounts` as HSA destinations/YTD sources, not the canonical home of person legal eligibility.
+3. Keep legacy account eligibility/coverage as non-affirmative legacy/current hints until reconfirmed; never auto-promote.
+4. If FFH-007 is adopted, derive equal married-family allocation by policy and persist only explicit alternate tax-year agreements.
+5. If FFH-007 is adopted, remove R4's need for ordinary-vs-catch-up historical labels from the minimum data contract; use owner annual ceilings + aggregate owner YTD.
+6. Keep a contribution-event ledger as a richer future option, not current mandatory scope.
+7. Require explicit null/unknown defaults, tax-year binding, single-source precedence, reload parity, and targeted legacy reconfirmation.
+8. Issue separate implementation-ready App/Data and Core Engine tasks only after Manager records the approved HSA policy/data contract.
+
+This recommendation is a PRODUCT/DATA ARCHITECTURE recommendation. FFH-007 remains Policy evidence until Manager approves/synthesizes it; FFH-008 does not itself establish final financial policy.
 
 Evidence produced:
-- current migrations/schema and role-aware RLS;
-- current financial-profile read/write contract;
+- current HSA schema/migration history;
+- role-aware RLS;
+- financial-profile read/write contract;
 - Supabase snapshot loader;
-- normalized snapshot validation/null semantics;
+- normalized snapshot null/boolean/numeric semantics;
 - current HSA opportunity/capacity behavior;
-- focused HSA closure/married/household-uncertainty tests;
-- current Manager/Regulatory/Retirement handoffs and canonical project state.
+- focused HSA tests;
+- FFH-005 regulatory handoff;
+- FFH-007 completed policy recommendation;
+- branch/delta verification during concurrent work.
 
-Tests / validation actually performed: Repository analysis only. No local tests were run. No Foundation CI was triggered by FFH-008 analysis. No database migration was applied. No live Supabase schema/data query or runtime reload test was performed. Existing test/CI evidence was inspected only where already persisted in repository/Manager state.
+Tests / validation actually performed: Repository inspection and branch/delta verification only. No local tests run by FFH-008. No CI triggered by FFH-008. No migration applied. No live Supabase query, migration-parity validation, or runtime persistence/reload test performed.
 
 Files updated:
-- `.ai/engineering/app/HANDOFF.md` — created as this analysis-only handoff.
+- `.ai/engineering/app/HANDOFF.md` only.
 
-Data model changes: None implemented.
+Data model changes: None.
 
-Migrations: None created or modified.
+Migrations: None.
 
 Application behavior changes: None.
 
-Engine contract changes: None.
+Engine contract changes: None by FFH-008.
 
 Open findings:
-- FFH-007 has not yet produced a completion handoff, so exact last-month-rule, married-family default-allocation, and R4 policy semantics remain Manager/Policy dependencies.
-- Current financial-profile UI/actions do not collect the HSA facts already required by the current engine for actionable capacity.
-- Current HSA eligibility/coverage fields are account-level, unversioned by tax year, and structurally insufficient for full R3 modeling.
-- Current YTD aggregates are also not independently tax-year-keyed on the account row.
+- Manager has not yet synthesized/approved FFH-007 + FFH-008, so the policy artifact is not yet final canonical product behavior.
+- current financial-profile UI/actions do not capture even the existing HSA legal-capacity inputs;
+- current HSA eligibility/coverage is account-level and unversioned by tax year;
+- current HSA YTD aggregates are not independently tax-year-keyed on the account row;
+- exact future confirmation/reconfirmation UX remains a product/application decision after Manager synthesis.
 
 Blocking issues:
-- No HSA production implementation is authorized until Manager synthesizes FFH-007 and FFH-008.
-- R3 remains merge-blocking until approved data/policy semantics are implemented and later audited.
+- no HSA production implementation is authorized before Manager synthesis;
+- R3 remains merge-blocking until approved policy/data contract is implemented and audited.
 
 Unverified items:
-- Live Supabase migration/deployment parity was not verified in this session.
-- Existing household-specific HSA data quality was not inspected.
-- No assumption is made that legacy HSA fields were entered with full-year semantics.
-- FFH-007 final policy is not yet available in the current repository handoff.
+- live Supabase schema/migration parity;
+- household-specific HSA data quality;
+- FFH-006 exact final validation/CI status beyond the source delta observed during this task;
+- no assumption that legacy HSA rows were originally entered with full-year semantics.
 
 Known risks:
-- silent legacy backfill could overstate legal contribution room;
-- maintaining account-level and person-year HSA facts as competing authorities could create nondeterministic/stale capacity;
-- uncoordinated Core Engine/App edits to shared snapshot contracts could cause runtime/database drift;
-- storing derived annual room rather than source facts would create stale legal-capacity results after tax-year/policy/profile changes.
+- optimistic legacy backfill;
+- two competing HSA sources of truth;
+- stale tax-year facts;
+- duplicated app-layer legal rules;
+- shared snapshot/Core Engine branch collisions;
+- persisted derived legal room becoming stale.
 
-Audit status: NOT AUDITED. FFH-008 is analysis-only and does not issue an audit verdict.
+Audit status: NOT AUDITED. FFH-008 does not issue audit verdicts.
 
-Recommended next role: Manager / Architect for FFH-007 + FFH-008 synthesis after FFH-007 completes.
+Recommended next role: Manager / Architect.
 
-Exact next action: Manager should wait for the independent FFH-007 policy handoff, reconcile it against this data-contract analysis, approve one explicit HSA canonical data model/legacy policy, and only then issue separate implementation-ready Engineering task(s) with ownership of App/Data versus Core Engine surfaces.
+Exact next action: Manager should synthesize `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` with this FFH-008 technical contract, record the approved HSA policy/data decision, and only then issue explicit implementation tasks partitioned between Application/Data and Core Engine.
 
-Checkpoint / SHA: The pre-write branch head was verified at `247af1866490521c69b08ca2fbac3926444730e3`. This handoff write creates a later documentation-only commit; verify the exact resulting SHA before treating it as the FFH-008 checkpoint.
+Checkpoint / SHA: The first FFH-008 handoff commit was verified as `fa5f1223d6fab7208d31b2f09bfaf76682610f28`. This reconciliation update creates a later documentation-only commit; verify that exact commit before using it as the final FFH-008 checkpoint.
