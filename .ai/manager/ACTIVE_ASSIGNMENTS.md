@@ -38,15 +38,17 @@ Dependency classification: HARD predecessor for FFH-012
 Target branch: `phase-5-money-priority-engine`
 
 Current implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
-Current Manager-observed descendant before this assignment refresh: `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`.
+Latest verified pre-refresh Manager descendant: `401bae5a91b2520c2c13c920c97251236d634d73`.
 
 Observed evidence:
 - substantial FFH-D005 implementation landed across additive migration, HSA capture/actions, snapshot/loader contract, normalized HSA input modules/tests, security tests, and hypothetical integration;
 - branch remained 0 behind `main`;
 - Foundation CI #285 FAILED on the implementation checkpoint at Type check;
-- Foundation CI #290 FAILED again on the Manager descendant at Type check;
-- in both runs dependency installation, production dependency audit, calculation tests, and security policy-contract tests succeeded before Type check;
+- Foundation CI #290 FAILED again on a Manager descendant at Type check;
+- Foundation CI #293 FAILED again on `401bae5a91b2520c2c13c920c97251236d634d73` at Type check;
+- in all three observed runs dependency installation, production dependency audit, calculation tests, and security policy-contract tests succeeded before Type check;
 - lint/build were skipped after Type check failure;
+- the Manager GitHub surface exposed the failing job/stage but did not yield a reliable TypeScript diagnostic line;
 - `.ai/engineering/app/HANDOFF.md` still contains FFH-008 rather than FFH-010, so required completion handoff is absent.
 
 Objective remains:
@@ -54,7 +56,7 @@ Complete only the Application/Data side of FFH-D005 and establish one safe tax-y
 
 Immediate required work:
 - refresh the current branch/head before editing because Manager docs advanced after the failed implementation checkpoint;
-- diagnose and fix the TypeScript typecheck failure without weakening FFH-D005 semantics;
+- diagnose the exact TypeScript error from the worker execution environment or detailed CI output and fix it without weakening FFH-D005 semantics;
 - preserve additive/unknown-safe migration behavior and role-aware RLS;
 - verify null/unknown, tax-year isolation, reload determinism, legacy non-affirmative behavior, alternate allocation behavior, and decision-basis refresh behavior;
 - do not silently absorb Core HSA legal-capacity algorithm work;
@@ -63,7 +65,7 @@ Immediate required work:
 - persist a current FFH-010 HANDOFF with exact final SHA, changed files, tests, and unverified items.
 
 Acceptance gate:
-FFH-010 is not complete until CI is green on the exact final production checkpoint and the role handoff is current, unless Manager explicitly documents a narrowly justified validation exception. No exception is authorized for the current repeated Type check failure.
+FFH-010 is not complete until CI is green on the exact final production checkpoint and the role handoff is current, unless Manager explicitly documents a narrowly justified validation exception. No exception is authorized for the repeated Type check failure.
 
 # Queued work
 
