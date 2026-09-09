@@ -2,153 +2,151 @@
 
 Last refreshed: 2026-09-08
 
-## FFH-001 — Canonical AI workflow bootstrap
+## Completed management/bootstrap work
 
-Title: Bootstrap repository-persisted AI operating state
-Assigned employee: Manager / Architect
-Department: Management
-Status: COMPLETE upon verified bootstrap commit
-Dependency classification: INDEPENDENT
-Branch: `phase-5-money-priority-engine`
-Starting SHA: `e979ff19f09fdd07a954347150608a87122f5183`
-Blocking dependency: none
-Required next role: Manager orchestration of FFH-PW-001
-Parallel Wave ID: none
+### FFH-001 — Canonical AI workflow bootstrap
+Owner: Manager / Architect
+Status: COMPLETE
 
-## FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery
+### FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery
+Status: COMPLETE
 
-Status: ACTIVE after FFH-001
+- FFH-002 — Phase 5 branch freshness reconciliation — COMPLETE
+- FFH-003 — Phase 5C Goals Policy analysis — COMPLETE
+- FFH-004 — Phase 5C Retirement Policy review — COMPLETE
+- FFH-005 — 2026 statutory retirement/HSA verification — COMPLETE
 
-### FFH-002 — Phase 5 branch freshness reconciliation
+Manager synthesis of FFH-003/004/005 is persisted as `FFH-D004`.
+
+## FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics
+
+Status: ACTIVE
+
+### FFH-006 — Remediate retirement-capacity statutory mismatches
 
 Assigned employee: Core Financial Engine Engineer
 Department: Engineering
 Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-001
+Dependency classification: INDEPENDENT within FFH-PW-002
 Target branch: `phase-5-money-priority-engine`
-Verified pre-bootstrap Phase 5 SHA: `e979ff19f09fdd07a954347150608a87122f5183`
-Current `main` SHA observed during bootstrap: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
-Blocking dependency: FFH-001 bootstrap must exist first
-Required next role: Technical Auditor after a stable reconciliation checkpoint and after Manager determines audit scope
-Parallel Wave ID: FFH-PW-001
+Verified predecessor reconciliation checkpoint: `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`
+Last specialist head before Manager synthesis: `f6a138e78083afe6bdf83bc42117c705bda9ca09`
+Blocking dependency: none after Manager task publication
+Required next role: Manager review; later integrated Technical + Policy Audit
+Parallel Wave ID: FFH-PW-002
 
 Objective:
-Reconcile the active Phase 5 branch with current `main` without inventing or changing financial policy. The observed upstream-only delta is the `main` README milestone-status commit, but the engineer must re-verify before acting.
+Remediate FFH-005 findings R1 and R2 only. Do not implement Phase 5C and do not redesign HSA behavior.
 
-Required behavior:
-- refresh canonical `.ai` state first;
-- verify current target branch and SHA;
-- verify current `main` SHA and compare divergence;
-- integrate/rebase/merge current `main` as appropriate without silently discarding either side;
-- preserve all Phase 5A/5B calculation behavior unless a real integration conflict requires escalation;
-- do not implement Phase 5C;
-- run the repository's required verification on the final checkpoint;
-- verify Foundation CI for the exact final checkpoint when available;
-- update `.ai/engineering/engine/HANDOFF.md` with evidence and exact SHA.
+Required technical behavior:
+- refresh canonical `.ai` state and verify current branch/head before editing;
+- inspect the exact schema/documentation semantics of `simpleHigherLimitEligible` before changing SIMPLE logic;
+- if that field genuinely does not map to the statutory certain-applicable-SIMPLE category, stop R1 only and return evidence rather than guessing;
+- where semantics support the mapping, implement the verified 2026 $3,850 age-50+ catch-up for the higher-applicable-SIMPLE category outside the age-60–63 super-catch-up band;
+- preserve the verified $5,250 SIMPLE age-60–63 catch-up behavior;
+- extend the 2026 high-wage Roth catch-up rule to governmental 457(b) age-based catch-up opportunities using the authoritative sponsor-wage/Roth-support facts already modeled where available;
+- preserve the separate/deferred governmental 457(b) special last-three-years catch-up boundary;
+- missing Roth-support or sponsor-wage facts must not become fabricated eligibility;
+- no Phase 5C, Goal Intelligence, HSA semantics, or unrelated routing changes.
+
+Required tests / validation:
+- targeted SIMPLE tests for age 50–59, 60–63, and 64+; higher-limit eligible vs ordinary category; exact catch-up amounts and no stacking;
+- targeted governmental 457(b) tests for below/above threshold, Roth support true/false/unknown, ordinary age-based catch-up, and preservation of the special-catch-up boundary;
+- regression tests showing unaffected account types retain behavior;
+- literal `npm run verify` must be run and observed when execution tooling permits;
+- production dependency audit must be run/observed;
+- Foundation CI must be verified on the exact final production checkpoint;
+- exact final SHA and changed files recorded.
 
 Acceptance criteria:
-- branch is no longer stale against the verified `main` checkpoint or any remaining divergence is explicitly explained;
-- no unintended production changes outside required integration reconciliation;
-- `npm run verify` result actually observed;
-- production dependency audit result actually observed if part of CI/local validation;
-- exact final commit SHA recorded;
-- no fabricated pass claims.
+- R1 and R2 are either remediated with evidence or a precisely scoped semantic ambiguity is returned to Manager;
+- no new financial-policy behavior beyond verified external rules;
+- no production change outside authorized scope;
+- required tests/validation actually observed and reported;
+- role handoff updated.
 
-### FFH-003 — Phase 5C Goals Policy analysis
-
-Assigned employee: Goals, Cash Flow & Allocation Policy Analyst
-Department: Policy
-Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-001
-Branch: repository read against active Phase 5 state; policy artifacts only unless Manager explicitly authorizes more
-Starting state: Phase 5A + Phase 5B implemented; Phase 5B states Phase 5C will introduce intentional goal-versus-retirement allocation competition
-Blocking dependency: FFH-001 bootstrap
-Required next role: Manager synthesis
-Parallel Wave ID: FFH-PW-001
-
-Objective:
-Produce an implementation-ready policy analysis for Phase 5C from the Goals/Cash Flow perspective. Define when and how Goal Intelligence should affect competition for recurring Build capacity relative to additional retirement, while preserving existing emergency/debt/Secure safeguards.
-
-Required analysis:
-- use repository Phase 5A retirement-floor output and Phase 5B Goal Intelligence as inputs;
-- distinguish essential core need from full desired target;
-- distinguish fixed/limited/flexible deadlines, underfunding consequences, borrowing/debt exposure, schedule state, target reasonableness, and satisfied goals;
-- define which goal dollars may outrank, tie, or remain below additional retirement;
-- prevent optional/lifestyle deadline gaming from becoming protected financial need;
-- preserve one-time versus recurring capacity and residual-needs invariants;
-- identify missing-data behavior and targeted `more_information_needed` cases;
-- provide scenario acceptance cases and edge cases;
-- do not invent statutory retirement limits;
-- do not write production code.
-
-Expected artifact:
-Update `.ai/policy/goals/HANDOFF.md` and optionally one concise role-owned analysis file if needed.
-
-### FFH-004 — Phase 5C Retirement Policy independent review
+### FFH-007 — Define HSA legal-capacity policy semantics
 
 Assigned employee: Retirement & Tax-Advantaged Policy Analyst
 Department: Policy
 Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-001
-Branch: repository read against active Phase 5 state; policy artifacts only unless Manager explicitly authorizes more
-Starting state: Phase 5A hybrid retirement floor implemented; Phase 5B Goal Intelligence implemented
-Blocking dependency: FFH-001 bootstrap
-Required next role: Manager synthesis
-Parallel Wave ID: FFH-PW-001
+Dependency classification: INDEPENDENT within FFH-PW-002
+Branch: repository read; role-owned policy artifacts only
+Blocking dependency: none after FFH-005
+Required next role: Manager synthesis with FFH-008
+Parallel Wave ID: FFH-PW-002
 
 Objective:
-Independently analyze Phase 5C from the retirement-policy perspective without first adopting the Goals Policy conclusion. Define the retirement protections and opportunity-cost constraints that should govern any competition between goals and additional retirement.
+Resolve the policy/modeling questions raised by FFH-005 R3 and R4 so Engineering receives explicit HSA legal-capacity semantics rather than inventing them.
 
-Required analysis:
-- preserve employer match as Secure and separate from additional retirement;
-- reason from the Phase 5A protected retirement floor, projection state, legal capacity, scheduled contributions, and feasible recurring capacity;
-- distinguish protected floor from additional opportunity above the floor;
-- identify when goal funding may permissibly reduce only additional retirement, versus when retirement protection should remain dominant;
-- address BEHIND / ON_TRACK / AHEAD implications;
-- address HSA/IRA/workplace-account sequencing only as product policy, with statutory facts sourced from FFH-005 where needed;
-- identify missing-data behavior and policy uncertainty;
-- provide scenario acceptance cases and edge cases;
-- do not coordinate with FFH-003 before forming the initial independent recommendation;
+Required policy analysis:
+- use FFH-005 authoritative 2026 HSA findings as external factual constraints;
+- define what current/future `hsa_eligible` may safely mean for actionable annual capacity;
+- determine whether an annual boolean can support full-year capacity only under explicit full-year or last-month-rule-qualified semantics;
+- define treatment of partial-year eligibility, coverage changes, Medicare enrollment/retroactivity, and last-month-rule uncertainty;
+- define targeted `more_information_needed` behavior when legal capacity is not established;
+- decide married-family ordinary-base allocation when users do not explicitly choose a split, including whether to use the IRS equal default;
+- decide whether the current ordinary-versus-catch-up YTD attribution blocker remains an intentional conservative FFH rule or is replaced by a different legally sufficient capacity model;
+- preserve spouse-specific age-55 catch-up ownership;
+- define legacy-record/backward-compatibility expectations from a policy perspective;
+- provide scenario acceptance cases and clear classifications: statutory fact vs FFH policy vs product/data choice;
 - do not write production code.
 
-Expected artifact:
-Update `.ai/policy/retirement/HANDOFF.md` and optionally one concise role-owned analysis file if needed.
+Acceptance criteria:
+- implementation-ready policy recommendation for R3/R4;
+- no statutory claim without FFH-005/authoritative support;
+- no silent redefinition of persisted field meaning without migration/data implications being acknowledged;
+- role handoff updated with open questions for Manager only where unavoidable.
 
-### FFH-005 — Current statutory retirement/HSA verification
+### FFH-008 — Map HSA persistence/runtime contract
 
-Assigned employee: Regulatory & Financial Research Analyst
-Department: R&D
-Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-001
-Branch: policy/research artifacts only
-Blocking dependency: FFH-001 bootstrap
-Required next role: Manager synthesis; may also inform FFH-004
-Parallel Wave ID: FFH-PW-001
+Assigned employee: Application, Data & Integration Engineer
+Department: Engineering
+Status: ASSIGNED — ANALYSIS ONLY
+Dependency classification: SOFT DEPENDENCY on FFH-007; may proceed concurrently
+Target branch: repository read; no production changes authorized
+Blocking dependency: none for analysis; implementation blocked on Manager synthesis of FFH-007/008
+Required next role: Manager synthesis
+Parallel Wave ID: FFH-PW-002
 
 Objective:
-Verify the current 2026 statutory/account rules materially relevant to the existing Phase 5 retirement/HSA engine and Phase 5C policy synthesis using authoritative sources.
+Map the current HSA persistence/runtime architecture and propose the minimum safe data-contract options needed to implement FFH-007 policy and resolve FFH-005 R3/R4. Do not implement schema or application changes yet.
 
-Required research:
-- 2026 elective deferral limits for 401(k), 403(b), TSP, and governmental 457(b), including applicable age-based catch-up treatment;
-- defined-contribution annual-additions limit and compensation interaction;
-- IRA contribution limits and relevant compensation/eligibility constraints needed by the engine;
-- HSA self-only/family base limits and age-55 catch-up structure, including married-family allocation considerations materially relevant to current implementation;
-- authoritative effective dates and source links/citations;
-- clearly separate statutory facts from project policy and assumptions;
-- flag any repository constant/documentation that appears inconsistent or cannot be verified;
-- do not redesign product policy or write production code.
+Required analysis:
+- inspect Supabase migrations/schema, account/person ownership, financial-profile forms/actions, snapshot loader, runtime normalization, and relevant tests;
+- document current HSA fields, defaults, null semantics, and where they enter authoritative calculations;
+- determine minimum data needed for month/period eligibility, coverage changes, Medicare timing, last-month-rule qualification, married-family allocation choice, and spouse/person-level facts;
+- identify whether facts belong on person, HSA account, household/tax profile, or another explicit model;
+- provide a minimal safe interim option and a richer long-term option where useful;
+- identify migration/backfill/default risks and how legacy rows must avoid silently becoming affirmative eligibility;
+- define runtime/database parity requirements and likely affected files/systems;
+- identify collision/coordination risk with Core Engine HSA capacity code;
+- do not edit production code, schema, migration, UI, or calculation behavior.
 
-Expected artifact:
-Update `.ai/research/regulatory/HANDOFF.md` and optionally `.ai/research/regulatory/SOURCES.md`.
+Acceptance criteria:
+- repository-grounded technical options with tradeoffs;
+- exact current data-flow documented;
+- migration/backward-compatibility risks explicit;
+- no implementation before Manager policy/data-contract approval;
+- role handoff updated.
+
+## Manager synthesis rules for FFH-PW-002
+
+- FFH-006 is independent of FFH-007/008 and may implement in parallel.
+- FFH-008 may analyze in parallel with FFH-007 but must not implement before policy synthesis.
+- Manager must reconcile FFH-007 and FFH-008 before issuing HSA production implementation.
+- Phase 5C production implementation remains blocked until R1/R2/R3 have a completed or approved remediation path and overlapping Core Engine work is stable.
 
 ## Currently idle roles
 
-Debt & Liquidity Policy Analyst — IDLE. No unresolved Phase 5C question currently requires independent debt/liquidity ownership; activate if Goals/Retirement synthesis exposes a real liquidity/debt conflict.
+Debt & Liquidity Policy Analyst — IDLE. The approved Phase 5C decision preserves the retirement floor and exposes essential-goal/floor infeasibility rather than silently reclassifying it; no new Debt/Liquidity policy task is currently required.
 
-Application, Data & Integration Engineer — IDLE. No independent data/persistence implementation task is yet approved.
+Goals, Cash Flow & Allocation Policy Analyst — IDLE after FFH-003 completion.
 
-Product & Technical R&D Engineer — IDLE. Active Phase 5 stabilization/policy work outranks speculative future exploration.
+Regulatory & Financial Research Analyst — IDLE after FFH-005 completion; reactivate only if FFH-006/007 reveals a factual uncertainty not answered by the existing authoritative research.
 
-Technical & Mathematical Auditor — IDLE pending a stable post-reconciliation implementation checkpoint and defined audit scope.
+Product & Technical R&D Engineer — IDLE. Current blockers are correctness/data-contract work, not speculative R&D.
 
-Financial Policy & Scenario Auditor — IDLE pending approved Phase 5C policy and completed implementation checkpoint.
+Technical & Mathematical Auditor — IDLE pending completed regulatory/HSA remediation and a stable integrated checkpoint.
+
+Financial Policy & Scenario Auditor — IDLE pending completed regulatory/HSA remediation plus later Phase 5C implementation checkpoint.
