@@ -2,7 +2,7 @@
 
 Last refreshed: 2026-09-08
 
-This file records durable product/architecture/policy decisions future employees must know. Routine implementation trivia does not belong here.
+This file records durable product, architecture, workflow, and financial-policy decisions future employees must know. Repository/runtime/test evidence outranks summaries.
 
 ## FFH-D001 — Repository-first AI operating model
 
@@ -13,24 +13,10 @@ Status: APPROVED
 Decision:
 Family Finance Hub uses the repository-persisted `.ai` workflow as canonical team state. Actual repository/runtime/test/branch evidence outranks conversation summaries and assumptions. Specialist chats must refresh repository state before continuing work.
 
-Rationale:
-The project spans long-running branches, many implementation checkpoints, multiple AI employees, and evolving financial policy. Chat-only continuity is too easy to stale or contradict.
-
-Evidence:
-- Shared Team Operating Contract supplied by the project owner.
-- Manager bootstrap found that the canonical `.ai` workflow did not yet exist.
-
-Rejected alternatives:
-- continue carrying large context blocks manually between chats;
-- treat conversation memory as equivalent to repository state.
-
 Consequences:
 - Manager owns `.ai/shared/*`.
 - active work is tracked with FFH Task IDs and role handoffs.
 - unpersisted designs remain non-canonical until reviewed and approved.
-
-Revisit condition:
-Only if the project adopts a stronger durable source-of-truth mechanism that preserves the same or better auditability and role separation.
 
 ## FFH-D002 — Preserve policy / regulatory / engineering / audit separation
 
@@ -39,152 +25,124 @@ Related Task: FFH-001
 Status: APPROVED
 
 Decision:
-Regulatory Research determines current external rules; Policy specialists determine recommended behavior within those constraints; Manager approves durable product policy; Engineering implements approved behavior; Technical and Policy Auditors independently validate completed work. Engineering must not invent financial policy, and Regulatory Research must not define product preference.
-
-Rationale:
-Financial correctness requires clear separation between statutory truth, product policy, implementation, and independent verification.
-
-Evidence:
-- Shared Team Operating Contract and Manager role specification.
-
-Rejected alternatives:
-- letting Builders choose policy during implementation;
-- treating passing tests as proof of financial-policy correctness;
-- treating plausible financial output as proof of code correctness.
+Regulatory Research determines current external rules; Policy specialists determine desired behavior within those constraints; Manager approves durable product policy; Engineering implements approved behavior; Technical and Policy Auditors independently validate completed work. Engineering must not invent financial policy and Regulatory Research must not define product preference.
 
 Consequences:
-- high-impact Phase 5C policy is routed through independent Policy analyses plus Regulatory Research before implementation.
-- dual audit remains a merge gate where required.
+- high-impact financial changes require explicit policy/research evidence before implementation;
+- passing tests do not substitute for independent audit;
+- dual audit remains a Phase 5 merge gate.
 
-Revisit condition:
-Only if the permanent team structure itself is deliberately redesigned.
-
-## FFH-D003 — Phase 5C requires current repository-backed policy approval
+## FFH-D003 — Phase 5C requires repository-backed approval
 
 Date: 2026-09-08
 Related Task: FFH-PW-001
 Status: SUPERSEDED BY FFH-D004 FOR PHASE 5C
 
 Decision:
-Phase 5C and later refinements discussed outside the repository were classified as PROPOSED / NOT APPROVED for production implementation until current specialist analyses were persisted, reconciled, and approved by Manager.
-
-Rationale:
-The verified Phase 5 repository documented Phase 5A Hybrid Retirement Floor and Phase 5B Goal Intelligence, but did not contain a current approved Phase 5C specification at bootstrap.
-
-Evidence:
-- `docs/PHASE_5_MONEY_PRIORITY_ENGINE.md`.
-- FFH-001 repository inspection.
-
-Consequences:
-- FFH-003, FFH-004, and FFH-005 were completed before Manager synthesis.
-- Phase 5D+ remains unapproved unless separately reviewed and approved.
-
-Revisit condition:
-Phase 5C approval occurred through FFH-D004. Later refinements still require explicit approval.
+Chat-only Phase 5C+ ideas were non-canonical until current specialist analyses were persisted and Manager approved them. Phase 5C is now governed by FFH-D004. Phase 5D+ remains unapproved unless separately reviewed.
 
 ## FFH-D004 — Phase 5C recurring goal-versus-retirement competition
 
 Date: 2026-09-08
 Related Tasks: FFH-003, FFH-004, FFH-005
-Status: APPROVED POLICY — IMPLEMENTATION NOT YET AUTHORIZED WHILE KNOWN PHASE 5 REGULATORY BLOCKERS REMAIN
+Status: APPROVED POLICY — IMPLEMENTATION STILL REQUIRES EXPLICIT ENGINEERING TASK
 
 Decision:
-Phase 5C governs **recurring Build capacity only** and may compete only with **additional retirement opportunity above the Phase 5A protected retirement floor**. Secure-stage protections and the protected retirement floor remain non-contestable inside ordinary goal competition.
+Phase 5C governs recurring Build capacity only and competes only with additional retirement opportunity above the Phase 5A protected retirement floor. Secure protections and the protected retirement floor are non-contestable inside ordinary goal competition.
 
 Approved rules:
-
-1. **Protected floor boundary**
-   - Employer-match capture and other authoritative Secure protections remain outside Phase 5C competition.
-   - Ordinary goals may not reduce the Phase 5A protected retirement floor.
-   - If a materially urgent essential goal cannot coexist with the protected floor, FFH must expose the constraint/infeasibility; it must not silently raid the floor or silently reclassify the goal as Secure. Any future required-obligation/Secure reclassification requires its own approved policy task.
-
-2. **Tranche-based competition**
-   - Goal competition is based on the remaining **core-need tranche**, not the whole desired target.
-   - Existing balance and prior eligible one-time deployment reduce residual core need exactly once.
-   - Desired-solution excess above a confirmed core need remains below additional retirement.
-   - Optional/lifestyle goal dollars remain below additional retirement regardless of a self-imposed deadline or expensive financing.
-
-3. **Cross-domain dispositions**
-   Each nonzero recurring goal tranche is classified as one of:
-   - `OUTRANKS_ADDITIONAL_RETIREMENT`
-   - `CO_PRIORITY_WITH_ADDITIONAL_RETIREMENT`
-   - `BELOW_ADDITIONAL_RETIREMENT`
-   - `MORE_INFORMATION_NEEDED`
-
-4. **Outrank rule — all retirement statuses**
-   Only a confirmed Essential core tranche with known core amount and usable recurring pace may outrank additional retirement, and only when both are present:
-   - material urgency: Fixed deadline **or** Critical consequence; and
-   - material harm: High/Critical consequence **or** High debt exposure.
-
-5. **Co-priority rule for Essential core tranches**
-   If an Essential core tranche does not satisfy the outrank test, it is co-priority when the evidence is confirmed, the core amount and recurring pace are usable, and at least one is present:
-   - Limited deadline;
-   - Moderate/High/Critical consequence; or
-   - Moderate/High debt exposure.
-
-6. **Important core tranches are status-sensitive**
-   - For `BEHIND` households, Important goal tranches remain below additional retirement. This preserves the strongest above-floor retirement opportunity-cost preference while the household still has a projected shortfall.
-   - For `ON_TRACK` and `AHEAD` households, an Important core tranche may be co-priority only when all are true: confirmed evidence, known core amount, Preservation or Mixed nature, Fixed or Limited deadline, and High or Critical consequence.
-   - Important goal tranches never outrank additional retirement under Phase 5C V1.
-
-7. **AHEAD does not erase guardrails**
-   AHEAD status lowers the protected floor through existing Phase 5A policy and therefore naturally frees more contestable capacity. It does not promote Optional goals, desired-solution excess, or weakly evidenced goals above retirement.
-
-8. **Co-priority scarcity**
-   True co-priority requests share scarce recurring capacity by an equal fulfillment ratio across the approved additional-retirement request and each tied goal-core request. Stable ID may resolve only an unavoidable final-cent remainder. Array order, display names, and user priority may not distort proportional shares inside a true co-priority bucket.
-
-9. **Missing information**
-   Materially missing evidence blocks only the contested tradeoff that depends on it. Contested capacity remains explicitly unresolved rather than being silently assigned to either the goal or additional retirement. Independently known Secure/protected-floor/unrelated allocations continue.
-
-10. **Schedule state**
-    - funded: request $0;
-    - on-track/behind: use recalculated required pace;
-    - `behind` is explanation/schedule evidence in Phase 5C V1 and does not itself promote or reorder a tranche across the retirement boundary;
-    - past-due/invalid pace: do not divide by zero or fabricate a one-month catch-up; return targeted decision/information-needed state.
-
-11. **No generic tax-timing tie-break in Phase 5C V1**
-    Regulatory Research verified account-specific timing/rule differences, not one universal timing rule appropriate for all retirement accounts. Phase 5C V1 therefore does not add a generic tax-advantaged deadline tie-break. Existing authoritative account routing and legal-capacity logic remain separate from competition amount.
-
-12. **Resource separation and reconciliation**
-    One-time cash, recurring Build capacity, scheduled contributions, YTD contributions, statutory room, residual goal need, protected-floor demand, and additional retirement opportunity remain distinct. No dollar may be consumed twice, and allocations plus residual capacity must reconcile to the cent.
-
-13. **Multiple OUTRANK goal tranches under scarcity**
-    Multiple retirement-senior goal-core tranches are not proportionally blended merely because they share the OUTRANK disposition. When capacity cannot satisfy all OUTRANK core paces, allocate sequentially using deterministic lexicographic financial ordering: stronger approved financial evidence first, then lower-order user priority only after the financial factors tie, then stable goal ID last. Source array order and display names are never tie-breakers.
-
-14. **User-priority boundary**
-    User priority is a lower-order preference only. It cannot change necessity, core amount, deadline flexibility, consequence severity, debt exposure, required pace, or cross-domain disposition; cannot move Optional/desired-excess dollars above retirement; cannot bypass Secure/protected-floor protections; and cannot alter equal-fulfillment shares in the co-priority bucket. It may break an otherwise meaningful goal-to-goal tie within the same approved disposition after all financial factors tie; stable ID remains final.
-
-15. **Recommendations are not execution**
-    A prior recommendation or planned future contribution does not reduce current goal principal unless the later authoritative financial snapshot records actual funding. Actual partial funding is applied to remaining core need first for future priority analysis; once the core tranche is actually satisfied, any remaining desired target cannot retain Essential-core precedence.
-
-Rationale:
-FFH-003 and FFH-004 independently agreed that ordinary goal competition must not erase Phase 5A’s protected retirement floor and that only above-floor retirement is contestable. Goals Policy provided tranche-based necessity/core evidence, deterministic multi-goal scarcity behavior, user-priority boundaries, and proportional tie semantics; Retirement Policy required stronger opportunity-cost protection for BEHIND households. The approved status-sensitive Important-goal rule resolves that tension without introducing a magic score. The design preserves FFH’s product principle that legitimate life goals need not wait until every tax-advantaged account is maxed while still protecting retirement trajectory and Secure safeguards.
+1. Employer-match capture and authoritative Secure protections remain outside Phase 5C.
+2. Ordinary goals may not reduce the Phase 5A protected retirement floor. A goal/floor conflict is exposed as a constraint; no silent Secure reclassification or floor raid.
+3. Goal competition is tranche-based: remaining core need is distinct from desired-solution excess. Existing balance and eligible one-time deployment reduce residual core need exactly once.
+4. Optional/lifestyle dollars and desired-solution excess remain below additional retirement regardless of self-imposed deadlines or expensive financing.
+5. Each nonzero recurring tranche is `OUTRANKS_ADDITIONAL_RETIREMENT`, `CO_PRIORITY_WITH_ADDITIONAL_RETIREMENT`, `BELOW_ADDITIONAL_RETIREMENT`, or `MORE_INFORMATION_NEEDED`.
+6. OUTRANK requires confirmed Essential core need, known core amount, usable recurring pace, material urgency (Fixed deadline or Critical consequence), and material harm (High/Critical consequence or High debt exposure).
+7. Essential core tranches not meeting OUTRANK are CO_PRIORITY when confirmed and at least one of Limited deadline, Moderate/High/Critical consequence, or Moderate/High debt exposure applies.
+8. Important core tranches remain below additional retirement for BEHIND households. For ON_TRACK/AHEAD, an Important core tranche may be CO_PRIORITY only when confirmed, core amount known, nature Preservation/Mixed, deadline Fixed/Limited, and consequence High/Critical. Important never OUTRANKS in V1.
+9. AHEAD status changes the protected floor through Phase 5A; it does not promote weak/Optional/excess goals.
+10. True CO_PRIORITY scarcity uses one equal-fulfillment ratio across the actionable additional-retirement request and every co-priority goal-core request. Stable ID may resolve only final-cent remainder.
+11. Multiple OUTRANK goal tranches use deterministic lexicographic financial ordering, then lower-order user priority only after financial factors tie, then stable ID. Array order/display name never decide substantive allocation.
+12. User priority cannot change necessity, core amount, deadline flexibility, consequence, debt exposure, pace, cross-domain disposition, Secure/floor boundaries, or co-priority proportional shares.
+13. `behind` is explanation/schedule evidence only for Phase 5C ranking. Funded requests are zero; past-due/invalid pace returns targeted decision/information-needed rather than fabricated catch-up.
+14. Missing evidence blocks only the contested tradeoff that depends on it; contested capacity remains explicitly unresolved rather than silently assigned to retirement or goals.
+15. No generic tax-timing tie-break is added in Phase 5C V1. Account routing/legal capacity remains a separate authoritative step.
+16. One-time cash, recurring capacity, scheduled contributions, YTD contributions, statutory room, residual need, protected-floor demand, and additional-retirement opportunity remain distinct; no dollar is consumed twice.
+17. Prior recommendations/planned future contributions are not execution. Only authoritative later financial facts reduce principal. Actual funding satisfies remaining core need before desired excess for future priority analysis.
 
 Evidence:
 - `.ai/policy/goals/FFH-003_PHASE_5C_GOAL_COMPETITION_POLICY.md`
 - `.ai/policy/goals/FFH-003_REVALIDATION_ADDENDUM.md`
-- `.ai/policy/goals/HANDOFF.md`
 - `.ai/policy/retirement/PHASE_5C_RETIREMENT_POLICY.md`
 - `.ai/policy/retirement/FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md`
-- `.ai/policy/retirement/HANDOFF.md`
 - `.ai/research/regulatory/HANDOFF.md`
-- existing Phase 5A/5B repository behavior and invariants.
+
+## FFH-D005 — HSA legal-capacity policy and data contract
+
+Date: 2026-09-08
+Related Tasks: FFH-005 R3/R4, FFH-007, FFH-008
+Status: APPROVED — IMPLEMENTATION AUTHORIZED ONLY THROUGH MANAGER-ISSUED TASKS
+
+Decision:
+Family Finance Hub will replace the current account-level annual-boolean interpretation with a tax-year-bound, person-level, period-aware HSA legal-capacity model. The approved minimum-complete architecture is a person + tax-year profile plus month-level HSA eligibility/coverage facts (or an implementation proven lossless-equivalent representation). `retirement_accounts` remain HSA destinations/YTD sources, not the canonical home of person legal eligibility.
+
+Approved policy/data rules:
+1. **Person/tax-year authority.** HSA eligibility and coverage are legal facts about a person for a tax year/period. HSA account existence or absence cannot establish eligibility.
+2. **Month-level basis.** The authoritative model must represent each relevant tax-year month as eligible/ineligible/unknown and self-only/family/none-or-unknown coverage, or an equivalent representation that reconstructs those facts without loss.
+3. **Tax-year profile.** Person-year context must represent Medicare effective timing where relevant, last-month-rule reliance/status, confirmation/version metadata, and whether future-period values are confirmed facts or explicit planning assumptions.
+4. **Legacy account fields.** Existing `hsa_eligible` and `hsa_coverage_type` remain legacy/current hints. Legacy `true` is not full-year certification; legacy `false` is not proof of zero tax-year capacity. They may not be auto-promoted into twelve affirmative months.
+5. **Unknown defaults.** New legal-fact fields/rows default to NULL/unknown. No migration/backfill may silently create full-year eligibility, family coverage, Medicare absence, or last-month-rule qualification.
+6. **Partial-year calculation.** Ordinary recommended HSA capacity uses period-aware eligibility/coverage. Unknown material months produce targeted `more_information_needed`, not optimistic room and not fabricated zero.
+7. **Medicare.** Known Medicare effective timing makes affected months ineligible; material uncertainty produces targeted information-needed. Retroactive Medicare triggers recomputation; if YTD exceeds the corrected legal ceiling, expose no additional room and a high-severity possible-excess warning, not invented tax remediation.
+8. **Last-month rule.** Never infer it from December eligibility. Default planning uses ordinary month-based capacity. The household may explicitly elect conditional last-month-rule treatment only when statutory prerequisites are represented; the output must carry testing-period risk and refresh when facts change.
+9. **Married-family ordinary base.** Use the statutory equal spouse allocation by default absent another agreement. The equal default is derived, not duplicated across account rows.
+10. **Alternate married allocation.** A household may explicitly record a different tax-year-bound spouse ordinary-base allocation within the legal shared base. Never infer the alternate split from account order, IDs, balances, income, or YTD. If equal-default allocation is incompatible with YTD but some legal alternate could fit, ask for the spouses' agreement instead of silently reallocating or declaring excess.
+11. **Age-55 catch-up.** Catch-up remains owner-specific and nontransferable. A spouse without an HSA can affect family structure, but owner catch-up cannot be routed until an HSA destination exists.
+12. **R4 owner-ceiling model.** Historical deposits do not need ordinary-vs-catch-up labels solely for capacity math. Once spouse ordinary allocation is known: `owner annual ceiling = allocated ordinary base + owner-specific catch-up`; `owner remaining room = max(0, owner annual ceiling - aggregate employee/employer HSA YTD for that owner)`. Enforce both owner ceilings and the couple-wide legal maximum.
+13. **Employee/employer sharing.** Employee and employer HSA contributions consume the same statutory ceiling; multiple HSA accounts do not multiply room. YTD is deducted exactly once.
+14. **YTD tax-year binding.** Implementation must explicitly bind the HSA YTD values used for legal-capacity math to the same tax year as the person-period basis, or prove an equivalent current-year contract. Stale/unbound YTD cannot be treated as verified current-year legal consumption.
+15. **Single source of truth.** Newly confirmed person-year/month data becomes authoritative. Legacy account eligibility/coverage may remain visible for transition but cannot compete as an independent legal source.
+16. **Runtime/database parity.** DB constraints/enums and runtime unions must agree; null/unknown must survive persistence -> loader -> normalized snapshot; same persisted facts must reload to the same capacity basis.
+17. **Downstream parity.** Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and Recommendation Refresh must consume one normalized HSA contract, not duplicate legal logic in the application layer.
+18. **Recommendation refresh.** Changes to decision-relevant HSA person-year/month facts, Medicare timing, last-month-rule choice, married allocation, or verified YTD basis must invalidate/recompute affected recommendations.
+19. **Role boundary.** Application/Data owns additive schema, persistence, capture UX/actions, Supabase loader, reload/RLS parity, and the normalized snapshot input contract. Core Engine owns HSA legal-capacity calculation/routing behavior against that approved contract. The shared snapshot contract must be established before Core Engine HSA implementation begins.
+20. **No contribution-event overbuild.** A full contribution-event ledger is a possible future improvement but is not required to resolve R3/R4 now.
+
+Approved architecture direction:
+- canonical person/tax-year profile (conceptually `person_hsa_tax_year_profile`);
+- canonical month records (conceptually `person_hsa_month_status`, max 12 per person/tax year);
+- tax-year-bound explicit alternate married-family allocation only when the household chooses one;
+- existing HSA accounts retain destination, owner, balance, schedule, and contribution/YTD roles;
+- derived legal ceilings/remaining room remain runtime outputs, not persisted competing truth.
+
+Legacy/backward-compatibility requirements:
+- additive migration only;
+- preserve account balances, ownership, and existing contribution values;
+- no optimistic backfill;
+- no owner inference from authenticated user/creator/account name/sole adult;
+- no spouse-ineligibility inference from absence of an HSA account;
+- no automatic carryforward of person/month HSA status into a later tax year;
+- legacy rows may temporarily require targeted reconfirmation before new affirmative HSA room is exposed.
+
+Evidence:
+- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md`
+- `.ai/policy/retirement/HANDOFF.md` (FFH-007)
+- `.ai/engineering/app/HANDOFF.md` (FFH-008)
+- `.ai/research/regulatory/HANDOFF.md` and `FFH-005_REVALIDATION_ADDENDUM.md`
 
 Rejected alternatives:
-- allow essential goal records to penetrate the protected retirement floor inside ordinary Build;
-- treat every fixed deadline as sufficient to beat retirement;
-- let Optional or desired-solution excess inherit Essential-core priority;
-- use winner-take-all or array-order behavior for true ties;
-- use `behind` schedule state alone to upgrade cross-domain priority;
-- allow user priority to cross a financial-policy boundary or distort true co-priority shares;
-- treat prior recommendations as executed funding;
-- assign uncertain contested capacity automatically to retirement or goals;
-- introduce a generic tax-year deadline tie-break unsupported across all account types.
+- silently reinterpret legacy `hsa_eligible=true` as full-year eligibility;
+- keep eligibility authority duplicated independently on each HSA account;
+- auto-apply the last-month rule;
+- infer married allocation from IDs/YTD/account order;
+- require historical ordinary-vs-catch-up deposit labels when owner ceilings suffice;
+- persist a derived legal-room value as a competing source of truth;
+- implement a richer contribution-event ledger solely to unblock R3/R4.
 
 Consequences:
-- Phase 5C policy is now canonical and may be used by future Engineering once Manager clears known pre-existing regulatory correctness blockers and explicitly issues an implementation task.
-- Existing retirement-account routing remains authoritative; Phase 5C decides recurring competition amount, not statutory capacity or destination.
-- Phase 5D+ remains unapproved.
+- R3/R4 policy/data ambiguity is resolved; production remediation remains required.
+- Application/Data must establish the new persistence + normalized input contract before Core Engine implements the new HSA capacity calculation.
+- FFH-009 may now begin because FFH-007 is complete.
+- Phase 5 remains not merge-ready until HSA implementation is completed and independently audited with the other retirement-capacity remediations.
 
 Revisit condition:
-Revisit only if audits expose policy incoherence, regulatory changes materially alter the tradeoff, user evidence shows unacceptable behavior, or a future approved milestone intentionally redesigns the retirement/goal competition model.
+Revisit if authoritative HSA law changes, implementation shows the monthly representation cannot preserve required semantics, or audit discovers a material inconsistency. Implementation may choose equivalent table/field names but may not weaken these semantics without Manager approval.
