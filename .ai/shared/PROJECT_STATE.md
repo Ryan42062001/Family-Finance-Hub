@@ -22,11 +22,9 @@ Open PR:
 
 Verified FFH-002 reconciliation checkpoint: `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`.
 
-At that checkpoint, Phase 5 was verified 186 commits ahead and 0 behind `main`, with current `main` as merge base. Foundation CI #245 completed successfully on that exact reconciliation SHA.
+At that checkpoint, Phase 5 was verified ahead of and 0 behind `main`, with current `main` as merge base. Foundation CI #245 completed successfully on that exact reconciliation SHA.
 
-After FFH-002, four role-owned documentation-only commits persisted Engineering/Policy/Regulatory handoffs. The last specialist head before Manager synthesis was `f6a138e78083afe6bdf83bc42117c705bda9ca09`. Comparison from the reconciliation checkpoint to that head showed only `.ai` documentation changes and no production file changes. Foundation CI #249 completed successfully on `f6a138e78083afe6bdf83bc42117c705bda9ca09`.
-
-Manager has now begun canonical synthesis commits after that specialist checkpoint. Do not assume a post-Manager-synthesis CI result unless it is explicitly observed.
+After FFH-002, specialist/Manager documentation advanced the branch while preserving production code. Foundation CI #249 completed successfully on specialist head `f6a138e78083afe6bdf83bc42117c705bda9ca09`. Later Manager/specialist documentation heads must not be assumed green until their own CI conclusion is observed.
 
 ## Stable product state on main
 
@@ -56,75 +54,67 @@ The Phase 5 branch contains repository evidence for:
 - Phase 5A Hybrid Retirement Floor;
 - Phase 5B Goal Intelligence.
 
-Classification: IMPLEMENTED BUT NOT MERGE-READY. Branch freshness is now reconciled, but known regulatory correctness/modeling findings remain and required independent audits have not yet been completed on the eventual final implementation checkpoint.
+Classification: IMPLEMENTED BUT NOT MERGE-READY. Branch freshness is reconciled, but known retirement/HSA legal-capacity correctness/modeling findings remain and required independent audits have not yet been completed on the eventual final implementation checkpoint.
 
 ## Phase 5A
-
-Repository documentation and tests cover a Hybrid Retirement Floor separating legal contribution capacity from protected planning-policy retirement saving.
 
 Classification: IMPLEMENTED / REQUIRES FINAL INTEGRATED AUDIT BEFORE MERGE.
 
 ## Phase 5B
 
-Repository documentation and tests cover Goal Intelligence as derived deterministic evidence. It does not itself alter Build allocation economics.
-
 Classification: IMPLEMENTED / REQUIRES FINAL INTEGRATED AUDIT BEFORE MERGE.
 
 ## Phase 5C
 
-FFH-003 Goals Policy and FFH-004 Retirement Policy independently completed. FFH-005 supplied current 2026 statutory research. Manager synthesis is recorded in `FFH-D004`.
+FFH-003 Goals Policy and FFH-004 Retirement Policy independently completed. FFH-005 supplied current 2026 statutory research plus revalidation. Manager synthesis is recorded in `FFH-D004`, including the later FFH-003 revalidation clarifications on multi-OUTRANK scarcity, user-priority boundaries, and recommendations-not-execution.
 
 Classification: POLICY APPROVED, NOT YET IMPLEMENTATION-AUTHORIZED.
-
-Why implementation is not yet authorized: FFH-005 identified pre-existing retirement/HSA correctness issues that must be addressed or explicitly resolved before adding further Phase 5 engine behavior.
 
 ## FFH-PW-001 status
 
 `FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery`: COMPLETE.
 
-Completed tasks:
-- FFH-002 — branch freshness reconciliation: COMPLETE; Manager accepts branch freshness as satisfied. The literal local `npm run verify` wrapper was not observed, but every constituent command plus production dependency audit passed in Foundation CI #245 on the exact reconciliation checkpoint; this is treated as a non-blocking validation variance for FFH-002. A literal `npm run verify` invocation should be required on the next production Engineering task where tooling permits.
-- FFH-003 — Goals Policy: COMPLETE.
-- FFH-004 — Retirement Policy: COMPLETE.
-- FFH-005 — Regulatory Research: COMPLETE.
+- FFH-002 — branch freshness reconciliation: COMPLETE. Literal local `npm run verify` wrapper was not observed, but every constituent command plus production dependency audit passed in Foundation CI #245 on the exact reconciliation checkpoint. Manager treats this as a non-blocking validation variance for FFH-002; next production Engineering work must run the literal wrapper when tooling permits.
+- FFH-003 — Goals Policy: COMPLETE / REVALIDATED.
+- FFH-004 — Retirement Policy: COMPLETE / CLOSED BY FFH-D004.
+- FFH-005 — Regulatory Research: COMPLETE / REVALIDATED.
 
-## Current verified regulatory findings from FFH-005
-
-FFH-005 verified core 2026 retirement/HSA constants against authoritative IRS sources and identified four material repository findings:
+## Current verified regulatory/modeling findings
 
 ### R1 — SIMPLE higher-limit age-50 catch-up mismatch candidate
 High confidence. Current logic appears to pair the certain-applicable-SIMPLE higher base with the ordinary $4,000 age-50 catch-up instead of the distinct 2026 $3,850 catch-up outside the 60–63 band. Potential overstatement: $150.
 
+Manager classification: MERGE-BLOCKING correctness issue pending FFH-006 semantic confirmation/remediation.
+
 ### R2 — governmental 457(b) Roth catch-up rule not applied
 High confidence. Current evaluator appears not to apply the 2026 high-wage Roth catch-up requirement to governmental 457(b) age-based catch-up opportunities.
 
-### R3 — HSA annual eligibility boolean is insufficient for all statutory full-year capacity cases
-High confidence modeling/data gap. HSA eligibility is month-sensitive and Medicare/last-month-rule facts can change annual capacity. Current persisted inputs do not clearly establish those facts.
+Manager classification: MERGE-BLOCKING correctness issue pending FFH-006 remediation.
 
-### R4 — HSA ordinary-versus-catch-up YTD attribution blocker is a conservative product choice, not a verified statutory requirement
-High confidence classification finding. Current conservative blocking may remain a product choice, but it must not be described as required by external law.
+### R3 — HSA annual eligibility boolean insufficient for all full-year statutory-capacity cases
+High confidence data/model gap. HSA eligibility/coverage can be month-sensitive; Medicare and last-month-rule facts can alter capacity. Current persisted inputs do not clearly establish full-year capacity in every case.
 
-Manager classification:
-- R1: MERGE-BLOCKING correctness issue pending Engineering remediation/semantic confirmation.
-- R2: MERGE-BLOCKING correctness issue pending Engineering remediation.
-- R3: MERGE-BLOCKING modeling/data-contract issue pending Policy + Application/Data resolution and implementation.
-- R4: POLICY/MODELING decision required before final audit; not independently a proven statutory defect.
+Manager classification: MERGE-BLOCKING modeling/data-contract issue pending FFH-007 + FFH-008 synthesis and later implementation.
+
+### R4 — HSA ordinary-versus-catch-up YTD attribution blocker is project modeling, not verified statutory labeling requirement
+High confidence classification finding. Current conservative blocker may remain as FFH policy, but must be deliberately classified/justified rather than described as required by law.
+
+Manager classification: POLICY/MODELING decision required through FFH-007 before final audit.
+
+### R6 — MFJ spousal-IRA scarce-compensation allocation is modeled as fixed owner-ID split
+High confidence revalidation finding. Current path can conservatively allocate scarce joint compensation sequentially by sorted owner ID before presenting per-owner room, while the spousal-IRA statutory formula depends on joint compensation reduced by the other spouse's actual IRA contributions rather than a permanent first-owner/second-owner legal-capacity split.
+
+Impact: aggregate modeled IRA room is not shown to exceed represented joint compensation, but one spouse's legally possible room can be understated and a deterministic engineering allocation can be mistaken for statutory owner-specific capacity.
+
+Manager classification: MERGE-BLOCKING legal-capacity representation/policy issue. Requires a separate Retirement Policy decision and later Engineering remediation; do not silently fold into FFH-006 because FFH-006 is already scoped to R1/R2.
 
 ## Validation state
 
-Repository scripts define:
-- `npm test`
-- `npm run test:security`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- `npm run verify`
-
-Foundation CI also runs production dependency audit.
+Repository scripts define `npm test`, `npm run test:security`, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run verify`. Foundation CI also runs production dependency audit.
 
 Verified recent CI:
-- #245 SUCCESS on `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe` (freshness reconciliation checkpoint).
-- #249 SUCCESS on `f6a138e78083afe6bdf83bc42117c705bda9ca09` (specialist documentation head; production code unchanged from reconciliation checkpoint).
+- #245 SUCCESS on `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`.
+- #249 SUCCESS on `f6a138e78083afe6bdf83bc42117c705bda9ca09`.
 
 No audit verdict is inferred from CI success.
 
@@ -150,7 +140,8 @@ Persistence/application architecture:
 - special 403(b) 15-years-of-service catch-up is not granted without required plan/service/prior-use facts;
 - governmental 457(b) special last-three-years catch-up is not granted without required plan normal-retirement-age/prior-deferral facts;
 - precise unrelated-employer sponsor grouping remains conservative when sponsor identity is unavailable;
-- person/month-level HSA eligibility semantics remain unresolved through FFH-PW-002.
+- person/month-level HSA eligibility semantics remain unresolved through FFH-PW-002;
+- spousal-IRA scarce-compensation owner allocation remains unresolved through queued FFH-009.
 
 ## Current management assessment
 
@@ -160,12 +151,20 @@ Milestone status: ACTIVE / NOT MERGE READY
 
 Completed parallel wave: `FFH-PW-001`
 
-Next active wave: `FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics`.
+Active wave: `FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics`.
 
-Immediate needs:
-1. Core Engine Engineering remediates/validates R1 and R2 only (FFH-006).
-2. Retirement Policy defines approved HSA legal-capacity semantics for R3/R4 (FFH-007).
-3. Application/Data Engineering independently maps the minimum persistence/runtime contract required to support safe HSA semantics, analysis-only pending policy (FFH-008).
-4. Manager synthesizes FFH-007/008 and authorizes HSA implementation.
-5. Only after known statutory/modeling blockers are cleared should Phase 5C production implementation begin from FFH-D004.
-6. Final Technical and Policy audits run independently on the completed integrated Phase 5 checkpoint before merge.
+Active tasks:
+1. FFH-006 — Core Engine: remediate/validate R1 and R2.
+2. FFH-007 — Retirement Policy: define HSA legal-capacity semantics for R3/R4.
+3. FFH-008 — Application/Data: analysis-only HSA persistence/runtime contract mapping.
+
+Queued task:
+4. FFH-009 — Retirement Policy: define spousal-IRA scarce-compensation/legal-capacity semantics for R6 after FFH-007, because the same specialist owns both policy questions.
+
+Next sequence:
+- complete FFH-006/007/008;
+- Manager synthesize FFH-007/008 and authorize HSA implementation;
+- complete FFH-009 and authorize any IRA remediation;
+- clear R1/R2/R3/R6 production blockers;
+- implement approved Phase 5C policy from FFH-D004 when overlapping Core Engine work is stable;
+- run independent Technical and Policy audits on the integrated checkpoint before merge.
