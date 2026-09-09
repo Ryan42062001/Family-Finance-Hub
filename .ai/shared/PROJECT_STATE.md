@@ -5,130 +5,95 @@ Last refreshed: 2026-09-08
 ## Repository state
 
 Repository: `Ryan42062001/Family-Finance-Hub`
-
 Canonical branch: `main`
 Verified `main` SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
-
 Active development branch: `phase-5-money-priority-engine`
-PR #5 — `Phase 5: Money Priority Engine`
-- state: OPEN
-- merged: false
-- draft: false
-- mergeable: true when last checked
+PR #5: OPEN / UNMERGED / NON-DRAFT / mergeable when last checked.
 
-Verified pre-synthesis Phase 5 head: `60de76c449bae1128908292f2efa24bb7cbd971d`.
-At that head the branch was 220 commits ahead and 0 behind `main`, with current `main` as merge base. Foundation CI #277 completed SUCCESS on that exact head.
+Verified pre-Manager-refresh Phase 5 head: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
+At that checkpoint the branch was 228 commits ahead and 0 behind `main`, with current `main` as merge base.
 
-FFH-006 exact production/test checkpoint: `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`; Foundation CI #274 SUCCESS.
+Foundation CI #285 on exact checkpoint `fd520a1abc98c7841306b3e73f23d6a60f7ed614`: FAILURE at Type check. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded; lint/build were skipped after the typecheck failure. FFH-010 is therefore NOT complete and must remediate/validate before Manager acceptance.
 
-Manager HSA synthesis decision FFH-D005 was then persisted as a documentation-only descendant. Later Manager documentation heads must be rechecked before claiming exact-head CI.
+Manager subsequently persisted FFH-D006 as documentation-only. Later Manager heads must not be claimed green until their own CI is observed.
 
 ## Stable product state on main
 
 `main` contains completed Foundation, Household Financial Profile, Dashboard, and Phase 4 Planning Tools.
 
-## Active Phase 5 state
+## Phase 5 status
 
-Phase 5 remains implemented on PR #5 but NOT MERGE READY.
+Phase 5 remains ACTIVE on PR #5 and NOT MERGE READY.
 
-Implemented branch capabilities include the authoritative Stabilize/Secure/Build/Optimize flow, existing-cash and residual reconciliation, committed-expense handling, employer-match/debt/student-loan/reserve policy, goal ranking, retirement projection/legal-capacity ledger, Recommended Plan vs Your Plan, Windfall, Home/Vehicle hypothetical reruns, Recommendation Refresh, strict snapshot normalization, Phase 5A Hybrid Retirement Floor, and Phase 5B Goal Intelligence.
-
-Phase 5A: IMPLEMENTED / FINAL INTEGRATED AUDIT REQUIRED.
-Phase 5B: IMPLEMENTED / FINAL INTEGRATED AUDIT REQUIRED.
-Phase 5C: POLICY APPROVED under FFH-D004 / PRODUCTION IMPLEMENTATION NOT YET AUTHORIZED.
+Phase 5A: IMPLEMENTED / final integrated audit required.
+Phase 5B: IMPLEMENTED / final integrated audit required.
+Phase 5C: POLICY APPROVED under FFH-D004 / production implementation not yet authorized.
 
 ## Completed waves
 
 ### FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery
 Status: COMPLETE
-- FFH-002 branch reconciliation: COMPLETE
-- FFH-003 Goals Policy: COMPLETE / REVALIDATED
-- FFH-004 Retirement Policy: COMPLETE / CLOSED BY FFH-D004
-- FFH-005 Regulatory Research: COMPLETE / REVALIDATED
 
-### FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics
+### FFH-PW-002 — Retirement statutory remediation + HSA policy/data analysis
 Status: COMPLETE AT POLICY/ANALYSIS GATE
 
-- FFH-006 — Core Engine R1/R2 remediation: COMPLETE WITH R1 SEMANTIC BLOCKER
-  - R2 governmental 457(b) high-wage Roth catch-up rule: REMEDIATED
-  - R2 production commit: `df4fbe7194aacaa04955c1901f477de0c25fb134`
-  - R2 validated production/test checkpoint: `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`
-  - Foundation CI #274: SUCCESS
-  - R1 SIMPLE higher-limit catch-up code was intentionally NOT changed because repository persistence semantics do not prove what `simpleHigherLimitEligible` means. This is an accepted task outcome, not a fabricated pass.
-- FFH-007 — HSA legal-capacity policy semantics: COMPLETE
-- FFH-008 — HSA persistence/runtime contract analysis: COMPLETE
-- Manager synthesis of FFH-007 + FFH-008: COMPLETE through FFH-D005
+- FFH-006: COMPLETE WITH R1 SEMANTIC BLOCKER; R2 remediated at validated checkpoint `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`, Foundation CI #274 SUCCESS.
+- FFH-007: COMPLETE.
+- FFH-008: COMPLETE.
+- HSA Manager synthesis: APPROVED as FFH-D005.
 
-## Current regulatory/modeling findings
+## Current findings / disposition
 
-### R1 — SIMPLE higher-limit age-50 catch-up semantics/correctness
-External fact is high-confidence: certain applicable higher-limit SIMPLE plans use a distinct $3,850 general age-50+ catch-up outside ages 60–63. Current repository field semantics do not prove that `simpleHigherLimitEligible=true` denotes exactly that statutory category.
-
-Status: MERGE BLOCKER / DATA-CONTRACT SEMANTICS UNRESOLVED.
-Next path: Application/Data must establish a safe prospective/legacy field contract before Core Engine changes the $3,850 behavior. Do not reinterpret ambiguous legacy values optimistically.
+### R1 — SIMPLE higher-limit semantics/correctness
+MERGE BLOCKER. External formula fact is verified, but `simpleHigherLimitEligible` persisted semantics remain ambiguous. FFH-011 is queued for App/Data after FFH-010.
 
 ### R2 — governmental 457(b) Roth catch-up
-Status: REMEDIATED by FFH-006 / AWAITING LATER INTEGRATED AUDIT.
+REMEDIATED by FFH-006; later integrated audit required.
 
-### R3 — HSA annual/full-year modeling gap
-Status: POLICY/DATA CONTRACT APPROVED through FFH-D005 / PRODUCTION IMPLEMENTATION REQUIRED.
+### R3/R4 — HSA legal-capacity model
+POLICY/DATA CONTRACT APPROVED through FFH-D005. FFH-010 is implementing the App/Data contract; Core HSA algorithm remains queued as FFH-012 after FFH-010 acceptance.
 
-### R4 — HSA ordinary-vs-catch-up attribution blocker
-Status: POLICY RESOLVED through FFH-D005. Historical deposit labeling is not required for minimum capacity math; approved owner-ceiling model replaces the blanket blocker once spouse allocation is known. PRODUCTION IMPLEMENTATION REQUIRED.
+### R6 — MFJ spousal-IRA scarce-compensation allocation
+POLICY RESOLVED through FFH-D006; production remediation remains merge-blocking.
 
-### R6 — MFJ spousal-IRA scarce-compensation owner allocation
-Status: MERGE BLOCKER / FFH-009 POLICY ACTIVE.
-Current implementation can present a deterministic owner-ID split as owner-specific legal room even though the statutory feasible set depends on actual spouse contributions. Aggregate compensation is not shown to be overstated, but owner-specific feasible room can be understated.
+FFH-D006 requires owner conditional maxima plus one shared MFJ compensation ledger, not a fixed owner-ID split. No recorded IRA account is not proof of $0 spouse IRA YTD because current retirement accounts are manually entered and no inventory-completeness certification exists.
 
-## FFH-D005 HSA canonical direction
+## Active wave — FFH-PW-003
 
-Approved HSA legal-capacity model:
-- person + tax year is the legal-fact authority;
-- month-level eligibility/coverage (or lossless equivalent) is required;
-- Medicare timing and last-month-rule reliance are explicit person-year facts;
-- future planning assumptions are distinguishable from confirmed facts;
-- legacy account `hsa_eligible`/coverage values remain non-authoritative hints and are never auto-promoted to twelve months;
-- married-family ordinary allocation defaults equally absent another agreement; alternate allocation is explicit and tax-year-bound;
-- age-55 catch-up remains owner-specific;
-- R4 uses owner annual ceilings plus aggregate owner employee/employer YTD;
-- HSA YTD consumed for capacity must be explicitly tax-year-bound or proven equivalent;
-- unknowns remain unknown and block only dependent HSA decisions;
-- Application/Data establishes persistence + normalized snapshot contract first; Core Engine implements legal-capacity behavior afterward.
-
-## Current active wave
-
-### FFH-PW-003 — HSA contract implementation + IRA policy
 Status: ACTIVE
 
-Active:
-1. FFH-009 — Retirement Policy: define R6 spousal-IRA scarce-compensation legal-capacity semantics.
-2. FFH-010 — Application/Data: implement FFH-D005 HSA persistence/capture/loader/normalized snapshot contract. No Core HSA legal-capacity algorithm change in this task.
+### FFH-009 — Retirement Policy R6
+Status: COMPLETE / MANAGER SYNTHESIZED as FFH-D006.
+Policy artifact: `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`.
 
-Queued:
-3. FFH-011 — Application/Data: define/remediate the R1 SIMPLE higher-limit persisted field contract after FFH-010 unless Manager reorders it.
-4. FFH-012 — Core Engine: implement FFH-D005 HSA legal-capacity calculation after FFH-010 establishes the normalized input contract.
-5. Future Core IRA remediation task after FFH-009 Manager synthesis.
-6. Phase 5C Core implementation task after retirement-capacity blockers have completed/approved implementation checkpoints and overlapping surfaces are stable.
+### FFH-010 — App/Data HSA persistence + normalized contract
+Status: ACTIVE / IMPLEMENTATION CHECKPOINT EXISTS BUT FAILED CI.
+Current implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
+Observed changes include additive HSA migration, dedicated HSA capture/actions, normalized HSA input-contract modules/tests, snapshot/loader integration, security test additions, and hypothetical integration.
+Current blocker: Foundation CI #285 typecheck failure. Required FFH-010 completion handoff has not yet been persisted; existing App/Data handoff still closes FFH-008.
+
+## Queued work
+
+1. FFH-011 — App/Data: resolve R1 SIMPLE persisted-field contract after FFH-010 unless Manager reorders.
+2. FFH-012 — Core Engine: implement FFH-D005 HSA legal-capacity calculation after FFH-010 stable normalized contract and Manager acceptance.
+3. FFH-013 — Core Engine: implement FFH-D006 spousal-IRA shared compensation ledger after FFH-012, unless Manager explicitly reorders after FFH-010. It is serialized with FFH-012 because both touch retirement-capacity Core surfaces.
+4. Narrow Core R1 formula remediation after FFH-011 if the approved field contract requires code change.
+5. Phase 5C Core implementation under FFH-D004 after retirement-capacity surfaces are stable.
+6. Independent Technical & Mathematical Audit and Financial Policy & Scenario Audit on the integrated Phase 5 checkpoint.
 
 ## Validation state
 
-Verified CI:
-- #245 SUCCESS on branch-reconciliation checkpoint `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`
-- #249 SUCCESS on specialist checkpoint `f6a138e78083afe6bdf83bc42117c705bda9ca09`
-- #269 SUCCESS on Manager checkpoint `71705039f0abf1945202631109975edeb5632920`
-- #274 SUCCESS on FFH-006 production/test checkpoint `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`
-- #277 SUCCESS on pre-synthesis branch head `60de76c449bae1128908292f2efa24bb7cbd971d`
+Verified successful CI checkpoints:
+- #245 on `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`
+- #249 on `f6a138e78083afe6bdf83bc42117c705bda9ca09`
+- #269 on `71705039f0abf1945202631109975edeb5632920`
+- #274 on `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`
+- #277 on `60de76c449bae1128908292f2efa24bb7cbd971d`
 
-Literal local `npm run verify` remains unavailable in the GitHub-only execution environment used by recent workers; constituent commands plus production dependency audit were observed in CI. Future workers must not claim literal-wrapper execution unless actually observed.
+Current FFH-010 checkpoint CI:
+- #285 FAILURE on `fd520a1abc98c7841306b3e73f23d6a60f7ed614` at Type check.
 
-No CI success is an audit verdict.
-
-## Known deferred boundaries
-
-- 403(b) 15-years-of-service special catch-up remains unmodeled without required plan/service/history facts.
-- governmental 457(b) special last-three-years catch-up remains unmodeled without required plan retirement-age/history facts.
-- precise unrelated-employer sponsor grouping remains conservative when sponsor identity is unavailable.
-- contribution-event ledger is future optional architecture, not required for current HSA remediation.
+Literal local `npm run verify` must not be claimed unless actually observed. No CI success/failure is itself an audit verdict.
 
 ## Current management assessment
 
@@ -136,16 +101,17 @@ Current milestone: Phase 5 — Money Priority Engine
 Milestone status: ACTIVE / NOT MERGE READY
 Completed waves: FFH-PW-001, FFH-PW-002
 Active wave: FFH-PW-003
-Active assignments: FFH-009, FFH-010
-Queued assignments: FFH-011, FFH-012, later IRA remediation, later Phase 5C implementation
-Tasks awaiting audit: completed integrated Phase 5 after R1/R3/R4/R6 production remediation and Phase 5C implementation
+Active specialist assignment: FFH-010 only
+Manager: ACTIVE
+Retirement Policy: IDLE after FFH-009 completion
+Core Engine: IDLE pending FFH-010 acceptance; FFH-012 then FFH-013 queued
+Application/Data: ACTIVE on FFH-010
+Auditors: IDLE pending stable integrated implementation checkpoint
 
-Expected sequence:
-1. FFH-009 and FFH-010 run in parallel.
-2. Manager synthesizes FFH-009 and issues IRA implementation if needed.
-3. FFH-010 establishes HSA schema/capture/loader/snapshot contract and validation checkpoint.
-4. Core Engine executes FFH-012 against that stable contract.
-5. Application/Data resolves R1 field semantics through FFH-011; Core follows with a narrow R1 code task if mapping requires change.
-6. Once retirement-capacity blockers are stable, implement FFH-D004 Phase 5C.
-7. Run independent Technical & Mathematical Audit and Financial Policy & Scenario Audit on the integrated checkpoint.
-8. Resolve findings, evaluate PR #5 merge gate, merge only if clean, then verify post-merge state.
+Exact next sequence:
+1. FFH-010 fixes typecheck failure, completes required validation, and persists a current handoff.
+2. Manager accepts/rejects FFH-010 exact checkpoint.
+3. On acceptance, activate FFH-012 Core HSA implementation and FFH-011 App/Data R1 contract work in parallel.
+4. After FFH-012, activate FFH-013 Core IRA remediation while FFH-011/R1 follow-up proceeds dependency-safely.
+5. Stabilize retirement-capacity work, then implement FFH-D004 Phase 5C.
+6. Run dual independent audits before merge.
