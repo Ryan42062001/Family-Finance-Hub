@@ -24,7 +24,7 @@ Long-term differentiators include the Money Priority Engine, Household Financial
 
 Repository evidence supports the major V2 priority-engine foundation plus Phase 5A Hybrid Retirement Floor and Phase 5B Goal Intelligence.
 
-Phase 5C recurring goal-versus-retirement policy is now approved in `FFH-D004`, but implementation is intentionally deferred until known pre-existing regulatory/modeling blockers are resolved.
+Phase 5C recurring goal-versus-retirement policy is approved in `FFH-D004`, but implementation is intentionally deferred until known pre-existing retirement/HSA legal-capacity blockers are resolved.
 
 ### Completed work
 
@@ -39,13 +39,12 @@ Status: COMPLETE
   - verified reconciliation checkpoint: `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`
   - branch became 0 behind current `main`
   - Foundation CI #245: SUCCESS
-
-- FFH-003 — Phase 5C Goals Policy analysis: COMPLETE
-- FFH-004 — Phase 5C Retirement Policy independent review: COMPLETE
-- FFH-005 — 2026 statutory retirement/HSA verification: COMPLETE
+- FFH-003 — Phase 5C Goals Policy analysis: COMPLETE / REVALIDATED
+- FFH-004 — Phase 5C Retirement Policy independent review: COMPLETE / CLOSED BY FFH-D004
+- FFH-005 — 2026 statutory retirement/HSA verification: COMPLETE / REVALIDATED
 - Manager synthesis: COMPLETE through `FFH-D004`
 
-### Current blockers discovered by FFH-005
+### Current blockers discovered by FFH-005 + revalidation
 
 R1 — high-confidence SIMPLE higher-limit age-50 catch-up mismatch candidate.
 
@@ -55,7 +54,9 @@ R3 — high-confidence HSA legal-capacity data/model gap for partial-year eligib
 
 R4 — HSA ordinary-versus-catch-up YTD attribution is a conservative product choice rather than a verified statutory requirement and requires explicit policy classification.
 
-R1–R3 block final Phase 5 merge-readiness. R4 must be deliberately resolved/classified before final audit.
+R6 — high-confidence MFJ spousal-IRA scarce-compensation legal-capacity representation issue: current deterministic owner-ID allocation can understate one spouse's legally possible room and is project modeling rather than a statutory owner-specific split.
+
+R1, R2, R3, and R6 block final Phase 5 merge-readiness. R4 must be deliberately resolved/classified before final audit.
 
 ## FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics
 
@@ -64,76 +65,81 @@ Status: ACTIVE
 ### FFH-006 — Remediate verified retirement-capacity statutory mismatches
 Owner: Core Financial Engine Engineer
 Dependency classification: INDEPENDENT within FFH-PW-002
+Status: ASSIGNED
 
 Objective:
-Remediate FFH-005 R1 and R2 only, without implementing Phase 5C or redesigning HSA policy.
+Remediate FFH-005 R1 and R2 only, without implementing Phase 5C or redesigning HSA/IRA policy.
 
 Required outcomes:
-- verify the exact current branch/head before editing;
-- confirm `simpleHigherLimitEligible` semantics against repository schema/docs before applying R1; if semantics are genuinely ambiguous, stop only that subpart and return evidence to Manager rather than guessing;
-- implement the verified 2026 certain-applicable-SIMPLE age-50 catch-up distinction where supported;
-- apply the verified 2026 high-wage Roth catch-up requirement to governmental 457(b) age-based catch-up logic using existing plan/sponsor-wage/Roth-support facts where available;
-- preserve the explicitly deferred governmental 457(b) special last-three-years catch-up boundary;
-- do not change Phase 5C, HSA eligibility semantics, goal policy, or unrelated account behavior;
+- verify exact branch/head before editing;
+- confirm `simpleHigherLimitEligible` semantics before applying R1;
+- implement the verified 2026 certain-applicable-SIMPLE catch-up distinction where supported;
+- apply the verified 2026 high-wage Roth catch-up requirement to governmental 457(b) age-based catch-up logic using modeled facts;
+- preserve deferred special 457(b) catch-up boundaries;
 - add focused boundary/adversarial regression tests;
-- run literal `npm run verify` when tooling permits, production dependency audit, and verify CI on the exact final production checkpoint;
+- run literal `npm run verify` when tooling permits, production dependency audit, and verify CI on exact final production checkpoint;
 - return exact SHA and handoff evidence.
-
-Required audit after implementation: later integrated Technical + Policy Audit; Manager may request focused audit earlier if implementation risk warrants it.
 
 ### FFH-007 — Define HSA legal-capacity policy semantics for R3/R4
 Owner: Retirement & Tax-Advantaged Policy Analyst
 Dependency classification: INDEPENDENT within FFH-PW-002
+Status: ASSIGNED
 
 Objective:
-Using FFH-005 authoritative findings, define the desired FFH policy/data semantics for HSA legal capacity when annual eligibility, partial-year coverage, Medicare enrollment, last-month-rule use, married-family allocation, and YTD contributions interact.
-
-Required analysis:
-- determine what `hsa_eligible` may safely mean in authoritative recommendations;
-- decide whether current annual/account-level facts can ever support full-year actionable capacity without additional timing facts;
-- define conservative `more_information_needed` behavior when statutory capacity cannot be established;
-- decide ordinary married-family base allocation behavior when users do not specify an allocation (including whether IRS equal default should be used);
-- decide whether the current ordinary-versus-catch-up YTD attribution blocker should remain as a deliberate conservative project rule or be replaced by a legally sufficient allocation model;
-- distinguish current law, project policy, product-design choice, and data requirement;
-- define scenario acceptance cases and backward-compatibility expectations;
-- do not write production code.
+Using FFH-005 authoritative findings, define desired FFH HSA legal-capacity semantics for annual/full-year eligibility, partial-year coverage, Medicare, last-month-rule uncertainty, married-family allocation, and current YTD attribution behavior.
 
 Required next role: Manager synthesis with FFH-008.
 
 ### FFH-008 — Map HSA persistence/runtime contract
 Owner: Application, Data & Integration Engineer
-Dependency classification: SOFT DEPENDENCY on FFH-007; may proceed in parallel as analysis-only
+Dependency classification: SOFT DEPENDENCY on FFH-007; analysis-only in parallel
+Status: ASSIGNED — ANALYSIS ONLY
 
 Objective:
-Inspect the existing HSA schema, migrations, financial-profile forms/actions, snapshot loader, persistence/runtime contract, and account/person ownership model. Produce the minimum technically sound data-contract options needed to support safe R3/R4 policy without implementing production changes yet.
-
-Required analysis:
-- identify current persisted HSA fields and exact semantics actually represented;
-- identify where HSA eligibility/coverage facts live and how they enter the authoritative snapshot;
-- determine options for supporting month-level/period eligibility, Medicare timing, last-month-rule qualification, married-family allocation choice, and any spouse/person-level facts required by FFH-007;
-- identify migrations/backfill/default/legacy-record risks;
-- identify runtime/database parity requirements and likely files/components affected;
-- distinguish minimal safe interim option from richer long-term model;
-- do not change production schema/code until Manager approves a policy/data contract.
+Inspect the existing HSA schema/forms/actions/snapshot/runtime data flow and propose the minimum safe persistence/runtime contract needed to implement FFH-007 policy. No production changes until Manager approval.
 
 Required next role: Manager synthesis with FFH-007.
+
+## FFH-009 — Define spousal-IRA scarce-compensation legal-capacity semantics
+
+Owner: Retirement & Tax-Advantaged Policy Analyst
+Status: QUEUED — DO NOT START UNTIL FFH-007 IS COMPLETE
+Dependency classification: HARD scheduling dependency on FFH-007 because the same specialist owns both; factual basis from FFH-005 R6 is already available
+
+Objective:
+Define implementation-ready FFH policy for MFJ spousal-IRA legal capacity when joint compensation is below the sum of both spouses' individual IRA dollar limits, so deterministic engine routing is not misrepresented as a statutory fixed owner split.
+
+Required analysis:
+- use FFH-005 R6 authoritative spousal-IRA research;
+- distinguish the statutory feasible set from FFH allocation/routing policy;
+- determine how actual YTD contributions by each spouse affect remaining feasible capacity;
+- define what the engine may safely expose as per-owner actionable room before the user's future contribution choices are known;
+- define deterministic behavior without inventing a statutory owner priority;
+- preserve aggregate compensation and individual annual-limit invariants;
+- define missing-information behavior, scenario acceptance cases, and interaction with account routing;
+- do not write production code.
+
+Required next role: Manager synthesis followed by an implementation-ready Core Engine task if remediation is approved.
 
 ## Hard dependency after FFH-PW-002
 
 Manager must synthesize FFH-007 and FFH-008 before authorizing HSA production changes.
 
-Core Phase 5C implementation should not begin until the known R1/R2/R3 statutory/modeling blockers have an approved remediation path and overlapping Core Engine surfaces are no longer at material collision risk.
+FFH-009 must then resolve R6 policy semantics before final integrated audit/merge. It may be executed immediately after FFH-007 by the same Retirement Policy specialist.
+
+Core Phase 5C implementation should not begin until R1/R2/R3/R6 have completed or approved remediation paths and overlapping Core Engine surfaces are stable.
 
 ## Expected next sequence
 
 1. Complete FFH-006, FFH-007, FFH-008.
 2. Manager approves HSA policy/data contract and issues implementation-ready HSA Engineering task(s).
-3. Implement and validate HSA remediation.
-4. Issue Core Engine implementation task for approved Phase 5C policy (`FFH-D004`) once overlapping retirement-capacity work is stable.
-5. Require independent Technical Auditor and Financial Policy & Scenario Auditor reviews on the completed integrated Phase 5 checkpoint.
-6. Resolve blocking findings.
-7. Evaluate PR #5 merge gate.
-8. If clean, merge, verify post-merge CI, and reconcile canonical state.
+3. Retirement Policy executes queued FFH-009; Manager approves spousal-IRA legal-capacity policy.
+4. Implement/validate HSA and IRA remediation without overlapping unsafe Core changes.
+5. Issue Core Engine implementation task for approved Phase 5C policy (`FFH-D004`) once retirement-capacity work is stable.
+6. Require independent Technical Auditor and Financial Policy & Scenario Auditor reviews on the completed integrated Phase 5 checkpoint.
+7. Resolve blocking findings.
+8. Evaluate PR #5 merge gate.
+9. If clean, merge, verify post-merge CI, and reconcile canonical state.
 
 Do not pre-authorize Phase 5D–5G production work solely from prior chat discussion.
 
