@@ -18,120 +18,115 @@ Long-term differentiators include the Money Priority Engine, Household Financial
 - Phase 6 — Scenario Lab: PLANNED / NOT STARTED
 - Phase 7 — Private Beta: PLANNED / NOT STARTED
 
-## Phase 5 status
+## Phase 5 approved policy
 
-Implemented foundation includes the priority waterfall, existing-cash/residual accounting, Secure/Build/Optimize behaviors, retirement legal-capacity ledger, planning reruns, Phase 5A Hybrid Retirement Floor, and Phase 5B Goal Intelligence.
+- Phase 5A Hybrid Retirement Floor: IMPLEMENTED; final integrated audit required.
+- Phase 5B Goal Intelligence: IMPLEMENTED; final integrated audit required.
+- Phase 5C recurring goal-versus-retirement competition: APPROVED as FFH-D004; implementation intentionally sequenced after retirement-capacity remediation.
+- HSA legal-capacity/data contract: APPROVED as FFH-D005.
+- MFJ spousal-IRA scarce-compensation capacity: APPROVED as FFH-D006.
 
-Phase 5C recurring goal-versus-retirement policy is approved in `FFH-D004`, but production implementation remains intentionally sequenced behind retirement-capacity remediation.
-
-## Completed work
+## Completed waves
 
 ### FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery
-Status: COMPLETE
-- FFH-002 branch freshness reconciliation — COMPLETE
-- FFH-003 Goals Policy — COMPLETE / REVALIDATED
-- FFH-004 Retirement Policy — COMPLETE / CLOSED BY FFH-D004
-- FFH-005 Regulatory Research — COMPLETE / REVALIDATED
-- Manager Phase 5C synthesis — COMPLETE through FFH-D004
+COMPLETE.
 
 ### FFH-PW-002 — Retirement statutory remediation + HSA policy/data analysis
-Status: COMPLETE AT POLICY/ANALYSIS GATE
-- FFH-006 Core Engine R1/R2 task — COMPLETE
-  - R2 governmental 457(b) Roth catch-up: remediated and CI-validated
-  - R1 SIMPLE higher-limit: intentionally stopped at verified persisted-field semantic ambiguity
-- FFH-007 HSA legal-capacity policy — COMPLETE
-- FFH-008 HSA persistence/runtime analysis — COMPLETE
-- Manager HSA synthesis — COMPLETE through FFH-D005
+COMPLETE AT POLICY/ANALYSIS GATE.
 
-## Durable HSA decision — FFH-D005
-
-The approved minimum-complete HSA remediation uses a person + tax-year profile plus month-level eligibility/coverage facts (or a lossless equivalent). Legacy account-level eligibility/coverage remains non-authoritative. Equal married-family allocation is the default absent another agreement; alternate allocation and last-month-rule reliance are explicit household choices within statutory constraints. R4 is replaced by owner-ceiling math using spouse allocation + owner catch-up + aggregate owner YTD. Application/Data establishes schema/capture/loader/normalized contract before Core Engine changes HSA capacity math.
+- FFH-006: R2 remediated; R1 correctly stopped at persisted-field ambiguity.
+- FFH-007: HSA policy complete.
+- FFH-008: HSA persistence/runtime analysis complete.
+- FFH-D005 approved.
 
 ## Active wave — FFH-PW-003
 
-Title: HSA contract implementation + IRA policy
+Title: HSA contract implementation + IRA policy/remediation preparation
 Status: ACTIVE
 
-### FFH-009 — Define spousal-IRA scarce-compensation legal-capacity semantics
+### FFH-009 — Spousal-IRA scarce-compensation policy
 Owner: Retirement & Tax-Advantaged Policy Analyst
-Status: ACTIVE
-Dependency: FFH-007 complete; factual basis is FFH-005 R6
+Status: COMPLETE / SYNTHESIZED
 
-Objective:
-Define the statutory feasible-set / FFH routing boundary for MFJ IRA contribution capacity when joint compensation is below the sum of both spouses' individual limits. Do not invent a statutory owner priority. Define use of actual YTD spouse contributions, safely exposable per-owner room, deterministic routing, missing-information behavior, and acceptance scenarios.
+Result:
+FFH-D006 now requires owner conditional maxima plus one shared MFJ compensation ledger; no fixed owner-ID statutory split; no summing conditional maxima as independent room; no zero-YTD inference from absence of a manually entered IRA account; order-invariant routing; actual YTD consumed once; scheduled/current-plan dollars reserve rather than masquerade as YTD.
 
-Next: Manager synthesis, then a Core Engine remediation task if approved.
-
-### FFH-010 — Implement FFH-D005 HSA persistence and normalized input contract
+### FFH-010 — Implement FFH-D005 HSA persistence + normalized input contract
 Owner: Application, Data & Integration Engineer
-Status: ACTIVE
-Dependency: FFH-D005 approved
+Status: ACTIVE / NOT ACCEPTED
 
-Objective:
-Implement only the Application/Data side of FFH-D005 so the future Core Engine HSA calculation receives one authoritative normalized contract.
+Current implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
 
-Required scope:
-- additive Supabase migration(s) for person/tax-year HSA profile and month-level eligibility/coverage (or a proven lossless-equivalent shape);
-- tax-year-bound alternate married-family allocation representation only when explicitly chosen;
-- explicit tax-year binding for HSA YTD used by legal-capacity math, or a proven equivalent contract;
-- household-scoped RLS consistent with current financial-data authorization;
-- financial-profile or dedicated HSA capture UX/actions sufficient to create/update the approved legal facts without optimistic defaults;
-- preserve legacy account HSA eligibility/coverage as non-authoritative hints; no optimistic backfill;
-- Supabase loader + normalized Money Priority snapshot contract updates;
-- Recommendation Refresh/material-basis integration for decision-relevant HSA facts;
-- persistence/reload/null/unknown/RLS/order-invariance tests;
-- DB/runtime enum/null parity;
-- do not change `money-priority-retirement-accounts.ts` HSA legal-capacity algorithm except where unavoidable for compile-time contract compatibility; if unavoidable, stop and route the exact overlap to Manager/Core instead of silently implementing FFH-012;
-- create migration file and, when linked Supabase tooling is available and repository workflow permits, apply/verify the migration separately from the code commit; never claim live parity without evidence;
-- run/observe required repository verification and Foundation CI on exact final checkpoint.
+Repository evidence shows substantial scope landed: additive HSA migration, dedicated HSA capture/actions, person/tax-year/month contract, normalized HSA input module/tests, snapshot/loader updates, security tests, and hypothetical integration.
 
-Next: Manager review, then FFH-012 Core HSA implementation.
+Foundation CI #285 on that exact checkpoint FAILED at Type check. Calculation tests, security contract tests, and production dependency audit succeeded before the failure; lint/build were skipped. Required FFH-010 handoff has not yet replaced the old FFH-008 handoff.
 
-## Queued work
+FFH-010 remains active until it:
+- fixes the typecheck failure;
+- runs/observes required validation;
+- verifies CI on the exact final production checkpoint;
+- persists a current FFH-010 handoff;
+- reports migration/runtime evidence separately from migration-file existence.
 
-### FFH-011 — Define/remediate SIMPLE higher-limit persisted field contract
+## Queued next wave after FFH-010 acceptance
+
+### FFH-011 — Resolve R1 SIMPLE persisted-field contract
 Owner: Application, Data & Integration Engineer
-Status: QUEUED after FFH-010 unless Manager reorders
+Status: QUEUED
 
-Objective:
-Resolve R1's persisted-field ambiguity without guessing. Determine the current/legacy semantics and capture path for `simple_higher_limit_eligible` / `simpleHigherLimitEligible`; establish a safe prospective field/data contract for the statutory certain-applicable-SIMPLE category; address legacy/null/reconfirmation behavior; and recommend whether migration/rename/new field is required. No Core catch-up formula change in this task.
+Define safe prospective + legacy semantics for `simple_higher_limit_eligible` / `simpleHigherLimitEligible`; determine whether existing field can explicitly represent the statutory certain-applicable-SIMPLE category or requires rename/new field/reconfirmation. No Core formula change in FFH-011.
 
 ### FFH-012 — Implement FFH-D005 HSA legal-capacity calculation
 Owner: Core Financial Engine Engineer
-Status: QUEUED after FFH-010 stable normalized contract
+Status: QUEUED / HARD BLOCKED ON FFH-010 ACCEPTED CONTRACT
 
-Objective:
-Consume the approved HSA contract and implement month-sensitive base/catch-up capacity, Medicare/retroactivity behavior, explicit last-month-rule conditional basis, married equal/alternate allocation, R4 owner ceilings, YTD tax-year discipline, targeted uncertainty, downstream ledger/routing parity, and comprehensive HSA scenarios. Preserve one legal-capacity source across Existing Cash/Secure/Build/Windfall/Your Plan/hypotheticals/refresh.
+Implement month-sensitive HSA base/catch-up capacity, Medicare/retroactivity, explicit last-month-rule conditional treatment, married equal/alternate allocation, owner ceilings, tax-year YTD discipline, targeted uncertainty, and downstream ledger/routing parity against the accepted normalized contract.
 
-### Future IRA remediation
+FFH-011 and FFH-012 should run in parallel after FFH-010 acceptance because they are dependency-safe and owned by different workers.
+
+## Queued after FFH-012
+
+### FFH-013 — Implement FFH-D006 spousal-IRA shared compensation ledger
 Owner: Core Financial Engine Engineer
-Status: BLOCKED on FFH-009 Manager synthesis
+Status: QUEUED
 
-### Future Phase 5C implementation
+Replace sorted-owner scarce-compensation allocation with approved owner + shared-capacity semantics. Preserve existing Roth eligibility / Traditional deductibility behavior. Add adversarial scarcity, YTD, schedule, multi-account, order-invariance, and possible-excess tests.
+
+FFH-013 is serialized after FFH-012 because both touch Core retirement-capacity surfaces.
+
+### Narrow R1 Core remediation
+Owner: Core Financial Engine Engineer
+Status: FUTURE / BLOCKED ON FFH-011
+
+Implement only the formula/data behavior required by the approved FFH-011 field contract.
+
+### Phase 5C Core implementation
 Owner: Core Financial Engine Engineer
 Status: POLICY APPROVED / NOT YET AUTHORIZED
 
-Start only after retirement-capacity blockers have completed or have stable approved implementation checkpoints and overlapping Core Engine surfaces are safe.
+Start only after retirement-capacity blockers have stable approved checkpoints and Core-surface collision risk is acceptable.
 
 ## Current merge blockers
 
-- R1 SIMPLE persisted-field semantics + any resulting code remediation
-- R3/R4 HSA production implementation under FFH-D005
-- R6 spousal-IRA policy + resulting remediation
-- Phase 5C production implementation and integrated independent audits
+- R1 SIMPLE field semantics and any resulting Core remediation.
+- R3/R4 HSA production completion under FFH-D005.
+- R6 spousal-IRA production remediation under FFH-D006.
+- Phase 5C production implementation.
+- final Technical & Mathematical Audit.
+- final Financial Policy & Scenario Audit.
 
-R2 is remediated but remains subject to later integrated audit.
+R2 is remediated but remains subject to integrated audit.
 
 ## Expected sequence
 
-1. Run FFH-009 and FFH-010 in parallel.
-2. Manager synthesize FFH-009 and issue IRA remediation if required.
-3. Review FFH-010 exact schema/runtime checkpoint.
-4. Run FFH-012 Core HSA implementation against that contract.
-5. Run FFH-011 for R1; issue a narrow Core R1 follow-up if semantics require formula change.
-6. Stabilize retirement-capacity surfaces and implement FFH-D004 Phase 5C.
-7. Run Technical & Mathematical Audit and Financial Policy & Scenario Audit on the integrated Phase 5 checkpoint.
-8. Resolve all blocking findings.
+1. Finish FFH-010: fix typecheck, validate, handoff, Manager acceptance.
+2. Run FFH-011 App/Data + FFH-012 Core HSA in parallel.
+3. Manager integrate both.
+4. Run FFH-013 Core IRA remediation; issue narrow Core R1 follow-up when FFH-011 semantics are ready and dependency-safe.
+5. Stabilize retirement-capacity surfaces.
+6. Implement FFH-D004 Phase 5C.
+7. Run independent Technical & Mathematical Auditor and Financial Policy & Scenario Auditor on the integrated Phase 5 checkpoint.
+8. Resolve blocking findings.
 9. Evaluate PR #5 merge gate; merge only if clean.
 10. Verify post-merge CI and reconcile canonical state.
 
@@ -139,8 +134,8 @@ Do not pre-authorize Phase 5D–5G production work from prior chat discussion.
 
 ## Phase 6 — Scenario Lab
 
-Planned examples include increased retirement contributions, HSA maxing, extra mortgage payments, vehicle purchase, temporary income loss, raises, and monthly-savings changes. Scenario Lab remains downstream of an accepted Phase 5 recommendation engine and must not mutate live household data unless explicitly applied.
+PLANNED / NOT STARTED. Remains downstream of an accepted Phase 5 recommendation engine.
 
 ## Phase 7 — Private Beta
 
-Planned scope includes household invitations/onboarding, recovery, security review, accessibility/mobile polish, and feedback collection.
+PLANNED / NOT STARTED. Includes household onboarding/invitations, recovery, security review, accessibility/mobile polish, and feedback collection.
