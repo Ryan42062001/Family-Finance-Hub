@@ -2,176 +2,179 @@
 
 Last refreshed: 2026-09-08
 
-## Completed management/bootstrap work
-
-### FFH-001 — Canonical AI workflow bootstrap
-Owner: Manager / Architect
-Status: COMPLETE
+## Completed work relevant to current wave
 
 ### FFH-PW-001 — Phase 5 stabilization + Phase 5C policy discovery
 Status: COMPLETE
+- FFH-002 — branch reconciliation — COMPLETE
+- FFH-003 — Goals Policy — COMPLETE / REVALIDATED
+- FFH-004 — Retirement Policy — COMPLETE / CLOSED BY FFH-D004
+- FFH-005 — Regulatory Research — COMPLETE / REVALIDATED
+- Phase 5C policy — APPROVED as FFH-D004
 
-- FFH-002 — Phase 5 branch freshness reconciliation — COMPLETE
-- FFH-003 — Phase 5C Goals Policy analysis — COMPLETE / REVALIDATED
-- FFH-004 — Phase 5C Retirement Policy review — COMPLETE / CLOSED BY FFH-D004
-- FFH-005 — 2026 statutory retirement/HSA verification — COMPLETE / REVALIDATED
+### FFH-PW-002 — Retirement statutory remediation + HSA policy/data analysis
+Status: COMPLETE AT POLICY/ANALYSIS GATE
 
-Manager synthesis of FFH-003/004/005 is persisted as `FFH-D004`.
+#### FFH-006 — R1/R2 statutory remediation
+Owner: Core Financial Engine Engineer
+Status: COMPLETE — MANAGER ACCEPTS TASK OUTCOME
+- R2 governmental 457(b) Roth catch-up: REMEDIATED
+- validated production/test checkpoint: `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`
+- Foundation CI #274: SUCCESS
+- R1 SIMPLE formula change: intentionally NOT performed because persisted field semantics are ambiguous; routed to future FFH-011 rather than guessed
 
-## FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics
+#### FFH-007 — HSA legal-capacity policy
+Owner: Retirement & Tax-Advantaged Policy Analyst
+Status: COMPLETE — MANAGER SYNTHESIZED
+
+#### FFH-008 — HSA persistence/runtime contract analysis
+Owner: Application, Data & Integration Engineer
+Status: COMPLETE — MANAGER SYNTHESIZED
+
+Manager synthesis of FFH-007 + FFH-008 is canonical as `FFH-D005 — HSA legal-capacity policy and data contract`.
+
+# FFH-PW-003 — HSA contract implementation + IRA policy
 
 Status: ACTIVE
 
-### FFH-006 — Remediate retirement-capacity statutory mismatches
-
-Assigned employee: Core Financial Engine Engineer
-Department: Engineering
-Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-002
-Target branch: `phase-5-money-priority-engine`
-Verified predecessor reconciliation checkpoint: `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`
-Blocking dependency: none after Manager task publication
-Required next role: Manager review; later integrated Technical + Policy Audit
-Parallel Wave ID: FFH-PW-002
-
-Objective:
-Remediate FFH-005 findings R1 and R2 only. Do not implement Phase 5C and do not redesign HSA or IRA policy.
-
-Required technical behavior:
-- refresh canonical `.ai` state and verify current branch/head before editing;
-- inspect exact schema/documentation semantics of `simpleHigherLimitEligible` before changing SIMPLE logic;
-- if that field genuinely does not map to the statutory certain-applicable-SIMPLE category, stop R1 only and return evidence rather than guessing;
-- where semantics support the mapping, implement the verified 2026 $3,850 age-50+ catch-up for the higher-applicable-SIMPLE category outside the age-60–63 super-catch-up band;
-- preserve verified $5,250 SIMPLE age-60–63 catch-up behavior;
-- extend the 2026 high-wage Roth catch-up rule to governmental 457(b) age-based catch-up opportunities using authoritative sponsor-wage/Roth-support facts already modeled where available;
-- preserve separate/deferred governmental 457(b) special last-three-years catch-up boundary;
-- missing Roth-support or sponsor-wage facts must not become fabricated eligibility;
-- no Phase 5C, Goal Intelligence, HSA semantics, spousal-IRA semantics, or unrelated routing changes.
-
-Required tests / validation:
-- targeted SIMPLE tests for age 50–59, 60–63, 64+; higher-limit eligible vs ordinary category; exact catch-up amounts and no stacking;
-- targeted governmental 457(b) tests for below/above threshold, Roth support true/false/unknown, ordinary age-based catch-up, preservation of special-catch-up boundary;
-- regression tests showing unaffected account types retain behavior;
-- literal `npm run verify` must be run and observed when execution tooling permits;
-- production dependency audit must be run/observed;
-- Foundation CI must be verified on exact final production checkpoint;
-- exact final SHA and changed files recorded.
-
-Acceptance criteria:
-- R1 and R2 remediated with evidence or precisely scoped semantic ambiguity returned to Manager;
-- no new financial-policy behavior beyond verified external rules;
-- no production change outside authorized scope;
-- required tests/validation actually observed and reported;
-- role handoff updated.
-
-### FFH-007 — Define HSA legal-capacity policy semantics
+## FFH-009 — Define spousal-IRA scarce-compensation legal-capacity semantics
 
 Assigned employee: Retirement & Tax-Advantaged Policy Analyst
 Department: Policy
-Status: ASSIGNED
-Dependency classification: INDEPENDENT within FFH-PW-002
-Branch: repository read; role-owned policy artifacts only
-Blocking dependency: none after FFH-005
-Required next role: Manager synthesis with FFH-008
-Parallel Wave ID: FFH-PW-002
+Status: ASSIGNED / ACTIVE
+Dependency classification: INDEPENDENT within FFH-PW-003 after FFH-007 completion
+Blocking dependency: none; FFH-005 R6 evidence is available
+Required next role: Manager synthesis; then Core Engine remediation task if approved
+Parallel Wave ID: FFH-PW-003
 
 Objective:
-Resolve policy/modeling questions raised by FFH-005 R3 and R4 so Engineering receives explicit HSA legal-capacity semantics rather than inventing them.
+Resolve FFH-005 R6 without production code. Current MFJ IRA logic can turn scarce joint compensation into a deterministic owner-ID room split, while the statutory spousal-IRA formula depends on joint compensation reduced by the other spouse's actual IRA contributions and does not create a permanent statutory first-owner priority.
 
 Required policy analysis:
-- use FFH-005 authoritative 2026 HSA findings as external factual constraints;
-- define what current/future `hsa_eligible` may safely mean for actionable annual capacity;
-- determine whether an annual boolean can support full-year capacity only under explicit full-year or last-month-rule-qualified semantics;
-- define treatment of partial-year eligibility, coverage changes, Medicare enrollment/retroactivity, and last-month-rule uncertainty;
-- define targeted `more_information_needed` behavior when legal capacity is not established;
-- decide married-family ordinary-base allocation when users do not explicitly choose a split, including whether to use IRS equal default;
-- decide whether current ordinary-versus-catch-up YTD attribution blocker remains intentional conservative FFH rule or is replaced by a legally sufficient capacity model;
-- preserve spouse-specific age-55 catch-up ownership;
-- define legacy-record/backward-compatibility expectations from a policy perspective;
-- provide scenario acceptance cases and clear classifications: statutory fact vs FFH policy vs product/data choice;
+- use FFH-005 R6 authoritative research;
+- distinguish the statutory feasible set from FFH deterministic allocation/routing policy;
+- define how each spouse's actual YTD traditional+Roth IRA contributions affect remaining feasible room;
+- define what FFH may safely expose as per-owner actionable room before future contribution choices are known;
+- define deterministic routing/allocation without inventing statutory owner priority;
+- preserve individual annual limits and aggregate joint-compensation constraints;
+- address multiple IRA accounts, shared compensation, missing compensation/YTD facts, contribution already made vs future recommendation, one-time/Build/Windfall/Your Plan consumers, and order invariance;
+- define targeted `more_information_needed` behavior and scenario acceptance cases;
+- clearly classify statutory fact vs FFH policy vs mathematical consequence;
 - do not write production code.
 
 Acceptance criteria:
-- implementation-ready policy recommendation for R3/R4;
-- no statutory claim without FFH-005/authoritative support;
-- no silent redefinition of persisted field meaning without migration/data implications acknowledged;
-- role handoff updated with open questions for Manager only where unavoidable.
+- implementation-ready policy recommendation for R6;
+- no fixed owner-ID statutory priority invented;
+- aggregate and individual-capacity invariants explicit;
+- actual YTD contributions handled exactly once;
+- deterministic behavior and scenario cases provided;
+- role handoff updated.
 
-### FFH-008 — Map HSA persistence/runtime contract
+## FFH-010 — Implement FFH-D005 HSA persistence and normalized input contract
 
 Assigned employee: Application, Data & Integration Engineer
 Department: Engineering
-Status: ASSIGNED — ANALYSIS ONLY
-Dependency classification: SOFT DEPENDENCY on FFH-007; may proceed concurrently
-Target branch: repository read; no production changes authorized
-Blocking dependency: none for analysis; implementation blocked on Manager synthesis of FFH-007/008
-Required next role: Manager synthesis
-Parallel Wave ID: FFH-PW-002
+Status: ASSIGNED / ACTIVE
+Dependency classification: INDEPENDENT of FFH-009; HARD predecessor for FFH-012
+Target branch: `phase-5-money-priority-engine`
+Blocking dependency: FFH-D005 approved — satisfied
+Required next role: Manager review; then FFH-012 Core Engine
+Parallel Wave ID: FFH-PW-003
 
 Objective:
-Map current HSA persistence/runtime architecture and propose minimum safe data-contract options needed to implement FFH-007 policy and resolve FFH-005 R3/R4. Do not implement schema/application changes yet.
+Implement the Application/Data side of FFH-D005. Establish one safe, tax-year-bound HSA persistence/capture/loader/normalized snapshot contract. Do not implement the Core Engine HSA legal-capacity algorithm in this task.
 
-Required analysis:
-- inspect Supabase migrations/schema, account/person ownership, financial-profile forms/actions, snapshot loader, runtime normalization, relevant tests;
-- document current HSA fields, defaults, null semantics, and where they enter authoritative calculations;
-- determine minimum data needed for month/period eligibility, coverage changes, Medicare timing, last-month-rule qualification, married-family allocation choice, spouse/person-level facts;
-- identify whether facts belong on person, HSA account, household/tax profile, or another explicit model;
-- provide minimal safe interim option and richer long-term option where useful;
-- identify migration/backfill/default risks and how legacy rows must avoid silently becoming affirmative eligibility;
-- define runtime/database parity requirements and likely affected files/systems;
-- identify collision/coordination risk with Core Engine HSA capacity code;
-- do not edit production code, schema, migration, UI, or calculation behavior.
+Required implementation behavior:
+- refresh canonical state and verify branch/head before editing;
+- use additive migration(s);
+- implement a canonical person + tax-year HSA profile plus month-level eligibility/coverage facts, or a lossless-equivalent representation that satisfies FFH-D005;
+- represent month eligibility as eligible/ineligible/unknown and coverage as self-only/family/none-or-unknown with DB/runtime parity;
+- represent Medicare effective timing and explicit last-month-rule reliance/status at person/tax-year scope where required by FFH-D005;
+- distinguish future-month planning assumptions from confirmed facts when future periods are captured;
+- implement tax-year-bound explicit alternate married-family ordinary allocation only when the household chooses one; derive equal default rather than persisting duplicate default values;
+- explicitly bind HSA YTD used for legal-capacity math to the same tax year or implement/prove an equivalent current-year contract;
+- preserve legacy account `hsa_eligible` / `hsa_coverage_type` as non-authoritative hints; no optimistic backfill or silent semantic strengthening;
+- preserve existing account balance, ownership, and contribution meaning;
+- preserve null/unknown through DB -> actions -> loader -> normalized snapshot;
+- add/update capture UX/actions sufficient for users to provide the approved facts without optimistic defaults;
+- update Supabase loader and normalized Money Priority snapshot input contract;
+- include HSA decision-basis changes in Recommendation Refresh/material-change behavior where required;
+- apply current role-aware household RLS to new financial data;
+- do not infer owner/spouse eligibility from authenticated user, creator, sole adult, account name, or absence of an HSA account;
+- do not change HSA legal-capacity formula/routing behavior in `money-priority-retirement-accounts.ts`; if compile-time/shared-contract overlap would require substantive Core behavior, stop that portion and route it to Manager/FFH-012;
+- do not implement Phase 5C, IRA/R6, or R1 SIMPLE behavior.
+
+Required tests / validation:
+- migration/schema constraints and runtime union parity;
+- role-aware RLS owner/member/viewer/nonmember behavior where applicable;
+- null/unknown round-trip persistence;
+- person/tax-year/month reload determinism;
+- legacy rows remain non-affirmative until reconfirmed;
+- multiple HSA accounts do not duplicate person legal facts at the persistence/snapshot layer;
+- spouse legal facts can exist without spouse HSA account;
+- alternate allocation storage and equal-default absence behavior;
+- tax-year isolation and no automatic carryforward;
+- recommendation-refresh/material-basis change coverage;
+- input/order invariance where relevant;
+- literal `npm run verify` when tooling permits; otherwise report constituent CI evidence without claiming the wrapper;
+- production dependency audit and Foundation CI on exact final production checkpoint;
+- if migration is applied to linked Supabase, verify actual runtime/database parity separately and report exact evidence; never claim application from migration file existence alone.
 
 Acceptance criteria:
-- repository-grounded technical options with tradeoffs;
-- exact current data-flow documented;
-- migration/backward-compatibility risks explicit;
-- no implementation before Manager policy/data-contract approval;
+- FFH-D005 persistence/capture/loader/normalized contract implemented without Core legal-capacity algorithm drift;
+- no optimistic legacy migration;
+- one authoritative normalized HSA legal-fact source established;
+- migration/backward compatibility and RLS validated;
+- exact changed files/checkpoint/CI recorded;
 - role handoff updated.
 
-## Queued after FFH-007
+# Queued work
 
-### FFH-009 — Define spousal-IRA scarce-compensation legal-capacity semantics
+## FFH-011 — Define/remediate R1 SIMPLE higher-limit persisted field contract
 
-Assigned employee: Retirement & Tax-Advantaged Policy Analyst
-Department: Policy
-Status: QUEUED — DO NOT START YET
-Dependency classification: HARD scheduling dependency on FFH-007 because the same employee owns both tasks
-Blocking dependency: FFH-007 completion
-Required next role: Manager synthesis, then Core Engine implementation if approved
-Parallel Wave ID: none until activated
+Assigned employee: Application, Data & Integration Engineer
+Status: QUEUED AFTER FFH-010 unless Manager reorders
 
 Objective:
-Resolve FFH-005 revalidation finding R6: current MFJ IRA logic can turn scarce joint compensation into a deterministic owner-ID room split, while the statutory spousal-IRA formula depends on joint compensation reduced by the other spouse's actual IRA contributions and does not create a permanent statutory first-owner priority.
+Resolve what `simple_higher_limit_eligible` / `simpleHigherLimitEligible` safely means prospectively and for legacy data. Establish whether the existing field can be explicitly bound to the statutory certain-applicable-SIMPLE category or whether a rename/new field/reconfirmation path is required. Do not change the Core catch-up formula in this task.
 
-Required policy analysis:
-- use FFH-005 R6 external research;
-- distinguish statutory feasible set from FFH deterministic allocation/routing policy;
-- define how actual YTD IRA contributions by each spouse affect remaining feasible room;
-- determine what FFH may safely present as per-owner actionable room before future contribution choices are known;
-- define deterministic behavior without inventing statutory owner priority;
-- preserve individual annual limits and aggregate joint-compensation constraints;
-- address missing information, multiple IRA accounts, routing, one-time/Secure/Build/Windfall consumers, and scenario acceptance;
-- do not write production code.
+## FFH-012 — Implement FFH-D005 HSA legal-capacity calculation
 
-## Manager synthesis rules
+Assigned employee: Core Financial Engine Engineer
+Status: QUEUED / BLOCKED ON FFH-010 STABLE NORMALIZED CONTRACT
 
-- FFH-006 is independent of FFH-007/008 and may implement in parallel.
-- FFH-008 may analyze in parallel with FFH-007 but must not implement before policy synthesis.
-- Manager must reconcile FFH-007 and FFH-008 before HSA production implementation.
-- FFH-009 starts only after FFH-007 completes; do not overload the Retirement Policy worker with simultaneous policy tasks.
-- Phase 5C production implementation remains blocked until R1/R2/R3/R6 have completed or approved remediation paths and overlapping Core Engine surfaces are stable.
+Objective:
+Implement month-sensitive HSA legal-capacity behavior, Medicare/retroactive recomputation and warning, explicit last-month-rule conditional treatment, married equal/alternate allocation, age-55 owner catch-up, R4 owner ceilings, YTD tax-year discipline, uncertainty, and downstream capacity-ledger/routing parity. No schema ownership in this task.
 
-## Currently idle roles
+## Future IRA remediation task
 
-Debt & Liquidity Policy Analyst — IDLE. No new unresolved debt/liquidity policy task is currently required.
+Assigned employee: Core Financial Engine Engineer
+Status: BLOCKED ON FFH-009 MANAGER SYNTHESIS
 
-Goals, Cash Flow & Allocation Policy Analyst — IDLE after FFH-003 completion/revalidation.
+## Future Phase 5C implementation
 
-Regulatory & Financial Research Analyst — IDLE after FFH-005 completion/revalidation; reactivate only if later work exposes a factual uncertainty not answered by existing authoritative research.
+Assigned employee: Core Financial Engine Engineer
+Status: POLICY APPROVED / NOT YET AUTHORIZED
+Blocking condition: retirement-capacity remediation surfaces must be stable enough to avoid conflicting Core changes.
 
-Product & Technical R&D Engineer — IDLE. Current blockers are correctness/data-contract work, not speculative R&D.
+# Current role status
 
-Technical & Mathematical Auditor — IDLE pending completed regulatory/HSA/IRA remediation and a stable integrated checkpoint.
+Manager / Architect — ACTIVE
+Retirement & Tax-Advantaged Policy Analyst — ACTIVE on FFH-009
+Application, Data & Integration Engineer — ACTIVE on FFH-010
+Core Financial Engine Engineer — IDLE after FFH-006; queued FFH-012 after FFH-010
+Debt & Liquidity Policy Analyst — IDLE
+Goals, Cash Flow & Allocation Policy Analyst — IDLE
+Regulatory & Financial Research Analyst — IDLE unless a new unresolved external fact appears
+Product & Technical R&D Engineer — IDLE
+Technical & Mathematical Auditor — IDLE pending stable integrated implementation checkpoint
+Financial Policy & Scenario Auditor — IDLE pending stable integrated implementation checkpoint
 
-Financial Policy & Scenario Auditor — IDLE pending completed regulatory/HSA/IRA remediation plus later Phase 5C implementation checkpoint.
+# Manager sequencing rules
+
+- FFH-009 and FFH-010 may run in parallel.
+- Manager must synthesize FFH-009 before IRA production remediation.
+- FFH-012 must not begin until FFH-010 establishes the normalized HSA input contract and Manager accepts the checkpoint.
+- FFH-011 is owned by Application/Data and follows FFH-010 unless Manager explicitly reorders.
+- Phase 5C production implementation remains gated until retirement-capacity blockers have completed or stable approved remediation checkpoints and Core surface collision risk is acceptable.
+- Auditors remain idle until there is a stable integrated checkpoint worth auditing.
