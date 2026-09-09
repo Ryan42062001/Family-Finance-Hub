@@ -392,7 +392,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (account.type === "simple_ira" && account.simpleHigherLimitEligible == null) missingData.push("Whether this SIMPLE plan qualifies for the higher applicable-plan limit is unknown; the standard limit is used.");
       const catchUp = catchUpAmount(age, account.type, taxPolicy);
       let catchUpMustBeRoth: boolean | null = false;
-      if (catchUp > 0 && sharedWorkplaceTypes.has(account.type)) {
+      if (catchUp > 0 && (sharedWorkplaceTypes.has(account.type) || account.type === "457b")) {
         if (account.priorYearSponsorWages == null) { catchUpMustBeRoth = null; missingData.push("Prior-year wages from this plan's sponsoring employer are required to determine Roth catch-up treatment."); }
         else if (account.priorYearSponsorWages > taxPolicy.highWageRothCatchUpThreshold) { catchUpMustBeRoth = true; if (account.rothCatchUpSupported == null) missingData.push("Plan Roth catch-up support is required for this high-wage participant."); if (account.rothCatchUpSupported === false) missingData.push("This plan cannot support the Roth catch-up required for this high-wage participant."); }
       }
