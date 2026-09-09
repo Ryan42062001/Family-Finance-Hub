@@ -1,3 +1,5 @@
+import { buildHsaSnapshotContract, type HsaSnapshotContract } from "./money-priority-hsa-input-contract.ts";
+
 export type ExpenseCashFlowTreatment = "required" | "discretionary";
 
 export type StudentLoanSource = "federal" | "private" | "unknown";
@@ -101,6 +103,7 @@ export type MoneyPrioritySnapshot = {
     taxTreatment: string | null;
     employeeContributedYtd: number | null;
     employerContributedYtd: number | null;
+    hsaYtdTaxYear: number | null;
     annualContributionTarget: number | null;
     fullMatchEmployeeContributionMonthly: number | null;
     matchStatus: string;
@@ -114,6 +117,7 @@ export type MoneyPrioritySnapshot = {
     sepEligibleCompensationAnnual?: number | null;
     sepCompensationCalculationSupported?: boolean | null;
   }>;
+  hsa: HsaSnapshotContract;
   goals: Array<{
     id: string;
     name: string;
@@ -198,6 +202,9 @@ export type MoneyPriorityRawSnapshot = {
   accounts?: Raw[] | null;
   debts?: Raw[] | null;
   retirementAccounts?: Raw[] | null;
+  hsaTaxYearProfiles?: Raw[] | null;
+  hsaMonthStatuses?: Raw[] | null;
+  hsaMarriedAllocations?: Raw[] | null;
   goals?: Raw[] | null;
   insuranceExposures?: Raw[] | null;
   preferences?: Raw | null;
@@ -246,21 +253,14 @@ export function parseStrictBoolean(value: unknown): StrictBooleanParseResult {
 // PostgREST numeric values may arrive as numbers or decimal strings. Deliberate
 // type checking prevents JavaScript coercions such as false -> 0 and [] -> 0.
 export function parseStrictNumber(value: unknown): StrictNumberParseResult {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? { valid: true, value } : { valid: false };
-  }
+  if (typeof value === "number") return Number.isFinite(value) ? { valid: true, value } : { valid: false };
   if (typeof value !== "string") return { valid: false };
   const normalized = value.trim();
-  if (!normalized || !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) {
-    return { valid: false };
-  }
+  if (!normalized || !/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return { valid: false };
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? { valid: true, value: parsed } : { valid: false };
 }
 
-// Raw numeric contract. Required fields correspond to decision-driving values
-// that are non-null in persisted records. Nullable fields preserve absence as
-// unknown. Explicit zero remains valid whenever it satisfies the field bounds.
 const NUMERIC_CONTRACT = {
   people: [
     { field: "planned_retirement_age", presence: "nullable", min: 40, max: 100, integer: true },
@@ -293,6 +293,7 @@ const NUMERIC_CONTRACT = {
     { field: "monthly_employer_contribution", presence: "required", min: 0 },
     { field: "employee_contributed_ytd", presence: "nullable", min: 0 },
     { field: "employer_contributed_ytd", presence: "nullable", min: 0 },
+    { field: "hsa_ytd_tax_year", presence: "nullable", min: 2004, max: 9999, integer: true },
     { field: "annual_contribution_target", presence: "nullable", min: 0 },
     { field: "full_match_employee_contribution_monthly", presence: "nullable", min: 0 },
     { field: "plan_eligible_compensation_annual", presence: "nullable", min: 0 },
@@ -332,9 +333,6 @@ type BooleanFieldRule = {
   defaultValue?: boolean;
 };
 
-// Persisted NOT NULL booleans with database defaults remain optional-default at
-// the raw compatibility boundary; explicit values must still be real booleans.
-// Planning facts whose absence means unknown remain nullable and never default.
 const BOOLEAN_CONTRACT = {
   people: [
     { field: "covered_by_workplace_retirement_plan", presence: "nullable" },
@@ -359,12 +357,8 @@ const BOOLEAN_CONTRACT = {
     { field: "roth_catch_up_supported", presence: "nullable" },
     { field: "sep_compensation_calculation_supported", presence: "nullable" },
   ],
-  goals: [
-    { field: "goal_intelligence_confirmed", presence: "optional_default", defaultValue: false },
-  ],
-  insuranceExposures: [
-    { field: "is_relevant_to_reserve", presence: "optional_default", defaultValue: true },
-  ],
+  goals: [{ field: "goal_intelligence_confirmed", presence: "optional_default", defaultValue: false }],
+  insuranceExposures: [{ field: "is_relevant_to_reserve", presence: "optional_default", defaultValue: true }],
   preferences: [
     { field: "known_income_disruption", presence: "optional_default", defaultValue: false },
     { field: "lived_with_spouse_during_tax_year", presence: "nullable" },
@@ -484,15 +478,9 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   validateRows("goals", raw.goals ?? []);
   (raw.goals ?? []).forEach((row, index) => {
     const target = parseStrictNumber(row.target_amount);
-    const coreNeed = row.core_need_amount === null || row.core_need_amount === undefined || row.core_need_amount === ""
-      ? null
-      : parseStrictNumber(row.core_need_amount);
+    const coreNeed = row.core_need_amount === null || row.core_need_amount === undefined || row.core_need_amount === "" ? null : parseStrictNumber(row.core_need_amount);
     if (target.valid && target.value > 0 && coreNeed?.valid && coreNeed.value > target.value) {
-      issues.push({
-        path: `goals[${index}].core_need_amount`,
-        code: "invalid_number",
-        message: `goals[${index}].core_need_amount must be less than or equal to target_amount.`,
-      });
+      issues.push({ path: `goals[${index}].core_need_amount`, code: "invalid_number", message: `goals[${index}].core_need_amount must be less than or equal to target_amount.` });
     }
   });
   validateRows("insuranceExposures", raw.insuranceExposures ?? []);
@@ -501,22 +489,13 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   const validateBoolean = (value: unknown, path: string, rule: BooleanFieldRule) => {
     const missing = value === null || value === undefined;
     if (missing) {
-      if (rule.presence === "required") {
-        issues.push({ path, code: "missing_required_boolean", message: `${path} is required and must be true or false.` });
-      }
+      if (rule.presence === "required") issues.push({ path, code: "missing_required_boolean", message: `${path} is required and must be true or false.` });
       return;
     }
-    if (!parseStrictBoolean(value).valid) {
-      issues.push({ path, code: "invalid_boolean", message: `${path} must be the boolean true or false without coercion.` });
-    }
+    if (!parseStrictBoolean(value).valid) issues.push({ path, code: "invalid_boolean", message: `${path} must be the boolean true or false without coercion.` });
   };
-  const validateBooleanRows = (
-    name: keyof Omit<typeof BOOLEAN_CONTRACT, "preferences">,
-    rows: Raw[],
-  ) => rows.forEach((row, index) => {
-    for (const rule of BOOLEAN_CONTRACT[name]) {
-      validateBoolean(row[rule.field], `${name}[${index}].${rule.field}`, rule);
-    }
+  const validateBooleanRows = (name: keyof Omit<typeof BOOLEAN_CONTRACT, "preferences">, rows: Raw[]) => rows.forEach((row, index) => {
+    for (const rule of BOOLEAN_CONTRACT[name]) validateBoolean(row[rule.field], `${name}[${index}].${rule.field}`, rule);
   });
   validateBooleanRows("people", raw.people ?? []);
   validateBooleanRows("income", raw.income ?? []);
@@ -525,61 +504,42 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
   validateBooleanRows("retirementAccounts", raw.retirementAccounts ?? []);
   validateBooleanRows("goals", raw.goals ?? []);
   validateBooleanRows("insuranceExposures", raw.insuranceExposures ?? []);
-  if (raw.preferences) {
-    for (const rule of BOOLEAN_CONTRACT.preferences) {
-      validateBoolean(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
-    }
-  }
+  if (raw.preferences) for (const rule of BOOLEAN_CONTRACT.preferences) validateBoolean(raw.preferences[rule.field], `preferences.${rule.field}`, rule);
   return issues;
 }
 
 function requiredNumber(value: unknown): number {
-  if (value === null || value === undefined || value === "") {
-    throw new Error("Required numeric input reached normalization without a value.");
-  }
+  if (value === null || value === undefined || value === "") throw new Error("Required numeric input reached normalization without a value.");
   const parsed = parseStrictNumber(value);
   if (!parsed.valid) throw new Error("Required numeric input reached normalization without validation.");
   return parsed.value;
 }
-
 function nullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = parseStrictNumber(value);
   if (!parsed.valid) throw new Error("Nullable numeric input reached normalization without validation.");
   return parsed.value;
 }
-
-function stringValue(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function nullableString(value: unknown): string | null {
-  return typeof value === "string" && value.length ? value : null;
-}
-
-function nullableIsoDate(value: unknown): string | null {
-  return isIsoDate(value) ? value as string : null;
-}
-
+function stringValue(value: unknown, fallback = ""): string { return typeof value === "string" ? value : fallback; }
+function nullableString(value: unknown): string | null { return typeof value === "string" && value.length ? value : null; }
+function nullableIsoDate(value: unknown): string | null { return isIsoDate(value) ? value as string : null; }
 function booleanValue(value: unknown, fallback = false): boolean {
   if (value === null || value === undefined) return fallback;
   const parsed = parseStrictBoolean(value);
   if (!parsed.valid) throw new Error("Boolean input reached normalization without validation.");
   return parsed.value;
 }
-
 function nullableBoolean(value: unknown): boolean | null {
   if (value === null || value === undefined) return null;
   const parsed = parseStrictBoolean(value);
   if (!parsed.valid) throw new Error("Nullable boolean input reached normalization without validation.");
   return parsed.value;
 }
-
 function normalizeRetirementType(value: unknown): RetirementAccountType {
   const raw = stringValue(value, "other");
   if (raw === "457") return "457b";
   const allowed: RetirementAccountType[] = ["401k", "403b", "457b", "tsp", "simple_ira", "traditional_ira", "roth_ira", "sep_ira", "hsa", "pension", "other"];
-  return allowed.includes(raw as RetirementAccountType) ? (raw as RetirementAccountType) : "other";
+  return allowed.includes(raw as RetirementAccountType) ? raw as RetirementAccountType : "other";
 }
 
 export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, options: SnapshotValidationOptions = {}): MoneyPrioritySnapshot {
@@ -588,84 +548,55 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
   if (fatalIssues.length) throw new MoneyPrioritySnapshotValidationError(fatalIssues);
   const warnings: string[] = validationIssues.map((issue) => issue.message);
 
+  const peopleIds = new Set((raw.people ?? []).map((row) => String(row.id ?? "")));
+  const hsaResult = buildHsaSnapshotContract({
+    profiles: raw.hsaTaxYearProfiles,
+    months: raw.hsaMonthStatuses,
+    marriedAllocations: raw.hsaMarriedAllocations,
+  }, peopleIds);
+  if (hsaResult.issues.length) throw new MoneyPrioritySnapshotValidationError(hsaResult.issues as SnapshotValidationIssue[]);
+  const hsa = hsaResult.contract;
+
   const people = (raw.people ?? []).map((row) => ({
-    id: stringValue(row.id),
-    displayName: stringValue(row.display_name),
-    relationship: stringValue(row.relationship, "other"),
-    birthDate: nullableIsoDate(row.birth_date),
-    plannedRetirementAge: nullableNumber(row.planned_retirement_age),
+    id: stringValue(row.id), displayName: stringValue(row.display_name), relationship: stringValue(row.relationship, "other"),
+    birthDate: nullableIsoDate(row.birth_date), plannedRetirementAge: nullableNumber(row.planned_retirement_age),
     coveredByWorkplaceRetirementPlan: nullableBoolean(row.covered_by_workplace_retirement_plan),
     estimatedTaxableCompensationAnnual: nullableNumber(row.estimated_taxable_compensation_annual),
-    isDependent: booleanValue(row.is_dependent),
-    isActive: booleanValue(row.is_active, true),
+    isDependent: booleanValue(row.is_dependent), isActive: booleanValue(row.is_active, true),
   }));
 
   const income = (raw.income ?? []).map((row) => ({
-    id: stringValue(row.id),
-    ownerPersonId: nullableString(row.owner_person_id),
-    name: stringValue(row.name),
-    type: stringValue(row.income_type, "employment"),
-    monthlyTakeHomeAmount: requiredNumber(row.monthly_amount),
-    monthlyGrossAmount: nullableNumber(row.monthly_gross_amount),
-    isVariable: booleanValue(row.is_variable),
-    isActive: booleanValue(row.is_active, true),
+    id: stringValue(row.id), ownerPersonId: nullableString(row.owner_person_id), name: stringValue(row.name),
+    type: stringValue(row.income_type, "employment"), monthlyTakeHomeAmount: requiredNumber(row.monthly_amount),
+    monthlyGrossAmount: nullableNumber(row.monthly_gross_amount), isVariable: booleanValue(row.is_variable), isActive: booleanValue(row.is_active, true),
   }));
 
   const expenses = (raw.expenses ?? []).map((row) => {
     const isEssential = booleanValue(row.is_essential, true);
     const explicitTreatment = stringValue(row.cash_flow_treatment);
-    const cashFlowTreatment: ExpenseCashFlowTreatment = isEssential
-      ? "required"
-      : explicitTreatment === "required"
-        ? "required"
-        : "discretionary";
-    return {
-      id: stringValue(row.id),
-      name: stringValue(row.name),
-      category: stringValue(row.category),
-      monthlyAmount: requiredNumber(row.monthly_amount),
-      isEssential,
-      cashFlowTreatment,
-    };
+    const cashFlowTreatment: ExpenseCashFlowTreatment = isEssential ? "required" : explicitTreatment === "required" ? "required" : "discretionary";
+    return { id: stringValue(row.id), name: stringValue(row.name), category: stringValue(row.category), monthlyAmount: requiredNumber(row.monthly_amount), isEssential, cashFlowTreatment };
   });
 
   const accounts = (raw.accounts ?? []).map((row) => ({
-    id: stringValue(row.id),
-    name: stringValue(row.name),
-    type: stringValue(row.account_type),
-    balance: requiredNumber(row.balance),
-    cashPurpose: stringValue(row.cash_purpose, "unallocated"),
-    relatedGoalId: nullableString(row.related_goal_id),
-    relatedDebtId: nullableString(row.related_debt_id),
+    id: stringValue(row.id), name: stringValue(row.name), type: stringValue(row.account_type), balance: requiredNumber(row.balance),
+    cashPurpose: stringValue(row.cash_purpose, "unallocated"), relatedGoalId: nullableString(row.related_goal_id), relatedDebtId: nullableString(row.related_debt_id),
   }));
 
   const debts = (raw.debts ?? []).map((row) => ({
-    id: stringValue(row.id),
-    name: stringValue(row.name),
-    type: stringValue(row.debt_type),
-    balance: requiredNumber(row.current_balance),
-    annualInterestRate: nullableNumber(row.interest_rate),
-    minimumPayment: requiredNumber(row.minimum_payment),
-    rateType: stringValue(row.rate_type, "fixed"),
-    promoRateExpiresOn: nullableIsoDate(row.promo_rate_expires_on),
-    postPromoInterestRate: nullableNumber(row.post_promo_interest_rate),
-    isPastDue: booleanValue(row.is_past_due),
-    isInCollections: booleanValue(row.is_in_collections),
-    hasLegalOrTaxPriority: booleanValue(row.has_legal_or_tax_priority),
-    forgivenessOrRepaymentProgram: nullableString(row.forgiveness_or_repayment_program),
-    scheduledPayoffDate: nullableIsoDate(row.scheduled_payoff_date),
+    id: stringValue(row.id), name: stringValue(row.name), type: stringValue(row.debt_type), balance: requiredNumber(row.current_balance),
+    annualInterestRate: nullableNumber(row.interest_rate), minimumPayment: requiredNumber(row.minimum_payment), rateType: stringValue(row.rate_type, "fixed"),
+    promoRateExpiresOn: nullableIsoDate(row.promo_rate_expires_on), postPromoInterestRate: nullableNumber(row.post_promo_interest_rate),
+    isPastDue: booleanValue(row.is_past_due), isInCollections: booleanValue(row.is_in_collections), hasLegalOrTaxPriority: booleanValue(row.has_legal_or_tax_priority),
+    forgivenessOrRepaymentProgram: nullableString(row.forgiveness_or_repayment_program), scheduledPayoffDate: nullableIsoDate(row.scheduled_payoff_date),
     studentLoanSource: nullableString(row.student_loan_source) as StudentLoanSource | null,
     studentLoanRepaymentPlan: nullableString(row.student_loan_repayment_plan) as StudentLoanRepaymentPlan | null,
     studentLoanForgivenessStrategy: nullableString(row.student_loan_forgiveness_strategy) as StudentLoanForgivenessStrategy | null,
-    studentLoanStrategyActive: nullableBoolean(row.student_loan_strategy_active),
-    currentRequiredMonthlyPayment: nullableNumber(row.current_required_monthly_payment),
-    qualifyingPaymentsMade: nullableNumber(row.qualifying_payments_made),
-    qualifyingPaymentsRequired: nullableNumber(row.qualifying_payments_required),
-    estimatedForgivenessAmount: nullableNumber(row.estimated_forgiveness_amount),
-    estimatedForgivenessDate: nullableIsoDate(row.estimated_forgiveness_date),
+    studentLoanStrategyActive: nullableBoolean(row.student_loan_strategy_active), currentRequiredMonthlyPayment: nullableNumber(row.current_required_monthly_payment),
+    qualifyingPaymentsMade: nullableNumber(row.qualifying_payments_made), qualifyingPaymentsRequired: nullableNumber(row.qualifying_payments_required),
+    estimatedForgivenessAmount: nullableNumber(row.estimated_forgiveness_amount), estimatedForgivenessDate: nullableIsoDate(row.estimated_forgiveness_date),
     forgivenessTaxTreatment: nullableString(row.forgiveness_tax_treatment) as StudentLoanForgivenessTaxTreatment | null,
-    estimatedForgivenessTaxLiability: nullableNumber(row.estimated_forgiveness_tax_liability),
-    employerDirectLoanAssistanceMonthly: nullableNumber(row.employer_direct_loan_assistance_monthly),
+    estimatedForgivenessTaxLiability: nullableNumber(row.estimated_forgiveness_tax_liability), employerDirectLoanAssistanceMonthly: nullableNumber(row.employer_direct_loan_assistance_monthly),
     employerDirectLoanAssistanceRemaining: nullableNumber(row.employer_direct_loan_assistance_remaining),
     qualifiedStudentLoanPaymentRetirementMatchOffered: nullableBoolean(row.qualified_student_loan_payment_retirement_match_offered),
     qualifiedPaymentRequiredForFullRetirementMatch: nullableNumber(row.qualified_payment_required_for_full_retirement_match),
@@ -673,83 +604,43 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
   }));
 
   const retirementAccounts = (raw.retirementAccounts ?? []).map((row) => ({
-    id: stringValue(row.id),
-    ownerPersonId: nullableString(row.owner_person_id),
-    name: stringValue(row.name),
-    type: normalizeRetirementType(row.account_type),
-    balance: requiredNumber(row.balance),
-    monthlyEmployeeContribution: requiredNumber(row.monthly_employee_contribution),
-    monthlyEmployerContribution: requiredNumber(row.monthly_employer_contribution),
-    taxTreatment: nullableString(row.tax_treatment),
-    employeeContributedYtd: nullableNumber(row.employee_contributed_ytd),
-    employerContributedYtd: nullableNumber(row.employer_contributed_ytd),
-    annualContributionTarget: nullableNumber(row.annual_contribution_target),
-    fullMatchEmployeeContributionMonthly: nullableNumber(row.full_match_employee_contribution_monthly),
-    matchStatus: stringValue(row.match_status, "unknown"),
-    hsaCoverageType: nullableString(row.hsa_coverage_type),
-    hsaEligible: nullableBoolean(row.hsa_eligible),
-    simpleHigherLimitEligible: nullableBoolean(row.simple_higher_limit_eligible),
-    employerContributionType: nullableString(row.employer_contribution_type),
-    planEligibleCompensationAnnual: nullableNumber(row.plan_eligible_compensation_annual),
-    priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
-    rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported),
-    sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
+    id: stringValue(row.id), ownerPersonId: nullableString(row.owner_person_id), name: stringValue(row.name), type: normalizeRetirementType(row.account_type),
+    balance: requiredNumber(row.balance), monthlyEmployeeContribution: requiredNumber(row.monthly_employee_contribution), monthlyEmployerContribution: requiredNumber(row.monthly_employer_contribution),
+    taxTreatment: nullableString(row.tax_treatment), employeeContributedYtd: nullableNumber(row.employee_contributed_ytd), employerContributedYtd: nullableNumber(row.employer_contributed_ytd),
+    hsaYtdTaxYear: nullableNumber(row.hsa_ytd_tax_year), annualContributionTarget: nullableNumber(row.annual_contribution_target),
+    fullMatchEmployeeContributionMonthly: nullableNumber(row.full_match_employee_contribution_monthly), matchStatus: stringValue(row.match_status, "unknown"),
+    hsaCoverageType: nullableString(row.hsa_coverage_type), hsaEligible: nullableBoolean(row.hsa_eligible),
+    simpleHigherLimitEligible: nullableBoolean(row.simple_higher_limit_eligible), employerContributionType: nullableString(row.employer_contribution_type),
+    planEligibleCompensationAnnual: nullableNumber(row.plan_eligible_compensation_annual), priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
+    rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported), sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
     sepCompensationCalculationSupported: nullableBoolean(row.sep_compensation_calculation_supported),
   }));
 
   const goals = (raw.goals ?? []).map((row) => ({
-    id: stringValue(row.id),
-    name: stringValue(row.name),
-    targetAmount: requiredNumber(row.target_amount),
-    currentAmount: requiredNumber(row.current_amount),
-    targetDate: nullableIsoDate(row.target_date),
-    priority: requiredNumber(row.priority),
-    goalClass: stringValue(row.goal_class, "major_life_goal"),
-    necessity: stringValue(row.necessity, "important"),
-    deadlineFlexibility: stringValue(row.deadline_flexibility, "flexible"),
-    consequenceLevel: stringValue(row.consequence_level, "moderate"),
-    plannedMonthlyContribution: nullableNumber(row.planned_monthly_contribution),
-    coreNeedAmount: nullableNumber(row.core_need_amount),
-    goalIntelligenceConfirmed: booleanValue(row.goal_intelligence_confirmed, false),
-    underlyingNeed: nullableString(row.underlying_need),
-    desiredSolution: nullableString(row.desired_solution),
-    goalNature: nullableString(row.goal_nature),
-    underfundingConsequence: nullableString(row.underfunding_consequence),
-    borrowingLikelihood: nullableString(row.borrowing_likelihood),
-    expectedBorrowingAmount: nullableNumber(row.expected_borrowing_amount),
-    expectedBorrowingApr: nullableNumber(row.expected_borrowing_apr),
+    id: stringValue(row.id), name: stringValue(row.name), targetAmount: requiredNumber(row.target_amount), currentAmount: requiredNumber(row.current_amount),
+    targetDate: nullableIsoDate(row.target_date), priority: requiredNumber(row.priority), goalClass: stringValue(row.goal_class, "major_life_goal"),
+    necessity: stringValue(row.necessity, "important"), deadlineFlexibility: stringValue(row.deadline_flexibility, "flexible"), consequenceLevel: stringValue(row.consequence_level, "moderate"),
+    plannedMonthlyContribution: nullableNumber(row.planned_monthly_contribution), coreNeedAmount: nullableNumber(row.core_need_amount), goalIntelligenceConfirmed: booleanValue(row.goal_intelligence_confirmed, false),
+    underlyingNeed: nullableString(row.underlying_need), desiredSolution: nullableString(row.desired_solution), goalNature: nullableString(row.goal_nature),
+    underfundingConsequence: nullableString(row.underfunding_consequence), borrowingLikelihood: nullableString(row.borrowing_likelihood),
+    expectedBorrowingAmount: nullableNumber(row.expected_borrowing_amount), expectedBorrowingApr: nullableNumber(row.expected_borrowing_apr),
   }));
 
   const insuranceExposures = (raw.insuranceExposures ?? []).map((row) => ({
-    id: stringValue(row.id),
-    personId: nullableString(row.person_id),
-    name: stringValue(row.name),
-    type: stringValue(row.insurance_type),
-    deductibleAmount: nullableNumber(row.deductible_amount),
-    familyDeductibleAmount: nullableNumber(row.family_deductible_amount),
-    outOfPocketMax: nullableNumber(row.out_of_pocket_max),
-    percentageDeductible: nullableNumber(row.percentage_deductible),
-    insuredValue: nullableNumber(row.insured_value),
-    isRelevantToReserve: booleanValue(row.is_relevant_to_reserve, true),
+    id: stringValue(row.id), personId: nullableString(row.person_id), name: stringValue(row.name), type: stringValue(row.insurance_type),
+    deductibleAmount: nullableNumber(row.deductible_amount), familyDeductibleAmount: nullableNumber(row.family_deductible_amount), outOfPocketMax: nullableNumber(row.out_of_pocket_max),
+    percentageDeductible: nullableNumber(row.percentage_deductible), insuredValue: nullableNumber(row.insured_value), isRelevantToReserve: booleanValue(row.is_relevant_to_reserve, true),
   }));
 
   const preferences = raw.preferences ? {
-    emergencyFundMonthsOverride: nullableNumber(raw.preferences.emergency_fund_months_override),
-    debtVsInvesting: stringValue(raw.preferences.debt_vs_investing, "balanced"),
-    rothVsTraditional: stringValue(raw.preferences.roth_vs_traditional, "unspecified"),
-    riskTolerance: stringValue(raw.preferences.risk_tolerance, "moderate"),
-    retirementPriority: stringValue(raw.preferences.retirement_priority, "balanced"),
-    jobReplacementDifficulty: stringValue(raw.preferences.job_replacement_difficulty, "unknown"),
-    knownIncomeDisruption: booleanValue(raw.preferences.known_income_disruption),
-    knownIncomeDisruptionEndDate: nullableIsoDate(raw.preferences.known_income_disruption_end_date),
-    desiredRetirementMonthlySpending: nullableNumber(raw.preferences.desired_retirement_monthly_spending),
-    retirementSpendingBasis: stringValue(raw.preferences.retirement_spending_basis, "unknown"),
-    planningSocialSecurityMonthly: nullableNumber(raw.preferences.planning_social_security_monthly),
-    planningPensionMonthly: nullableNumber(raw.preferences.planning_pension_monthly),
-    expectedHsaMedicalSpendingAnnual: nullableNumber(raw.preferences.expected_hsa_medical_spending_annual),
-    taxProfileYear: nullableNumber(raw.preferences.tax_profile_year),
-    taxFilingStatus: nullableString(raw.preferences.tax_filing_status),
-    estimatedModifiedAgi: nullableNumber(raw.preferences.estimated_modified_agi),
+    emergencyFundMonthsOverride: nullableNumber(raw.preferences.emergency_fund_months_override), debtVsInvesting: stringValue(raw.preferences.debt_vs_investing, "balanced"),
+    rothVsTraditional: stringValue(raw.preferences.roth_vs_traditional, "unspecified"), riskTolerance: stringValue(raw.preferences.risk_tolerance, "moderate"),
+    retirementPriority: stringValue(raw.preferences.retirement_priority, "balanced"), jobReplacementDifficulty: stringValue(raw.preferences.job_replacement_difficulty, "unknown"),
+    knownIncomeDisruption: booleanValue(raw.preferences.known_income_disruption), knownIncomeDisruptionEndDate: nullableIsoDate(raw.preferences.known_income_disruption_end_date),
+    desiredRetirementMonthlySpending: nullableNumber(raw.preferences.desired_retirement_monthly_spending), retirementSpendingBasis: stringValue(raw.preferences.retirement_spending_basis, "unknown"),
+    planningSocialSecurityMonthly: nullableNumber(raw.preferences.planning_social_security_monthly), planningPensionMonthly: nullableNumber(raw.preferences.planning_pension_monthly),
+    expectedHsaMedicalSpendingAnnual: nullableNumber(raw.preferences.expected_hsa_medical_spending_annual), taxProfileYear: nullableNumber(raw.preferences.tax_profile_year),
+    taxFilingStatus: nullableString(raw.preferences.tax_filing_status), estimatedModifiedAgi: nullableNumber(raw.preferences.estimated_modified_agi),
     livedWithSpouseDuringTaxYear: nullableBoolean(raw.preferences.lived_with_spouse_during_tax_year),
   } : null;
 
@@ -758,35 +649,27 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
   const monthlyGrossIncomeKnown = activeIncome.reduce((sum, item) => sum + (item.monthlyGrossAmount ?? 0), 0);
   const hasIncompleteGrossIncome = activeIncome.some((item) => item.monthlyGrossAmount === null);
   const monthlyEssentialExpenses = expenses.filter((item) => item.isEssential).reduce((sum, item) => sum + item.monthlyAmount, 0);
-  const monthlyCommittedNonEssentialExpenses = expenses
-    .filter((item) => !item.isEssential && item.cashFlowTreatment === "required")
-    .reduce((sum, item) => sum + item.monthlyAmount, 0);
-  const monthlyDiscretionaryExpenses = expenses
-    .filter((item) => !item.isEssential && item.cashFlowTreatment === "discretionary")
-    .reduce((sum, item) => sum + item.monthlyAmount, 0);
+  const monthlyCommittedNonEssentialExpenses = expenses.filter((item) => !item.isEssential && item.cashFlowTreatment === "required").reduce((sum, item) => sum + item.monthlyAmount, 0);
+  const monthlyDiscretionaryExpenses = expenses.filter((item) => !item.isEssential && item.cashFlowTreatment === "discretionary").reduce((sum, item) => sum + item.monthlyAmount, 0);
   const monthlyMinimumDebtPayments = debts.reduce((sum, item) => sum + item.minimumPayment, 0);
-  const monthlyRequiredOutflow = monthlyEssentialExpenses
-    + monthlyCommittedNonEssentialExpenses
-    + monthlyMinimumDebtPayments;
+  const monthlyRequiredOutflow = monthlyEssentialExpenses + monthlyCommittedNonEssentialExpenses + monthlyMinimumDebtPayments;
 
   const liquidAccounts = accounts.filter((item) => ["checking", "savings", "cash"].includes(item.type));
   const liquidCash = liquidAccounts.reduce((sum, item) => sum + item.balance, 0);
   const cashByPurpose = (purpose: string) => liquidAccounts.filter((item) => item.cashPurpose === purpose).reduce((sum, item) => sum + item.balance, 0);
-
-  const deductibleCandidates = insuranceExposures
-    .filter((item) => item.isRelevantToReserve)
-    .flatMap((item) => {
-      const percentageAmount = item.percentageDeductible !== null && item.insuredValue !== null
-        ? item.percentageDeductible * item.insuredValue
-        : null;
-      return [item.deductibleAmount, item.familyDeductibleAmount, percentageAmount].filter((value): value is number => value !== null);
-    });
+  const deductibleCandidates = insuranceExposures.filter((item) => item.isRelevantToReserve).flatMap((item) => {
+    const percentageAmount = item.percentageDeductible !== null && item.insuredValue !== null ? item.percentageDeductible * item.insuredValue : null;
+    return [item.deductibleAmount, item.familyDeductibleAmount, percentageAmount].filter((value): value is number => value !== null);
+  });
 
   if (!income.length) warnings.push("No income sources are recorded.");
   if (!expenses.length) warnings.push("No expenses are recorded.");
   if (!insuranceExposures.length) warnings.push("No insurance deductible exposures are recorded; Stage 1 cannot be verified.");
   if (hasIncompleteGrossIncome) warnings.push("Gross income is incomplete, so retirement savings-rate calculations will be limited.");
   if (retirementAccounts.some((item) => !item.ownerPersonId)) warnings.push("At least one retirement account has no owner, so person-level contribution limits may be incomplete.");
+  if (retirementAccounts.some((item) => item.type === "hsa" && item.hsaYtdTaxYear === null && (item.employeeContributedYtd !== null || item.employerContributedYtd !== null))) {
+    warnings.push("At least one HSA has YTD contributions without an explicit tax-year binding; those YTD values remain legacy/unverified for remediated HSA legal-capacity use.");
+  }
 
   return {
     householdId: raw.householdId,
@@ -796,6 +679,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     accounts,
     debts,
     retirementAccounts,
+    hsa,
     goals,
     insuranceExposures,
     preferences,
