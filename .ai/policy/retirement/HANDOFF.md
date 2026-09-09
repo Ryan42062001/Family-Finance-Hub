@@ -2,79 +2,85 @@
 
 HANDOFF
 
-Task ID: FFH-004
+Task ID: FFH-007
 
 Role: Retirement & Tax-Advantaged Policy Analyst
 
-Status: COMPLETE — CLOSED BY MANAGER SYNTHESIS / FFH-D004 APPROVED; NEXT ASSIGNMENT FFH-007
+Status: COMPLETE — READY FOR MANAGER SYNTHESIS WITH FFH-008
 
-Verified starting state: This continuation initially refreshed `phase-5-money-priority-engine` at `f6a138e78083afe6bdf83bc42117c705bda9ca09`, with FFH-004 already complete and awaiting Manager synthesis. During the session the branch advanced through Manager-owned canonical synthesis and assignment publication. Final refresh verified `.ai/shared/PROJECT_STATE.md` marks FFH-PW-001 complete, FFH-004 complete, and Phase 5C POLICY APPROVED; `.ai/shared/DECISIONS.md` records approved durable decision `FFH-D004`; `.ai/manager/ACTIVE_ASSIGNMENTS.md` now marks FFH-PW-002 ACTIVE and assigns this role `FFH-007 — Define HSA legal-capacity policy semantics`.
+Verified starting state: Session refresh verified `phase-5-money-priority-engine` at `71705039f0abf1945202631109975edeb5632920`. Canonical `.ai/shared/PROJECT_STATE.md`, `ROADMAP.md`, `DECISIONS.md`, `WORKFLOW.md`, Manager `ACTIVE_ASSIGNMENTS.md`, this role's prior handoff, FFH-005 Regulatory Research/revalidation, current HSA capacity implementation, snapshot semantics, HSA tests, and persistence migration were read before policy writes. Manager state explicitly assigns FFH-007 and queues FFH-009 with a hard scheduling dependency on FFH-007.
 
-Assigned objective: Independently define the retirement side of Phase 5C goal-versus-retirement competition, including protected retirement dollars, employer match, Phase 5A floor behavior, BEHIND / ON_TRACK / AHEAD implications, legally routable versus desirable saving, legitimate goal competition, retirement flexibility, tax-advantaged opportunity cost, uncertainty, user preferences, determinism, and scenario acceptance cases. Do not write production code or resolve Goals Policy outside this domain.
+Assigned objective: Resolve FFH-005 R3/R4 HSA legal-capacity policy/modeling questions without production code: define safe `hsa_eligible` semantics, partial-year/coverage/Medicare/last-month-rule behavior, targeted uncertainty, married-family ordinary allocation, ordinary-vs-catch-up YTD treatment, spouse catch-up ownership, legacy-record expectations, and scenario acceptance cases. Do not begin FFH-009.
 
 Work completed:
-- Re-read canonical PROJECT_STATE, ROADMAP, DECISIONS, WORKFLOW, Manager assignment state, this role's prior handoff, the original FFH-004 policy artifact, current Phase 5A Hybrid Retirement Floor documentation/source, and current Phase 5B Goal Intelligence documentation/source.
-- Revalidated the original independent FFH-004 retirement conclusion: Secure employer match and the Phase 5A protected retirement floor remain outside ordinary goal competition; only additional retirement above the floor is contestable.
-- Consumed FFH-005 Regulatory Research as verified external evidence and created `.ai/policy/retirement/FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md` to document retirement-side implications for verified legal room, uncertainty, tax-advantaged opportunity cost, user-preference boundaries, and regulatory mismatch/model-gap scenarios.
-- During that write, Manager completed Phase 5C synthesis. Final canonical refresh verified FFH-D004 adopts the core FFH-004 boundary and records the approved cross-domain Phase 5C rules.
-- This handoff treats FFH-D004 as authoritative. The refresh artifact is supplemental specialist evidence only; any proposed detail in it not adopted by FFH-D004 is non-canonical unless Manager later approves it.
-- Final Manager assignment refresh verified FFH-004 is closed and FFH-007 is the next active task for this role under FFH-PW-002.
-- No production code was written.
+- Created `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` as the implementation-ready Retirement Policy recommendation.
+- Defined HSA eligibility/coverage as person-and-tax-year legal facts rather than facts established by account existence.
+- Determined that existing `hsa_eligible` / `hsa_coverage_type` must not silently be interpreted as full-year certification; preferred future semantics keep them as current/as-of or legacy hints while annual legal capacity uses period-aware tax-year facts or an explicit equivalent basis.
+- Defined month/period-aware handling for partial-year eligibility, coverage changes, Medicare effective/retroactive dates, and unknown material months.
+- Defined last-month rule as explicit conditional treatment: never inferred; household may elect to rely on it only within statutory constraints; result must carry testing-period risk rather than masquerading as ordinary full-year eligibility.
+- Adopted the statutory equal married-family ordinary-base allocation as FFH's no-agreement default; an explicit alternate spouse allocation is permitted only within the legal shared base.
+- Replaced R4's blanket historical ordinary-vs-catch-up deposit-label blocker with an owner-ceiling model once spouse ordinary allocation is known: owner ceiling = allocated ordinary base + owner-specific catch-up; owner YTD employee+employer contributions reduce that combined ceiling exactly once.
+- Preserved spouse-specific age-55 catch-up ownership and multiple-HSA/YTD aggregation invariants.
+- Defined targeted `more_information_needed` behavior when period facts, Medicare timing, spouse structure/allocation, or YTD inputs do not establish legal room.
+- Defined conservative legacy policy: preserve balances/YTD/current fields, but do not backfill twelve months of eligibility/coverage from one legacy boolean/current coverage value; legacy rows require reconfirmation before new affirmative legal room is exposed.
+- Defined user-preference boundaries and deterministic behavior.
+- Analyzed 16 acceptance scenarios covering full-year, partial-year, coverage changes, Medicare/retroactivity, last-month rule, married-family allocation/catch-ups, alternate allocation, account absence, multiple HSAs, and legacy records.
+- Did not start or analyze FFH-009 spousal-IRA policy.
 
 Evidence produced:
-- Original independent policy: `.ai/policy/retirement/PHASE_5C_RETIREMENT_POLICY.md`.
-- FFH-005-informed supplemental refresh: `.ai/policy/retirement/FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md`.
-- Refresh artifact commit: `aa1bd21c67162e239fbe73c0cc85d80236ca990f`.
-- Canonical Manager decision: `.ai/shared/DECISIONS.md` / `FFH-D004`.
-- Canonical project state: `.ai/shared/PROJECT_STATE.md` identifies FFH-PW-001 complete and Phase 5C policy approved but not implementation-authorized while regulatory blockers remain.
-- Canonical current assignment: `.ai/manager/ACTIVE_ASSIGNMENTS.md` assigns `FFH-007` to Retirement & Tax-Advantaged Policy Analyst.
+- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md`
+- Policy artifact commit: `e0f637fdfa705a2d103bcee23e0f0e2d9bbd2b42`.
+- Repository evidence inspected: `lib/calculations/money-priority-retirement-accounts.ts`, `money-priority-snapshot.ts`, `money-priority-retirement-accounts.test.ts`, `supabase/migrations/20260829223642_phase_5_ownership_and_planning_foundation.sql`, FFH-005 handoff/revalidation, and canonical `.ai` state.
+- Authoritative evidence relied upon through FFH-005: IRS Rev. Proc. 2025-19, Publication 969, 2026 Publication 15-B, and Form 8889 mechanics. Specific HSA mechanics were also rechecked against current IRS Publication 969 / Rev. Proc. 2025-19 during this session; no contrary external fact was found.
 
-Tests / validation actually performed: No production tests were run by this role because all FFH-004 changes were policy/documentation-only. Validation consisted of repository-state refresh, branch/delta inspection, direct Phase 5A/5B specification/source review, FFH-005 evidence review, policy/scenario revalidation, Manager-decision reconciliation, and final assignment refresh. No runtime/test pass claim is made by this role.
+Tests / validation actually performed: No production tests were run because FFH-007 is policy/documentation-only and production code was not changed. Validation consisted of repository-state refresh, direct HSA calculation/snapshot/schema/test inspection, consistency review against FFH-005 authoritative findings, 16 policy acceptance scenarios, and current IRS source cross-checking for month-sensitive eligibility, last-month rule/testing period, Medicare retroactivity, married-family equal default, catch-up ownership, and 2026 limits. No code-test or audit pass claim is made.
 
 Files updated:
-- `.ai/policy/retirement/FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md` — created as supplemental specialist evidence.
-- `.ai/policy/retirement/HANDOFF.md` — reconciled with Manager synthesis and current assignment transition.
+- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` — created.
+- `.ai/policy/retirement/HANDOFF.md` — updated to this FFH-007 handoff.
 
 Open findings:
-- FFH-D004 resolves Phase 5C cross-domain policy; FFH-004 has no remaining Phase 5C policy arbitration authority.
-- Canonical PROJECT_STATE classifies FFH-005 R1/R2 as merge-blocking correctness issues, R3 as a merge-blocking HSA modeling/data-contract issue, and R4 as an HSA policy/modeling decision requiring resolution before final audit.
-- FFH-007 now owns the Retirement Policy analysis for R3/R4: actionable HSA annual-capacity semantics, partial-year/monthly eligibility, coverage/Medicare/last-month-rule uncertainty, married-family ordinary-base allocation, YTD ordinary/catch-up treatment, spouse catch-up ownership, and legacy-record policy expectations.
+- FFH-008 has not yet persisted its App/Data analysis in `.ai/engineering/app/` at the FFH-007 completion checkpoint, so exact schema/storage/UI choices remain for Manager synthesis after FFH-008.
+- Manager must select the minimum lossless period representation (monthly facts, effective-dated intervals, or equivalent), persistence location for alternate married-family allocation, and legacy reconfirmation UX.
+- Manager may decide whether projected future-month HSA capacity should be displayed distinctly from confirmed/actual-period capacity; the Retirement Policy principle is that projected inputs must be explicit and refreshable, not silently treated as historical facts.
+- R1/R2 remain FFH-006 scope. R6/FFH-009 remains queued and untouched.
 
-Blocking issues: None for FFH-004 itself; the task is complete and closed by FFH-D004. Phase 5C production implementation remains intentionally blocked by Manager until pre-existing regulatory/modeling blockers are resolved and a separate Engineering task is authorized.
+Blocking issues: None for completion of FFH-007. HSA production implementation remains blocked until Manager synthesizes FFH-007 with FFH-008 and issues an explicit Engineering task. Phase 5 remains not merge-ready while R1/R2/R3/R6 remediation is incomplete.
 
 Unverified items:
-- Household-specific plan terms and account feature availability remain outside FFH-004.
-- No post-Manager-synthesis CI result is claimed by this role.
-- FFH-007 analysis has not been executed in this handoff; it is a separate newly assigned task.
+- Exact future persistence/schema/UI representation because FFH-008 is still outstanding.
+- Household-specific HSA plan/coverage facts.
+- No post-FFH-007 CI result is claimed; this task changes documentation only.
 
-Recommended next role: Retirement & Tax-Advantaged Policy Analyst under `FFH-007`.
+Recommended next role: Manager / Architect after FFH-008 completes. Manager should synthesize the policy and persistence/runtime contract and authorize HSA implementation. Under the current scheduling rule, FFH-009 may be activated for this Retirement Policy role only after this FFH-007 completion is recognized by Manager/canonical assignment state.
 
-Exact next action: On the next `Continue Family Finance Hub`, refresh canonical state and execute only FFH-007's HSA legal-capacity semantics scope. Do not reopen FFH-004 or alter canonical FFH-D004 Phase 5C policy.
+Exact next action: Manager reads `FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` with FFH-008's eventual handoff, records the approved HSA legal-capacity/data-contract decision, and issues implementation work. Do not infer implementation authorization from this policy handoff alone.
 
-Checkpoint / SHA: Final branch head before this handoff update was verified at `2a6d887a599e120371db519cc18d98ec64aa1437`; this handoff update creates a later documentation-only commit that must be verified after write.
+Checkpoint / SHA: FFH-007 policy artifact commit `e0f637fdfa705a2d103bcee23e0f0e2d9bbd2b42`; this HANDOFF update creates a subsequent documentation-only commit whose exact SHA must be verified after write.
 
 Policy classification:
-- `FFH-D004` Phase 5C recurring goal-versus-retirement competition: ESTABLISHED FFH PROJECT POLICY / APPROVED CANONICAL DECISION.
-- Employer match and Phase 5A protected retirement floor non-contestable in ordinary Phase 5C competition: ESTABLISHED FFH PROJECT POLICY under FFH-D004.
-- Only above-floor additional retirement is contestable: ESTABLISHED FFH PROJECT POLICY under FFH-D004.
-- Tranche relationships, Essential/Important status-sensitive rules, equal-fulfillment co-priority behavior, missing-information handling, schedule behavior, and no generic tax-timing tie-break: ESTABLISHED FFH PROJECT POLICY under FFH-D004.
-- FFH-005 R1–R4: VERIFIED CURRENT EXTERNAL FACT / repository-model findings as classified by Manager in PROJECT_STATE.
-- `FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md`: SUPPLEMENTAL SPECIALIST ANALYSIS; non-canonical where it extends beyond FFH-D004.
+- 2026 HSA self-only/family limits, age-55 catch-up ownership, monthly eligibility/coverage, Medicare effects, last-month rule/testing period, employer contribution treatment, married-family equal-default rule: STATUTORY / VERIFIED CURRENT EXTERNAL FACT through FFH-005 authoritative evidence.
+- Historical ordinary-vs-catch-up deposit labeling is not a verified statutory prerequisite: VERIFIED CURRENT EXTERNAL FACT / R4 classification.
+- Person/tax-year period model, current-field semantics, targeted uncertainty, R4 owner-ceiling replacement, legacy handling, deterministic routing boundary: PROPOSED FFH PROJECT POLICY pending Manager approval.
+- Alternate married-family ordinary allocation and explicit last-month-rule reliance: USER-CONFIGURABLE PREFERENCE within statutory constraints.
+- Exact schema/field/UI design: PRODUCT/DATA DESIGN CHOICE for Manager + FFH-008/Engineering.
 
-Retirement invariants established/canonicalized by FFH-D004:
-- employer-match capture remains outside ordinary goal competition;
-- ordinary goals may not reduce the Phase 5A protected retirement floor;
-- Phase 5C competes only with additional retirement above the floor;
-- one-time cash, recurring capacity, scheduled contributions, YTD contributions, statutory room, residual goal need, protected-floor demand, and additional retirement opportunity remain distinct;
-- no dollar is consumed twice and residual capacity reconciles to the cent;
-- missing evidence blocks only the dependent contested tradeoff;
-- goal/account array order and display names cannot determine substantive allocation;
-- no generic tax-timing tie-break is added in Phase 5C V1.
+Retirement invariants established:
+- HSA account existence cannot create person eligibility.
+- Current annual boolean/current coverage cannot silently become twelve-month legal facts.
+- One ordinary married-family base cannot be counted twice.
+- Spouse age-55 catch-ups are owner-specific and nontransferable.
+- Multiple HSAs cannot multiply capacity.
+- Employee and employer contributions consume one legal ceiling and YTD is deducted exactly once.
+- Unknown material period/Medicare/spouse-allocation facts cannot create optimistic room.
+- Legal capacity remains distinct from retirement need, cash-flow capacity, HSA long-term intent, and account routing.
+- Legacy unknowns are not backfilled optimistically.
+- Equivalent facts in different account/order arrangements produce the same legal capacity.
 
-Scenarios evaluated: Original FFH-004 included 10 policy scenarios. This continuation added 4 FFH-005-informed retirement-capacity/uncertainty scenarios covering SIMPLE mismatch-candidate room, governmental 457(b) Roth catch-up uncertainty, HSA annual/full-year eligibility ambiguity, and HSA YTD attribution classification. These are supplemental to approved FFH-D004 and may inform FFH-007/Engineering only where Manager routes them.
+Scenarios evaluated: 16 acceptance scenarios in the FFH-007 artifact.
 
-External facts relied upon: FFH-005 Regulatory Research's verified 2026 findings as persisted in the repository. FFH-004 did not independently invent or override statutory facts.
+External facts relied upon: FFH-005 Regulatory Research/revalidation and its authoritative IRS source set; specific current IRS HSA mechanics were cross-checked in this session.
 
-External facts still required: None to close FFH-004. FFH-007 will use the already-verified FFH-005 HSA facts and must route any newly discovered statutory uncertainty back to Regulatory Research rather than guessing.
+External facts still required: None for FFH-007 policy completion. Route any newly discovered statutory edge case from FFH-008/Engineering back to Regulatory Research.
 
-Implementation readiness: FFH-004 POLICY WORK COMPLETE. FFH-D004 APPROVED. PHASE 5C ENGINEERING NOT YET AUTHORIZED pending Manager-cleared regulatory blockers and a separate Engineering assignment. FFH-007 POLICY WORK IS NEXT AND SEPARATE.
+Implementation readiness: READY FOR MANAGER SYNTHESIS WITH FFH-008. NOT READY FOR ENGINEERING UNTIL MANAGER APPROVAL.
