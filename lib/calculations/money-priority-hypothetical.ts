@@ -55,6 +55,7 @@ function snapshotToRaw(snapshot: MoneyPrioritySnapshot): MoneyPriorityRawSnapsho
       hsa_ytd_tax_year: item.hsaYtdTaxYear, annual_contribution_target: item.annualContributionTarget,
       full_match_employee_contribution_monthly: item.fullMatchEmployeeContributionMonthly, match_status: item.matchStatus,
       hsa_coverage_type: item.hsaCoverageType, hsa_eligible: item.hsaEligible, simple_higher_limit_eligible: item.simpleHigherLimitEligible,
+      simple_plan_limit_category: item.simplePlanLimitCategory, simple_plan_limit_tax_year: item.simplePlanLimitTaxYear,
       employer_contribution_type: item.employerContributionType, plan_eligible_compensation_annual: item.planEligibleCompensationAnnual,
       prior_year_sponsor_wages: item.priorYearSponsorWages, roth_catch_up_supported: item.rothCatchUpSupported,
       sep_eligible_compensation_annual: item.sepEligibleCompensationAnnual, sep_compensation_calculation_supported: item.sepCompensationCalculationSupported,

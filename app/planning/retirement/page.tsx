@@ -18,7 +18,7 @@ export default async function RetirementPlanningPage() {
   const account = retirementAccounts?.[0];
 
   return <main className="page-shell">
-    <section className="hero-card"><div><p className="eyebrow">Phase 4 planning tools</p><h1>Retirement contribution pacing</h1><p className="muted">See what each remaining paycheck needs to contribute to reach an annual retirement or HSA target.</p></div><div className="hero-actions"><Link className="secondary-button" href="/planning">Back to planning</Link><Link className="secondary-button" href="/financial-profile/hsa">HSA legal-fact profile</Link><Link className="secondary-button" href="/dashboard">Dashboard</Link></div></section>
+    <section className="hero-card"><div><p className="eyebrow">Phase 4 planning tools</p><h1>Retirement contribution pacing</h1><p className="muted">See what each remaining paycheck needs to contribute to reach an annual retirement or HSA target.</p></div><div className="hero-actions"><Link className="secondary-button" href="/planning">Back to planning</Link><Link className="secondary-button" href="/financial-profile/hsa">HSA legal-fact profile</Link><Link className="secondary-button" href="/financial-profile/simple">SIMPLE plan-limit profile</Link><Link className="secondary-button" href="/dashboard">Dashboard</Link></div></section>
     <RetirementPacingCalculator account={account ? { name: account.name, monthlyEmployeeContribution: Number(account.monthly_employee_contribution), monthlyEmployerContribution: Number(account.monthly_employer_contribution) } : null} />
   </main>;
 }

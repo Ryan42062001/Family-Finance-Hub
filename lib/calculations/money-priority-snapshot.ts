@@ -20,6 +20,8 @@ export type RetirementAccountType =
   | "pension"
   | "other";
 
+export type SimplePlanLimitCategory = "standard" | "certain_applicable_higher";
+
 export type MoneyPrioritySnapshot = {
   householdId: string;
   people: Array<{
@@ -110,6 +112,8 @@ export type MoneyPrioritySnapshot = {
     hsaCoverageType: string | null;
     hsaEligible: boolean | null;
     simpleHigherLimitEligible?: boolean | null;
+    simplePlanLimitCategory?: SimplePlanLimitCategory | null;
+    simplePlanLimitTaxYear?: number | null;
     employerContributionType?: string | null;
     planEligibleCompensationAnnual?: number | null;
     priorYearSponsorWages?: number | null;
@@ -213,7 +217,7 @@ export type MoneyPriorityRawSnapshot = {
 export type SnapshotValidationIssue = {
   path: string;
   code: "duplicate_id" | "invalid_reference" | "invalid_date" | "invalid_enum" | "invalid_number"
-    | "missing_required_number" | "invalid_boolean" | "missing_required_boolean" | "missing_id";
+    | "missing_required_number" | "invalid_boolean" | "missing_required_boolean" | "missing_id" | "invalid_contract";
   message: string;
 };
 
@@ -296,6 +300,7 @@ const NUMERIC_CONTRACT = {
     { field: "hsa_ytd_tax_year", presence: "nullable", min: 2004, max: 9999, integer: true },
     { field: "annual_contribution_target", presence: "nullable", min: 0 },
     { field: "full_match_employee_contribution_monthly", presence: "nullable", min: 0 },
+    { field: "simple_plan_limit_tax_year", presence: "nullable", min: 1900, max: 9999, integer: true },
     { field: "plan_eligible_compensation_annual", presence: "nullable", min: 0 },
     { field: "prior_year_sponsor_wages", presence: "nullable", min: 0 },
     { field: "sep_eligible_compensation_annual", presence: "nullable", min: 0 },
@@ -381,6 +386,7 @@ const ENUMS = {
   borrowingLikelihood: ["unlikely", "possible", "likely", "unknown"],
   filingStatus: ["single", "head_of_household", "married_filing_jointly", "married_filing_separately"],
   retirementType: ["401k", "403b", "457", "457b", "tsp", "simple_ira", "traditional_ira", "roth_ira", "sep_ira", "hsa", "pension", "other"],
+  simplePlanLimitCategory: ["standard", "certain_applicable_higher"],
 } as const;
 
 function isIsoDate(value: unknown): boolean {
@@ -431,7 +437,26 @@ function validateMoneyPriorityRawSnapshot(raw: MoneyPriorityRawSnapshot, options
     enumValue(row.student_loan_forgiveness_strategy, ENUMS.studentLoanForgivenessStrategy, `debts[${index}].student_loan_forgiveness_strategy`);
     enumValue(row.forgiveness_tax_treatment, ENUMS.forgivenessTaxTreatment, `debts[${index}].forgiveness_tax_treatment`);
   });
-  (raw.retirementAccounts ?? []).forEach((row, index) => enumValue(row.account_type, ENUMS.retirementType, `retirementAccounts[${index}].account_type`));
+  (raw.retirementAccounts ?? []).forEach((row, index) => {
+    enumValue(row.account_type, ENUMS.retirementType, `retirementAccounts[${index}].account_type`);
+    enumValue(row.simple_plan_limit_category, ENUMS.simplePlanLimitCategory, `retirementAccounts[${index}].simple_plan_limit_category`);
+    const categoryPresent = row.simple_plan_limit_category !== null && row.simple_plan_limit_category !== undefined && row.simple_plan_limit_category !== "";
+    const taxYearPresent = row.simple_plan_limit_tax_year !== null && row.simple_plan_limit_tax_year !== undefined && row.simple_plan_limit_tax_year !== "";
+    if (categoryPresent !== taxYearPresent) {
+      issues.push({
+        path: `retirementAccounts[${index}].simple_plan_limit_category`,
+        code: "invalid_contract",
+        message: `retirementAccounts[${index}] SIMPLE plan-limit category and tax year must be provided together.`,
+      });
+    }
+    if (categoryPresent && row.account_type !== "simple_ira") {
+      issues.push({
+        path: `retirementAccounts[${index}].simple_plan_limit_category`,
+        code: "invalid_contract",
+        message: `retirementAccounts[${index}] SIMPLE plan-limit facts are only valid for a SIMPLE IRA account.`,
+      });
+    }
+  });
   (raw.goals ?? []).forEach((row, index) => {
     enumValue(row.goal_class, ENUMS.goalClass, `goals[${index}].goal_class`); enumValue(row.necessity, ENUMS.necessity, `goals[${index}].necessity`);
     enumValue(row.deadline_flexibility, ENUMS.deadlineFlexibility, `goals[${index}].deadline_flexibility`); enumValue(row.consequence_level, ENUMS.consequenceLevel, `goals[${index}].consequence_level`);
@@ -603,18 +628,25 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     expectedStudentLoanBasedEmployerMatchMonthly: nullableNumber(row.expected_student_loan_based_employer_match_monthly),
   }));
 
-  const retirementAccounts = (raw.retirementAccounts ?? []).map((row) => ({
-    id: stringValue(row.id), ownerPersonId: nullableString(row.owner_person_id), name: stringValue(row.name), type: normalizeRetirementType(row.account_type),
-    balance: requiredNumber(row.balance), monthlyEmployeeContribution: requiredNumber(row.monthly_employee_contribution), monthlyEmployerContribution: requiredNumber(row.monthly_employer_contribution),
-    taxTreatment: nullableString(row.tax_treatment), employeeContributedYtd: nullableNumber(row.employee_contributed_ytd), employerContributedYtd: nullableNumber(row.employer_contributed_ytd),
-    hsaYtdTaxYear: nullableNumber(row.hsa_ytd_tax_year), annualContributionTarget: nullableNumber(row.annual_contribution_target),
-    fullMatchEmployeeContributionMonthly: nullableNumber(row.full_match_employee_contribution_monthly), matchStatus: stringValue(row.match_status, "unknown"),
-    hsaCoverageType: nullableString(row.hsa_coverage_type), hsaEligible: nullableBoolean(row.hsa_eligible),
-    simpleHigherLimitEligible: nullableBoolean(row.simple_higher_limit_eligible), employerContributionType: nullableString(row.employer_contribution_type),
-    planEligibleCompensationAnnual: nullableNumber(row.plan_eligible_compensation_annual), priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
-    rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported), sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
-    sepCompensationCalculationSupported: nullableBoolean(row.sep_compensation_calculation_supported),
-  }));
+  const retirementAccounts = (raw.retirementAccounts ?? []).map((row) => {
+    const simplePlanLimitCategory = nullableString(row.simple_plan_limit_category) as SimplePlanLimitCategory | null;
+    const simplePlanLimitTaxYear = nullableNumber(row.simple_plan_limit_tax_year);
+    return {
+      id: stringValue(row.id), ownerPersonId: nullableString(row.owner_person_id), name: stringValue(row.name), type: normalizeRetirementType(row.account_type),
+      balance: requiredNumber(row.balance), monthlyEmployeeContribution: requiredNumber(row.monthly_employee_contribution), monthlyEmployerContribution: requiredNumber(row.monthly_employer_contribution),
+      taxTreatment: nullableString(row.tax_treatment), employeeContributedYtd: nullableNumber(row.employee_contributed_ytd), employerContributedYtd: nullableNumber(row.employer_contributed_ytd),
+      hsaYtdTaxYear: nullableNumber(row.hsa_ytd_tax_year), annualContributionTarget: nullableNumber(row.annual_contribution_target),
+      fullMatchEmployeeContributionMonthly: nullableNumber(row.full_match_employee_contribution_monthly), matchStatus: stringValue(row.match_status, "unknown"),
+      hsaCoverageType: nullableString(row.hsa_coverage_type), hsaEligible: nullableBoolean(row.hsa_eligible),
+      simpleHigherLimitEligible: simplePlanLimitCategory === "standard" ? false : null,
+      simplePlanLimitCategory,
+      simplePlanLimitTaxYear,
+      employerContributionType: nullableString(row.employer_contribution_type),
+      planEligibleCompensationAnnual: nullableNumber(row.plan_eligible_compensation_annual), priorYearSponsorWages: nullableNumber(row.prior_year_sponsor_wages),
+      rothCatchUpSupported: nullableBoolean(row.roth_catch_up_supported), sepEligibleCompensationAnnual: nullableNumber(row.sep_eligible_compensation_annual),
+      sepCompensationCalculationSupported: nullableBoolean(row.sep_compensation_calculation_supported),
+    };
+  });
 
   const goals = (raw.goals ?? []).map((row) => ({
     id: stringValue(row.id), name: stringValue(row.name), targetAmount: requiredNumber(row.target_amount), currentAmount: requiredNumber(row.current_amount),
@@ -669,6 +701,12 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
   if (retirementAccounts.some((item) => !item.ownerPersonId)) warnings.push("At least one retirement account has no owner, so person-level contribution limits may be incomplete.");
   if (retirementAccounts.some((item) => item.type === "hsa" && item.hsaYtdTaxYear === null && (item.employeeContributedYtd !== null || item.employerContributedYtd !== null))) {
     warnings.push("At least one HSA has YTD contributions without an explicit tax-year binding; those YTD values remain legacy/unverified for remediated HSA legal-capacity use.");
+  }
+  if ((raw.retirementAccounts ?? []).some((row) => normalizeRetirementType(row.account_type) === "simple_ira"
+    && row.simple_higher_limit_eligible !== null && row.simple_higher_limit_eligible !== undefined
+    && (row.simple_plan_limit_category === null || row.simple_plan_limit_category === undefined || row.simple_plan_limit_category === ""
+      || row.simple_plan_limit_tax_year === null || row.simple_plan_limit_tax_year === undefined || row.simple_plan_limit_tax_year === ""))) {
+    warnings.push("At least one SIMPLE IRA has a legacy SIMPLE higher-limit hint without an explicit tax-year-bound plan category; the legacy hint is not authoritative and requires reconfirmation.");
   }
 
   return {
