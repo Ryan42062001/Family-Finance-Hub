@@ -86,63 +86,94 @@ Decision:
 Family Finance Hub will replace the current account-level annual-boolean interpretation with a tax-year-bound, person-level, period-aware HSA legal-capacity model. The approved minimum-complete architecture is a person + tax-year profile plus month-level HSA eligibility/coverage facts (or an implementation proven lossless-equivalent representation). `retirement_accounts` remain HSA destinations/YTD sources, not the canonical home of person legal eligibility.
 
 Approved policy/data rules:
-1. **Person/tax-year authority.** HSA eligibility and coverage are legal facts about a person for a tax year/period. HSA account existence or absence cannot establish eligibility.
-2. **Month-level basis.** The authoritative model must represent each relevant tax-year month as eligible/ineligible/unknown and self-only/family/none-or-unknown coverage, or an equivalent representation that reconstructs those facts without loss.
-3. **Tax-year profile.** Person-year context must represent Medicare effective timing where relevant, last-month-rule reliance/status, confirmation/version metadata, and whether future-period values are confirmed facts or explicit planning assumptions.
-4. **Legacy account fields.** Existing `hsa_eligible` and `hsa_coverage_type` remain legacy/current hints. Legacy `true` is not full-year certification; legacy `false` is not proof of zero tax-year capacity. They may not be auto-promoted into twelve affirmative months.
-5. **Unknown defaults.** New legal-fact fields/rows default to NULL/unknown. No migration/backfill may silently create full-year eligibility, family coverage, Medicare absence, or last-month-rule qualification.
-6. **Partial-year calculation.** Ordinary recommended HSA capacity uses period-aware eligibility/coverage. Unknown material months produce targeted `more_information_needed`, not optimistic room and not fabricated zero.
-7. **Medicare.** Known Medicare effective timing makes affected months ineligible; material uncertainty produces targeted information-needed. Retroactive Medicare triggers recomputation; if YTD exceeds the corrected legal ceiling, expose no additional room and a high-severity possible-excess warning, not invented tax remediation.
-8. **Last-month rule.** Never infer it from December eligibility. Default planning uses ordinary month-based capacity. The household may explicitly elect conditional last-month-rule treatment only when statutory prerequisites are represented; the output must carry testing-period risk and refresh when facts change.
-9. **Married-family ordinary base.** Use the statutory equal spouse allocation by default absent another agreement. The equal default is derived, not duplicated across account rows.
-10. **Alternate married allocation.** A household may explicitly record a different tax-year-bound spouse ordinary-base allocation within the legal shared base. Never infer the alternate split from account order, IDs, balances, income, or YTD. If equal-default allocation is incompatible with YTD but some legal alternate could fit, ask for the spouses' agreement instead of silently reallocating or declaring excess.
-11. **Age-55 catch-up.** Catch-up remains owner-specific and nontransferable. A spouse without an HSA can affect family structure, but owner catch-up cannot be routed until an HSA destination exists.
-12. **R4 owner-ceiling model.** Historical deposits do not need ordinary-vs-catch-up labels solely for capacity math. Once spouse ordinary allocation is known: `owner annual ceiling = allocated ordinary base + owner-specific catch-up`; `owner remaining room = max(0, owner annual ceiling - aggregate employee/employer HSA YTD for that owner)`. Enforce both owner ceilings and the couple-wide legal maximum.
-13. **Employee/employer sharing.** Employee and employer HSA contributions consume the same statutory ceiling; multiple HSA accounts do not multiply room. YTD is deducted exactly once.
-14. **YTD tax-year binding.** Implementation must explicitly bind the HSA YTD values used for legal-capacity math to the same tax year as the person-period basis, or prove an equivalent current-year contract. Stale/unbound YTD cannot be treated as verified current-year legal consumption.
-15. **Single source of truth.** Newly confirmed person-year/month data becomes authoritative. Legacy account eligibility/coverage may remain visible for transition but cannot compete as an independent legal source.
-16. **Runtime/database parity.** DB constraints/enums and runtime unions must agree; null/unknown must survive persistence -> loader -> normalized snapshot; same persisted facts must reload to the same capacity basis.
-17. **Downstream parity.** Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and Recommendation Refresh must consume one normalized HSA contract, not duplicate legal logic in the application layer.
-18. **Recommendation refresh.** Changes to decision-relevant HSA person-year/month facts, Medicare timing, last-month-rule choice, married allocation, or verified YTD basis must invalidate/recompute affected recommendations.
-19. **Role boundary.** Application/Data owns additive schema, persistence, capture UX/actions, Supabase loader, reload/RLS parity, and the normalized snapshot input contract. Core Engine owns HSA legal-capacity calculation/routing behavior against that approved contract. The shared snapshot contract must be established before Core Engine HSA implementation begins.
-20. **No contribution-event overbuild.** A full contribution-event ledger is a possible future improvement but is not required to resolve R3/R4 now.
+1. HSA eligibility and coverage are person/tax-year legal facts; account existence cannot establish eligibility.
+2. Each relevant month must be representable as eligible/ineligible/unknown and self-only/family/none-or-unknown, or lossless equivalent.
+3. Person-year context carries Medicare timing, last-month-rule reliance/status, confirmation/version metadata, and future-period fact/assumption status.
+4. Legacy `hsa_eligible` / `hsa_coverage_type` remain hints, never auto-promoted to full-year truth.
+5. New legal facts default NULL/unknown; no optimistic backfill.
+6. Partial-year HSA capacity is period-aware; unknown material months produce targeted `more_information_needed`.
+7. Medicare timing can invalidate months and trigger recomputation/possible-excess warning; FFH does not invent corrective tax actions.
+8. Last-month rule is explicit conditional treatment, never inferred from December eligibility.
+9. Married-family ordinary allocation defaults equally absent another agreement; equal default is derived, not redundantly persisted.
+10. Alternate married allocation is explicit, tax-year-bound, and constrained to the legal shared base.
+11. Age-55 catch-up is owner-specific and nontransferable.
+12. R4 uses owner ceilings rather than historical ordinary-vs-catch-up deposit labels once spouse ordinary allocation is known.
+13. Employee/employer contributions consume one HSA ceiling; multiple HSA accounts do not multiply room; YTD is deducted once.
+14. HSA YTD used in capacity math must be tax-year-bound or proven equivalent.
+15. Newly confirmed person-year/month facts are the single authoritative legal source; legacy account hints cannot compete.
+16. DB/runtime enums and null semantics must remain in parity through persistence -> loader -> normalized snapshot.
+17. Existing Cash, Secure, Build, Windfall, Your Plan, hypothetical reruns, and Recommendation Refresh consume one normalized HSA contract.
+18. Decision-relevant HSA changes trigger refresh/recomputation.
+19. App/Data owns schema/persistence/capture/loader/normalized-input contract; Core Engine owns legal-capacity calculation after that contract is stable.
+20. A full contribution-event ledger is future optional scope, not required for R3/R4.
 
-Approved architecture direction:
-- canonical person/tax-year profile (conceptually `person_hsa_tax_year_profile`);
-- canonical month records (conceptually `person_hsa_month_status`, max 12 per person/tax year);
-- tax-year-bound explicit alternate married-family allocation only when the household chooses one;
-- existing HSA accounts retain destination, owner, balance, schedule, and contribution/YTD roles;
-- derived legal ceilings/remaining room remain runtime outputs, not persisted competing truth.
-
-Legacy/backward-compatibility requirements:
+Legacy/backward compatibility:
 - additive migration only;
-- preserve account balances, ownership, and existing contribution values;
-- no optimistic backfill;
-- no owner inference from authenticated user/creator/account name/sole adult;
+- preserve balances, ownership, and existing contribution meaning;
+- no optimistic backfill or identity inference;
 - no spouse-ineligibility inference from absence of an HSA account;
-- no automatic carryforward of person/month HSA status into a later tax year;
-- legacy rows may temporarily require targeted reconfirmation before new affirmative HSA room is exposed.
+- no automatic tax-year carryforward;
+- legacy rows may require reconfirmation before affirmative room is exposed.
 
 Evidence:
 - `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md`
 - `.ai/policy/retirement/HANDOFF.md` (FFH-007)
 - `.ai/engineering/app/HANDOFF.md` (FFH-008)
-- `.ai/research/regulatory/HANDOFF.md` and `FFH-005_REVALIDATION_ADDENDUM.md`
+- `.ai/research/regulatory/HANDOFF.md`
+- `.ai/research/regulatory/FFH-005_REVALIDATION_ADDENDUM.md`
 
-Rejected alternatives:
-- silently reinterpret legacy `hsa_eligible=true` as full-year eligibility;
-- keep eligibility authority duplicated independently on each HSA account;
-- auto-apply the last-month rule;
-- infer married allocation from IDs/YTD/account order;
-- require historical ordinary-vs-catch-up deposit labels when owner ceilings suffice;
-- persist a derived legal-room value as a competing source of truth;
-- implement a richer contribution-event ledger solely to unblock R3/R4.
+## FFH-D006 — MFJ spousal-IRA scarce-compensation capacity
+
+Date: 2026-09-08
+Related Tasks: FFH-005 R6, FFH-009
+Status: APPROVED POLICY — IMPLEMENTATION REQUIRES MANAGER-ISSUED CORE ENGINE TASK
+
+Decision:
+When married filing jointly and supported IRA compensation is scarce, FFH must represent IRA legal capacity as owner constraints plus one shared joint-compensation feasible set. FFH must not pre-allocate scarce compensation by owner/person/account ID or present a deterministic routing split as statutory owner-specific room.
+
+Approved rules:
+1. Each spouse retains one age-appropriate combined Traditional + Roth IRA annual limit and actual YTD aggregated across all represented IRAs.
+2. For unequal compensation, the higher-compensation spouse remains limited by that spouse's own supported compensation and individual IRA limit; the lower-compensation spouse may use joint compensation remaining after the other spouse's actual/current-plan IRA consumption, subject to the lower spouse's individual limit.
+3. For equal compensation, neither spouse is manufactured as the lower spouse; each remains limited by that spouse's own supported compensation and individual limit.
+4. Actual authoritative YTD reduces legal capacity exactly once. Active scheduled/current-plan allocations reserve planning capacity but are not relabeled as already-contributed YTD. Stale recommendations alone do not consume capacity.
+5. The evaluator exposes owner **conditional maximum additional room** plus a shared MFJ-compensation remaining ledger/group. Conditional owner maxima are not additive independent household room.
+6. One shared current-plan ledger must be consumed across applicable one-time, Build, Windfall, Your Plan, and hypothetical IRA routing so later consumers cannot recreate already-consumed compensation capacity.
+7. Multiple Traditional/Roth IRA accounts do not multiply owner or shared capacity.
+8. Direct Roth eligibility and Traditional IRA deductibility remain separate constraints; R6 changes compensation-capacity representation, not those tax rules.
+9. Legal-capacity evaluation is owner-neutral and order-invariant. Existing approved financial/account routing factors apply first. If spouse IRA routes remain financially equivalent, scarce routed demand uses equal-fulfillment sharing; stable ID is only an unavoidable final-cent tie-break.
+10. Unknown material spouse compensation, owner identity, account ownership, or aggregate spouse IRA YTD produces targeted `more_information_needed` for R6-dependent IRA capacity. Unknown is not converted to zero.
+11. **No recorded IRA account is not proof of $0 spouse IRA YTD.** Current FFH retirement accounts are manually entered and the repository has no explicit account-inventory completeness certification. Therefore shared/spousal-enhanced room remains unresolved when a missing spouse YTD total could change the feasible set, unless a later authoritative completeness contract establishes zero/total contributions.
+12. If authoritative YTD already exceeds supported individual/shared compensation ceilings, expose zero additional room for the affected group plus a high-severity possible-excess warning; do not invent correction mechanics or tax advice.
+13. The existing supported IRA-compensation input keeps its documented product meaning. FFH-009 does not silently widen it to every statutory IRA-compensation category; any genuine data-definition gap must be routed separately.
+
+Mathematical representation for unequal compensation (A higher than B):
+- `C_joint = C_A + C_B`
+- `sharedRemaining = max(0, C_joint - Y_A - Y_B)`
+- `higherRemaining = max(0, min(L_A, C_A) - Y_A)`
+- `lowerIndividualRemaining = max(0, L_B - Y_B)`
+- `conditionalMaxAdditional_A = min(higherRemaining, sharedRemaining)`
+- `conditionalMaxAdditional_B = min(lowerIndividualRemaining, sharedRemaining)`
+- household maximum additional IRA compensation capacity = `min(sharedRemaining, higherRemaining + lowerIndividualRemaining)`
+
+Evidence:
+- `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`
+- `.ai/policy/retirement/HANDOFF.md` (FFH-009)
+- `.ai/research/regulatory/FFH-005_REVALIDATION_ADDENDUM.md`
+- `app/financial-profile/actions.ts` confirms retirement accounts are manually added/updated and provides no inventory-completeness certification.
 
 Consequences:
-- R3/R4 policy/data ambiguity is resolved; production remediation remains required.
-- Application/Data must establish the new persistence + normalized input contract before Core Engine implements the new HSA capacity calculation.
-- FFH-009 may now begin because FFH-007 is complete.
-- Phase 5 remains not merge-ready until HSA implementation is completed and independently audited with the other retirement-capacity remediations.
+- R6 policy ambiguity is resolved; production remediation remains required.
+- Core Engine must replace the current sorted-owner compensation allocation with owner + shared-capacity ledger semantics under a narrow future task.
+- Because current FFH account inventory is not certified complete, a missing spouse IRA record cannot be used as an authoritative zero-YTD fact.
+- R6 remains merge-blocking until implementation and later independent audit.
+
+Rejected alternatives:
+- fixed first-owner/second-owner compensation allocation;
+- treating conditional owner maxima as independently additive room;
+- inferring zero YTD from absence of a manually entered IRA account;
+- using ID/order as a legal-capacity rule;
+- mixing compensation capacity with Roth eligibility or deductibility;
+- treating planned recommendations as already-contributed YTD.
 
 Revisit condition:
-Revisit if authoritative HSA law changes, implementation shows the monthly representation cannot preserve required semantics, or audit discovers a material inconsistency. Implementation may choose equivalent table/field names but may not weaken these semantics without Manager approval.
+Revisit if authoritative law changes, FFH later introduces an explicit complete account/contribution inventory contract, or audit demonstrates that the shared-ledger representation does not preserve the approved feasible set.
