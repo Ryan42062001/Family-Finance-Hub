@@ -10,17 +10,17 @@ Verified `main` SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
 Active development branch: `phase-5-money-priority-engine`
 PR #5: OPEN / UNMERGED / NON-DRAFT / mergeable when last checked.
 
-Current verified pre-refresh Phase 5 head: `401bae5a91b2520c2c13c920c97251236d634d73`.
-At that checkpoint the branch was 236 commits ahead and 0 behind `main`, with current `main` as merge base.
+Current verified FFH-010 production checkpoint: `ca22dac0dd6a10ec4d3c81daa057d430667f4406` (`fix: type-safe HSA enum validation`).
+At that production checkpoint the branch was 240 commits ahead and 0 behind `main`, with current `main` as merge base.
 
-FFH-010 implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
-Foundation CI #285 on that exact checkpoint: FAILURE at Type check. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded; lint/build were skipped after the typecheck failure.
+Foundation CI #296 (run `34302958985`) on exact production checkpoint `ca22dac0dd6a10ec4d3c81daa057d430667f4406`: FAILURE. This checkpoint therefore does not satisfy the FFH-010 green exact-checkpoint acceptance gate. The Manager-visible workflow surface confirmed the exact commit/run and failed conclusion; the exact remaining failing diagnostic was not reliably recovered during this refresh and remains worker-owned validation work.
 
-Foundation CI #290 on Manager descendant `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`: FAILURE at the same Type check stage. Dependency install, production dependency audit, calculation tests, and security policy-contract tests again succeeded; lint/build were skipped.
+Earlier FFH-010-related failures remain relevant context:
+- CI #285 failed Type check on `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
+- CI #290 failed Type check on Manager descendant `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`.
+- CI #293 failed Type check on Manager descendant `401bae5a91b2520c2c13c920c97251236d634d73`.
 
-Foundation CI #293 on Manager descendant `401bae5a91b2520c2c13c920c97251236d634d73`: FAILURE at Type check again. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded before the failure; lint/build were skipped. The available Manager GitHub surface exposed the failing job/stage but did not yield a reliable TypeScript diagnostic line, so the FFH-010 worker must diagnose the exact compiler error from its execution environment or detailed CI output.
-
-The current `.ai/engineering/app/HANDOFF.md` still closes FFH-008 rather than FFH-010. No current FFH-010 completion handoff is therefore present.
+The current `.ai/engineering/app/HANDOFF.md` still closes FFH-008 rather than FFH-010. No current FFH-010 completion handoff is therefore present and nothing is available for Manager integration/acceptance.
 
 ## Stable product state on main
 
@@ -71,21 +71,21 @@ Status: ACTIVE
 Status: COMPLETE / MANAGER SYNTHESIZED as FFH-D006.
 
 ### FFH-010 — App/Data HSA persistence + normalized contract
-Status: ACTIVE / REMEDIATION + VALIDATION REQUIRED.
+Status: ACTIVE / REMEDIATION + VALIDATION REQUIRED / NOT MANAGER ACCEPTED.
 
-Substantial implementation exists at `fd520a1abc98c7841306b3e73f23d6a60f7ed614`, including additive HSA migration, dedicated HSA capture/actions, normalized HSA input-contract modules/tests, snapshot/loader integration, security test additions, and hypothetical integration.
+Substantial FFH-D005 implementation exists, including additive HSA migration, dedicated HSA capture/actions, normalized HSA input-contract modules/tests, snapshot/loader integration, security test additions, and hypothetical integration. The latest worker production fix is `ca22dac0dd6a10ec4d3c81daa057d430667f4406`.
 
 Current acceptance blockers:
-- CI #285 failed Type check on the implementation checkpoint;
-- CI #290 failed Type check on a Manager descendant containing the same production code;
-- CI #293 failed Type check again on the latest verified pre-refresh Manager descendant;
-- current FFH-010 handoff is absent.
+- exact Foundation CI #296 on `ca22dac0dd6a10ec4d3c81daa057d430667f4406` completed FAILURE;
+- current FFH-010 completion handoff is absent;
+- exact remaining CI diagnostic is not Manager-verified;
+- linked Supabase application/runtime parity for the FFH-010 migration remains unverified unless the worker supplies direct evidence.
 
 FFH-010 remains the only active specialist task.
 
 ## Queued work
 
-1. FFH-011 — App/Data: resolve R1 SIMPLE persisted-field contract after FFH-010.
+1. FFH-011 — App/Data: resolve R1 SIMPLE persisted-field contract after FFH-010 acceptance.
 2. FFH-012 — Core Engine: implement FFH-D005 HSA legal-capacity calculation after FFH-010 stable normalized contract and Manager acceptance.
 3. FFH-013 — Core Engine: implement FFH-D006 spousal-IRA shared compensation ledger after FFH-012 unless Manager later proves a safer reorder.
 4. Narrow Core R1 formula remediation after FFH-011 if required.
@@ -105,6 +105,7 @@ Current FFH-010-related CI:
 - #285 FAILURE on `fd520a1abc98c7841306b3e73f23d6a60f7ed614` at Type check.
 - #290 FAILURE on `8e3e35dcba362b0751c5ea89d0f1d42bace3569c` at Type check.
 - #293 FAILURE on `401bae5a91b2520c2c13c920c97251236d634d73` at Type check.
+- #296 FAILURE on exact latest production checkpoint `ca22dac0dd6a10ec4d3c81daa057d430667f4406`; exact remaining failure diagnostic not Manager-verified during this refresh.
 
 Literal local `npm run verify` must not be claimed unless actually observed. No CI result is itself an audit verdict.
 
@@ -122,8 +123,8 @@ Application/Data: ACTIVE on FFH-010
 Auditors: IDLE pending stable integrated implementation checkpoint
 
 Exact next sequence:
-1. FFH-010 refreshes from current branch, diagnoses/fixes the repeated typecheck failure, completes validation, and persists a current handoff.
-2. Manager accepts/rejects the exact FFH-010 checkpoint.
+1. FFH-010 refreshes from current branch, diagnoses/fixes the remaining exact-checkpoint CI failure, completes validation, and persists a current handoff.
+2. Manager accepts/rejects the exact FFH-010 production checkpoint based on current repository evidence.
 3. On acceptance, activate FFH-011 App/Data and FFH-012 Core Engine in parallel.
 4. After FFH-012, activate FFH-013 Core IRA remediation while FFH-011/R1 follow-up proceeds dependency-safely.
 5. Stabilize retirement-capacity work, then implement FFH-D004 Phase 5C.
