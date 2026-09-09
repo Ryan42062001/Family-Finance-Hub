@@ -10,13 +10,15 @@ Verified `main` SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
 Active development branch: `phase-5-money-priority-engine`
 PR #5: OPEN / UNMERGED / NON-DRAFT / mergeable when last checked.
 
-Current verified pre-refresh Phase 5 head: `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`.
-At that checkpoint the branch was 233 commits ahead and 0 behind `main`, with current `main` as merge base.
+Current verified pre-refresh Phase 5 head: `401bae5a91b2520c2c13c920c97251236d634d73`.
+At that checkpoint the branch was 236 commits ahead and 0 behind `main`, with current `main` as merge base.
 
 FFH-010 implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
 Foundation CI #285 on that exact checkpoint: FAILURE at Type check. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded; lint/build were skipped after the typecheck failure.
 
-Foundation CI #290 on Manager descendant `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`: FAILURE at the same Type check stage. Dependency install, production dependency audit, calculation tests, and security policy-contract tests again succeeded; lint/build were skipped. The repeated failure confirms the branch remains red and FFH-010 is not Manager-acceptable yet.
+Foundation CI #290 on Manager descendant `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`: FAILURE at the same Type check stage. Dependency install, production dependency audit, calculation tests, and security policy-contract tests again succeeded; lint/build were skipped.
+
+Foundation CI #293 on Manager descendant `401bae5a91b2520c2c13c920c97251236d634d73`: FAILURE at Type check again. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded before the failure; lint/build were skipped. The available Manager GitHub surface exposed the failing job/stage but did not yield a reliable TypeScript diagnostic line, so the FFH-010 worker must diagnose the exact compiler error from its execution environment or detailed CI output.
 
 The current `.ai/engineering/app/HANDOFF.md` still closes FFH-008 rather than FFH-010. No current FFH-010 completion handoff is therefore present.
 
@@ -75,7 +77,8 @@ Substantial implementation exists at `fd520a1abc98c7841306b3e73f23d6a60f7ed614`,
 
 Current acceptance blockers:
 - CI #285 failed Type check on the implementation checkpoint;
-- CI #290 failed Type check again on the Manager descendant containing the same production code;
+- CI #290 failed Type check on a Manager descendant containing the same production code;
+- CI #293 failed Type check again on the latest verified pre-refresh Manager descendant;
 - current FFH-010 handoff is absent.
 
 FFH-010 remains the only active specialist task.
@@ -101,6 +104,7 @@ Verified successful CI checkpoints:
 Current FFH-010-related CI:
 - #285 FAILURE on `fd520a1abc98c7841306b3e73f23d6a60f7ed614` at Type check.
 - #290 FAILURE on `8e3e35dcba362b0751c5ea89d0f1d42bace3569c` at Type check.
+- #293 FAILURE on `401bae5a91b2520c2c13c920c97251236d634d73` at Type check.
 
 Literal local `npm run verify` must not be claimed unless actually observed. No CI result is itself an audit verdict.
 
@@ -118,7 +122,7 @@ Application/Data: ACTIVE on FFH-010
 Auditors: IDLE pending stable integrated implementation checkpoint
 
 Exact next sequence:
-1. FFH-010 refreshes from current branch, diagnoses/fixes the typecheck failure, completes validation, and persists a current handoff.
+1. FFH-010 refreshes from current branch, diagnoses/fixes the repeated typecheck failure, completes validation, and persists a current handoff.
 2. Manager accepts/rejects the exact FFH-010 checkpoint.
 3. On acceptance, activate FFH-011 App/Data and FFH-012 Core Engine in parallel.
 4. After FFH-012, activate FFH-013 Core IRA remediation while FFH-011/R1 follow-up proceeds dependency-safely.
