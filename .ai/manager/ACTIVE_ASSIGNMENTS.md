@@ -25,7 +25,7 @@ Assigned employee: Retirement & Tax-Advantaged Policy Analyst
 Status: COMPLETE — MANAGER SYNTHESIZED
 
 Result:
-Manager approved FFH-D006. R6 legal-capacity semantics now use owner conditional maxima + one shared MFJ compensation ledger, no fixed owner-ID statutory split, and no inference that a missing manually entered IRA account proves $0 spouse YTD.
+Manager approved FFH-D006. R6 legal-capacity semantics use owner conditional maxima plus one shared MFJ compensation ledger, no fixed owner-ID statutory split, and no inference that a missing manually entered IRA account proves $0 spouse YTD.
 
 Required next role: Core Financial Engine Engineer under FFH-013 after the current Core HSA task sequence is safe.
 
@@ -34,34 +34,36 @@ Required next role: Core Financial Engine Engineer under FFH-013 after the curre
 Assigned employee: Application, Data & Integration Engineer
 Department: Engineering
 Status: ACTIVE — REMEDIATION/VALIDATION REQUIRED
-Dependency classification: ACTIVE predecessor for FFH-012
+Dependency classification: HARD predecessor for FFH-012
 Target branch: `phase-5-money-priority-engine`
 
 Current implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
+Current Manager-observed descendant before this assignment refresh: `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`.
 
-Observed checkpoint evidence:
+Observed evidence:
 - substantial FFH-D005 implementation landed across additive migration, HSA capture/actions, snapshot/loader contract, normalized HSA input modules/tests, security tests, and hypothetical integration;
-- branch remained 0 behind `main` at Manager refresh;
-- Foundation CI #285 FAILED on exact checkpoint at Type check;
-- dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded before typecheck;
-- lint/build were skipped after typecheck failure;
-- `.ai/engineering/app/HANDOFF.md` still contains the prior FFH-008 closeout, so required FFH-010 completion handoff is absent.
+- branch remained 0 behind `main`;
+- Foundation CI #285 FAILED on the implementation checkpoint at Type check;
+- Foundation CI #290 FAILED again on the Manager descendant at Type check;
+- in both runs dependency installation, production dependency audit, calculation tests, and security policy-contract tests succeeded before Type check;
+- lint/build were skipped after Type check failure;
+- `.ai/engineering/app/HANDOFF.md` still contains FFH-008 rather than FFH-010, so required completion handoff is absent.
 
 Objective remains:
 Complete only the Application/Data side of FFH-D005 and establish one safe tax-year-bound HSA persistence/capture/loader/normalized snapshot contract. Do not implement the Core Engine HSA legal-capacity algorithm, Phase 5C, IRA/R6, or R1 SIMPLE behavior.
 
 Immediate required work:
-- refresh current branch/head before editing because Manager docs advanced after the failing checkpoint;
-- diagnose and fix the CI typecheck failure without weakening FFH-D005 semantics;
+- refresh the current branch/head before editing because Manager docs advanced after the failed implementation checkpoint;
+- diagnose and fix the TypeScript typecheck failure without weakening FFH-D005 semantics;
 - preserve additive/unknown-safe migration behavior and role-aware RLS;
 - verify null/unknown, tax-year isolation, reload determinism, legacy non-affirmative behavior, alternate allocation behavior, and decision-basis refresh behavior;
 - do not silently absorb Core HSA legal-capacity algorithm work;
-- rerun/observe required validation and Foundation CI on exact final production checkpoint;
-- distinguish migration file creation from actual linked Supabase application/runtime parity;
+- rerun/observe required validation and Foundation CI on the exact final production checkpoint;
+- distinguish migration-file creation from actual linked Supabase application/runtime parity;
 - persist a current FFH-010 HANDOFF with exact final SHA, changed files, tests, and unverified items.
 
 Acceptance gate:
-FFH-010 is not complete until CI is green on the exact final production checkpoint and the role handoff is current, unless Manager explicitly documents a narrowly justified validation exception. No such exception exists for the current typecheck failure.
+FFH-010 is not complete until CI is green on the exact final production checkpoint and the role handoff is current, unless Manager explicitly documents a narrowly justified validation exception. No exception is authorized for the current repeated Type check failure.
 
 # Queued work
 
@@ -107,7 +109,7 @@ Status: POLICY APPROVED / NOT YET AUTHORIZED
 Manager / Architect — ACTIVE
 Application, Data & Integration Engineer — ACTIVE on FFH-010
 Retirement & Tax-Advantaged Policy Analyst — IDLE after FFH-009 completion
-Core Financial Engine Engineer — IDLE pending FFH-010 acceptance; FFH-012 then FFH-013 queued
+Core Financial Engine Engineer — IDLE pending FFH-010 acceptance
 Debt & Liquidity Policy Analyst — IDLE
 Goals, Cash Flow & Allocation Policy Analyst — IDLE
 Regulatory & Financial Research Analyst — IDLE unless a new unresolved external fact appears
@@ -117,7 +119,7 @@ Financial Policy & Scenario Auditor — IDLE pending stable integrated implement
 
 # Manager sequencing rules
 
-- FFH-010 remains the only active specialist task until it reaches a green accepted checkpoint.
+- FFH-010 remains the only active specialist task until it reaches a green accepted checkpoint with a current handoff.
 - Do not activate FFH-012 while FFH-010's normalized input contract is failing typecheck or lacks a current completion handoff.
 - After FFH-010 acceptance, activate FFH-011 App/Data and FFH-012 Core Engine in parallel.
 - After FFH-012, activate FFH-013 Core IRA remediation; integrate FFH-011 and issue narrow R1 Core work when safe.
