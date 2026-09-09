@@ -2,76 +2,44 @@
 
 HANDOFF
 
-Task ID: FFH-PW-002 synthesis / transition to FFH-PW-003
+Task ID: FFH-PW-003 orchestration refresh
 Role: Manager / Architect
-Status: COMPLETE — FFH-PW-003 ACTIVE
+Status: ACTIVE — FFH-009 SYNTHESIZED; FFH-010 REMAINS ACTIVE
 
-Verified starting state: Manager refreshed `phase-5-money-priority-engine` after FFH-006/007/008 workers completed. Pre-synthesis live head was `60de76c449bae1128908292f2efa24bb7cbd971d`; `main` remained `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. PR #5 was open, unmerged, non-draft, and mergeable. Live comparison showed Phase 5 220 commits ahead and 0 behind `main`. Foundation CI #277 completed SUCCESS on exact pre-synthesis head `60de76c...`. FFH-006 exact production/test checkpoint `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64` had Foundation CI #274 SUCCESS.
+Verified starting state: Manager refreshed `phase-5-money-priority-engine` and found pre-Manager-refresh head `fd520a1abc98c7841306b3e73f23d6a60f7ed614`; `main` remains `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. Live comparison showed Phase 5 228 commits ahead and 0 behind `main`. PR #5 remained open, unmerged, non-draft, and mergeable. FFH-009 had a completed current-task policy handoff. FFH-010 had substantial implementation at `fd520a1...` but its role handoff still closed FFH-008.
 
-Assigned objective: Refresh current repository state, track FFH-006/007/008, integrate completed handoffs, update canonical state, and determine next legitimate assignments without performing specialist implementation/audit work.
+Assigned objective: Refresh current repository state, track FFH-009 and FFH-010, integrate completed handoffs, update canonical state, and determine the next legitimate assignments without performing specialist implementation or audit work.
 
-Work completed:
-- Read and accepted FFH-006 current handoff. Manager accepts the task outcome: R2 governmental 457(b) high-wage Roth catch-up was remediated and CI-validated; R1 was correctly stopped because the persisted SIMPLE higher-limit boolean lacks a proven statutory semantic contract. No false R1 pass is recorded.
-- Read FFH-007 HSA legal-capacity policy and FFH-008 Application/Data architecture analysis.
-- Synthesized FFH-007 + FFH-008 into approved durable decision `FFH-D005 — HSA legal-capacity policy and data contract`.
-- Approved the minimum-complete HSA direction: person + tax-year profile plus month-level eligibility/coverage facts (or lossless equivalent); Medicare/last-month-rule person-year facts; explicit future-planning assumptions; equal married-family default with explicit alternate allocation; owner-specific age-55 catch-up; R4 owner-ceiling math; tax-year-bound YTD discipline; conservative legacy handling; one authoritative normalized HSA source.
-- Preserved role boundaries: Application/Data establishes schema/capture/loader/normalized snapshot contract first; Core Engine implements HSA legal-capacity behavior only after that contract is stable.
-- Closed FFH-PW-002 at the policy/analysis gate.
-- Activated FFH-PW-003 with FFH-009 (Retirement Policy R6 spousal-IRA policy) and FFH-010 (Application/Data HSA persistence/normalized contract implementation) in parallel.
-- Queued FFH-011 for R1 SIMPLE persisted-field contract, FFH-012 for Core HSA calculation after FFH-010, future IRA Core remediation after FFH-009 synthesis, and later Phase 5C implementation after retirement-capacity surfaces are stable.
-- Updated `.ai/shared/DECISIONS.md`, `.ai/shared/PROJECT_STATE.md`, `.ai/shared/ROADMAP.md`, and `.ai/manager/ACTIVE_ASSIGNMENTS.md`.
+Work completed: Accepted FFH-009 as complete and synthesized its R6 policy into durable decision `FFH-D006 — MFJ spousal-IRA scarce-compensation capacity`. Resolved FFH-009's narrow account-inventory question using repository evidence: retirement accounts are manually added/updated and no explicit completeness certification exists, so absence of a recorded spouse IRA cannot establish $0 tax-year IRA YTD when scarce shared compensation matters. FFH-D006 therefore uses owner conditional maxima plus one shared MFJ compensation ledger and preserves targeted uncertainty when spouse YTD cannot be established. Reviewed FFH-010 repository delta and confirmed substantial HSA input-contract work landed without modifying the Core HSA evaluator surface. Verified Foundation CI #285 on exact FFH-010 checkpoint `fd520a1...` failed at Type check; install, production dependency audit, calculation tests, and security contract tests succeeded, while lint/build were skipped. Because the current App/Data handoff is still FFH-008 and the exact implementation checkpoint is red, FFH-010 remains ACTIVE and unaccepted. Updated DECISIONS, PROJECT_STATE, ROADMAP, ACTIVE_ASSIGNMENTS, and this Manager handoff. Created queued Core task FFH-013 for FFH-D006 remediation after FFH-012, serialized because both Core tasks touch retirement-capacity surfaces.
 
-Evidence produced:
-- `.ai/engineering/engine/HANDOFF.md` — FFH-006 complete; R2 remediated; R1 semantic ambiguity returned.
-- `.ai/policy/retirement/FFH-007_HSA_LEGAL_CAPACITY_POLICY.md` and `.ai/policy/retirement/HANDOFF.md` — FFH-007 complete.
-- `.ai/engineering/app/HANDOFF.md` — FFH-008 complete and reconciled with FFH-007.
-- live PR #5 metadata, branch comparison, Foundation CI #274 and #277.
-- new canonical decision FFH-D005 and FFH-PW-003 assignments.
+Evidence produced: `.ai/policy/retirement/HANDOFF.md` (FFH-009 complete); `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`; `app/financial-profile/actions.ts` manual retirement-account capture behavior; live branch/PR comparison; FFH-010 commit `fd520a1abc98c7841306b3e73f23d6a60f7ed614`; compare from `7dd306e5...` to `fd520a1...`; Foundation CI #285 job-step result; canonical FFH-D006.
 
-Tests / validation actually performed: Manager ran no local application tests. Verified Foundation CI #274 SUCCESS on exact FFH-006 production/test checkpoint `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`. Verified Foundation CI #277 SUCCESS on exact pre-synthesis head `60de76c449bae1128908292f2efa24bb7cbd971d`. No audit verdict is inferred from CI. Manager canonical writes after that checkpoint are documentation-only and require their own CI observation before exact-head pass is claimed.
+Tests / validation actually performed: Manager ran no local application tests. Observed Foundation CI #285 FAILURE on exact FFH-010 checkpoint `fd520a1abc98c7841306b3e73f23d6a60f7ed614`. In that run dependency installation, production dependency audit, calculation tests, and security policy-contract tests passed; Type check failed; lint/build were skipped. No audit verdict is inferred from CI.
 
-Files updated by Manager:
-- `.ai/shared/DECISIONS.md`
-- `.ai/shared/PROJECT_STATE.md`
-- `.ai/shared/ROADMAP.md`
-- `.ai/manager/ACTIVE_ASSIGNMENTS.md`
-- `.ai/manager/HANDOFF.md`
+Files updated: `.ai/shared/DECISIONS.md`; `.ai/shared/PROJECT_STATE.md`; `.ai/shared/ROADMAP.md`; `.ai/manager/ACTIVE_ASSIGNMENTS.md`; `.ai/manager/HANDOFF.md`.
 
-Open findings:
-- R1 SIMPLE higher-limit persisted-field semantics remains merge-blocking. External law is known; repository field meaning/legacy contract is not. FFH-011 will resolve the data contract before any Core $3,850 formula change.
-- R2 is remediated but awaits later integrated audit.
-- R3/R4 policy/data ambiguity is resolved by FFH-D005 but production implementation is still required through FFH-010 then FFH-012.
-- R6 spousal-IRA scarce-compensation legal-capacity semantics remains merge-blocking and is active under FFH-009.
-- Phase 5C policy remains approved under FFH-D004 but implementation is still queued.
+Open findings: R1 SIMPLE field semantics remains unresolved; R2 is remediated but awaits integrated audit; R3/R4 HSA policy/data semantics are resolved by FFH-D005 but FFH-010/012 production work remains; R6 policy is resolved by FFH-D006 but Core implementation remains; Phase 5C policy is approved but not implementation-authorized.
 
-Blocking issues:
-- PR #5 is not merge-ready while R1, R3/R4 implementation, R6 implementation path, Phase 5C implementation, and final integrated independent audits remain incomplete.
-- FFH-012 cannot start until FFH-010 establishes the normalized HSA input contract and Manager accepts the checkpoint.
-- Core IRA remediation cannot start until FFH-009 is synthesized.
-- Auditors should not be activated on fragmented intermediate work when an integrated checkpoint is not yet stable.
+Blocking issues: FFH-010 typecheck failure and missing current handoff block Manager acceptance and FFH-012. R1 still requires FFH-011 and potential Core follow-up. R6 requires FFH-013. Phase 5C implementation and dual independent audits remain merge gates.
 
-Unverified items:
-- current live Supabase migration/runtime parity for the future FFH-D005 schema has not been validated because FFH-010 has not implemented it yet;
-- no literal local `npm run verify` wrapper execution is claimed by Manager;
-- household-specific plan/HSA facts remain outside generic repository policy;
-- exact CI conclusion for the final Manager documentation head must be checked after these writes.
+Unverified items: Exact typecheck diagnostic text from CI logs was not available through the current GitHub connector surface; FFH-010 worker must diagnose from its execution environment/CI output. Live Supabase application of the new migration and runtime/database parity are not verified by Manager. No CI pass is claimed on Manager documentation commits created after `fd520a1...`.
 
-Recommended next roles: Retirement & Tax-Advantaged Policy Analyst executes FFH-009; Application, Data & Integration Engineer executes FFH-010; Manager remains active for orchestration. Core Financial Engine Engineer is IDLE until FFH-010 establishes the HSA contract or FFH-009 synthesis creates a safe non-overlapping Core task.
+Recommended next role: Application, Data & Integration Engineer continues FFH-010 only. Manager remains active for orchestration. All other specialists remain idle until FFH-010 reaches a green accepted checkpoint.
 
-Exact next action: Run FFH-009 and FFH-010 in parallel. When either returns a repository handoff, Manager refreshes state. After FFH-010 acceptance, activate FFH-012. After FFH-009 completion, synthesize R6 and issue an IRA remediation task if required. Do not start Phase 5C yet.
+Exact next action: Send the FFH-010 continuation activation message. FFH-010 must refresh after concurrent Manager docs, fix the typecheck failure, preserve FFH-D005 scope, validate the exact final checkpoint, and persist a current HANDOFF. After Manager accepts FFH-010, activate FFH-011 App/Data and FFH-012 Core Engine in parallel. FFH-013 follows FFH-012 unless Manager later proves a safer reorder.
 
-Checkpoint / SHA: Manager synthesis commits in sequence: `86c2c1aa390c18710d783425c7d6e94959101633` (FFH-D005), `a25fdeabb7ffc2bccf686f87489117400f56d30c` (PROJECT_STATE), `f27231dd865263be97650119d430a3f44044f85e` (ROADMAP), `b7f43a955863dc8bef24617cdbc9525de0e87f33` (ACTIVE_ASSIGNMENTS). This handoff update creates a subsequent documentation-only commit whose SHA must be verified after write.
+Checkpoint / SHA: Pre-Manager specialist implementation checkpoint `fd520a1abc98c7841306b3e73f23d6a60f7ed614`; Manager canonical decision/state commits follow it, and this handoff write creates the newest documentation-only checkpoint whose exact SHA must be re-read before final reporting.
 
 Current milestone: Phase 5 — Money Priority Engine
 Milestone status: ACTIVE / NOT MERGE READY
-Completed waves: FFH-PW-001, FFH-PW-002
 Active Parallel Work Wave: FFH-PW-003
-Active assignments: FFH-009, FFH-010
-Queued assignments: FFH-011, FFH-012, future IRA Core remediation, future Phase 5C implementation
+Completed in wave: FFH-009
+Active specialist assignment: FFH-010
+Queued assignments: FFH-011, FFH-012, FFH-013, narrow R1 Core follow-up, Phase 5C implementation
 Merge-ready work: None
-Tasks awaiting audit: integrated Phase 5 after retirement-capacity + Phase 5C implementation
-Tasks awaiting policy: FFH-009 active
+Tasks awaiting audit: integrated Phase 5 after retirement-capacity remediation + Phase 5C
+Tasks awaiting policy: none currently
 Tasks awaiting research: none currently
-Tasks awaiting implementation: FFH-010 active; FFH-012 queued; R1/IRA/Phase 5C implementation gated
+Tasks awaiting implementation: FFH-010 active; FFH-012/013 queued; R1 Core follow-up blocked on FFH-011; Phase 5C queued
 Canonical branch: `main`
 Canonical SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
