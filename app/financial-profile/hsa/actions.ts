@@ -57,8 +57,9 @@ function uuidValue(value: FormDataEntryValue | null, label: string, required = t
 
 function allowed<T extends readonly string[]>(value: FormDataEntryValue | null, values: T, label: string): T[number] {
   const normalized = String(value ?? "").trim();
-  if (!values.includes(normalized)) throw new Error(`Invalid ${label}`);
-  return normalized as T[number];
+  const match = values.find((candidate) => candidate === normalized);
+  if (!match) throw new Error(`Invalid ${label}`);
+  return match;
 }
 
 async function context() {
