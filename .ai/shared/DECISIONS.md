@@ -131,7 +131,7 @@ Approved rules:
    AHEAD status lowers the protected floor through existing Phase 5A policy and therefore naturally frees more contestable capacity. It does not promote Optional goals, desired-solution excess, or weakly evidenced goals above retirement.
 
 8. **Co-priority scarcity**
-   True co-priority requests share scarce recurring capacity by an equal fulfillment ratio across the approved additional-retirement request and each tied goal-core request. Stable ID may resolve only an unavoidable final-cent remainder. Array order and display names may not determine substantive allocation.
+   True co-priority requests share scarce recurring capacity by an equal fulfillment ratio across the approved additional-retirement request and each tied goal-core request. Stable ID may resolve only an unavoidable final-cent remainder. Array order, display names, and user priority may not distort proportional shares inside a true co-priority bucket.
 
 9. **Missing information**
    Materially missing evidence blocks only the contested tradeoff that depends on it. Contested capacity remains explicitly unresolved rather than being silently assigned to either the goal or additional retirement. Independently known Secure/protected-floor/unrelated allocations continue.
@@ -139,7 +139,7 @@ Approved rules:
 10. **Schedule state**
     - funded: request $0;
     - on-track/behind: use recalculated required pace;
-    - `behind` is explanation/schedule evidence in Phase 5C V1 and does not itself promote a tranche across the retirement boundary;
+    - `behind` is explanation/schedule evidence in Phase 5C V1 and does not itself promote or reorder a tranche across the retirement boundary;
     - past-due/invalid pace: do not divide by zero or fabricate a one-month catch-up; return targeted decision/information-needed state.
 
 11. **No generic tax-timing tie-break in Phase 5C V1**
@@ -148,13 +148,24 @@ Approved rules:
 12. **Resource separation and reconciliation**
     One-time cash, recurring Build capacity, scheduled contributions, YTD contributions, statutory room, residual goal need, protected-floor demand, and additional retirement opportunity remain distinct. No dollar may be consumed twice, and allocations plus residual capacity must reconcile to the cent.
 
+13. **Multiple OUTRANK goal tranches under scarcity**
+    Multiple retirement-senior goal-core tranches are not proportionally blended merely because they share the OUTRANK disposition. When capacity cannot satisfy all OUTRANK core paces, allocate sequentially using deterministic lexicographic financial ordering: stronger approved financial evidence first, then lower-order user priority only after the financial factors tie, then stable goal ID last. Source array order and display names are never tie-breakers.
+
+14. **User-priority boundary**
+    User priority is a lower-order preference only. It cannot change necessity, core amount, deadline flexibility, consequence severity, debt exposure, required pace, or cross-domain disposition; cannot move Optional/desired-excess dollars above retirement; cannot bypass Secure/protected-floor protections; and cannot alter equal-fulfillment shares in the co-priority bucket. It may break an otherwise meaningful goal-to-goal tie within the same approved disposition after all financial factors tie; stable ID remains final.
+
+15. **Recommendations are not execution**
+    A prior recommendation or planned future contribution does not reduce current goal principal unless the later authoritative financial snapshot records actual funding. Actual partial funding is applied to remaining core need first for future priority analysis; once the core tranche is actually satisfied, any remaining desired target cannot retain Essential-core precedence.
+
 Rationale:
-FFH-003 and FFH-004 independently agreed that ordinary goal competition must not erase Phase 5A’s protected retirement floor and that only above-floor retirement is contestable. Goals Policy provided tranche-based necessity/core evidence and proportional tie semantics; Retirement Policy required stronger opportunity-cost protection for BEHIND households. The approved status-sensitive Important-goal rule resolves that tension without introducing a magic score. The design preserves FFH’s product principle that legitimate life goals need not wait until every tax-advantaged account is maxed while still protecting retirement trajectory and Secure safeguards.
+FFH-003 and FFH-004 independently agreed that ordinary goal competition must not erase Phase 5A’s protected retirement floor and that only above-floor retirement is contestable. Goals Policy provided tranche-based necessity/core evidence, deterministic multi-goal scarcity behavior, user-priority boundaries, and proportional tie semantics; Retirement Policy required stronger opportunity-cost protection for BEHIND households. The approved status-sensitive Important-goal rule resolves that tension without introducing a magic score. The design preserves FFH’s product principle that legitimate life goals need not wait until every tax-advantaged account is maxed while still protecting retirement trajectory and Secure safeguards.
 
 Evidence:
 - `.ai/policy/goals/FFH-003_PHASE_5C_GOAL_COMPETITION_POLICY.md`
+- `.ai/policy/goals/FFH-003_REVALIDATION_ADDENDUM.md`
 - `.ai/policy/goals/HANDOFF.md`
 - `.ai/policy/retirement/PHASE_5C_RETIREMENT_POLICY.md`
+- `.ai/policy/retirement/FFH-004_PHASE_5C_RETIREMENT_POLICY_REFRESH.md`
 - `.ai/policy/retirement/HANDOFF.md`
 - `.ai/research/regulatory/HANDOFF.md`
 - existing Phase 5A/5B repository behavior and invariants.
@@ -165,6 +176,8 @@ Rejected alternatives:
 - let Optional or desired-solution excess inherit Essential-core priority;
 - use winner-take-all or array-order behavior for true ties;
 - use `behind` schedule state alone to upgrade cross-domain priority;
+- allow user priority to cross a financial-policy boundary or distort true co-priority shares;
+- treat prior recommendations as executed funding;
 - assign uncertain contested capacity automatically to retirement or goals;
 - introduce a generic tax-year deadline tie-break unsupported across all account types.
 
