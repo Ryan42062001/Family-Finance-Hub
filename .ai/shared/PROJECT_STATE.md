@@ -10,12 +10,15 @@ Verified `main` SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
 Active development branch: `phase-5-money-priority-engine`
 PR #5: OPEN / UNMERGED / NON-DRAFT / mergeable when last checked.
 
-Verified pre-Manager-refresh Phase 5 head: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
-At that checkpoint the branch was 228 commits ahead and 0 behind `main`, with current `main` as merge base.
+Current verified pre-refresh Phase 5 head: `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`.
+At that checkpoint the branch was 233 commits ahead and 0 behind `main`, with current `main` as merge base.
 
-Foundation CI #285 on exact checkpoint `fd520a1abc98c7841306b3e73f23d6a60f7ed614`: FAILURE at Type check. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded; lint/build were skipped after the typecheck failure. FFH-010 is therefore NOT complete and must remediate/validate before Manager acceptance.
+FFH-010 implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
+Foundation CI #285 on that exact checkpoint: FAILURE at Type check. Dependency install, production dependency audit, calculation tests, and security policy-contract tests succeeded; lint/build were skipped after the typecheck failure.
 
-Manager subsequently persisted FFH-D006 as documentation-only. Later Manager heads must not be claimed green until their own CI is observed.
+Foundation CI #290 on Manager descendant `8e3e35dcba362b0751c5ea89d0f1d42bace3569c`: FAILURE at the same Type check stage. Dependency install, production dependency audit, calculation tests, and security policy-contract tests again succeeded; lint/build were skipped. The repeated failure confirms the branch remains red and FFH-010 is not Manager-acceptable yet.
+
+The current `.ai/engineering/app/HANDOFF.md` still closes FFH-008 rather than FFH-010. No current FFH-010 completion handoff is therefore present.
 
 ## Stable product state on main
 
@@ -64,20 +67,25 @@ Status: ACTIVE
 
 ### FFH-009 — Retirement Policy R6
 Status: COMPLETE / MANAGER SYNTHESIZED as FFH-D006.
-Policy artifact: `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`.
 
 ### FFH-010 — App/Data HSA persistence + normalized contract
-Status: ACTIVE / IMPLEMENTATION CHECKPOINT EXISTS BUT FAILED CI.
-Current implementation checkpoint: `fd520a1abc98c7841306b3e73f23d6a60f7ed614`.
-Observed changes include additive HSA migration, dedicated HSA capture/actions, normalized HSA input-contract modules/tests, snapshot/loader integration, security test additions, and hypothetical integration.
-Current blocker: Foundation CI #285 typecheck failure. Required FFH-010 completion handoff has not yet been persisted; existing App/Data handoff still closes FFH-008.
+Status: ACTIVE / REMEDIATION + VALIDATION REQUIRED.
+
+Substantial implementation exists at `fd520a1abc98c7841306b3e73f23d6a60f7ed614`, including additive HSA migration, dedicated HSA capture/actions, normalized HSA input-contract modules/tests, snapshot/loader integration, security test additions, and hypothetical integration.
+
+Current acceptance blockers:
+- CI #285 failed Type check on the implementation checkpoint;
+- CI #290 failed Type check again on the Manager descendant containing the same production code;
+- current FFH-010 handoff is absent.
+
+FFH-010 remains the only active specialist task.
 
 ## Queued work
 
-1. FFH-011 — App/Data: resolve R1 SIMPLE persisted-field contract after FFH-010 unless Manager reorders.
+1. FFH-011 — App/Data: resolve R1 SIMPLE persisted-field contract after FFH-010.
 2. FFH-012 — Core Engine: implement FFH-D005 HSA legal-capacity calculation after FFH-010 stable normalized contract and Manager acceptance.
-3. FFH-013 — Core Engine: implement FFH-D006 spousal-IRA shared compensation ledger after FFH-012, unless Manager explicitly reorders after FFH-010. It is serialized with FFH-012 because both touch retirement-capacity Core surfaces.
-4. Narrow Core R1 formula remediation after FFH-011 if the approved field contract requires code change.
+3. FFH-013 — Core Engine: implement FFH-D006 spousal-IRA shared compensation ledger after FFH-012 unless Manager later proves a safer reorder.
+4. Narrow Core R1 formula remediation after FFH-011 if required.
 5. Phase 5C Core implementation under FFH-D004 after retirement-capacity surfaces are stable.
 6. Independent Technical & Mathematical Audit and Financial Policy & Scenario Audit on the integrated Phase 5 checkpoint.
 
@@ -90,10 +98,11 @@ Verified successful CI checkpoints:
 - #274 on `bb5f567fb16cd6672e1ed2ec6a15ad7206a8aa64`
 - #277 on `60de76c449bae1128908292f2efa24bb7cbd971d`
 
-Current FFH-010 checkpoint CI:
+Current FFH-010-related CI:
 - #285 FAILURE on `fd520a1abc98c7841306b3e73f23d6a60f7ed614` at Type check.
+- #290 FAILURE on `8e3e35dcba362b0751c5ea89d0f1d42bace3569c` at Type check.
 
-Literal local `npm run verify` must not be claimed unless actually observed. No CI success/failure is itself an audit verdict.
+Literal local `npm run verify` must not be claimed unless actually observed. No CI result is itself an audit verdict.
 
 ## Current management assessment
 
@@ -104,14 +113,14 @@ Active wave: FFH-PW-003
 Active specialist assignment: FFH-010 only
 Manager: ACTIVE
 Retirement Policy: IDLE after FFH-009 completion
-Core Engine: IDLE pending FFH-010 acceptance; FFH-012 then FFH-013 queued
+Core Engine: IDLE pending FFH-010 acceptance
 Application/Data: ACTIVE on FFH-010
 Auditors: IDLE pending stable integrated implementation checkpoint
 
 Exact next sequence:
-1. FFH-010 fixes typecheck failure, completes required validation, and persists a current handoff.
-2. Manager accepts/rejects FFH-010 exact checkpoint.
-3. On acceptance, activate FFH-012 Core HSA implementation and FFH-011 App/Data R1 contract work in parallel.
+1. FFH-010 refreshes from current branch, diagnoses/fixes the typecheck failure, completes validation, and persists a current handoff.
+2. Manager accepts/rejects the exact FFH-010 checkpoint.
+3. On acceptance, activate FFH-011 App/Data and FFH-012 Core Engine in parallel.
 4. After FFH-012, activate FFH-013 Core IRA remediation while FFH-011/R1 follow-up proceeds dependency-safely.
 5. Stabilize retirement-capacity work, then implement FFH-D004 Phase 5C.
 6. Run dual independent audits before merge.
