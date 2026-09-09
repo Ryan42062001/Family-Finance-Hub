@@ -20,11 +20,18 @@ Open PR:
 - merged: false
 - mergeable: true when last checked
 
+Current verified Phase 5 branch head before this state refresh: `71705039f0abf1945202631109975edeb5632920`.
+
+Current branch comparison:
+- ahead of `main`: 211 commits
+- behind `main`: 0 commits
+- merge base: current `main` SHA `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
+
 Verified FFH-002 reconciliation checkpoint: `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`.
 
 At that checkpoint, Phase 5 was verified ahead of and 0 behind `main`, with current `main` as merge base. Foundation CI #245 completed successfully on that exact reconciliation SHA.
 
-After FFH-002, specialist/Manager documentation advanced the branch while preserving production code. Foundation CI #249 completed successfully on specialist head `f6a138e78083afe6bdf83bc42117c705bda9ca09`. Later Manager/specialist documentation heads must not be assumed green until their own CI conclusion is observed.
+After FFH-002, specialist/Manager documentation advanced the branch while preserving production code. Foundation CI #249 completed successfully on specialist head `f6a138e78083afe6bdf83bc42117c705bda9ca09`. Foundation CI #269 completed successfully on Manager checkpoint `71705039f0abf1945202631109975edeb5632920`.
 
 ## Stable product state on main
 
@@ -115,6 +122,7 @@ Repository scripts define `npm test`, `npm run test:security`, `npm run typechec
 Verified recent CI:
 - #245 SUCCESS on `36ecdde46b7c149bf47ccd9d4e2b082af6aa9cfe`.
 - #249 SUCCESS on `f6a138e78083afe6bdf83bc42117c705bda9ca09`.
+- #269 SUCCESS on `71705039f0abf1945202631109975edeb5632920`.
 
 No audit verdict is inferred from CI success.
 
@@ -154,15 +162,15 @@ Completed parallel wave: `FFH-PW-001`
 Active wave: `FFH-PW-002 — Retirement statutory remediation + HSA legal-capacity semantics`.
 
 Active tasks:
-1. FFH-006 — Core Engine: remediate/validate R1 and R2.
-2. FFH-007 — Retirement Policy: define HSA legal-capacity semantics for R3/R4.
-3. FFH-008 — Application/Data: analysis-only HSA persistence/runtime contract mapping.
+1. FFH-006 — Core Engine: ASSIGNED / no FFH-006 completion handoff observed. Current Core Engine handoff still closes FFH-002 and instructs the role to begin FFH-006 on its next continuation.
+2. FFH-007 — Retirement Policy: ASSIGNED / no FFH-007 completion handoff observed. Current Retirement Policy handoff still closes FFH-004 and identifies FFH-007 as the next task.
+3. FFH-008 — Application/Data: ASSIGNED / no FFH-008 completion handoff observed. `.ai/engineering/app/HANDOFF.md` does not yet exist on the current branch.
 
 Queued task:
 4. FFH-009 — Retirement Policy: define spousal-IRA scarce-compensation/legal-capacity semantics for R6 after FFH-007, because the same specialist owns both policy questions.
 
 Next sequence:
-- complete FFH-006/007/008;
+- execute and complete FFH-006/007/008;
 - Manager synthesize FFH-007/008 and authorize HSA implementation;
 - complete FFH-009 and authorize any IRA remediation;
 - clear R1/R2/R3/R6 production blockers;
