@@ -19,6 +19,11 @@ function baseSnapshot(): MoneyPrioritySnapshot {
     accounts: [{ id: "a1", name: "Savings", type: "savings", balance: 3000, cashPurpose: "protected_reserve", relatedGoalId: null, relatedDebtId: null }],
     debts: [],
     retirementAccounts: [],
+    hsa: {
+      profiles: [],
+      months: [],
+      marriedAllocations: [],
+    },
     goals: [],
     insuranceExposures: [{ id: "x1", personId: null, name: "Auto", type: "auto", deductibleAmount: 1000, familyDeductibleAmount: null, outOfPocketMax: null, percentageDeductible: null, insuredValue: null, isRelevantToReserve: true }],
     preferences: {
@@ -33,8 +38,8 @@ function baseSnapshot(): MoneyPrioritySnapshot {
       desiredRetirementMonthlySpending: null,
       retirementSpendingBasis: "unknown",
       planningSocialSecurityMonthly: null,
-    planningPensionMonthly: null,
-    expectedHsaMedicalSpendingAnnual: null,
+      planningPensionMonthly: null,
+      expectedHsaMedicalSpendingAnnual: null,
       taxProfileYear: null,
       taxFilingStatus: null,
       estimatedModifiedAgi: null,
@@ -93,7 +98,8 @@ test("uncaptured employer match creates required monthly gap", () => {
     monthlyEmployeeContribution: 200, monthlyEmployerContribution: 100, taxTreatment: "traditional",
     employeeContributedYtd: 0, employerContributedYtd: 0, annualContributionTarget: null,
     planEligibleCompensationAnnual: 84000,
-    fullMatchEmployeeContributionMonthly: 300, matchStatus: "not_fully_captured", hsaCoverageType: null, hsaEligible: null,
+    fullMatchEmployeeContributionMonthly: 300, matchStatus: "not_fully_captured", hsaYtdTaxYear: null,
+    hsaCoverageType: null, hsaEligible: null,
   }];
   const result = evaluateSecureStage(snapshot);
   assert.equal(result.employerMatchMonthlyGap, 100);
@@ -108,7 +114,8 @@ test("unknown employer match asks for information instead of inventing a formula
     id: "r1", ownerPersonId: "p1", name: "401(k)", type: "401k", balance: 10000,
     monthlyEmployeeContribution: 200, monthlyEmployerContribution: 0, taxTreatment: "traditional",
     employeeContributedYtd: null, employerContributedYtd: null, annualContributionTarget: null,
-    fullMatchEmployeeContributionMonthly: null, matchStatus: "unknown", hsaCoverageType: null, hsaEligible: null,
+    fullMatchEmployeeContributionMonthly: null, matchStatus: "unknown", hsaYtdTaxYear: null,
+    hsaCoverageType: null, hsaEligible: null,
   }];
   const result = evaluateSecureStage(snapshot);
   assert.equal(result.employerMatchMonthlyGap, 0);
