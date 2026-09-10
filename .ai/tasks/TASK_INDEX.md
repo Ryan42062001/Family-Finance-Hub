@@ -11,6 +11,7 @@ Last refreshed: 2026-09-09
 | FFH-011 | App/Data | REMEDIATION | `f85f7779a6bebac87d433289212f8671b46d8212` candidate | Foundation CI #309 FAILURE; attribution must distinguish inherited FFH-012 failures | Reach green/defensible validation and READY_FOR_MANAGER |
 | FFH-012 | Core Engine | REMEDIATION | latest isolated observed Core checkpoint `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546` | Foundation CI #308 FAILURE at calculation-test stage | Remediate HSA implementation and reach READY_FOR_MANAGER |
 | FFH-013 | Core Engine | QUEUED | Not yet established | Not yet run | Hard/serialization dependency on FFH-012 acceptance unless Manager explicitly reorders |
+| FFH-014 | Manager | CLOSED | Documentation/workflow only | No production validation required | Workflow V2 / FFH-D007 adopted |
 | Narrow R1 Core remediation | Core Engine | BLOCKED | Not yet established | Not yet run | Blocked on FFH-011 Manager acceptance and collision-safe scheduling |
 | FFH-010 live Supabase parity | App/Data | QUEUED | Repository migration already exists | Live application/PostgREST/RLS/browser parity unverified | Required before Phase 5 merge-ready |
 | Phase 5C implementation | Core Engine | QUEUED | Not yet established | Not yet run | Policy approved; wait for retirement-capacity blockers to stabilize |
