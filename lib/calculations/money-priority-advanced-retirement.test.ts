@@ -26,6 +26,16 @@ function workplace(age: number) {
     employee_contributed_ytd: 0, prior_year_sponsor_wages: 100000 }], [person("p1", birthYear)])).opportunities[0]!;
 }
 
+function simpleRuntimeOpportunity(age: number, higher: boolean) {
+  const snapshot = make([{ id: "s", owner_person_id: "p1", name: "SIMPLE", account_type: "simple_ira",
+    employee_contributed_ytd: 1000 }], [person("p1", 2026 - age)]);
+  // This is a Core-formula regression fixture, not a persistence-contract fixture.
+  // FFH-011 deliberately makes raw simple_higher_limit_eligible non-authoritative;
+  // FFH-015 will teach Core to consume the accepted explicit persisted/runtime category.
+  snapshot.retirementAccounts[0]!.simpleHigherLimitEligible = higher;
+  return evaluateRetirementAccountOpportunities(snapshot).opportunities[0]!;
+}
+
 for (const [age, limit, catchUp] of [[49, 24500, 0], [50, 32500, 8000], [59, 32500, 8000],
   [60, 35750, 11250], [61, 35750, 11250], [62, 35750, 11250], [63, 35750, 11250], [64, 32500, 8000]] as const) {
   test(`workplace age ${age} uses the correct non-stacking catch-up`, () => {
@@ -71,8 +81,7 @@ test("non-joint zero-earner IRA receives targeted missing data, not spousal capa
 
 for (const [age, higher, limit] of [[40, false, 17000], [50, false, 21000], [60, false, 22250], [64, false, 21000], [40, true, 18100]] as const) {
   test(`SIMPLE age ${age} higher=${higher} uses plan-specific limit`, () => {
-    const result = evaluateRetirementAccountOpportunities(make([{ id: "s", owner_person_id: "p1", name: "SIMPLE", account_type: "simple_ira",
-      employee_contributed_ytd: 1000, simple_higher_limit_eligible: higher }], [person("p1", 2026 - age)])).opportunities[0]!;
+    const result = simpleRuntimeOpportunity(age, higher);
     assert.equal(result.annualLimit, limit);
     assert.equal(result.remainingAnnualRoom, limit - 1000);
   });
