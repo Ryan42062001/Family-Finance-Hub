@@ -1,6 +1,6 @@
 # Family Finance Hub — Durable Decisions
 
-Last refreshed: 2026-09-08
+Last refreshed: 2026-09-09
 
 This file records durable product, architecture, workflow, and financial-policy decisions future employees must know. Repository/runtime/test evidence outranks summaries.
 
@@ -177,3 +177,56 @@ Rejected alternatives:
 
 Revisit condition:
 Revisit if authoritative law changes, FFH later introduces an explicit complete account/contribution inventory contract, or audit demonstrates that the shared-ledger representation does not preserve the approved feasible set.
+
+## FFH-D007 — Workflow V2 task-state and integration operating model
+
+Date: 2026-09-09
+Related Task: FFH-014
+Status: APPROVED
+
+Decision:
+Family Finance Hub adopts Workflow V2 to reduce shared-branch ambiguity, repeated Manager polling, CI ownership confusion, and long-chat context degradation while preserving the existing specialist separation of duties.
+
+Approved operating rules:
+1. Every queued/active meaningful task has an authoritative `.ai/tasks/FFH-###.md` file. Role handoffs remain continuity summaries, not the sole task-state authority.
+2. Task lifecycle is `QUEUED -> ACTIVE -> VALIDATING -> READY_FOR_MANAGER -> ACCEPTED -> AUDIT_READY -> CLOSED`, with `BLOCKED` and `REMEDIATION` exception states.
+3. Only Manager may set `ACCEPTED`, `AUDIT_READY`, or `CLOSED`; workers may update their own execution states but never self-accept.
+4. Checkpoints are explicitly separated into `PRODUCTION_SHA`, `VALIDATED_CI`, `HANDOFF_SHA`, and `INTEGRATION_SHA`; later documentation commits do not invalidate an already-proven production checkpoint.
+5. New production engineering work defaults to short-lived task branches from a Manager-approved integration base. Workers do not merge their own task branch. Manager accepts and integrates validated checkpoints in dependency order and verifies exact integration CI.
+6. Shared-branch production work is an explicit exception. FFH-011 and FFH-012 are grandfathered because they were already in flight before adoption; their history will not be rewritten merely to satisfy the new convention.
+7. Branch-level red CI must be attributed using checkpoint/test/file evidence; the newest task is not automatically responsible for inherited concurrent failures.
+8. When the same root CI/build/tooling problem survives two owner remediation iterations, activate the on-demand Troubleshooting & Build Specialist rather than allowing an open-ended troubleshooting loop. The specialist has no independent financial-policy/schema-semantic authority.
+9. Manager operation is event-driven. Normal activation events include `READY_FOR_MANAGER`, `BLOCKED`, escalation request, integration CI failure, audit verdict, dependency unlock, or explicit user status/roadmap request.
+10. Optimize safe throughput rather than worker utilization. Default target is roughly 2–4 active chats; the ten permanent roles are a roster, not a requirement for simultaneous activity.
+11. Replacement chats should bootstrap from `.ai/roles/<role>.md`, canonical shared state, task file, and role handoff. Proactively rotate chats after roughly 3–5 substantial tasks, long troubleshooting episodes, or material context degradation.
+12. Manager may use checkpoint audits after coherent high-risk clusters become stable, while preserving final integrated audit requirements.
+
+Rationale:
+The Phase 5 workflow exposed repeated cases where production work existed while role handoffs still named an older task, concurrent shared-branch commits made CI failure ownership ambiguous, Manager had to repeatedly poll unchanged worker state, and long chats degraded usability. Repository-first state is already established by FFH-D001; Workflow V2 makes task state and integration evidence granular enough to solve those operational problems.
+
+Evidence:
+- `.ai/shared/WORKFLOW.md`
+- `.ai/tasks/README.md`
+- `.ai/tasks/TASK_INDEX.md`
+- `.ai/manager/INTEGRATION_QUEUE.md`
+- `.ai/roles/README.md`
+- `.ai/tasks/FFH-011.md`
+- `.ai/tasks/FFH-012.md`
+- `.ai/tasks/FFH-013.md`
+
+Consequences:
+- future task prompts can be much shorter;
+- fewer chats should normally be active simultaneously;
+- current FFH-011/012 continue without branch-history churn but are tracked under explicit remediation states;
+- new production tasks should isolate validation on task branches before Manager integration;
+- repeated same-root troubleshooting escalates instead of consuming unlimited owner-chat context.
+
+Rejected alternatives:
+- keeping role `HANDOFF.md` as the only status source;
+- requiring all ten employees to remain active;
+- forcing already-in-flight FFH-011/012 onto rewritten task branches;
+- treating every red branch-head CI run as belonging to the newest commit;
+- adding an always-active eleventh permanent employee solely for troubleshooting.
+
+Revisit condition:
+Revisit after several Workflow V2 production tasks have completed, or earlier if task-branch isolation/integration overhead materially exceeds the reduction in CI ambiguity and chat-management cost.
