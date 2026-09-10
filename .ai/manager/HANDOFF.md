@@ -2,44 +2,44 @@
 
 HANDOFF
 
-Task ID: FFH-PW-003 orchestration refresh
+Task ID: FFH-014 / FFH-PW-003 orchestration
 Role: Manager / Architect
-Status: ACTIVE — FFH-010 ACCEPTED; FFH-011 AND FFH-012 ACTIVE
+Status: ACTIVE — WORKFLOW V2 ADOPTED; FFH-011 AND FFH-012 REMEDIATION CONTINUE
 
-Verified starting state: Refreshed `phase-5-money-priority-engine` through worker handoff head `64ccac6e2901946a31bba2e0758ec9d33cce8218`; `main` remains `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. Live comparison showed Phase 5 245 commits ahead and 0 behind `main`, with current `main` as merge base. PR #5 remains open, unmerged, non-draft, and mergeable.
+Verified starting state: Before Workflow V2 migration, `phase-5-money-priority-engine` was observed at `f85f7779a6bebac87d433289212f8671b46d8212` (`feat: establish FFH-011 SIMPLE plan-limit contract`). FFH-011 candidate CI #309 was FAILURE and the current App/Data role handoff still closed FFH-010. The latest isolated observed FFH-012 Core checkpoint was `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`; Foundation CI #308 was FAILURE at calculation tests and the Core role handoff still closed FFH-006. Current `main` remains `8d68af5d5cdeef866d4a8a481bc3bb31f098199e` unless a later repository refresh proves otherwise.
 
-Assigned objective: Refresh current repository state, track FFH-010, integrate its completed handoff when available, update canonical state, and determine the next legitimate assignments without performing specialist implementation or audit work.
+Assigned objective: Improve Family Finance Hub team efficiency based on observed workflow friction without changing financial policy or production financial behavior.
 
-Work completed: Read the current FFH-010 App/Data handoff and independently verified its final production checkpoint `8f39e7d6e638711a80300786869a407113d3d0c4`. Foundation CI #300 / run `34306364189` completed SUCCESS on that exact SHA. The verified job steps all succeeded: dependency install, production dependency audit, calculation tests, security policy-contract tests, TypeScript typecheck, lint, and production build. Confirmed the final FFH-010 remediation only repaired stale Secure test fixtures to satisfy the already-required FFH-D005 contract rather than weakening production semantics. Accepted FFH-010 for repository source/data-contract scope. Updated PROJECT_STATE and ACTIVE_ASSIGNMENTS, and activated dependency-safe successor tasks FFH-011 App/Data and FFH-012 Core Engine in parallel.
+Work completed: Adopted Workflow V2 and durable decision FFH-D007. Added authoritative per-task state files and task lifecycle; compact Task Index; explicit PRODUCTION_SHA / VALIDATED_CI / HANDOFF_SHA / INTEGRATION_SHA semantics; Manager Integration Queue; short-lived task branches as the default for future production tasks; inherited-CI attribution rules; two-strike same-root troubleshooting escalation; on-demand Troubleshooting & Build Specialist; compact role charters; event-driven Manager activation; 2–4 active-chat target; proactive chat rotation/bootstrap; checkpoint-audit option; and grandfathering for already-in-flight FFH-011/012 shared-branch work. Migrated FFH-011 and FFH-012 to explicit REMEDIATION task states and FFH-013 to QUEUED. Closed Manager task FFH-014.
 
-Evidence produced: Current FFH-010 handoff status COMPLETE / READY FOR MANAGER ACCEPTANCE; exact green production SHA `8f39e7d6e638711a80300786869a407113d3d0c4`; Foundation CI #300 / run `34306364189` SUCCESS; successful CI stages through build; worker handoff commit `64ccac6e2901946a31bba2e0758ec9d33cce8218`; branch comparison 245 ahead / 0 behind main; PR #5 open/unmerged/mergeable.
+Evidence produced: `.ai/shared/WORKFLOW.md`; FFH-D007 in `.ai/shared/DECISIONS.md`; `.ai/tasks/README.md`; `.ai/tasks/TASK_INDEX.md`; `.ai/tasks/FFH-011.md`; `.ai/tasks/FFH-012.md`; `.ai/tasks/FFH-013.md`; `.ai/tasks/FFH-014.md`; `.ai/manager/INTEGRATION_QUEUE.md`; `.ai/roles/README.md` plus compact role charters for all permanent roles and the on-demand Troubleshooting specialist; updated PROJECT_STATE and ACTIVE_ASSIGNMENTS.
 
-Tests / validation actually performed: Manager ran no local application tests. Manager directly observed exact Foundation CI #300 SUCCESS and its successful job-step summaries. No audit verdict is inferred from CI. Literal local `npm run verify` is not claimed.
+Tests / validation actually performed: No production application tests were required or claimed for the documentation/workflow-only FFH-014 change. Existing execution evidence was preserved: FFH-010 exact Foundation CI #300 SUCCESS; FFH-012 observed isolated CI #308 FAILURE; FFH-011 branch-head CI #309 FAILURE with attribution not yet isolated. No audit verdict is inferred.
 
-Files updated: `.ai/shared/PROJECT_STATE.md`; `.ai/manager/ACTIVE_ASSIGNMENTS.md`; `.ai/manager/HANDOFF.md`.
+Files updated: `.ai/shared/WORKFLOW.md`; `.ai/shared/DECISIONS.md`; `.ai/shared/PROJECT_STATE.md`; `.ai/manager/ACTIVE_ASSIGNMENTS.md`; `.ai/manager/HANDOFF.md`; `.ai/manager/INTEGRATION_QUEUE.md`; `.ai/tasks/*`; `.ai/roles/*`.
 
-Open findings: R1 SIMPLE field semantics remains merge-blocking and is now assigned as FFH-011. R2 remains remediated but awaits integrated audit. R3/R4 App/Data contract is accepted; Core legal-capacity implementation is now FFH-012. R6 policy is resolved by FFH-D006 but production remediation FFH-013 remains queued after FFH-012. Phase 5C policy is approved but production implementation remains gated. FFH-010 live Supabase migration application and runtime/RLS/browser parity remain unverified and must be resolved before merge-ready status.
+Open findings: FFH-011 still requires root-cause/CI attribution and a current FFH-011 handoff before Manager acceptance. FFH-012 still requires calculation-test remediation and a current FFH-012 handoff. R1, HSA R3/R4, R6, FFH-010 live Supabase parity, Phase 5C implementation, and final independent audits remain Phase 5 merge gates as previously documented.
 
-Blocking issues: Phase 5 is still not merge-ready. Current blockers are R1/FFH-011 plus any resulting narrow Core remediation, R3/R4 Core implementation FFH-012, R6 FFH-013, FFH-010 live deployment/runtime parity, Phase 5C implementation, and final dual independent audits.
+Blocking issues: Phase 5 is not merge-ready. FFH-011 and FFH-012 are currently in REMEDIATION. No new policy blocker was introduced by Workflow V2.
 
-Unverified items: No claim that `20260909005000_ffh_010_hsa_input_contract.sql` has been applied to the linked/live Supabase project. Live PostgREST selection/writes, RLS role matrix, and browser end-to-end HSA capture against a migrated live environment remain unverified.
+Unverified items: Exact live linked Supabase parity for FFH-010 remains unverified. Current branch head/PR/CI must always be refreshed before future orchestration because active workers may commit concurrently after this handoff.
 
-Recommended next roles: Application, Data & Integration Engineer executes FFH-011. Core Financial Engine Engineer executes FFH-012. Manager remains active for orchestration. All other specialists remain idle unless a new dependency or unresolved external fact appears.
+Recommended next roles: Application, Data & Integration Engineer continues FFH-011 from `.ai/tasks/FFH-011.md`. Core Financial Engine Engineer continues FFH-012 from `.ai/tasks/FFH-012.md`. Manager should be reactivated when either reaches READY_FOR_MANAGER/BLOCKED, requests troubleshooting escalation, or when the user requests status/roadmap action.
 
-Exact next action: Run FFH-011 and FFH-012 in parallel from the refreshed canonical state. Each worker must preserve the other's scope, produce an exact production checkpoint with actual validation evidence, and persist a current role handoff. Manager then accepts/rejects each independently. After FFH-012 acceptance, activate FFH-013 if safe; after FFH-011 acceptance, authorize narrow Core R1 remediation if required and collision-safe.
+Exact next action: Do not continuously poll. Let the two engineering workers remediate independently. If the same root problem survives two owner remediation iterations, activate Troubleshooting & Build. When a worker marks READY_FOR_MANAGER, verify exact checkpoint/evidence, accept or return to remediation, and use isolated task branches for newly activated production work after the grandfathered FFH-011/012 tasks.
 
-Checkpoint / SHA: Pre-Manager-refresh worker handoff head `64ccac6e2901946a31bba2e0758ec9d33cce8218`; accepted FFH-010 production checkpoint `8f39e7d6e638711a80300786869a407113d3d0c4`; Manager documentation commits follow and the exact newest head must be re-read after this handoff write.
+Checkpoint / SHA: FFH-014 is documentation/workflow-only; exact newest milestone-branch head must be refreshed after this handoff write because each Manager document is committed separately and concurrent workers may advance the branch.
+
+PRODUCTION_SHA: Not applicable for FFH-014 documentation-only workflow change.
+VALIDATED_CI: Not applicable as production proof for FFH-014.
+HANDOFF_SHA: This handoff commit or later Manager documentation child.
+INTEGRATION_SHA: Workflow documents were written directly to the milestone branch; no production financial integration occurred.
 
 Current milestone: Phase 5 — Money Priority Engine
 Milestone status: ACTIVE / NOT MERGE READY
+Workflow: V2 / FFH-D007
 Active Parallel Work Wave: FFH-PW-003
-Completed in wave: FFH-009, FFH-010
-Active specialist assignments: FFH-011 App/Data; FFH-012 Core Engine
-Queued assignments: FFH-013; narrow R1 Core follow-up; FFH-010 live Supabase parity verification; Phase 5C implementation
-Merge-ready work: None
-Tasks awaiting audit: integrated Phase 5 after retirement-capacity remediation + Phase 5C
-Tasks awaiting policy: none currently
-Tasks awaiting research: none currently
-Tasks awaiting implementation: FFH-011 and FFH-012 active; FFH-013 queued; Phase 5C queued
-Canonical branch: `main`
-Canonical SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
+Active execution tasks: FFH-011 REMEDIATION; FFH-012 REMEDIATION
+Queued: FFH-013; narrow R1 Core remediation; FFH-010 live Supabase parity; Phase 5C
+Default active-chat target: 2–4
+Troubleshooting & Build: IDLE / ON-DEMAND
