@@ -11,7 +11,7 @@ Repository evidence remains authoritative. For task execution state, the order i
 4. role `HANDOFF.md` summaries;
 5. `.ai/tasks/TASK_INDEX.md`, which is a Manager-maintained dashboard/cache and may lag a task file briefly.
 
-A role handoff no longer substitutes for task state. `HANDOFF.md` remains useful for role continuity, but every active or queued production/policy/audit assignment should have its own task file.
+A role handoff no longer substitutes for task state. `HANDOFF.md` remains useful for role continuity, but every active or queued meaningful production, policy, audit, research, or verification assignment should have its own task file.
 
 ## States
 
@@ -21,58 +21,52 @@ Normal lifecycle:
 
 Exception states:
 - `BLOCKED` — cannot proceed until an external dependency/fact is resolved.
-- `REMEDIATION` — implementation exists but validation, integration, or review found a correctable failure.
+- `REMEDIATION` — work exists but validation, integration, or review found a correctable failure.
 
-State meanings:
-- `QUEUED`: Manager-authorized future work; do not start yet.
-- `ACTIVE`: owner may implement/perform assigned work.
-- `VALIDATING`: candidate work exists and required validation is running or being assembled.
-- `READY_FOR_MANAGER`: owner believes acceptance criteria are satisfied; exact evidence/checkpoints are recorded.
-- `ACCEPTED`: Manager independently accepted the task result for its stated scope.
-- `AUDIT_READY`: accepted integrated behavior is stable enough for required independent audit.
-- `CLOSED`: all task-specific gates are complete and no further action is required.
-- `BLOCKED`: owner must stop the blocked portion and record the exact dependency/evidence needed.
-- `REMEDIATION`: owner remains responsible unless Manager reassigns/escalates.
+Manager is the only role that may set `ACCEPTED`, `AUDIT_READY`, or `CLOSED`. Owners may move their own task among `ACTIVE`, `VALIDATING`, `READY_FOR_MANAGER`, `BLOCKED`, and `REMEDIATION` as evidence changes, but may never self-accept.
 
-## Transition authority
-
-Manager may set any state and is the only role that may set `ACCEPTED`, `AUDIT_READY`, or `CLOSED`.
-
-Task owner may transition its own task among `ACTIVE`, `VALIDATING`, `READY_FOR_MANAGER`, `BLOCKED`, and `REMEDIATION` as evidence changes. A worker may never self-accept.
-
-When a task reaches `READY_FOR_MANAGER`, the worker updates both the task file and its role handoff, then stops changing production scope unless Manager requests remediation.
+When a task reaches `READY_FOR_MANAGER`, the owner updates both its task file and role handoff, then stops expanding scope unless Manager requests remediation.
 
 ## Required task fields
 
-Each task file must include:
-- Task ID and title
-- Owner
-- State
-- Dependency classification and prerequisites
-- Approved integration base
-- Task branch / branch exception
-- Objective and non-goals
-- Acceptance criteria
-- Owned files/systems and overlap risks
-- Production checkpoint SHA
-- Validation checkpoint / CI run
-- Handoff checkpoint SHA
-- Integration checkpoint SHA
-- Validation status
-- Failed-attempt / escalation count when applicable
-- Blocking issues and unverified items
-- Exact next action
+Each task file should include as applicable:
+- Task ID/title, owner, state, dependencies;
+- approved integration base and branch/branch exception;
+- objective, required behavior, non-goals, acceptance criteria;
+- owned files/systems and overlap risks;
+- `PRODUCTION_SHA`;
+- `VALIDATED_CI` or equivalent runtime evidence;
+- `HANDOFF_SHA`;
+- `INTEGRATION_SHA`;
+- validation status;
+- remediation/escalation count;
+- blockers, unverified items, exact next action.
 
-Use `Not yet established` instead of inventing checkpoint values.
+Use `Not yet established` rather than inventing checkpoint values.
 
 ## Checkpoint vocabulary
 
-- `PRODUCTION_SHA`: commit containing the task's production/test changes that were validated.
-- `VALIDATED_CI`: exact CI/workflow run tied to `PRODUCTION_SHA` (or a later test-only checkpoint explicitly described).
-- `HANDOFF_SHA`: documentation commit containing the worker's completed handoff/task-state update.
-- `INTEGRATION_SHA`: Manager-created/verified commit that integrates the accepted task into the milestone integration branch.
+- `PRODUCTION_SHA`: commit containing task production/test changes that were validated.
+- `VALIDATED_CI`: exact CI/workflow run tied to `PRODUCTION_SHA`, or an explicitly documented test-only descendant.
+- `HANDOFF_SHA`: documentation checkpoint containing the worker's completed handoff/task-state update.
+- `INTEGRATION_SHA`: Manager-created/verified checkpoint integrating accepted production work into the milestone branch.
 
-Documentation commits after a green production checkpoint do not invalidate that checkpoint. Always distinguish the four values.
+Documentation commits after a green production checkpoint do not invalidate that checkpoint. Do not collapse these into a generic latest SHA.
+
+## Verification-only tasks
+
+A meaningful pre-merge task may prove runtime, database, deployment, security-role, or browser behavior without changing repository production code. These are `VERIFICATION-ONLY` tasks and still use the normal task-state lifecycle.
+
+For a verification-only task:
+- record `PRODUCTION_SHA: N/A — VERIFICATION-ONLY` unless a separate remediation commit is explicitly authorized;
+- identify the target environment/contract without exposing credentials or secrets;
+- record actual runtime/deployment/database/browser evidence instead of inventing CI or code checkpoints;
+- distinguish source/migration-file existence from proof that it is applied/live;
+- record `INTEGRATION_SHA: N/A` unless remediation code is later integrated;
+- reach `READY_FOR_MANAGER` only when the required reproducible evidence exists;
+- Manager accepts/rejects the gate independently from that evidence.
+
+Verification-only readiness gates belong in `.ai/manager/INTEGRATION_QUEUE.md` even when they are not code integrations.
 
 ## Branching default
 
@@ -80,41 +74,38 @@ New production tasks created after Workflow V2 should use a short-lived task bra
 
 `ffh/<task-id-lowercase>-<short-slug>`
 
-Workers do not merge their own task branches. The Manager accepts a validated production checkpoint, integrates it into the milestone branch, then verifies integration CI.
+Workers do not merge their own task branches. Manager accepts a validated production checkpoint, integrates it into the milestone branch, then verifies integration CI.
 
-Manager may explicitly authorize shared-branch work when collision risk is low or tooling makes isolation impractical. The exception and reason must be recorded in the task file.
-
-FFH-011 and FFH-012 were already in flight on `phase-5-money-priority-engine` when Workflow V2 was adopted and are grandfathered as shared-branch exceptions. Do not rewrite their history solely to satisfy the new branch convention.
+Shared-branch work is an explicit exception whose reason/overlap risk must be recorded. FFH-011 and FFH-012 were already in flight on `phase-5-money-priority-engine` when Workflow V2 was adopted and are grandfathered; do not rewrite their history solely to satisfy the branch convention.
 
 ## CI ownership and inherited failures
 
-Task files must identify the expected owned test surface and known concurrent/inherited failures. A red branch-level CI run is not automatically attributable to the newest task if earlier concurrent work was already red.
+A red branch-level CI run is not automatically attributable to the newest task. Task files must identify owned test surfaces and known concurrent/inherited failures. Compare candidate/base checkpoints and failing-test sets when evidence permits.
 
-Before remediation, compare candidate/base checkpoints and identify the earliest failing checkpoint when evidence permits.
+Documentation-only reruns that reproduce an unchanged production failure do not count as additional owner remediation attempts.
 
 ## Two-strike troubleshooting escalation
 
-A task owner gets the first remediation attempt for a diagnosed CI/build/tooling problem. If the same root problem survives two owner remediation iterations, mark the task `REMEDIATION`, increment its escalation count, and request the on-demand Troubleshooting & Build Specialist.
+The task owner gets the first remediation attempt for a diagnosed CI/build/tooling problem. If the same root problem survives two actual owner remediation iterations, keep/mark the task `REMEDIATION`, increment the escalation count, and request the on-demand Troubleshooting & Build Specialist.
 
-This rule counts repeated attempts against the same root cause, not unrelated red runs.
-
-The Troubleshooting specialist may diagnose CI, TypeScript/build, test harness, dependency, environment, branch/rebase, and regression-isolation problems. It may not invent or redefine financial policy/business semantics. If the root cause is financial behavior, schema meaning, or product policy, it returns the issue to the owning permanent role/Manager.
+This counts same-root-cause remediation attempts, not unrelated or documentation-triggered red runs. The specialist may diagnose CI, TypeScript/build, test harness, dependency, environment, branch/rebase, and regression-isolation problems; it may not invent financial policy/business/schema semantics.
 
 ## Event-driven Manager model
 
-Manager does not need to poll continuously. Manager should be reactivated when:
-- a task becomes `READY_FOR_MANAGER`;
-- a task becomes `BLOCKED`;
+Manager should be reactivated when:
+- a task becomes `READY_FOR_MANAGER` or `BLOCKED`;
 - troubleshooting escalation is requested;
 - integration CI fails;
 - an audit reaches a verdict;
-- a dependency transition unlocks queued work;
-- the user requests a status/roadmap decision.
+- a dependency transition unlocks work;
+- the user requests status/roadmap action.
 
-Otherwise, active workers may continue independently from their task files.
+Otherwise active workers continue from authoritative task files.
+
+## Canonical refresh discipline
+
+Task files are the high-frequency execution truth. `.ai/tasks/TASK_INDEX.md`, `PROJECT_STATE.md`, `ACTIVE_ASSIGNMENTS.md`, and `INTEGRATION_QUEUE.md` should be refreshed on meaningful task/validation/dependency transitions. `ROADMAP.md` should be refreshed when milestone/task disposition changes materially; it is not intended as a per-commit execution log.
 
 ## Chat rotation
 
-Chats are execution interfaces, not canonical memory. Prefer fresh chats before context degradation becomes costly.
-
-Default rotation guideline: replace a worker chat after roughly 3–5 substantial tasks, after a long troubleshooting episode, or whenever responsiveness/context quality degrades. A replacement chat reads its role charter, canonical shared files, active task file, and relevant handoff; it must not require a giant manually maintained replacement prompt.
+Chats are execution interfaces, not canonical memory. Prefer fresh chats before context degradation becomes costly. Default guideline: replace a worker after roughly 3–5 substantial tasks, after a long troubleshooting episode, or when responsiveness/context quality degrades. Replacement chats read their role charter, canonical shared state, active task file, and relevant handoff rather than receiving giant manually maintained prompts.
