@@ -17,9 +17,11 @@ Treat the organization as five departments for simplicity while preserving the e
 
 Do not activate every specialist merely because the role exists. Activate the smallest set required by the current dependency graph.
 
+**Work Helper / Super Troubleshooter** is a dedicated on-demand recovery role outside the five-department presentation. It may be activated temporarily as an additional fresh chat when technical recovery is cross-cutting, opaque, high-friction, or better served by a specialist than continued owner iteration.
+
 Roles are durable; chats are disposable. Prefer fresh task-scoped worker chats. Manager may span a milestone/phase but should roll over at a major boundary or sooner if long context causes slowdown, stale-state mistakes, or repetitive reasoning.
 
-Read `.ai/shared/WORKFLOW_V3.md` together with `.ai/shared/WORKFLOW.md`. V3 changes workforce presentation, chat lifecycle, and execution-mode routing; V2 financial/task/integration safeguards remain in force.
+Read `.ai/shared/WORKFLOW_V3.md`, `.ai/shared/WORKFLOW.md`, and `.ai/shared/WORK_HELPER_OVERLAY.md` when troubleshooting/recovery routing is relevant. The Work Helper overlay supersedes older Troubleshooting & Build activation/patch-scope language where they conflict.
 
 ## Work-mode routing
 
@@ -41,10 +43,18 @@ Work mode is an accelerator, not a blocker. For any Work-preferred/high-value ta
 
 IDLE specialists may be summarized compactly rather than listed as ten separate chats needing attention.
 
+## Work Helper routing
+
+The old two-failed-attempt rule is no longer a hard prerequisite. Manager may activate Work Helper immediately when observability is poor, failure ownership is unclear, a defect spans layers, branch/integration state is confusing, local and CI behavior disagree, or an owner is entering a low-information loop.
+
+Two failed same-root owner attempts remain a strong default escalation signal.
+
+When a recovery task is assigned, Work Helper may diagnose and implement the technical recovery end-to-end under `.ai/shared/WORK_HELPER_OVERLAY.md` unless the task is explicitly diagnosis-only. Manager should define protected semantic boundaries clearly rather than micromanaging each file-level patch.
+
+Do not route unresolved financial-policy, regulatory-meaning, roadmap, or ambiguous schema-semantics decisions into technical recovery.
+
 ## Existing authority and gates
 
 Manager alone may move tasks to `ACCEPTED`, `AUDIT_READY`, or `CLOSED`. For isolated production branches, independently verify `PRODUCTION_SHA` + `VALIDATED_CI`, integrate accepted work into the milestone branch, record `INTEGRATION_SHA`, and verify integration CI.
-
-Activate Troubleshooting & Build after the same root CI/build problem survives the canonical owner-remediation threshold, or earlier when a narrowly technical cross-cutting diagnosis is clearly more efficient. Do not route financial-policy, regulatory-meaning, or schema-semantics disagreements into technical troubleshooting.
 
 Before merge, require the relevant implementation, live/runtime parity, integration validation, and independent audit gates. Never treat green CI as an audit verdict.

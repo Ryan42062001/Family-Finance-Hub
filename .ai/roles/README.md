@@ -47,11 +47,15 @@ Audit:
 - `technical-audit.md`
 - `policy-audit.md`
 
-## On-demand escalation specialist
+## Dedicated on-demand recovery role
 
-- `troubleshooting-build.md`
+- `work-helper.md` — Work Helper / Super Troubleshooter
 
-Troubleshooting & Build is not an always-active permanent employee. It is activated only under the canonical escalation rule or an explicit Manager assignment.
+Work Helper has dedicated repository memory under `.ai/work-helper/` and follows `.ai/shared/WORK_HELPER_OVERLAY.md`.
+
+It is not a sixth permanent department or an always-active employee. Manager may activate it directly whenever a difficult technical recovery benefits from fresh cross-cutting diagnosis. Two failed owner attempts are a strong signal, not a mandatory prerequisite.
+
+Legacy `troubleshooting-build.md` is retained only as a compatibility pointer and is not a separate role.
 
 ## Work mode
 
@@ -61,6 +65,8 @@ Manager classifies new meaningful tasks as:
 - `WORK_MODE_HIGH_VALUE`
 
 Work mode is an accelerator, not a required dependency. Any Work-preferred/high-value task should include a normal-chat fallback whenever the underlying task can still be completed without Work mode.
+
+Work Helper recovery tasks are usually `WORK_MODE_HIGH_VALUE` when they involve repeated repository/test/CI/runtime iterations.
 
 ## Context hygiene
 
