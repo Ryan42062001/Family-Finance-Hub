@@ -8,10 +8,10 @@ Repository: `Ryan42062001/Family-Finance-Hub`
 Canonical branch: `main`
 Verified `main` SHA: `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`
 Active milestone integration branch: `phase-5-money-priority-engine`
-Pre-this-Manager-update head: `8f56a68a9ab018e15f0e32b11df140e04c4db615` (`docs: mark FFH-011 ready for manager`).
-At that checkpoint the branch is 294 commits ahead and 0 behind `main`; PR #5 is open/unmerged/non-draft and remains not merge-ready.
+Verified FFH-019 integration checkpoint: `11c757141fb17c00c5b37bc702cbd0ed55c38a5c` (`Merge FFH-019 Workflow V3 operating overlay`). Manager closeout documentation commits follow that checkpoint.
+PR #5 remains open/unmerged/non-draft and remains not merge-ready.
 
-Workflow V2 / FFH-D007 is canonical for task execution, integration, troubleshooting escalation, and replacement-chat bootstrapping. No `.ai/shared/WORKFLOW_V3.md` is present on the active milestone branch.
+Workflow V3 is canonical for workforce presentation, task-scoped chat lifecycle, execution-mode routing, Work-mode fallback, and replacement-chat bootstrapping. `.ai/shared/WORKFLOW.md` remains the authoritative Workflow V2 base for task lifecycle, checkpoint vocabulary, branch/integration safety, troubleshooting escalation, financial safeguards, and audit gates.
 
 ## Stable product state on main
 
@@ -55,8 +55,13 @@ No production financial behavior changed.
 
 ### FFH-016 — live Supabase migration/runtime parity verification
 State: ACTIVE / VERIFICATION-ONLY.
-Scope now combines accepted FFH-010 HSA and accepted FFH-011 SIMPLE migrations/contracts.
+Scope combines accepted FFH-010 HSA and accepted FFH-011 SIMPLE migrations/contracts.
 Execution classification: WORK_MODE_HIGH_VALUE; normal-chat fallback remains valid.
+
+### FFH-019 — Workflow V3 operating overlay
+State: CLOSED / MANAGER ACCEPTED.
+PR #6 merged into the Phase 5 milestone branch at `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`.
+V3 simplifies workforce/chat operation and adds Work-mode routing without changing production financial behavior, task-state safeguards, integration gates, troubleshooting authority, or audit requirements.
 
 ## Current branch-level validation evidence
 
@@ -66,11 +71,13 @@ The branch therefore remains red because of FFH-012, not because FFH-011 still d
 
 Historical verified green checkpoints include #274 for FFH-006 and #300 for accepted FFH-010. CI results are validation evidence, not audit verdicts.
 
+FFH-019 is documentation/control-plane only; no production CI result is claimed or required solely for its workflow changes.
+
 ## Current findings / disposition
 
 ### R1 — SIMPLE higher-limit semantics/correctness
 Persistence/runtime semantic contract: ACCEPTED under FFH-011.
-Core statutory formula consumption: still merge-blocking under FFH-015, now QUEUED for a collision-safe Core slot.
+Core statutory formula consumption: still merge-blocking under FFH-015, queued for a collision-safe Core slot.
 Live migration/runtime parity: FFH-016 ACTIVE.
 
 ### R2 — governmental 457(b) Roth catch-up
@@ -92,18 +99,20 @@ Policy resolved by FFH-D006. FFH-013 remains merge-blocking and queued after FFH
 - FFH-018 — docs-only CI efficiency hardening discovery; QUEUED until current red remediation stabilizes.
 - final independent Technical & Mathematical and Financial Policy & Scenario audits remain gated on stable integrated work.
 
-## Workflow V2 operating state
+## Workflow V3 operating state
 
 Canonical execution state lives in `.ai/tasks/`; role handoffs are continuity evidence rather than authoritative task status.
 
-Normal lifecycle:
+Normal lifecycle remains:
 `QUEUED -> ACTIVE -> VALIDATING -> READY_FOR_MANAGER -> ACCEPTED -> AUDIT_READY -> CLOSED`, plus `BLOCKED` / `REMEDIATION`.
 
-New production tasks default to isolated short-lived task branches with Manager integration. FFH-011/012 are grandfathered shared-branch exceptions.
+New production tasks default to isolated short-lived task branches with Manager integration. FFH-011/012 remain grandfathered shared-branch exceptions.
 
 Verification-only tasks may use `PRODUCTION_SHA: N/A — VERIFICATION-ONLY` and are accepted on reproducible runtime/deployment evidence rather than an invented production checkpoint.
 
-Manager is event-driven. Current smallest useful specialist set is App/Data FFH-016 + Core FFH-012. All other permanent roles and Troubleshooting & Build are IDLE.
+User-facing workforce is organized into five departments while underlying specialist authority remains separate. `ROLE = DURABLE`, `CHAT = DISPOSABLE`, `TASK = UNIT OF WORK`, `REPOSITORY = MEMORY`. Every new meaningful task is classified `STANDARD_CHAT`, `WORK_MODE_PREFERRED`, or `WORK_MODE_HIGH_VALUE`; Work mode is an accelerator, not a dependency, and preferred/high-value tasks receive a normal-chat fallback when feasible.
+
+Manager is event-driven. Current smallest useful specialist set is App/Data FFH-016 + Core FFH-012. All other specialist capabilities and Troubleshooting & Build are IDLE.
 
 ## Merge blockers
 
