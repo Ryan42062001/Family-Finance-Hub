@@ -17,34 +17,34 @@ Last refreshed: 2026-09-11
 | FFH-017 | Core Engine | QUEUED | Not established | Wait for Phase-5 blockers |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-observability after current recovery wave |
 | FFH-019 | Manager | CLOSED | `11c757141fb17c00c5b37bc702cbd0ed55c38a5c` | Workflow V3 adopted |
-| FFH-020 | App/Data | ACTIVE | live environment Stage A | FFH-024 accepted; perform bounded history repair + exact dry-run only, then Manager gate |
+| FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint only | Secure Supabase CLI/auth/protected-backup execution environment required; no repair or DDL write occurred |
 | FFH-021 | Manager | CLOSED | control-plane | Work Helper / Super Troubleshooter role adopted |
-| FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e531309e10cb7d1127fb022362d4d5f942b` | Legal-marriage authority is now implementation authority for FFH-023 |
+| FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e531309e10cb7d1127fb022362d4d5f942b` | Legal-marriage authority is implementation authority for FFH-023 |
 | FFH-023 | Work Helper | ACTIVE | partial technical candidate `f0439bae...`; PR #11 open | Preserve cent fixes and complete cross-layer FFH-022 spouse-authority implementation; no live DB deployment |
-| FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Recovery plan accepted; FFH-020 Stage A reactivated |
+| FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Recovery plan accepted; FFH-020 execution blocked only by secure CLI/auth/backup capability |
 
 ## Current verified recovery state
 - Both FFH-012 independent audits failed the prior integrated checkpoint.
-- Manager accepts three blocking areas: ambiguous spouse authority, odd-cent shared allocation, and Build aggregate/account reconciliation.
-- FFH-023 already reproduced and locally fixed both cent defects; full calculations on that partial candidate were 794/794. Exact-SHA CI was not established.
-- FFH-022 is accepted: `spouse_partner` and planning filing status are not legal-spouse authority. Pair/year tri-state authority is required, with unknown-safe behavior.
+- FFH-023 already reproduced and locally fixed both cent defects; Work Helper is completing the accepted spouse-authority implementation.
+- FFH-022 is accepted: `spouse_partner` and planning filing status are not legal-spouse authority; pair/year tri-state authority is required.
 - PR #11 remains open and must not merge until Work Helper completes the spouse-authority implementation and Manager verifies the full candidate.
 - FFH-024 is accepted: foundation and Phase-5B identity drift are history-only repairs; Phase 5A/FFH-010/FFH-011 are genuinely pending.
-- FFH-020 Stage A is authorized for protected backup, supported history repair, migration-list verification, and exact `db push --include-all --dry-run` only. The actual DDL push remains a separate Manager gate.
+- FFH-020 Stage A refreshed the repository/live state and found no material drift, but the execution runtime has no usable Supabase CLI, transferable authentication, protected-backup path, Docker, or psql. It stopped before every history/DDL write as required.
+- FFH-020 live migration history remains unchanged; no `migration repair`, `db push`, MCP `apply_migration`, manual SQL, or direct history mutation occurred.
 
 ## Active-chat target
 - Work Helper / Super Troubleshooter — FFH-023 complete FFH-012 audit remediation.
-- Implementation Engineer / App-Data — FFH-020 Stage A migration-history recovery + dry-run.
 - Manager — event-driven verification/routing.
 
-## Idle departments
+## Blocked / idle departments
+- Implementation Engineer: IDLE/BLOCKED on FFH-020 until a secure user-controlled or Work/cloud execution environment can run Supabase CLI, authenticate/link, and establish the required protected backup.
 - Financial Policy: IDLE after FFH-022 acceptance.
 - R&D: IDLE after FFH-024 acceptance.
 - Auditor/QA: IDLE until a new integrated FFH-012 remediation checkpoint exists; both independent audits must then re-run.
 
 ## Integration/readiness disposition
 - FFH-012 remains REMEDIATION.
-- FFH-020 is ACTIVE only for Stage A; no live DDL push authorization exists yet.
+- FFH-020 remains BLOCKED before the first history repair. Stage B live DDL push is still unauthorized.
 - FFH-016 remains BLOCKED.
 - FFH-011 remains REMEDIATION.
 - Phase 5 / PR #5 remains NOT MERGE READY.
