@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { runMoneyPriorityEngine as runEngine } from "./money-priority-engine.ts";
 import {
   consumeRetirementCapacity,
   createRetirementCapacityLedger,
@@ -9,6 +9,10 @@ import {
   retirementCapacityInvariantHolds,
 } from "./money-priority-retirement-capacity.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
+import { withNormalizedHsaFacts } from "./hsa-test-fixtures.ts";
+
+const runMoneyPriorityEngine: typeof runEngine = (raw, asOfDate, policy) =>
+  runEngine(withNormalizedHsaFacts(raw), asOfDate, policy);
 import {
   buildMoneyPrioritySnapshot,
   MoneyPrioritySnapshotValidationError,
@@ -97,7 +101,7 @@ test("$1,200 one-time retirement deployment leaves no Secure or Build room", () 
   const raw = retirementRaw(1200, 300);
   useSharedHsaCapacity(raw, 1200, 300);
   addDeployableCash(raw, 1200);
-  const result = runMoneyPriorityEngine(raw, "2026-09-01");
+  const result = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), "2026-09-01");
   assert.deepEqual(retirementClaims(result), { oneTime: 1200, secure: 0, build: 0, total: 1200 });
   assert.equal(result.existingCash.deployments.find((item) => item.category === "retirement")?.relatedEntityId, "hsa-a");
   assert.equal(result.residualNeeds.retirementAppliedByAccountId["hsa-a"], 1200);
@@ -108,7 +112,7 @@ test("one-time $400 plus Secure $500 leaves Build at most $300", () => {
   const raw = retirementRaw(1200, 125);
   useSharedHsaCapacity(raw, 1200, 125);
   addDeployableCash(raw, 400);
-  const result = runMoneyPriorityEngine(raw, "2026-09-01");
+  const result = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), "2026-09-01");
   const claims = retirementClaims(result);
   assert.equal(claims.oneTime, 400);
   assert.equal(claims.secure, 500);
@@ -154,7 +158,7 @@ test("IRA accounts consume one owner-level shared limit", () => {
       monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered" },
   ];
   raw.preferences = { ...raw.preferences, tax_profile_year: 2026, tax_filing_status: "single", estimated_modified_agi: 100000 };
-  const snapshot = buildMoneyPrioritySnapshot(raw);
+  const snapshot = buildMoneyPrioritySnapshot(withNormalizedHsaFacts(raw));
   const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(snapshot));
   const first = consumeRetirementCapacity(ledger, "ira-a", "one_time", 5000);
   const second = consumeRetirementCapacity(ledger, "ira-b", "build", 5000);
@@ -173,7 +177,7 @@ test("multiple HSAs for one owner cannot duplicate the owner's shared room", () 
     employee_contributed_ytd: 0, employer_contributed_ytd: 0,
     hsa_eligible: true, hsa_coverage_type: "family", match_status: "not_offered",
   }));
-  const snapshot = buildMoneyPrioritySnapshot(raw);
+  const snapshot = buildMoneyPrioritySnapshot(withNormalizedHsaFacts(raw));
   const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(snapshot));
   assert.equal(consumeRetirementCapacity(ledger, "hsa-a", "one_time", 6000).consumedAnnualAmount, 6000);
   assert.equal(consumeRetirementCapacity(ledger, "hsa-b", "build", 6000).consumedAnnualAmount, 2750);

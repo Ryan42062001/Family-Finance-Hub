@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { runMoneyPriorityEngine as runEngineBase } from "./money-priority-engine.ts";
 import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 import { allocateWindfall } from "./money-priority-windfall.ts";
 import { evaluateUserPlan } from "./money-priority-user-plan.ts";
 import { runHypotheticalMoneyPriorityEngine } from "./money-priority-hypothetical.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { MONEY_PRIORITY_POLICY_V1 } from "./money-priority-policy.ts";
+import { withNormalizedHsaFacts } from "./hsa-test-fixtures.ts";
 
 const AS_OF_DATE = "2026-09-01";
 
@@ -45,6 +46,9 @@ function baseRaw(): MoneyPriorityRawSnapshot {
     },
   };
 }
+
+const runMoneyPriorityEngine: typeof runEngineBase = (raw, asOfDate, policy) =>
+  runEngineBase(withNormalizedHsaFacts(raw), asOfDate, policy);
 
 test("ON_TRACK protects the normal 15 percent floor without requiring maxed accounts", () => {
   const result = runMoneyPriorityEngine(baseRaw(), AS_OF_DATE);
@@ -303,6 +307,12 @@ test("married HSA catch-up schedule remains owner-specific", () => {
       employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
       hsa_eligible: true, hsa_coverage_type: "family" },
   ];
+  raw.hsaMarriedAllocations = [{
+    id: "catch-up-schedule-allocation", tax_year: 2026,
+    person_one_id: "p1", person_two_id: "p2",
+    person_one_ordinary_amount: 8750, person_two_ordinary_amount: 0,
+    data_version: 1,
+  }];
   const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.hsaTotalContributionAnnual, 10750);
   assert.equal(floor.unsupportedScheduledContributionAnnual, 1250);

@@ -15,6 +15,8 @@ export type HsaAccountLegalCapacity = {
   catchUpAmount: number;
   sharedCapacityGroup: string | null;
   sharedCapacityRemainingRoom: number | null;
+  sharedOrdinaryRemainingRoom: number | null;
+  ownerCatchUpRemainingRoom: number | null;
   capacityBasis: HsaLegalCapacityBasis | null;
   reasons: string[];
   missingData: string[];
@@ -333,8 +335,8 @@ export function evaluateHsaLegalCapacity(
       marriedAggregateExcess = totalYtd > totalCeiling;
 
       if (!allocation && !marriedAggregateExcess && sharedOrdinaryBase > 0) {
-        const aNeedsAlternate = a.ytd > a.annualCeiling;
-        const bNeedsAlternate = b.ytd > b.annualCeiling;
+        const aNeedsAlternate = a.ytd > a.annualCeiling!;
+        const bNeedsAlternate = b.ytd > b.annualCeiling!;
         if (aNeedsAlternate || bNeedsAlternate) {
           const aRequiredShared = Math.max(0, a.ytd - a.independentOrdinary - a.catchUpCapacity);
           const bRequiredShared = Math.max(0, b.ytd - b.independentOrdinary - b.catchUpCapacity);
@@ -375,6 +377,8 @@ export function evaluateHsaLegalCapacity(
         catchUpAmount: 0,
         sharedCapacityGroup: null,
         sharedCapacityRemainingRoom: null,
+        sharedOrdinaryRemainingRoom: null,
+        ownerCatchUpRemainingRoom: null,
         capacityBasis: null,
         reasons: [],
         missingData: ["HSA owner is required to evaluate person/tax-year legal capacity."],
@@ -394,6 +398,8 @@ export function evaluateHsaLegalCapacity(
         catchUpAmount: 0,
         sharedCapacityGroup: `hsa:${account.ownerPersonId}`,
         sharedCapacityRemainingRoom: null,
+        sharedOrdinaryRemainingRoom: null,
+        ownerCatchUpRemainingRoom: null,
         capacityBasis: null,
         reasons: [],
         missingData: [`Canonical HSA person/tax-year facts are required for ${account.ownerPersonId}.`],
@@ -406,6 +412,9 @@ export function evaluateHsaLegalCapacity(
     const annualLimit = value.annualCeiling;
     const contributedYtd = value.ytd;
     const remainingAnnualRoom = missingData.length ? null : value.remaining;
+    if (!missingData.length && annualLimit !== null && contributedYtd !== null && contributedYtd > annualLimit) {
+      warnings.add(`possible_excess_hsa_contribution:${account.ownerPersonId}:${taxYear}: owner HSA YTD exceeds the owner legal ceiling.`);
+    }
     const noEligibleMonths = value.months.every((month) => month.eligibility === "ineligible");
     const state: HsaLegalCapacityState = missingData.length
       ? "more_information_needed"
@@ -426,6 +435,14 @@ export function evaluateHsaLegalCapacity(
       catchUpAmount: value.catchUpCapacity,
       sharedCapacityGroup: married ? "hsa:married-family" : `hsa:${account.ownerPersonId}`,
       sharedCapacityRemainingRoom: married ? marriedSharedRemaining : remainingAnnualRoom,
+      sharedOrdinaryRemainingRoom: married && !missingData.length
+        ? roundMoney(Math.max(0, sharedOrdinaryBase - [...facts.values()].reduce(
+            (sum, person) => sum + Math.min(person.ytd ?? 0, person.sharedOrdinaryAllocation), 0,
+          )))
+        : null,
+      ownerCatchUpRemainingRoom: !missingData.length
+        ? roundMoney(Math.max(0, value.catchUpCapacity - Math.max(0, (value.ytd ?? 0) - value.independentOrdinary - value.sharedOrdinaryAllocation)))
+        : null,
       capacityBasis: missingData.length ? null : value.basis,
       reasons: [...value.reasons].sort(),
       missingData,
