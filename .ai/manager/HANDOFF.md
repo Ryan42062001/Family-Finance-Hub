@@ -2,31 +2,83 @@
 
 HANDOFF
 
-Task ID: FFH-019 closeout + FFH-PW-003 orchestration
+Task ID: FFH-016 BLOCKED event / FFH-020 activation / FFH-PW-003 orchestration
 Role: Manager / Architect
-Status: EVENT COMPLETE — WORKFLOW V3 ADOPTED; FFH-012 + FFH-016 REMAIN THE ONLY ACTIVE SPECIALIST TASKS
+Status: EVENT COMPLETE — FFH-020 ACTIVE; FFH-016 BLOCKED; FFH-012 CONTINUES
 
-Verified repository state: `Ryan42062001/Family-Finance-Hub`; canonical branch `main` remains at verified checkpoint `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. Active milestone integration branch is `phase-5-money-priority-engine`. PR #5 remains open/unmerged and Phase 5 remains NOT MERGE READY.
+## Verified repository event
 
-Manager event handled: reviewed FFH-019 / PR #6, verified the exact changed-file set (`.ai/roles/README.md`, `.ai/roles/manager.md`, `.ai/shared/WORKFLOW_V3.md`, `.ai/tasks/FFH-019.md`), and compared its base `8f56a68a9ab018e15f0e32b11df140e04c4db615` with the newer milestone checkpoint `aa87d7c6ed4c0c64c7f223ba1171b8ef7911982d`. The intervening Manager commit touched separate task/state files, so no production or state collision existed.
+Repository: `Ryan42062001/Family-Finance-Hub`
+Active milestone branch: `phase-5-money-priority-engine`
+Verified incoming FFH-016 branch head: `04db9dd7b38480f823c659944c3a3f52924972df` (`docs: record FFH-016 re-verification handoff SHA`).
+PR #5 remains open/unmerged and Phase 5 remains NOT MERGE READY.
 
-Integration result: PR #6 merged into `phase-5-money-priority-engine` at `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`. Manager then marked `.ai/shared/WORKFLOW_V3.md` canonical and closed FFH-019. No financial policy, engine behavior, application behavior, database schema/migration, active FFH-012/016 evidence, troubleshooting threshold, or audit gate changed.
+Comparison from prior Manager closeout `35d27030539af60118d43270df7172143b83ebfc` to incoming FFH-016 head showed five commits touching only `.ai/tasks/FFH-016.md` and `.ai/engineering/app/HANDOFF.md`; no Core, Policy, migration-source, or other production changes were hidden in the event.
 
-Canonical workflow now: Workflow V3 governs five-department workforce presentation, `ROLE = DURABLE`, `CHAT = DISPOSABLE`, `TASK = UNIT OF WORK`, `REPOSITORY = MEMORY`, fresh task-scoped worker chats, Manager context rollover, and execution-mode classification (`STANDARD_CHAT`, `WORK_MODE_PREFERRED`, `WORK_MODE_HIGH_VALUE`) with normal-chat fallbacks where feasible. Workflow V2 in `.ai/shared/WORKFLOW.md` remains authoritative for task lifecycle, checkpoints, financial safeguards, branch/integration safety, troubleshooting escalation, and independent audit requirements.
+## FFH-016 Manager disposition
 
-Current active execution:
-- FFH-012 — Core Financial Engine Engineer — REMEDIATION. Isolated Core checkpoint `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`; Foundation CI #308 has 54 task-owned HSA-related calculation failures. Exact next action is one focused FFH-D005 owner remediation iteration, exact validation, then READY_FOR_MANAGER/BLOCKED/escalation as supported.
-- FFH-016 — Application, Data & Integration Engineer — ACTIVE / VERIFICATION-ONLY. Verify accepted FFH-010 HSA + FFH-011 SIMPLE migrations/contracts against the linked/live Supabase/runtime environment. Execution mode is WORK_MODE_HIGH_VALUE with ordinary-chat fallback.
+FFH-016 remains `BLOCKED`; it is not accepted and was not moved to `READY_FOR_MANAGER`.
 
-Queued work remains unchanged: FFH-013 spousal-IRA shared compensation ledger; FFH-015 narrow SIMPLE Core remediation; FFH-017 Phase 5C implementation; FFH-018 docs-only CI efficiency discovery. After FFH-012 reaches a Manager event, choose FFH-015 versus FFH-013 from the exact overlap state rather than running both Core tasks concurrently by default.
+Fresh live evidence accepted as the blocker basis:
+- linked Supabase project `tsqwvggojeudgspnumze` is `ACTIVE_HEALTHY`;
+- live migration history ends at `20260903135253 phase_5b_goal_intelligence`;
+- FFH-010 migration `20260909005000` is absent;
+- FFH-011 migration `20260909033000` is absent;
+- `public.person_hsa_tax_year_profiles` absent;
+- `public.person_hsa_month_statuses` absent;
+- `public.household_hsa_married_allocations` absent;
+- `public.retirement_accounts.hsa_ytd_tax_year` absent;
+- `public.retirement_accounts.simple_plan_limit_category` absent;
+- `public.retirement_accounts.simple_plan_limit_tax_year` absent.
 
-Current merge blockers: FFH-012, FFH-013, FFH-015, FFH-016, FFH-017, full branch validation after calculation fail-fast is cleared, final Technical & Mathematical Audit, final Financial Policy & Scenario Audit, any resulting remediation, PR #5 refresh, and clean final merge validation.
+Because the accepted schema is not deployed, PostgREST reads/writes, household RLS role-matrix behavior, null/confirmed persistence/reload, loader -> normalized snapshot, Recommendation Refresh/runtime propagation, and browser capture/reload remain prerequisite-blocked and are not claimed. FFH-016 correctly made no schema/data/runtime repairs.
 
-Manager operating state: event complete. Remain effectively IDLE between orchestration events. Reactivate on READY_FOR_MANAGER, BLOCKED, troubleshooting escalation, integration CI failure, audit verdict, dependency unlock, or explicit user coordination.
+## Manager action — FFH-020
 
-ACTIVATE NOW: only Core FFH-012 and App/Data FFH-016. All Financial Policy, Research, Audit, and Troubleshooting specialist capabilities remain IDLE until a real dependency/event justifies activation.
+Created and activated `.ai/tasks/FFH-020.md`: **Deploy Accepted FFH-010 / FFH-011 Supabase Migrations**.
 
-PRODUCTION_SHA: N/A — Manager orchestration/control-plane only
-VALIDATED_CI: N/A for FFH-019; existing FFH-011/012 CI evidence preserved unchanged
-HANDOFF_SHA: This Manager closeout commit
-INTEGRATION_SHA: FFH-019 `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`
+Owner: Application, Data & Integration Engineer
+State: ACTIVE
+Execution mode: `WORK_MODE_HIGH_VALUE`
+Fallback: normal chat with GitHub + linked Supabase tooling remains valid.
+Target: linked project `tsqwvggojeudgspnumze`.
+
+Authorized migration source, in order:
+1. `supabase/migrations/20260909005000_ffh_010_hsa_input_contract.sql` — Manager-observed blob `2e2a75a17439c2d75422ec271492333c0eb283c1`.
+2. `supabase/migrations/20260909033000_ffh_011_simple_plan_limit_contract.sql` — Manager-observed blob `3f01921b5a346c1e1e95259db30d104e68f8a184`.
+
+Authorization is deployment-only. App/Data must refresh current Supabase guidance/tool semantics, re-confirm target/project/schema/migration preflight, use a supported migration-history-recording mechanism, apply the exact accepted FFH-010 migration followed by FFH-011, and verify live migration history, required schema, RLS/policy/grant presence, and available security-advisor evidence.
+
+No migration-source edits, financial-policy changes, Core changes, backfills, unrelated RLS/auth/config changes, ad-hoc hand-edited DDL, or silent hotfixes are authorized. Unexpected drift or migration failure returns FFH-020 `BLOCKED` with evidence rather than broadening scope.
+
+FFH-020 does not replace the independent FFH-016 parity gate. When FFH-020 reaches `READY_FOR_MANAGER`, Manager independently verifies deployment. Only after Manager acceptance is FFH-016 reactivated for the remaining PostgREST/RLS/persistence/runtime/browser parity checks.
+
+## Parallel work state
+
+FFH-012 remains the active Core task in `REMEDIATION` at the previously isolated candidate `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546` / CI #308 54-failure target unless newer task evidence supersedes it. The FFH-016 event contained no Core changes, so FFH-020 can proceed independently in parallel with FFH-012.
+
+Queued work remains FFH-013, FFH-015, FFH-017, and FFH-018. Do not start them from this event.
+
+## Current smallest useful team
+
+- Engineering / Core Financial Engine Engineer — FFH-012 — REMEDIATION.
+- Engineering / Application, Data & Integration Engineer — FFH-020 — ACTIVE deployment remediation.
+- Management / Manager — event-driven; this routing event is complete.
+
+FFH-016 is BLOCKED and should not consume a separate active worker chat while FFH-020 runs. Financial Policy, Research, Audit, and Troubleshooting remain IDLE.
+
+## Merge blockers
+
+Phase 5 remains blocked by FFH-012, FFH-013, FFH-015, FFH-020, FFH-016 after deployment, FFH-017, full branch validation after calculation fail-fast clears, final dual independent audits, any remediation, PR #5 refresh, and final merge validation.
+
+## Exact next actions
+
+1. App/Data executes only FFH-020 and returns `READY_FOR_MANAGER` or `BLOCKED` with exact live deployment evidence.
+2. Core continues FFH-012 independently and returns on its next Manager event.
+3. Manager accepts/rejects FFH-020 when evidence arrives; if accepted, explicitly reactivate FFH-016.
+4. Manager remains otherwise IDLE/event-driven.
+
+PRODUCTION_SHA: N/A — Manager orchestration only
+VALIDATED_CI: N/A — no new production implementation performed by Manager
+HANDOFF_SHA: This Manager state commit
+INTEGRATION_SHA: N/A for FFH-020 until/unless source remediation is separately authorized; FFH-020 is deployment-only
