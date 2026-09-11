@@ -12,7 +12,7 @@ Status: BLOCKED — LIVE SUPABASE MIGRATION MISMATCH REQUIRES MANAGER-AUTHORIZED
 
 - Repository: `Ryan42062001/Family-Finance-Hub`
 - Milestone branch refreshed during execution: `phase-5-money-priority-engine`
-- Latest verified branch head before recording this handoff: `35d27030539af60118d43270df7172143b83ebfc`
+- Latest authoritative branch head before the 2026-09-11 re-verification documentation writes: `647e4d03f29a4e95621a6d9ec4660b8304d5a245`
 - PR #5 remained open, unmerged, mergeable, and pointed at the milestone branch.
 - `.ai/shared/WORKFLOW_V3.md` is now canonical for workforce/chat/execution-mode routing while `.ai/shared/WORKFLOW.md` safeguards remain authoritative.
 - `FFH-016` is the Manager-approved App/Data verification-only task.
@@ -98,6 +98,16 @@ Runtime evidence: FAIL/BLOCKED at migration-application and live-schema gates
 Validation status: BLOCKED — accepted FFH-010 and FFH-011 migrations are absent from linked live Supabase
 
 Escalation count: 0 — this is a discovered environment/deployment mismatch, not repeated same-root implementation guessing
+
+## Live re-verification — 2026-09-11
+
+The verification-only gate was re-run against the intended linked project without changing schema or data:
+
+- Project `tsqwvggojeudgspnumze` reported `ACTIVE_HEALTHY`, region `us-east-2`, PostgreSQL `17.6.1.166`.
+- `list_migrations` again returned `20260903135253 phase_5b_goal_intelligence` as the latest applied migration. FFH-010 `20260909005000` and FFH-011 `20260909033000` remain absent.
+- A fresh read-only catalog query again returned false for `person_hsa_tax_year_profiles`, `person_hsa_month_statuses`, `household_hsa_married_allocations`, `retirement_accounts.hsa_ytd_tax_year`, `retirement_accounts.simple_plan_limit_category`, and `retirement_accounts.simple_plan_limit_tax_year`.
+- Actual migration application and expected schema/API availability fail. PostgREST reads/writes, household RLS role behavior, null/confirmed persistence and reload, loader/normalized-snapshot propagation, Recommendation Refresh, and browser capture/reload remain downstream-blocked; none is claimed.
+- No migration, DDL, application write, test fixture, runtime setting, or production repair was applied.
 
 ## Exact next action
 
