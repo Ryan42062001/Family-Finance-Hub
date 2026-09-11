@@ -2,83 +2,72 @@
 
 HANDOFF
 
-Task event: FFH-022/023/024 completion routing
+Task event: FFH-020 Stage A capability blocker after accepted FFH-024 recovery plan
 Role: Manager / Architect
-Status: EVENT COMPLETE — FFH-022 ACCEPTED; FFH-024 ACCEPTED; FFH-023 ACTIVE; FFH-020 ACTIVE STAGE A
+Status: EVENT COMPLETE — FFH-020 BLOCKED BEFORE FIRST WRITE; FFH-023 ACTIVE
 
 ## Verified repository event
 Repository: `Ryan42062001/Family-Finance-Hub`
 Milestone branch: `phase-5-money-priority-engine`
-Prior audited FFH-012 integration remains `b33e97320c8907193ba8f6a571b0d92684237f18` and remains failed by both independent audits.
+FFH-022 remains ACCEPTED and is implementation authority for FFH-023.
+FFH-024 remains ACCEPTED and is recovery authority for FFH-020.
 
-## FFH-022 acceptance
-Financial Policy returned `READY_FOR_MANAGER` with a clean policy-only branch. Manager independently verified that the branch changed only FFH-022 policy/task/handoff evidence and did not change production, schema, migrations, or tests.
+## FFH-020 Manager disposition
+Implementation Engineer correctly refreshed repository/live state and found no material drift from FFH-024.
 
-Accepted authority:
-- married-spouse HSA sharing requires explicit affirmative, pair-specific, target-tax-year legal-spouse authority;
-- minimum semantics are confirmed legal spouses / confirmed non-spouses / unknown;
-- `spouse_partner` alone is never sufficient authority;
-- planning `tax_filing_status` is corroborating only;
-- unknown/missing stays unknown-safe and blocks only spouse-dependent HSA capacity;
-- confirmed non-spouses are evaluated independently;
-- persistence/runtime/UI must preserve the same tri-state meaning with confirmation/provenance and no silent year carryforward.
+Verified live state remains unchanged:
+- foundation schema exists under remote-only history identity `20260829180242`;
+- canonical repository foundation identity `0001` is not recorded live;
+- Phase 5B schema exists under remote-only history identity `20260903135253`;
+- canonical repository Phase 5B identity `20260903134156` is not recorded live;
+- Phase 5A `20260902190000` remains genuinely unapplied;
+- FFH-010 `20260909005000` remains genuinely unapplied;
+- FFH-011 `20260909033000` remains genuinely unapplied.
 
-Policy artifact: `.ai/policy/retirement/FFH-022_HSA_LEGAL_MARRIAGE_AUTHORITY_POLICY.md`
-Policy branch: `ffh/ffh-022-hsa-legal-marriage-authority`
-Policy branch head: `dc15d40b44752061ea15bfabd6251d2d47c8c382`
-PR #12 merged as `07e42e531309e10cb7d1127fb022362d4d5f942b`.
-FFH-022 is ACCEPTED.
+The authorized Stage-A executor could not establish the required execution prerequisites in its runtime:
+- no Supabase CLI executable;
+- no transferable authenticated CLI session;
+- no protected CLI/database backup path;
+- no Docker or psql fallback;
+- no shell network/DNS path to obtain the CLI;
+- connected Supabase integration authentication cannot be transferred to shell CLI.
 
-## FFH-023 Work Helper disposition
-Work Helper independently reproduced and fixed both cent/accounting blockers on recovery branch `ffh/ffh-023-ffh012-audit-remediation`:
-- odd-cent shared allocation now preserves the exact authoritative shared base;
-- Build aggregate monthly allocation now equals routed account allocations and the one-cent escape hatch is removed.
+Per Manager stop conditions, the worker stopped before every migration-history or DDL mutation.
 
-Partial production checkpoint: `f0439bae550aa5243cf8928cc05c9a41b8406956`.
-Local evidence reported: focused 2/2, affected 40/40, full calculations 794/794. Exact-SHA CI is not established. Inherited FFH-011 security/typecheck debt remains separate.
+Commands/writes actually executed: NONE for `migration repair`, `db push`, MCP `apply_migration`, manual SQL, direct migration-history writes, live DDL/data/RLS/configuration changes.
 
-PR #11 remains open and unmerged. Manager accepts the demonstrated technical direction but intentionally does not integrate the partial patch yet.
+No Stage-A migration-list/dry-run acceptance evidence exists yet because the CLI/auth/backup prerequisite was not established.
 
-With FFH-022 now accepted, Work Helper is explicitly authorized to complete the cross-layer legal-spouse authority implementation on the same recovery branch, including the smallest coherent additive persistence/schema, normalized runtime/loader/types, HSA evaluator, downstream propagation, UI capture, and regression work required by FFH-022. Work Helper may create the repository migration on its branch but may not deploy it live or alter Supabase history. No new marriage derivation semantics are authorized.
+FFH-020 is therefore BLOCKED on execution capability, not on unresolved migration semantics.
 
-## FFH-024 acceptance / FFH-020 Stage A
-R&D returned `READY_FOR_MANAGER` with current official Supabase guidance plus read-only repository/live evidence. Manager accepts the bounded recovery plan.
+## Exact unblock requirement
+Resume FFH-020 Stage A only in a secure execution environment that can:
+1. run the current stable Supabase CLI from a refreshed Family Finance Hub checkout;
+2. authenticate through a supported Supabase login/link mechanism without exposing secrets in chat/repository/logs;
+3. establish the FFH-024 protected pre-change backup;
+4. reverify target/history/schema immediately before repair;
+5. perform only the accepted history repairs and exact dry-run;
+6. stop again before Stage-B live DDL push.
 
-Verified dispositions:
-- repository Phase 5A `20260902190000` is genuinely unapplied and must actually deploy later;
-- repository Phase 5B `20260903134156` corresponds to already-live remote-only `20260903135253` and receives history-only repair, not DDL replay;
-- repository foundation `0001` corresponds to already-live remote-only `20260829180242` and receives history-only repair if current CLI supports legacy `0001`;
-- FFH-010 `20260909005000` and FFH-011 `20260909033000` remain genuinely pending;
-- MCP `apply_migration` is not approved because it cannot preserve canonical repository versions.
+If the user or a Work/cloud/local environment can provide those capabilities, reactivate the same Implementation Engineer task. Do not weaken the backup/auth/history gate merely to proceed.
 
-FFH-024 is ACCEPTED as research/recovery authority.
-
-FFH-020 is reactivated for STAGE A ONLY:
-1. secure CLI/auth/link + target verification;
-2. protected backup/pre-change evidence;
-3. canonical foundation history repair, verify after each step;
-4. canonical Phase-5B history repair, verify after each step;
-5. `migration list --linked` proving only three real pending migrations;
-6. `db push --linked --include-all --dry-run` proving exactly Phase 5A -> FFH-010 -> FFH-011;
-7. STOP and return to Manager.
-
-Actual `db push --linked --include-all` is NOT authorized yet and requires a separate Manager gate.
+## FFH-023
+Work Helper / Super Troubleshooter remains ACTIVE on the complete FFH-012 remediation. PR #11 remains open/unmerged pending the legal-spouse authority implementation plus existing cent fixes and Manager verification.
 
 ## Current workforce
-ACTIVE: Work Helper / Super Troubleshooter — FFH-023 complete FFH-012 audit remediation.
-ACTIVE: Implementation Engineer / App-Data — FFH-020 Stage A migration-history recovery + dry-run.
-IDLE: Financial Policy after FFH-022 acceptance.
-IDLE: Product R&D after FFH-024 acceptance.
-IDLE: Auditor/QA until a new integrated FFH-012 remediation checkpoint exists.
+ACTIVE: Work Helper / Super Troubleshooter — FFH-023.
+BLOCKED/IDLE: Implementation Engineer — FFH-020 until secure CLI/auth/backup environment exists.
+IDLE: Financial Policy — FFH-022 accepted.
+IDLE: Product R&D — FFH-024 accepted.
+IDLE: Auditor/QA — wait for new FFH-012 integrated candidate.
 Management: event-driven.
 
 ## Exact next events
-1. Work Helper returns complete FFH-023 candidate on PR #11 with protected semantics + cent fixes + full validation.
-2. Implementation Engineer returns FFH-020 Stage A `READY_FOR_MANAGER` or `BLOCKED` with exact secret-safe recovery/dry-run evidence.
-3. Manager independently verifies each event.
-4. If FFH-023 is sound, integrate a complete remediation checkpoint and reactivate both independent FFH-012 auditors.
-5. If FFH-020 Stage A is sound, separately authorize the actual live `db push --linked --include-all` and post-deployment checks.
+1. Work Helper returns FFH-023 complete candidate.
+2. User provides/activates a secure Supabase CLI execution environment, then Implementation Engineer resumes FFH-020 Stage A.
+3. Manager verifies FFH-023 and FFH-020 independently.
+4. Stage B live `db push --linked --include-all` remains separately gated and unauthorized until completed Stage-A evidence is accepted.
 
-PRODUCTION_SHA: N/A — Manager orchestration only
-VALIDATED_CI: N/A for this routing event
-INTEGRATION_SHA: prior FFH-012 audit target remains `b33e973...`; new remediation integration not yet established
+PRODUCTION_SHA: N/A — Manager orchestration / live-environment recovery
+VALIDATED_CI: N/A
+INTEGRATION_SHA: no new FFH-020 production integration
