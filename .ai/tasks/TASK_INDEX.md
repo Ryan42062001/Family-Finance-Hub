@@ -23,6 +23,7 @@ Last refreshed: 2026-09-11
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | B/C and structural authority remediation independently verified; bounded FFH-025 edge remains in parent FFH-012 |
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | ACTIVE | Not established | Narrow compound unknown-authority materiality remediation; then dual re-audit |
+| FFH-026 | App/Data | QUEUED | Not established | Phase 7 production deployment/release readiness after Phase 5 + Phase 6 acceptance; establish stable URL and add GitHub About link |
 
 ## Current verified state
 - Both post-FFH-023 auditors returned `FAIL — REMEDIATION REQUIRED` on `1487b192491a704ca3500b42d22a50289ee1551b` for the same HIGH compound authority/eligibility/coverage materiality defect.
@@ -34,6 +35,8 @@ Last refreshed: 2026-09-11
 - FFH-011 PR #13 is retargeted to the milestone. Its exact branch CI reaches and PASSES the SIMPLE security gate, then fails on five pre-existing test TypeScript errors. Its worker-owned task/handoff packet is not yet complete, so Manager has not accepted/merged it.
 - FFH-020 remains BLOCKED before any live write.
 - FFH-018 remains queued; permanent CI detailed test-output artifacts are not yet implemented.
+- Human-facing roadmap now marks Phase 4 complete, Phase 5 active, and adds Phase 7 Deployment & Release Readiness before Phase 8 Private Beta.
+- FFH-026 is the queued canonical owner for that future production deployment, stable URL, release validation, and GitHub About/README link update.
 
 ## ACTIVATE NOW
 - Work Helper / Super Troubleshooter — FFH-025.
@@ -44,6 +47,7 @@ Last refreshed: 2026-09-11
 - Financial Policy: IDLE; authority is sufficient.
 - R&D: IDLE.
 - FFH-020 execution: BLOCKED on secure CLI/auth/backup capability.
+- FFH-026 deployment: QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
 - Core Engineering: IDLE pending FFH-012 disposition.
 - Manager: event-driven after routing.
 
