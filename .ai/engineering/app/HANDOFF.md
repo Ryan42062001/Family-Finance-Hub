@@ -2,115 +2,101 @@
 
 HANDOFF
 
-Task ID: FFH-016
+Task ID: FFH-020
 
 Role: Application, Data & Integration Engineer
 
-Status: BLOCKED — LIVE SUPABASE MIGRATION MISMATCH REQUIRES MANAGER-AUTHORIZED REMEDIATION
+Status: BLOCKED — EXACT REPOSITORY MIGRATION VERSIONS CANNOT BE PRESERVED WITH CURRENT MCP APPLY TOOL
 
 ## Verified repository state
 
 - Repository: `Ryan42062001/Family-Finance-Hub`
-- Milestone branch refreshed during execution: `phase-5-money-priority-engine`
-- Latest authoritative branch head before the 2026-09-11 re-verification documentation writes: `647e4d03f29a4e95621a6d9ec4660b8304d5a245`
-- PR #5 remained open, unmerged, mergeable, and pointed at the milestone branch.
-- `.ai/shared/WORKFLOW_V3.md` is now canonical for workforce/chat/execution-mode routing while `.ai/shared/WORKFLOW.md` safeguards remain authoritative.
-- `FFH-016` is the Manager-approved App/Data verification-only task.
+- Milestone branch: `phase-5-money-priority-engine`
+- Pre-execution branch head: `fb6d19641a490763c15ef3f1eb9f6e3f47934e7a`
+- FFH-020 is the Manager-authorized deployment-only task for already-accepted FFH-010 / FFH-011 migrations.
+- No production migration SQL, application source, Core logic, policy, or configuration was modified.
 
-## Assigned verification scope
+## Accepted migration source re-verified
 
-Verify the accepted live persistence/runtime contracts for:
-- FFH-010: `supabase/migrations/20260909005000_ffh_010_hsa_input_contract.sql`
-- FFH-011: `supabase/migrations/20260909033000_ffh_011_simple_plan_limit_contract.sql`
+1. `supabase/migrations/20260909005000_ffh_010_hsa_input_contract.sql`
+   - blob: `2e2a75a17439c2d75422ec271492333c0eb283c1`
+   - exact match to the Manager-authorized FFH-010 source.
 
-The task explicitly forbids silently deploying or fixing a live mismatch; any required migration/deployment remediation must be routed back to Manager first.
+2. `supabase/migrations/20260909033000_ffh_011_simple_plan_limit_contract.sql`
+   - blob: `3f01921b5a346c1e1e95259db30d104e68f8a184`
+   - exact match to the Manager-authorized FFH-011 source.
 
-## Live environment identified
+## Live Supabase preflight — 2026-09-11
 
-Linked Supabase project:
-- project ref: `tsqwvggojeudgspnumze`
+Target project re-identified:
+- ref: `tsqwvggojeudgspnumze`
 - name: `Ryan4206's Project`
 - region: `us-east-2`
 - PostgreSQL: `17.6.1.166`
+- status: `ACTIVE_HEALTHY`
 
-The project was initially `INACTIVE`. A read attempt timed out because the database was paused. The project was restored so the assigned live verification could be performed; it subsequently reached `ACTIVE_HEALTHY`. No schema migration, DDL remediation, or production-code change was applied by FFH-016.
+Migration history:
+- latest applied migration remains `20260903135253 phase_5b_goal_intelligence`;
+- repository migration `20260909005000` is absent;
+- repository migration `20260909033000` is absent.
 
-## Reproducible live evidence
+Fresh read-only catalog introspection returned `false` for all six FFH-016 prerequisite objects/columns:
+- `public.person_hsa_tax_year_profiles`
+- `public.person_hsa_month_statuses`
+- `public.household_hsa_married_allocations`
+- `public.retirement_accounts.hsa_ytd_tax_year`
+- `public.retirement_accounts.simple_plan_limit_category`
+- `public.retirement_accounts.simple_plan_limit_tax_year`
 
-### Migration history
+No unexpected six-object drift was discovered.
 
-`list_migrations` succeeded after the project was healthy. The latest applied migration returned was:
+## Deployment blocker
 
-- `20260903135253` — `phase_5b_goal_intelligence`
+Current Supabase guidance confirms that linked-project `supabase db push` applies pending repository migrations while preserving migration history/version identity.
 
-The live migration history did **not** contain:
-- `20260909005000` — FFH-010 HSA input contract
-- `20260909033000` — FFH-011 SIMPLE plan-limit contract
+The currently connected Supabase MCP `apply_migration` tool is a supported migration mechanism, but its tool contract exposes only `project_id`, `name`, and `query`; there is no repository migration `version` parameter. Current MCP/Management-API behavior generates the applied migration version server-side.
 
-### Live schema introspection
+Using that tool for either FFH-020 migration would therefore create a new remote-only migration version rather than repository versions `20260909005000` and `20260909033000`. That would knowingly violate FFH-020 acceptance criteria 3/4 and leave local/remote migration history divergent for future CLI `migration list` / `db push` use.
 
-A read-only SQL query checked the concrete objects required by those two accepted repository migrations. Every check returned `false`:
+The current agent runtime does not expose `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, or project-ref credentials needed to invoke the Supabase CLI directly. The repository currently has no Supabase deployment workflow available to dispatch; `.github/workflows/` contains only `ci.yml`.
 
-- `public.person_hsa_tax_year_profiles` exists: false
-- `public.person_hsa_month_statuses` exists: false
-- `public.household_hsa_married_allocations` exists: false
-- `public.retirement_accounts.hsa_ytd_tax_year` exists: false
-- `public.retirement_accounts.simple_plan_limit_category` exists: false
-- `public.retirement_accounts.simple_plan_limit_tax_year` exists: false
+Per FFH-020's safety boundary, the worker stopped before any live DDL rather than apply exact SQL under a mismatched migration version or manually edit `supabase_migrations` history.
 
-This proves the accepted repository migration files exist in source but have not been applied to the linked live Supabase project.
+## Changes actually made
 
-## Source/runtime contract already confirmed in repository
-
-Repository inspection confirmed the application is wired to the missing live schema:
-- `app/financial-profile/hsa/actions.ts` writes the FFH-010 HSA tables/columns.
-- `app/financial-profile/hsa/page.tsx` reads the HSA profile/month/allocation tables and HSA YTD tax-year column.
-- `app/financial-profile/simple/actions.ts` writes the explicit SIMPLE category + tax-year contract.
-- `lib/supabase/money-priority-snapshot.ts` selects HSA profile/month/allocation rows plus HSA/SIMPLE retirement-account columns for the authoritative runtime snapshot.
-- `lib/calculations/money-priority-snapshot.ts` preserves explicit SIMPLE category/tax-year semantics through normalization.
-- `lib/calculations/money-priority-hsa-input-contract.ts` preserves explicit `unknown` HSA status values and validates person/tax-year/month references.
-
-Therefore the live schema mismatch blocks the normal application/PostgREST loader path rather than representing unused repository-only columns.
-
-## Verification stopped at authorized mismatch boundary
-
-Not executed/claimed because the prerequisite schema is absent:
-- authenticated PostgREST select/write success for FFH-010/FFH-011 objects;
-- FFH-010 household RLS owner/member/viewer/nonmember matrix on the missing tables;
-- live persistence -> reload -> normalized snapshot parity for HSA and SIMPLE values;
-- browser capture/reload;
-- Recommendation Refresh propagation using live FFH-010/FFH-011 data.
-
-Continuing those checks cannot produce valid success evidence until the accepted migrations are actually applied. Per FFH-016 non-goals, no silent deployment or migration repair was performed.
+- Live Supabase schema/data/config: NONE.
+- Accepted migration SQL: NONE.
+- Production/application/Core code: NONE.
+- Repository documentation only: FFH-020 task + this App/Data handoff record the capability blocker and exact evidence.
 
 ## Checkpoints
 
-PRODUCTION_SHA: N/A — VERIFICATION-ONLY; no production code/schema remediation authorized
+PRODUCTION_SHA: N/A — DEPLOYMENT-ONLY
 
-VALIDATED_CI: N/A — live verification task; no remediation CI claimed
+VALIDATED_CI: N/A — no production source remediation
 
-HANDOFF_SHA: established by this documentation commit; record exact SHA in FFH-016 task file after write
+HANDOFF_SHA: this documentation commit; verify exact branch head after write
 
-INTEGRATION_SHA: N/A — no remediation integrated
+INTEGRATION_SHA: N/A — no new production integration
 
-Runtime evidence: FAIL/BLOCKED at migration-application and live-schema gates
+DEPLOYMENT_TARGET: `tsqwvggojeudgspnumze`
 
-Validation status: BLOCKED — accepted FFH-010 and FFH-011 migrations are absent from linked live Supabase
+DEPLOYMENT_EVIDENCE: Preflight complete; deployment intentionally not performed because current MCP tooling cannot preserve repository migration version identity
 
-Escalation count: 0 — this is a discovered environment/deployment mismatch, not repeated same-root implementation guessing
+Validation status: BLOCKED
 
-## Live re-verification — 2026-09-11
-
-The verification-only gate was re-run against the intended linked project without changing schema or data:
-
-- Project `tsqwvggojeudgspnumze` reported `ACTIVE_HEALTHY`, region `us-east-2`, PostgreSQL `17.6.1.166`.
-- `list_migrations` again returned `20260903135253 phase_5b_goal_intelligence` as the latest applied migration. FFH-010 `20260909005000` and FFH-011 `20260909033000` remain absent.
-- A fresh read-only catalog query again returned false for `person_hsa_tax_year_profiles`, `person_hsa_month_statuses`, `household_hsa_married_allocations`, `retirement_accounts.hsa_ytd_tax_year`, `retirement_accounts.simple_plan_limit_category`, and `retirement_accounts.simple_plan_limit_tax_year`.
-- Actual migration application and expected schema/API availability fail. PostgREST reads/writes, household RLS role behavior, null/confirmed persistence and reload, loader/normalized-snapshot propagation, Recommendation Refresh, and browser capture/reload remain downstream-blocked; none is claimed.
-- No migration, DDL, application write, test fixture, runtime setting, or production repair was applied.
+Escalation count: 0 — tooling/capability boundary, not repeated owner remediation
 
 ## Exact next action
 
-Manager / Architect should review this live evidence and authorize a separate deployment/remediation step to apply the already-accepted FFH-010 and FFH-011 migrations to the intended linked Supabase environment. After deployment is independently evidenced, reactivate FFH-016 to resume PostgREST, RLS, persistence/reload, normalized snapshot, and browser/runtime parity verification.
+Resume FFH-020 from an authenticated repository checkout capable of running the Supabase CLI against `tsqwvggojeudgspnumze`. Compare local/remote migration history first, use `supabase db push --dry-run`/linked equivalent, then deploy with `supabase db push --linked` (or current linked-project equivalent) so repository versions `20260909005000` and `20260909033000` are recorded exactly.
 
-Do not mark Phase 5 merge-ready from repository migration-file existence alone.
+After deployment, return to App/Data Engineering to verify:
+- both exact versions in `list_migrations`;
+- all six formerly missing schema objects/columns;
+- RLS enabled on all three FFH-010 tables;
+- expected FFH-010 policies/grants/constraints;
+- FFH-011 columns/constraint/comments;
+- Supabase security and performance advisor results.
+
+Only then update FFH-020 to `READY_FOR_MANAGER`. FFH-016 remains blocked until Manager accepts the FFH-020 deployment evidence and explicitly reactivates it.
