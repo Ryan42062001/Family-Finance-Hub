@@ -10,21 +10,19 @@ import {
 } from "./money-priority-retirement-capacity.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
-import {
-  deriveRecommendedPlanAllocations,
-  evaluateUserPlan,
-} from "./money-priority-user-plan.ts";
+import { evaluateUserPlan } from "./money-priority-user-plan.ts";
 import { allocateWindfall } from "./money-priority-windfall.ts";
 
 const AS_OF_DATE = "2026-09-01";
-
+const YEAR = 2026;
 type HsaOwner = "a" | "b";
 
 function hsaAccount(
   id: string,
   owner: HsaOwner,
-  employeeYtd: number,
+  employeeYtd = 0,
   employerYtd = 0,
+  overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return {
     id,
@@ -36,10 +34,48 @@ function hsaAccount(
     monthly_employer_contribution: 0,
     employee_contributed_ytd: employeeYtd,
     employer_contributed_ytd: employerYtd,
-    hsa_eligible: true,
-    hsa_coverage_type: "family",
+    hsa_ytd_tax_year: YEAR,
     match_status: "not_offered",
+    ...overrides,
   };
+}
+
+function person(id: HsaOwner, relationship: "self" | "spouse_partner", birthDate: string) {
+  return {
+    id,
+    display_name: id.toUpperCase(),
+    relationship,
+    birth_date: birthDate,
+    planned_retirement_age: 65,
+    covered_by_workplace_retirement_plan: false,
+    estimated_taxable_compensation_annual: 120000,
+    is_dependent: false,
+    is_active: true,
+  };
+}
+
+function profile(id: HsaOwner) {
+  return {
+    id: `profile-${id}`,
+    person_id: id,
+    tax_year: YEAR,
+    medicare_effective_on: null,
+    last_month_rule_status: "not_elected",
+    testing_period_status: "not_applicable",
+    data_version: 1,
+  };
+}
+
+function months(id: HsaOwner) {
+  return Array.from({ length: 12 }, (_, index) => ({
+    id: `month-${id}-${index + 1}`,
+    person_id: id,
+    tax_year: YEAR,
+    month: index + 1,
+    eligibility_status: "eligible",
+    coverage_status: "family",
+    evidence_status: "confirmed",
+  }));
 }
 
 function marriedHsaRaw(options: {
@@ -49,41 +85,49 @@ function marriedHsaRaw(options: {
   bBirthDate?: string;
   monthlyIncome?: number;
   monthlyExpense?: number;
-  accounts?: Record<string, unknown>[];
+  cash?: number;
   hsaAccounts?: Record<string, unknown>[];
+  allocation?: { a: number; b: number };
 } = {}): MoneyPriorityRawSnapshot {
-  const {
-    aYtd = 0,
-    bYtd = 0,
-    aBirthDate = "1990-01-01",
-    bBirthDate = "1990-01-01",
-    monthlyIncome = 3000,
-    monthlyExpense = 3000,
-  } = options;
+  const aYtd = options.aYtd ?? 0;
+  const bYtd = options.bYtd ?? 0;
+  const accounts: Record<string, unknown>[] = [{
+    id: "reserve", name: "Reserve", account_type: "savings",
+    balance: 12000, cash_purpose: "protected_reserve",
+  }];
+  if ((options.cash ?? 0) > 0) accounts.push({
+    id: "cash", name: "Cash", account_type: "savings",
+    balance: options.cash, cash_purpose: "unallocated",
+  });
   return {
     householdId: "married-hsa-remediation",
     people: [
-      { id: "a", display_name: "A", relationship: "self", birth_date: aBirthDate,
-        planned_retirement_age: 65, covered_by_workplace_retirement_plan: false,
-        estimated_taxable_compensation_annual: 120000, is_dependent: false, is_active: true },
-      { id: "b", display_name: "B", relationship: "spouse_partner", birth_date: bBirthDate,
-        planned_retirement_age: 65, covered_by_workplace_retirement_plan: false,
-        estimated_taxable_compensation_annual: 120000, is_dependent: false, is_active: true },
+      person("a", "self", options.aBirthDate ?? "1990-01-01"),
+      person("b", "spouse_partner", options.bBirthDate ?? "1990-01-01"),
     ],
     income: [{ id: "income", owner_person_id: "a", name: "Income",
-      monthly_amount: monthlyIncome, monthly_gross_amount: 10000,
+      monthly_amount: options.monthlyIncome ?? 3000, monthly_gross_amount: 10000,
       income_type: "employment", is_variable: false, is_active: true }],
     expenses: [{ id: "expense", name: "Required", category: "housing",
-      monthly_amount: monthlyExpense, is_essential: true, cash_flow_treatment: "required" }],
-    accounts: options.accounts ?? [{ id: "reserve", name: "Reserve", account_type: "savings",
-      balance: 12000, cash_purpose: "protected_reserve" }],
-    debts: [],
-    goals: [],
-    insuranceExposures: [],
+      monthly_amount: options.monthlyExpense ?? 3000, is_essential: true,
+      cash_flow_treatment: "required" }],
+    accounts,
+    debts: [], goals: [], insuranceExposures: [],
     retirementAccounts: options.hsaAccounts ?? [
       hsaAccount("hsa-a", "a", aYtd),
       hsaAccount("hsa-b", "b", bYtd),
     ],
+    hsaTaxYearProfiles: [profile("a"), profile("b")],
+    hsaMonthStatuses: [...months("a"), ...months("b")],
+    hsaMarriedAllocations: options.allocation ? [{
+      id: "allocation",
+      tax_year: YEAR,
+      person_one_id: "a",
+      person_two_id: "b",
+      person_one_ordinary_amount: options.allocation.a,
+      person_two_ordinary_amount: options.allocation.b,
+      data_version: 1,
+    }] : [],
     preferences: {
       emergency_fund_months_override: 3,
       debt_vs_investing: "balanced",
@@ -96,7 +140,7 @@ function marriedHsaRaw(options: {
       retirement_spending_basis: "today_dollars",
       planning_social_security_monthly: 0,
       planning_pension_monthly: 0,
-      tax_profile_year: 2026,
+      tax_profile_year: YEAR,
       tax_filing_status: "married_filing_jointly",
       estimated_modified_agi: 100000,
     },
@@ -104,245 +148,149 @@ function marriedHsaRaw(options: {
 }
 
 function ledgerFor(raw: MoneyPriorityRawSnapshot) {
-  const snapshot = buildMoneyPrioritySnapshot(raw);
-  return createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(snapshot));
-}
-
-function familyGroupRoom(raw: MoneyPriorityRawSnapshot): number {
-  return ledgerFor(raw).groups.find((group) => group.id === "hsa:married-family")!
-    .originalRemainingAnnualRoom;
-}
-
-for (const [aYtd, bYtd, expected] of [
-  [0, 0, 8750],
-  [4375, 0, 4375],
-  [0, 4375, 4375],
-  [6000, 1000, 1750],
-  [8000, 0, 750],
-  [8750, 0, 0],
-  [0, 8750, 0],
-  [5000, 3750, 0],
-  [9000, 0, 0],
-] as const) {
-  test(`couple-wide ordinary HSA room: A ${aYtd}, B ${bYtd} leaves ${expected}`, () => {
-    const raw = marriedHsaRaw({ aYtd, bYtd });
-    const ledger = ledgerFor(raw);
-    assert.equal(familyGroupRoom(raw), expected);
-    assert.ok(ledger.entries.every((entry) => entry.originalRemainingAnnualRoom === expected));
-    assert.equal(retirementCapacityInvariantHolds(ledger), true);
-  });
-}
-
-test("exact $8,000/$0 failure is capped across Build, Windfall, and Your Plan", () => {
-  const raw = marriedHsaRaw({ aYtd: 8000, bYtd: 0, monthlyIncome: 4000 });
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
-  const group = engine.retirementCapacityLedger.groups.find(
-    (item) => item.id === "hsa:married-family",
-  )!;
-  const buildAnnual = engine.build.retirementAccountAllocations.reduce(
-    (sum, allocation) => sum + allocation.allocatedMonthlyAmount * 12,
-    0,
+  return createRetirementCapacityLedger(
+    evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(raw)),
   );
-  const windfall = allocateWindfall(engine, {
-    amount: 10000,
-    source: "gift",
-    taxTreatment: "known_non_taxable",
-  });
-  const windfallHsa = windfall.allocations
-    .filter((allocation) => allocation.category === "retirement")
-    .reduce((sum, allocation) => sum + allocation.allocatedAmount, 0);
-  const recommended = deriveRecommendedPlanAllocations(engine)
-    .find((allocation) => allocation.category === "retirement")!;
-  const yourPlan = evaluateUserPlan(engine, [{
-    allocationId: recommended.allocationId,
-    monthlyAmount: 300,
-  }]);
-  const conflict = yourPlan.impacts.find(
-    (impact) => impact.id === "user-plan-retirement-room-conflict",
-  )?.retirement?.contributionRoomConflict;
+}
 
-  assert.equal(group.originalRemainingAnnualRoom, 750);
-  assert.equal(buildAnnual, 750);
-  assert.equal(windfallHsa, 0);
-  assert.equal(conflict, 2850);
-  assert.equal(retirementCapacityInvariantHolds(engine.retirementCapacityLedger), true);
-  assert.ok(8000 + group.consumed.one_time + group.consumed.secure
-    + group.consumed.build + group.consumed.windfall <= 8750);
+test("equal married-family default exposes $4,375 owner ceilings and one $8,750 shared constraint", () => {
+  const ledger = ledgerFor(marriedHsaRaw());
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-a"), 4375);
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-b"), 4375);
+  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 8750);
+  assert.equal(retirementCapacityInvariantHolds(ledger), true);
 });
 
-test("Windfall alone cannot exceed the corrected $750 family room", () => {
-  const engine = runMoneyPriorityEngine(marriedHsaRaw({ aYtd: 8000 }), AS_OF_DATE);
-  const windfall = allocateWindfall(engine, {
-    amount: 10000,
-    source: "gift",
-    taxTreatment: "known_non_taxable",
-  });
-  assert.equal(windfall.allocations
-    .filter((allocation) => allocation.category === "retirement")
-    .reduce((sum, allocation) => sum + allocation.allocatedAmount, 0), 750);
+test("uneven YTD that cannot fit the equal default requests an alternate spouse agreement", () => {
+  const opportunities = evaluateRetirementAccountOpportunities(
+    buildMoneyPrioritySnapshot(marriedHsaRaw({ aYtd: 6000, bYtd: 1000 })),
+  ).opportunities;
+  assert.ok(opportunities.every((item) => item.state === "more_information_needed"));
+  assert.ok(opportunities.every((item) => item.missingData.some(
+    (message) => message.includes("alternate allocation could fit"),
+  )));
 });
 
-test("existing cash consumes corrected HSA room before Secure, Build, and Windfall", () => {
-  const raw = marriedHsaRaw({
+test("explicit $8,000/$750 allocation leaves exactly $750 of couple room", () => {
+  const ledger = ledgerFor(marriedHsaRaw({
     aYtd: 8000,
-    accounts: [
-      { id: "reserve", name: "Reserve", account_type: "savings", balance: 12000,
-        cash_purpose: "protected_reserve" },
-      { id: "cash", name: "Cash", account_type: "savings", balance: 10000,
-        cash_purpose: "unallocated" },
-    ],
-  });
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
-  const group = engine.retirementCapacityLedger.groups.find(
-    (item) => item.id === "hsa:married-family",
-  )!;
-  const windfall = allocateWindfall(engine, {
-    amount: 10000,
-    source: "gift",
-    taxTreatment: "known_non_taxable",
-  });
-  assert.equal(group.consumed.one_time, 750);
-  assert.equal(group.consumed.secure, 0);
-  assert.equal(group.consumed.build, 0);
-  assert.equal(windfall.allocations.filter((item) => item.category === "retirement").length, 0);
+    allocation: { a: 8000, b: 750 },
+  }));
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-a"), 0);
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-b"), 750);
+  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 750);
+  assert.equal(retirementCapacityInvariantHolds(ledger), true);
 });
 
-test("Secure HSA payroll match consumes only corrected family room", () => {
-  const hsaA = hsaAccount("hsa-a", "a", 8000);
-  const hsaB = {
-    ...hsaAccount("hsa-b", "b", 0),
-    match_status: "not_fully_captured",
-    full_match_employee_contribution_monthly: 300,
-  };
-  const raw = marriedHsaRaw({
+test("Build consumes corrected explicit married-family room before Windfall", () => {
+  const engine = runMoneyPriorityEngine(marriedHsaRaw({
     aYtd: 8000,
+    allocation: { a: 8000, b: 750 },
     monthlyIncome: 4000,
-    hsaAccounts: [hsaA, hsaB],
+  }), AS_OF_DATE);
+  const buildHsaAnnual = engine.build.retirementAccountAllocations
+    .filter((item) => item.accountId === "hsa-b")
+    .reduce((sum, item) => sum + item.allocatedAnnualAmount, 0);
+  assert.equal(buildHsaAnnual, 750);
+  const windfall = allocateWindfall(engine, {
+    amount: 10000,
+    source: "gift",
+    taxTreatment: "known_non_taxable",
   });
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
-  const group = engine.retirementCapacityLedger.groups.find(
-    (item) => item.id === "hsa:married-family",
-  )!;
+  assert.equal(windfall.allocations.filter((item) =>
+    item.category === "retirement" && item.relatedEntityId === "hsa-b").length, 0);
+  assert.equal(retirementCapacityInvariantHolds(engine.retirementCapacityLedger), true);
+});
+
+test("existing cash cannot deploy more than the corrected $750 HSA room", () => {
+  const engine = runMoneyPriorityEngine(marriedHsaRaw({
+    aYtd: 8000,
+    allocation: { a: 8000, b: 750 },
+    cash: 10000,
+  }), AS_OF_DATE);
+  const group = engine.retirementCapacityLedger.groups.find((item) => item.id === "hsa:married-family")!;
+  assert.equal(group.consumed.one_time, 750);
+  assert.equal(group.remainingAnnualRoom, 0);
+  assert.equal(engine.build.retirementAccountAllocations.filter((item) => item.accountType === "hsa").length, 0);
+});
+
+test("Secure HSA payroll match is constrained by the same corrected room", () => {
+  const engine = runMoneyPriorityEngine(marriedHsaRaw({
+    aYtd: 8000,
+    allocation: { a: 8000, b: 750 },
+    monthlyIncome: 4000,
+    hsaAccounts: [
+      hsaAccount("hsa-a", "a", 8000),
+      hsaAccount("hsa-b", "b", 0, 0, {
+        match_status: "not_fully_captured",
+        full_match_employee_contribution_monthly: 300,
+      }),
+    ],
+  }), AS_OF_DATE);
+  const group = engine.retirementCapacityLedger.groups.find((item) => item.id === "hsa:married-family")!;
   assert.equal(group.consumed.secure, 750);
   assert.equal(group.remainingAnnualRoom, 0);
-  assert.equal(engine.build.retirementAccountAllocations.length, 0);
+  assert.equal(retirementCapacityInvariantHolds(engine.retirementCapacityLedger), true);
 });
 
-test("one age-55 spouse has a separate catch-up bucket unavailable to the younger spouse", () => {
-  const ledger = ledgerFor(marriedHsaRaw({
-    aYtd: 0,
-    bYtd: 8000,
-    aBirthDate: "1970-01-01",
-  }));
-  const family = ledger.groups.find((group) => group.id === "hsa:married-family")!;
-  const aCatchUp = ledger.groups.find((group) => group.id === "hsa-owner:a")!;
-  const bCatchUp = ledger.groups.find((group) => group.id === "hsa-owner:b")!;
-
-  assert.equal(family.originalRemainingAnnualRoom, 750);
-  assert.equal(aCatchUp.originalRemainingAnnualRoom, 1000);
-  assert.equal(bCatchUp.originalRemainingAnnualRoom, 0);
-  assert.equal(consumeRetirementCapacity(ledger, "hsa-b", "build", 1750).consumedAnnualAmount, 750);
-  assert.equal(consumeRetirementCapacity(ledger, "hsa-a", "build", 1000).consumedAnnualAmount, 1000);
+test("one age-55 spouse keeps a distinct catch-up unavailable to the younger spouse", () => {
+  const ledger = ledgerFor(marriedHsaRaw({ aBirthDate: "1970-01-01" }));
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-a"), 5375);
+  assert.equal(remainingRetirementCapacity(ledger, "hsa-b"), 4375);
+  assert.equal(consumeRetirementCapacity(ledger, "hsa-b", "build", 5000).consumedAnnualAmount, 4375);
+  assert.equal(consumeRetirementCapacity(ledger, "hsa-a", "build", 6000).consumedAnnualAmount, 5375);
   assert.equal(retirementCapacityInvariantHolds(ledger), true);
 });
 
-test("both age-55 spouses keep distinct catch-up buckets after ordinary room is consumed", () => {
+test("ordinary-versus-catch-up deposit labels are not required when owner ceilings are known", () => {
+  const opportunities = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(
+    marriedHsaRaw({ aYtd: 4500, bYtd: 1000, aBirthDate: "1970-01-01" }),
+  )).opportunities;
+  const a = opportunities.find((item) => item.accountId === "hsa-a")!;
+  assert.equal(a.state, "available");
+  assert.equal(a.remainingAnnualRoom, 875);
+  assert.ok(!a.missingData.some((item) => item.includes("ordinary") && item.includes("catch-up")));
+});
+
+test("multiple HSA accounts do not multiply an owner's or couple's remaining capacity", () => {
   const ledger = ledgerFor(marriedHsaRaw({
-    aBirthDate: "1970-01-01",
-    bBirthDate: "1970-01-01",
+    hsaAccounts: [
+      hsaAccount("a-1", "a"),
+      hsaAccount("a-2", "a"),
+      hsaAccount("b-1", "b"),
+      hsaAccount("b-2", "b"),
+    ],
   }));
-  assert.equal(remainingRetirementCapacity(ledger, "hsa-a"), 9750);
-  assert.equal(consumeRetirementCapacity(ledger, "hsa-a", "build", 9750).consumedAnnualAmount, 9750);
-  assert.equal(remainingRetirementCapacity(ledger, "hsa-b"), 1000);
-  assert.equal(consumeRetirementCapacity(ledger, "hsa-b", "windfall", 2000).consumedAnnualAmount, 1000);
-  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.consumed.build, 8750);
-  assert.equal(ledger.groups.find((group) => group.id === "hsa-owner:a")?.consumed.build, 1000);
-  assert.equal(ledger.groups.find((group) => group.id === "hsa-owner:b")?.consumed.windfall, 1000);
+  assert.equal(consumeRetirementCapacity(ledger, "a-1", "one_time", 3000).consumedAnnualAmount, 3000);
+  assert.equal(consumeRetirementCapacity(ledger, "a-2", "build", 3000).consumedAnnualAmount, 1375);
+  assert.equal(consumeRetirementCapacity(ledger, "b-1", "windfall", 5000).consumedAnnualAmount, 4375);
+  assert.equal(remainingRetirementCapacity(ledger, "b-2"), 0);
+  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.remainingAnnualRoom, 0);
   assert.equal(retirementCapacityInvariantHolds(ledger), true);
 });
 
-test("positive YTD for a catch-up-eligible spouse is information-needed when attribution is absent", () => {
-  const raw = marriedHsaRaw({
-    aYtd: 5000,
-    bYtd: 1000,
-    aBirthDate: "1970-01-01",
-  });
-  const opportunities = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(raw));
-  const ledger = createRetirementCapacityLedger(opportunities);
-  assert.ok(opportunities.opportunities.every((item) => item.state === "more_information_needed"));
-  assert.ok(opportunities.opportunities.every((item) => item.missingData.some(
-    (reason) => reason.includes("ordinary family contributions versus owner-specific catch-up"),
-  )));
-  assert.ok(ledger.entries.every((entry) => entry.verified === false));
-  assert.ok(ledger.entries.every((entry) => remainingRetirementCapacity(ledger, entry.accountId) === null));
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
-  assert.equal(engine.build.retirementAccountAllocations.length, 0);
-  const userPlan = evaluateUserPlan(engine, [], {
+test("Your Plan reports unknown room instead of inventing a conflict when spouse allocation is unresolved", () => {
+  const engine = runMoneyPriorityEngine(marriedHsaRaw({ aYtd: 6000, bYtd: 1000 }), AS_OF_DATE);
+  const plan = evaluateUserPlan(engine, [], {
     additionalRetirementContributions: [{ accountId: "hsa-a", annualAmount: 100, source: "other" }],
   });
-  assert.ok(userPlan.impacts.some((item) => item.id === "user-plan-retirement-room-unknown"));
-  assert.ok(userPlan.warnings.some((item) => item.includes("cannot be verified")));
+  assert.ok(plan.impacts.some((item) => item.id === "user-plan-retirement-room-unknown"));
+  assert.ok(!plan.impacts.some((item) => item.id === "user-plan-retirement-room-conflict"));
 });
 
-test("aggregate YTD above family plus all catch-ups exposes zero additional room", () => {
-  const raw = marriedHsaRaw({
-    aYtd: 11000,
-    bYtd: 0,
-    aBirthDate: "1970-01-01",
-    bBirthDate: "1970-01-01",
-  });
-  const opportunities = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(raw));
-  const ledger = createRetirementCapacityLedger(opportunities);
-  assert.ok(opportunities.opportunities.every((item) => item.state === "limit_reached"));
-  assert.ok(opportunities.opportunities.every((item) => item.reasons.some(
-    (reason) => reason.includes("exceed the supported family ordinary limit"),
-  )));
-  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 0);
-  assert.ok(ledger.entries.every((entry) => remainingRetirementCapacity(ledger, entry.accountId) === 0));
-});
-
-test("four HSA accounts do not multiply uneven couple-wide room", () => {
-  const accounts = [
-    hsaAccount("a-1", "a", 3000),
-    hsaAccount("a-2", "a", 3000),
-    hsaAccount("b-1", "b", 1000),
-    hsaAccount("b-2", "b", 0),
-  ];
-  const ledger = ledgerFor(marriedHsaRaw({ hsaAccounts: accounts }));
-  assert.equal(ledger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 1750);
-  assert.equal(consumeRetirementCapacity(ledger, "a-1", "one_time", 1000).consumedAnnualAmount, 1000);
-  assert.equal(consumeRetirementCapacity(ledger, "a-2", "build", 1000).consumedAnnualAmount, 750);
-  assert.equal(consumeRetirementCapacity(ledger, "b-1", "windfall", 1000).consumedAnnualAmount, 0);
-  assert.equal(retirementCapacityInvariantHolds(ledger), true);
-});
-
-test("people and HSA account permutations preserve entity-level financial output", () => {
-  const hsaAccounts = [
-    hsaAccount("a-1", "a", 3000),
-    hsaAccount("a-2", "a", 3000),
-    hsaAccount("b-1", "b", 1000),
-    hsaAccount("b-2", "b", 0),
-  ];
-  const original = marriedHsaRaw({ monthlyIncome: 4000, hsaAccounts });
-  const permuted = structuredClone(original);
-  permuted.people = [...(permuted.people ?? [])].reverse();
-  permuted.retirementAccounts = [...(permuted.retirementAccounts ?? [])].reverse();
-  const project = (raw: MoneyPriorityRawSnapshot) => {
-    const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
+test("equivalent person, account, profile, and month ordering preserves married HSA results", () => {
+  const first = marriedHsaRaw();
+  const second = structuredClone(first);
+  second.people = [...(second.people ?? [])].reverse();
+  second.retirementAccounts = [...(second.retirementAccounts ?? [])].reverse();
+  second.hsaTaxYearProfiles = [...(second.hsaTaxYearProfiles ?? [])].reverse();
+  second.hsaMonthStatuses = [...(second.hsaMonthStatuses ?? [])].reverse();
+  const summarize = (input: MoneyPriorityRawSnapshot) => {
+    const ledger = ledgerFor(input);
     return {
-      ledger: engine.retirementCapacityLedger.entries.map((entry) => ({
-        accountId: entry.accountId,
-        original: entry.originalRemainingAnnualRoom,
-        remaining: entry.remainingAnnualRoom,
-        consumed: entry.consumed,
-      })),
-      groups: engine.retirementCapacityLedger.groups,
-      build: engine.build.retirementAccountAllocations,
-      recommendations: engine.recommendations.map((item) => ({
-        id: item.id,
-        allocations: item.allocations,
-      })),
+      entries: ledger.entries.map((entry) => ({ id: entry.accountId, remaining: remainingRetirementCapacity(ledger, entry.accountId) })),
+      groups: ledger.groups.map((group) => ({ id: group.id, remaining: group.remainingAnnualRoom })),
     };
   };
-  assert.deepEqual(project(permuted), project(original));
+  assert.deepEqual(summarize(first), summarize(second));
 });
