@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
+import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import {
   consumeRetirementCapacity,
   createRetirementCapacityLedger,
@@ -175,6 +176,44 @@ test("married family defaults to equal ordinary allocation", () => {
   assert.equal(b.annualLimit, 4375);
   assert.equal(a.sharedCapacityRemainingRoom, 8750);
   assert.equal(b.sharedCapacityRemainingRoom, 8750);
+});
+
+test("partial-year married equal allocation never creates a legal cent", () => {
+  const input = married();
+  input.hsaMonthStatuses = [
+    ...months("a", Array.from({ length: 12 }, (_, index) => index < 7
+      ? { coverage: "family" as const }
+      : { eligibility: "ineligible" as const, coverage: "none" as const })),
+    ...months("b", Array.from({ length: 12 }, (_, index) => index < 7
+      ? { coverage: "family" as const }
+      : { eligibility: "ineligible" as const, coverage: "none" as const })),
+  ];
+  const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input));
+  const a = result.opportunities.find((item) => item.accountId === "hsa-a")!;
+  const b = result.opportunities.find((item) => item.accountId === "hsa-b")!;
+  assert.equal(a.annualLimit, 2552.08);
+  assert.equal(b.annualLimit, 2552.09);
+  assert.equal(a.annualLimit! + b.annualLimit!, 5104.17);
+  assert.equal(a.sharedCapacityRemainingRoom, 5104.17);
+  assert.equal(b.sharedCapacityRemainingRoom, 5104.17);
+});
+
+test("Build aggregate monthly retirement allocation exactly equals routed account allocations", () => {
+  const input = married();
+  input.income = [{
+    id: "income", name: "Income", monthly_amount: 10000,
+    monthly_gross_amount: 10000, is_active: true,
+  }];
+  input.expenses = [];
+  const result = runMoneyPriorityEngine(input, "2026-01-01");
+  const aggregate = result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount;
+  const routed = result.build.retirementAccountAllocations.reduce(
+    (sum, item) => Math.round((sum + item.allocatedMonthlyAmount) * 100) / 100,
+    0,
+  );
+  assert.equal(aggregate, 729.16);
+  assert.equal(routed, 729.16);
+  assert.equal(result.build.unresolvedRetirementMonthlyAmount, 470.84);
 });
 
 test("explicit alternate married allocation is tax-year-bound and owner-specific", () => {

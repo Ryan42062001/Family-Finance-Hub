@@ -299,8 +299,10 @@ export function evaluateHsaLegalCapacity(
         b.reasons.add("An explicit tax-year-bound alternate married-family HSA ordinary allocation is applied.");
       }
     } else {
-      a.sharedOrdinaryAllocation = sharedOrdinaryBase / 2;
-      b.sharedOrdinaryAllocation = sharedOrdinaryBase / 2;
+      const sharedOrdinaryCents = Math.round(sharedOrdinaryBase * 100);
+      const firstOwnerCents = Math.floor(sharedOrdinaryCents / 2);
+      a.sharedOrdinaryAllocation = firstOwnerCents / 100;
+      b.sharedOrdinaryAllocation = (sharedOrdinaryCents - firstOwnerCents) / 100;
       if (sharedOrdinaryBase > 0) {
         a.reasons.add("The married-family shared ordinary HSA base uses the equal allocation default because no alternate agreement is recorded.");
         b.reasons.add("The married-family shared ordinary HSA base uses the equal allocation default because no alternate agreement is recorded.");
