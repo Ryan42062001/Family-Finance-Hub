@@ -2,44 +2,44 @@
 
 HANDOFF
 
-Task ID: FFH-PW-003 orchestration / Work-mode readiness integration
+Task ID: FFH-PW-003 orchestration / FFH-011 Manager acceptance + FFH-016 activation
 Role: Manager / Architect
-Status: ACTIVE — WORK-MODE FINDINGS INTEGRATED; FFH-011 AND FFH-012 REMEDIATION CONTINUE
+Status: EVENT COMPLETE — FFH-011 ACCEPTED; FFH-012 + FFH-016 ARE THE ONLY ACTIVE SPECIALIST TASKS
 
-Verified starting state: Independent Work mode reviewed Workflow V2 and captured `phase-5-money-priority-engine` at `540a9972463e7a6ff2ffbc42bc454f320e7dd550`; live Manager recheck confirmed that same head before canonical updates. `main` remained `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. Work mode reported the branch 278 ahead / 0 behind main, PR #5 open/unmerged/non-draft but unstable/red, and Foundation CI #334 failure on the head. No worker remediation commit had landed between that report and Manager integration.
+Verified starting state: Live `phase-5-money-priority-engine` head was `8f56a68a9ab018e15f0e32b11df140e04c4db615` (`docs: mark FFH-011 ready for manager`). Live `main` remained `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`. The milestone branch was 294 commits ahead / 0 behind main. PR #5 remained open, unmerged, non-draft, and not merge-ready. `.ai/shared/WORKFLOW_V3.md` was not present; Workflow V2 / FFH-D007 remains canonical.
 
-Assigned objective: Evaluate the independent Work-mode integration-readiness report, verify key findings against repository evidence, improve canonical Workflow V2 state where justified, and route the current engineers without changing production financial behavior.
+Assigned objective: Refresh authoritative repository state, handle the FFH-011 READY_FOR_MANAGER event, update dependencies/canonical state, and activate the smallest legitimate team with Work-mode classifications and normal-chat fallbacks where needed.
 
-Work completed: Accepted the Work report as independent read-only evidence after verifying the live branch and exact CI failure status for FFH-011 candidate #309 and FFH-012 isolated candidate #308. Updated FFH-011 task evidence to isolate one task-owned SIMPLE failure (`SIMPLE age 40 higher=true uses plan-specific limit`) while explicitly treating the 54 already-present FFH-012 failures as inherited/out of App/Data scope. Updated FFH-012 to own the 54 HSA-related calculation failures present on isolated Core checkpoint `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`. Reaffirmed that documentation-only red reruns do not count as owner remediation iterations. Created missing Workflow V2 task files FFH-015 (narrow R1 Core), FFH-016 (live Supabase/runtime parity), FFH-017 (Phase 5C implementation), and FFH-018 (future CI docs-only efficiency hardening). Added verification-only task semantics and a non-code readiness gate to the Manager queue. Refreshed the materially stale ROADMAP, PROJECT_STATE, TASK_INDEX, and ACTIVE_ASSIGNMENTS.
+Work completed: Independently verified FFH-011 task/handoff, remediation commit `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`, Foundation CI #348, current branch/main/PR state, and the existing 54-vs-1 failure attribution. Accepted FFH-011 in place under its grandfathered shared-branch exception. Recorded the accepted/integration checkpoint as `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`. Moved FFH-015 from BLOCKED to QUEUED because the FFH-011 dependency is satisfied but Core remains occupied by FFH-012. Activated FFH-016 so App/Data can verify accepted FFH-010 HSA + accepted FFH-011 SIMPLE live Supabase/runtime parity in parallel with Core FFH-012 remediation.
 
-Evidence produced: Independent Work-mode report; exact FFH-012 Foundation CI #308 FAILURE on `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`; exact FFH-011 Foundation CI #309 FAILURE on `f85f7779a6bebac87d433289212f8671b46d8212`; current task files containing the accepted 54-vs-1 remediation split; new FFH-015 through FFH-018 task files; refreshed readiness queue and roadmap.
+Evidence produced: FFH-011 remediation commit changes only `lib/calculations/money-priority-advanced-retirement.test.ts` (11 additions / 2 deletions) and does not modify production persistence, HSA logic, or Core formulas. Foundation CI #348 is tied to exact head `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`; calculation stage reports 54 failures, matching the Manager-isolated FFH-012 baseline after the one incremental FFH-011 SIMPLE regression was removed. Security policy-contract tests, typecheck, lint, and build were skipped by fail-fast and are explicitly not claimed as green.
 
-Tests / validation actually performed: Manager did not run local application tests or claim an audit verdict. Manager independently verified exact failed workflow runs #308 and #309 and verified the branch had not advanced with worker remediation before applying the report. The exact failing-test-set comparison and 54-vs-1 attribution came from the independent read-only Work-mode analysis and is now recorded as Manager remediation-routing evidence. Existing FFH-010 CI #300 remains the accepted green source-contract checkpoint.
+Tests / validation actually performed: No local application tests were run by Manager. Manager verified live GitHub branch/PR state, exact FFH-011 commit diff, exact CI #348 run/head, and exact job step conclusions. This is scoped task acceptance under CI-ownership rules, not a full Phase-5 validation or audit verdict.
 
-Files updated: `.ai/tasks/FFH-011.md`; `.ai/tasks/FFH-012.md`; new `.ai/tasks/FFH-015.md`; new `.ai/tasks/FFH-016.md`; new `.ai/tasks/FFH-017.md`; new `.ai/tasks/FFH-018.md`; `.ai/tasks/TASK_INDEX.md`; `.ai/tasks/README.md`; `.ai/manager/INTEGRATION_QUEUE.md`; `.ai/shared/ROADMAP.md`; `.ai/shared/PROJECT_STATE.md`; `.ai/manager/ACTIVE_ASSIGNMENTS.md`; `.ai/manager/HANDOFF.md`.
+Files updated in this Manager state commit: `.ai/tasks/FFH-011.md`; `.ai/tasks/FFH-015.md`; `.ai/tasks/FFH-016.md`; `.ai/tasks/TASK_INDEX.md`; `.ai/manager/INTEGRATION_QUEUE.md`; `.ai/shared/PROJECT_STATE.md`; `.ai/shared/ROADMAP.md`; `.ai/manager/ACTIVE_ASSIGNMENTS.md`; `.ai/manager/HANDOFF.md`.
 
-Open findings: FFH-011 still needs one focused owner remediation iteration and a current handoff. FFH-012 still needs focused owner diagnosis/remediation of the 54 HSA failures and a current handoff. FFH-013, FFH-015, FFH-016, FFH-017, final dual audits, and PR #5 pre-merge refresh remain downstream gates. FFH-018 captures the docs-only CI churn improvement but is intentionally deferred until the current red remediation state stabilizes.
+Open findings: FFH-012 still owns 54 HSA-related calculation failures. FFH-016 must prove actual HSA + SIMPLE migration/application/runtime parity. FFH-015 and FFH-013 both require later Core execution in a collision-safe order. FFH-017, full downstream branch validation, final dual audits, PR #5 refresh, and merge validation remain downstream gates.
 
-Blocking issues: Phase 5 remains NOT MERGE READY. Neither FFH-011 nor FFH-012 is READY_FOR_MANAGER. No troubleshooting escalation is currently justified because unchanged documentation-triggered red runs are not owner attempts and neither diagnosed problem has survived two actual remediation iterations.
+Blocking issues: Phase 5 remains NOT MERGE READY. Current merge blockers include FFH-012, FFH-013, FFH-015, FFH-016, FFH-017, full branch validation after calculation fail-fast is cleared, dual audits, and final PR/merge checks.
 
-Unverified items: FFH-010/FFH-011 live linked Supabase migration state, PostgREST/runtime behavior, RLS role matrix, browser end-to-end persistence/reload; future worker remediation SHAs; final integrated audit verdicts. Work mode also identified PR #5 description as stale; Manager intentionally deferred that cleanup until implementation state is more stable.
+Unverified items: Live linked Supabase migration state, PostgREST/runtime behavior, RLS role matrix, browser persistence/reload for HSA/SIMPLE, future FFH-012 remediation SHA/CI, later downstream security/typecheck/lint/build on a branch that progresses past calculations, final integrated audit verdicts.
 
-Recommended next roles: Application, Data & Integration Engineer continues FFH-011 with only its isolated SIMPLE regression. Core Financial Engine Engineer continues FFH-012 with the 54 task-owned HSA failure set. Manager returns to event-driven status and should reactivate only on READY_FOR_MANAGER, BLOCKED, escalation, dependency transition, or explicit user status request.
+Recommended next roles: Application, Data & Integration Engineer on FFH-016; Core Financial Engine Engineer on FFH-012. All other specialists remain IDLE.
 
-Exact next action: App/Data fixes `SIMPLE age 40 higher=true uses plan-specific limit` and any demonstrably FFH-011-owned regression without repairing FFH-012. Core diagnoses/remediates the 54 FFH-012 failures without touching FFH-011. Each records an actual owner remediation iteration, exact validation, task state, and current role handoff. Do not activate FFH-013, FFH-015, FFH-016, FFH-017, FFH-018, Troubleshooting, or auditors yet.
+Exact next action: Run FFH-012 and FFH-016 in parallel. Manager reactivates only when either reaches READY_FOR_MANAGER/BLOCKED/escalation, or when explicit user coordination is requested. After FFH-012 acceptance, choose the safest Core order between FFH-015 and FFH-013 from the exact overlap state.
 
-Checkpoint / SHA: Pre-integration evidence head `540a9972463e7a6ff2ffbc42bc454f320e7dd550`; exact newest Manager documentation head must be refreshed after this write.
+Checkpoint / SHA: Pre-this-write milestone head `8f56a68a9ab018e15f0e32b11df140e04c4db615`; this Manager documentation/state commit advances it. Refresh branch for exact newest Manager SHA.
 
-PRODUCTION_SHA: Not applicable — Manager documentation/orchestration only.
-VALIDATED_CI: Exact FFH-012 #308 FAILURE and FFH-011 #309 FAILURE verified; Work-mode report records head #334 reproducing the same 55-failure set.
-HANDOFF_SHA: This Manager handoff commit or its direct documentation child.
-INTEGRATION_SHA: No production task integrated in this Manager action.
+PRODUCTION_SHA: N/A — Manager orchestration/state only.
+VALIDATED_CI: FFH-011 exact checkpoint CI #348 verified as scoped evidence; branch remains red with 54 FFH-012 failures.
+HANDOFF_SHA: This Manager state commit.
+INTEGRATION_SHA: FFH-011 accepted/in-place integration checkpoint `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`.
 
 Current milestone: Phase 5 — Money Priority Engine
 Milestone status: ACTIVE / NOT MERGE READY
 Workflow: V2 / FFH-D007
-Active execution: FFH-011 REMEDIATION; FFH-012 REMEDIATION
-Queued/blocked: FFH-013, FFH-015, FFH-016, FFH-017, FFH-018
-Default active-chat target: 2–4
+Active execution: FFH-012 REMEDIATION; FFH-016 ACTIVE verification-only
+Queued: FFH-013, FFH-015, FFH-017, FFH-018
+Default active-chat target: smallest useful set; currently 2 specialists + event-driven Manager
 Troubleshooting & Build: IDLE / ON-DEMAND
 Auditors: IDLE

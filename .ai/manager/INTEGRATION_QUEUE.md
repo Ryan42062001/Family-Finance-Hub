@@ -2,35 +2,39 @@
 
 Workflow V2 integration/readiness control. Workers do not merge their own production tasks. Verification-only pre-merge gates may appear here even when they produce no production SHA.
 
-Last refreshed: 2026-09-09
+Last refreshed: 2026-09-10
 
 ## Ready for Manager
 
 None.
 
-## Remediation before integration
+## Accepted / integrated in place
 
 ### FFH-011 — SIMPLE persisted-field contract
-State: REMEDIATION
-Candidate production SHA: `f85f7779a6bebac87d433289212f8671b46d8212`
-Validation: Foundation CI #309 FAILURE. Independent failure isolation attributes 54 failures to already-red FFH-012 and one incremental FFH-011 failure: `SIMPLE age 40 higher=true uses plan-specific limit`.
-Manager gate: App/Data repairs only its owned regression, completes exact-checkpoint validation, updates FFH-011 task + role handoff to `READY_FOR_MANAGER`.
+State: ACCEPTED
+Accepted production checkpoint: `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`
+Integration checkpoint: same SHA under the grandfathered shared-branch exception.
+Validation: Foundation CI #348 on the exact checkpoint remains globally red at calculation stage with 54 failures matching the Manager-isolated FFH-012 baseline. The one incremental FFH-011 SIMPLE regression observed at #309 is removed. Security/typecheck/lint/build were skipped by fail-fast and are not claimed green.
+Remaining gates: live SIMPLE migration/runtime parity under FFH-016; narrow Core SIMPLE statutory consumption under FFH-015; later integrated validation and audits.
+
+## Remediation before integration
 
 ### FFH-012 — HSA legal-capacity calculation
 State: REMEDIATION
 Isolated Core SHA: `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`
-Validation: Foundation CI #308 FAILURE with 54 task-owned HSA-related calculation failures.
-Manager gate: focused D005 remediation, required exact-checkpoint validation, FFH-012 task + Core handoff at `READY_FOR_MANAGER`.
+Validation: Foundation CI #308 FAILURE with 54 task-owned HSA-related calculation failures. The same 54-failure set remains after FFH-011 remediation at #348.
+Manager gate: focused D005 owner remediation, required exact-checkpoint validation, FFH-012 task + Core handoff at `READY_FOR_MANAGER`.
 
-## Queued behind dependencies
+## Queued behind Core sequencing
 
 ### FFH-013 — Spousal-IRA shared compensation ledger
 State: QUEUED
-Gate: FFH-012 Manager acceptance unless Manager explicitly reorders.
+Gate: FFH-012 Manager acceptance unless Manager explicitly proves a safer reorder.
 
 ### FFH-015 — Narrow R1 SIMPLE Core remediation
-State: BLOCKED
-Gate: FFH-011 Manager acceptance and collision-safe Core scheduling.
+State: QUEUED
+Dependency status: FFH-011 acceptance SATISFIED.
+Gate: collision-safe Core scheduling while FFH-012 remains active. At the FFH-012 Manager event, choose FFH-015 versus FFH-013 order from the exact overlap/diff state rather than starting both.
 
 ### FFH-017 — Phase 5C implementation
 State: QUEUED / POLICY APPROVED
@@ -40,14 +44,15 @@ Gate: retirement-capacity blockers stable and Manager authorizes implementation.
 State: QUEUED
 Gate: current red remediation wave stable; Product R&D first designs a safe required-check strategy without weakening production validation.
 
-## Pre-merge runtime verification
+## Active pre-merge runtime verification
 
 ### FFH-016 — Live Supabase migration/runtime parity
-State: QUEUED
+State: ACTIVE
 Type: VERIFICATION-ONLY PRE-MERGE GATE
+Execution mode: WORK_MODE_HIGH_VALUE with normal-chat fallback
 PRODUCTION_SHA: N/A — VERIFICATION-ONLY
-Current required scope: accepted FFH-010 HSA migration/contract; add FFH-011 SIMPLE migration/contract after FFH-011 acceptance.
-Evidence required: actual migration application, PostgREST/persistence behavior, safe RLS role-matrix evidence, null/reload/runtime parity, and browser capture/reload where applicable.
+Scope: accepted FFH-010 HSA migration/contract plus accepted FFH-011 SIMPLE migration/contract.
+Evidence required: actual migration application, PostgREST/persistence behavior, safe RLS role-matrix evidence, null/reload/runtime parity, normalized runtime propagation, and browser capture/reload where applicable.
 Manager gate: reproducible live evidence + current App/Data handoff. Repository migration existence alone is not deployment proof.
 
 ## Integration procedure

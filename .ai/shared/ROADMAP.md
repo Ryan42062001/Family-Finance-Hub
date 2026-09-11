@@ -1,6 +1,6 @@
 # Family Finance Hub — Canonical Roadmap
 
-Last refreshed: 2026-09-09
+Last refreshed: 2026-09-10
 
 ## Product vision
 
@@ -48,7 +48,14 @@ Owner: Application, Data & Integration Engineer
 Status: COMPLETE / MANAGER ACCEPTED
 Accepted production checkpoint: `8f39e7d6e638711a80300786869a407113d3d0c4`
 Validation: Foundation CI #300 SUCCESS on exact production checkpoint.
-Remaining boundary: actual linked/live Supabase migration application, PostgREST/RLS behavior, and browser/runtime parity are not proven by repository source acceptance; this is now tracked as FFH-016.
+Remaining boundary: actual linked/live Supabase migration application, PostgREST/RLS behavior, and browser/runtime parity are tracked by active FFH-016.
+
+### FFH-011 — SIMPLE persisted-field contract
+Owner: Application, Data & Integration Engineer
+Status: COMPLETE / MANAGER ACCEPTED
+Accepted/in-place integration checkpoint: `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`.
+Foundation CI #348 on the exact checkpoint returns the branch to the 54-failure FFH-012 baseline after the one incremental FFH-011 SIMPLE regression was removed. Full downstream security/typecheck/lint/build were skipped by fail-fast and remain future integration-validation gates.
+Live SIMPLE migration/runtime parity is now in FFH-016. Core statutory SIMPLE formula consumption remains FFH-015.
 
 ### FFH-014 — Workflow V2 operating-system upgrade
 Owner: Manager / Architect
@@ -59,24 +66,21 @@ Result: FFH-D007 adopted; task files, explicit checkpoints, event-driven Manager
 
 Status: ACTIVE
 
-### FFH-011 — SIMPLE persisted-field contract
-Owner: Application, Data & Integration Engineer
-State: REMEDIATION
-Candidate: `f85f7779a6bebac87d433289212f8671b46d8212`
-Foundation CI #309: FAILURE.
-Current failure ownership: one FFH-011-specific SIMPLE regression (`SIMPLE age 40 higher=true uses plan-specific limit`); 54 other calculation failures are inherited from FFH-012 and are out of App/Data scope.
-Next gate: focused owner remediation, exact validation, current FFH-011 handoff, READY_FOR_MANAGER.
-
 ### FFH-012 — HSA legal-capacity calculation
 Owner: Core Financial Engine Engineer
 State: REMEDIATION
 Isolated Core candidate: `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`
-Foundation CI #308: FAILURE with 54 task-owned HSA-related calculation failures.
+Foundation CI #308: FAILURE with 54 task-owned HSA-related calculation failures; the same failure count remains after FFH-011 remediation at CI #348.
 Next gate: focused FFH-D005 owner remediation, exact validation, current FFH-012 handoff, READY_FOR_MANAGER.
 
-FFH-011 and FFH-012 remain grandfathered shared-branch Workflow V2 tasks. Documentation-only later CI reruns that reproduce their existing failures are not owner remediation attempts.
+### FFH-016 — Live Supabase migration/runtime parity verification
+Owner: Application, Data & Integration Engineer
+State: ACTIVE / VERIFICATION-ONLY PRE-MERGE GATE
+Scope: accepted FFH-010 HSA migration/contract plus accepted FFH-011 SIMPLE migration/contract.
+Execution mode: WORK_MODE_HIGH_VALUE; normal-chat fallback is valid.
+Next gate: reproducible live migration/PostgREST/RLS/persistence/runtime/browser evidence, current App/Data handoff, READY_FOR_MANAGER.
 
-## Queued / blocked work
+## Queued work
 
 ### FFH-013 — Spousal-IRA shared compensation ledger
 Owner: Core Financial Engine Engineer
@@ -85,13 +89,9 @@ Gate: FFH-012 acceptance unless Manager explicitly proves a safer reorder.
 
 ### FFH-015 — Narrow R1 SIMPLE Core remediation
 Owner: Core Financial Engine Engineer
-State: BLOCKED
-Gate: FFH-011 Manager acceptance plus collision-safe Core scheduling.
-
-### FFH-016 — Live Supabase migration/runtime parity verification
-Owner: Application, Data & Integration Engineer
-State: QUEUED / VERIFICATION-ONLY PRE-MERGE GATE
-Scope: accepted FFH-010 HSA contract; include FFH-011 SIMPLE migration/contract after FFH-011 acceptance. Must verify actual migration state, runtime/PostgREST behavior, RLS, persistence/reload/null semantics, and browser capture/reload where applicable.
+State: QUEUED
+Dependency status: FFH-011 Manager acceptance SATISFIED.
+Gate: collision-safe Core scheduling while FFH-012 is active. Manager will choose FFH-015 versus FFH-013 order after the FFH-012 event from the exact overlap state.
 
 ### FFH-017 — Phase 5C implementation
 Owner: Core Financial Engine Engineer
@@ -105,11 +105,12 @@ Gate: current red remediation wave stable. Goal is to reduce docs-only full-CI c
 
 ## Current merge blockers
 
-- FFH-011 and resulting FFH-015 R1 remediation.
 - FFH-012 HSA legal-capacity remediation.
 - FFH-013 spousal-IRA production remediation.
+- FFH-015 Core SIMPLE formula remediation.
 - FFH-016 live Supabase/runtime parity gate.
 - FFH-017 Phase 5C implementation.
+- full branch validation once calculation failures no longer prevent downstream checks.
 - final Technical & Mathematical Audit.
 - final Financial Policy & Scenario Audit.
 
@@ -117,17 +118,16 @@ R2 is remediated but remains subject to integrated audit. PR #5 description/stat
 
 ## Expected sequence
 
-1. App/Data performs one focused FFH-011 owner remediation iteration; Core performs one focused FFH-012 owner remediation iteration.
-2. Manager reviews either task only when it reaches READY_FOR_MANAGER or BLOCKED.
-3. After FFH-012 acceptance, schedule FFH-013 when safe.
-4. After FFH-011 acceptance, schedule FFH-015 when Core collision risk permits.
-5. Complete FFH-016 live Supabase/runtime parity before merge-ready status.
-6. Stabilize retirement-capacity surfaces, then activate FFH-017 Phase 5C.
-7. Use FFH-018 later to improve CI efficiency after the current red evidence is stabilized; do not modify CI mid-remediation merely to suppress red runs.
-8. Run required independent Technical & Mathematical and Financial Policy & Scenario audits on stable integrated work.
-9. Remediate blocking audit findings.
-10. Refresh PR #5 description and evaluate merge gate; merge only if clean.
-11. Verify post-merge CI and reconcile canonical state.
+1. Core performs focused FFH-012 remediation while App/Data executes FFH-016 in parallel.
+2. Manager reviews either task only when it reaches READY_FOR_MANAGER, BLOCKED, or escalation.
+3. After FFH-012 acceptance, choose a collision-safe order for FFH-015 and FFH-013; do not run overlapping Core implementations concurrently by default.
+4. Complete both FFH-015 and FFH-013 with Manager integration/validation.
+5. Stabilize retirement-capacity surfaces, then activate FFH-017 Phase 5C.
+6. Use FFH-018 later to improve CI efficiency after the current red evidence is stabilized; do not modify CI mid-remediation merely to suppress red runs.
+7. Run required independent Technical & Mathematical and Financial Policy & Scenario audits on stable integrated work.
+8. Remediate blocking audit findings.
+9. Refresh PR #5 description and evaluate merge gate; merge only if clean.
+10. Verify post-merge CI and reconcile canonical state.
 
 Do not pre-authorize Phase 5D–5G production work from prior chat discussion.
 
