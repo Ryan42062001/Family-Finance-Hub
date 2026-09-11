@@ -550,7 +550,10 @@ export function evaluateBuildStage(
     });
     retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
   }
-  if (retirementToRoute > 0) {
+  // Annual legal limits do not always divide evenly into cents per month (for
+  // example, $8,750 / 12). A one-cent monthly display residue is not routable
+  // without exceeding the exact annual ledger capacity.
+  if (retirementToRoute > 0.01) {
     throw new Error("Retirement capacity ledger routing invariant failed.");
   }
   const unresolvedRetirementMonthlyAmount = retirementRequest?.unfundedMonthlyAmount ?? 0;

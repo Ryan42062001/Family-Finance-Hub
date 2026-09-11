@@ -216,7 +216,8 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
         catchUpMustBeRoth: false,
         sharedCapacityGroup: hsa.sharedCapacityGroup,
         sharedCapacityRemainingRoom: hsa.sharedCapacityRemainingRoom,
-        ownerCatchUpRemainingRoom: null,
+        sharedOrdinaryRemainingRoom: hsa.sharedOrdinaryRemainingRoom,
+        ownerCatchUpRemainingRoom: hsa.ownerCatchUpRemainingRoom,
         hsaCatchUpAttributionVerified: hsa.state !== "more_information_needed",
         hsaCapacityBasis: hsa.capacityBasis,
       });

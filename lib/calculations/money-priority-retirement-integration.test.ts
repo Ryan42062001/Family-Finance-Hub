@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { runMoneyPriorityEngine as runEngine } from "./money-priority-engine.ts";
+import { withNormalizedHsaFacts } from "./hsa-test-fixtures.ts";
+
+const runMoneyPriorityEngine: typeof runEngine = (raw, asOfDate, policy) =>
+  runEngine(withNormalizedHsaFacts(raw), asOfDate, policy);
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 
 function baseRaw(): MoneyPriorityRawSnapshot {
@@ -52,7 +56,7 @@ test("projection shortfall drives the retirement increase instead of the benchma
     employee_contributed_ytd: 3000, employer_contributed_ytd: 1000,
     plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
   }];
-  const result = runMoneyPriorityEngine(raw, "2026-08-29");
+  const result = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), "2026-08-29");
   assert.equal(result.build.retirement.guidanceMode, "projection");
   assert.equal(result.build.retirement.state, "projection_shortfall");
   assert.ok(result.build.retirement.recommendedMonthlyIncrease > 0);

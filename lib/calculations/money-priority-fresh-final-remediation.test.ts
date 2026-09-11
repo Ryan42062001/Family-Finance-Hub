@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { runMoneyPriorityEngine as runEngine } from "./money-priority-engine.ts";
+import { withNormalizedHsaFacts } from "./hsa-test-fixtures.ts";
 import {
   buildMoneyPrioritySnapshot,
   MoneyPrioritySnapshotValidationError,
@@ -16,6 +17,9 @@ import {
 } from "./money-priority-user-plan.ts";
 
 const AS_OF_DATE = "2026-09-01";
+
+const runMoneyPriorityEngine: typeof runEngine = (raw, asOfDate, policy) =>
+  runEngine(withNormalizedHsaFacts(raw), asOfDate, policy);
 
 function baseRaw(): MoneyPriorityRawSnapshot {
   return {
@@ -58,7 +62,7 @@ function addDeployableCash(raw: MoneyPriorityRawSnapshot, deployable: number): v
 }
 
 function windfallRetirement(raw: MoneyPriorityRawSnapshot, amount = 10000) {
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
+  const engine = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), AS_OF_DATE);
   const result = allocateWindfall(engine, {
     amount, source: "gift", taxTreatment: "known_non_taxable",
   });
@@ -210,7 +214,7 @@ test("Your Plan treats an override as replacement and detects a two-IRA shared-l
     balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0,
     employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
   }));
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
+  const engine = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), AS_OF_DATE);
   const result = evaluateUserPlan(engine, [retirementOverride(engine, 1200)]);
   assert.equal(roomConflict(result), 6900);
   assert.equal(result.yourPlan.allocations.find((item) => item.category === "retirement")?.userMonthlyAmount, 1200);
@@ -220,7 +224,7 @@ test("Your Plan retains one-time IRA use before evaluating replacement recurring
   const raw = baseRaw();
   raw.retirementAccounts![0].employee_contributed_ytd = 0;
   addDeployableCash(raw, 5000);
-  const engine = runMoneyPriorityEngine(raw, AS_OF_DATE);
+  const engine = runMoneyPriorityEngine(withNormalizedHsaFacts(raw), AS_OF_DATE);
   assert.equal(engine.retirementCapacityLedger.entries[0].consumed.one_time, 5000);
   const result = evaluateUserPlan(engine, [retirementOverride(engine, 625)]);
   assert.equal(roomConflict(result), 5000);
