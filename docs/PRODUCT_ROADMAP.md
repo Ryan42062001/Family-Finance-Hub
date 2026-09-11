@@ -9,10 +9,11 @@ The product is not intended to be only a transaction tracker. Its long-term diff
 - Phase 1 — Secure Foundation ✅ Complete
 - Phase 2 — Household Financial Profile ✅ Complete
 - Phase 3 — Dashboard ✅ Complete
-- Phase 4 — Planning Tools 🚧 In progress
-- Phase 5 — Money Priority Engine
+- Phase 4 — Planning Tools ✅ Complete
+- Phase 5 — Money Priority Engine 🚧 Active
 - Phase 6 — Scenario Lab
-- Phase 7 — Private Beta
+- Phase 7 — Deployment & Release Readiness
+- Phase 8 — Private Beta
 
 ## Phase 1 — Secure Foundation ✅
 - Next.js + TypeScript application
@@ -45,7 +46,7 @@ The product is not intended to be only a transaction tracker. Its long-term diff
 - Safe empty and incomplete-data states
 - Tested dashboard calculation helpers
 
-## Phase 4 — Planning Tools 🚧
+## Phase 4 — Planning Tools ✅
 - Paycheck planner
 - Emergency-fund calculator
 - Debt payoff calculator
@@ -53,9 +54,9 @@ The product is not intended to be only a transaction tracker. Its long-term diff
 - Savings-goal projections
 - Retirement contribution pacing
 
-Phase 4 calculators should reuse pure calculation modules, explain assumptions, handle incomplete data safely, and avoid modifying live household records unless a user explicitly applies a result in a later feature.
+Phase 4 calculators reuse pure calculation modules, explain assumptions, handle incomplete data safely, and avoid modifying live household records unless a user explicitly applies a result in a later feature.
 
-## Phase 5 — Money Priority Engine
+## Phase 5 — Money Priority Engine 🚧
 - Evaluate employer match
 - Evaluate emergency reserves
 - Evaluate high-interest debt
@@ -63,6 +64,8 @@ Phase 4 calculators should reuse pure calculation modules, explain assumptions, 
 - Evaluate short-term household goals
 - Evaluate extra debt payments
 - Explain recommendations and tradeoffs
+
+Phase 5 is the active milestone. It remains isolated on `phase-5-money-priority-engine` until its correctness, audit, migration, and integration gates are satisfied and PR #5 is ready to merge.
 
 ## Phase 6 — Scenario Lab
 Examples:
@@ -76,7 +79,22 @@ Examples:
 
 Scenarios must never modify live household data unless the user explicitly applies them.
 
-## Phase 7 — Private Beta
+## Phase 7 — Deployment & Release Readiness
+Before Private Beta, establish a production-ready deployment and a stable public application URL.
+
+Required release-readiness work:
+- Create and verify the Vercel production project and production environment.
+- Configure production environment variables and secrets without committing sensitive values.
+- Verify production Supabase project linkage, authentication callbacks, and required database migrations.
+- Run production smoke tests for sign-up/sign-in, protected routes, household onboarding, dashboard, planning tools, and critical Money Priority Engine flows.
+- Verify Row Level Security and cross-household isolation remain intact in the deployed environment.
+- Establish a stable production URL and decide whether a custom domain is needed before Private Beta.
+- Add the production website URL to the GitHub repository About section and README once it is stable.
+- Maintain a release checklist and rollback path for failed production deployments or migrations.
+
+Private Beta must not begin until the deployed application has a verified stable URL and the release-readiness checks above are satisfied.
+
+## Phase 8 — Private Beta
 - Invite friends and family to create independent households
 - Account recovery
 - Security review
