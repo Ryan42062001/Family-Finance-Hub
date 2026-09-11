@@ -8,36 +8,45 @@ Last refreshed: 2026-09-11
 |---|---|---|---|---|
 | FFH-009 | Retirement Policy | ACCEPTED | policy artifact | FFH-D006 complete for current wave |
 | FFH-010 | App/Data | ACCEPTED | `8f39e7d6e638711a80300786869a407113d3d0c4` | CI #300 SUCCESS; live deployment remains FFH-020 |
-| FFH-011 | App/Data | REMEDIATION | accepted source `a89e9ae...`; milestone `b33e973...` | Newly exposed security textual-contract failure after calculations cleared; narrow App/Data remediation queued behind same-role FFH-020 |
-| FFH-012 | Core Engine | AUDIT_READY | production `6acdcce...`; integration `b33e973...` | Integrated calculations PASS; dual independent audits in progress |
-| FFH-013 | Core Engine | QUEUED | Not yet established | Wait for FFH-012 audit disposition / collision-safe Core slot |
+| FFH-011 | App/Data | REMEDIATION | accepted source `a89e9ae...`; milestone `b33e973...` | Security textual-contract remediation still required after deployment/history sequencing stabilizes |
+| FFH-012 | Core Engine | REMEDIATION | production `6acdcce...`; integration `b33e973...` | Dual audit FAIL; FFH-022 authority + FFH-023 technical remediation active |
+| FFH-013 | Core Engine | QUEUED | Not yet established | Wait for FFH-012 remediation/re-audit disposition |
 | FFH-014 | Manager | CLOSED | documentation/workflow | Workflow V2 / FFH-D007 adopted |
-| FFH-015 | Core Engine | QUEUED | Not yet established | FFH-011 contract semantics accepted but current FFH-011 validation remediation must stabilize first |
+| FFH-015 | Core Engine | QUEUED | Not yet established | Wait for FFH-011 validation remediation and current retirement-capacity blockers |
 | FFH-016 | App/Data | BLOCKED | N/A — VERIFICATION-ONLY | Wait for Manager-accepted FFH-020 deployment, then resume live parity |
 | FFH-017 | Core Engine | QUEUED | Not yet established | Phase 5C; wait for retirement-capacity blockers to stabilize |
-| FFH-018 | Product R&D | QUEUED | discovery first | CI hardening/test-observability work after current remediation wave stabilizes |
+| FFH-018 | Product R&D | QUEUED | discovery first | CI hardening/test-observability after current recovery wave stabilizes |
 | FFH-019 | Manager | CLOSED | `11c757141fb17c00c5b37bc702cbd0ed55c38a5c` | Workflow V3 adopted |
-| FFH-020 | App/Data | ACTIVE | N/A — DEPLOYMENT-ONLY | Apply accepted FFH-010/011 migrations exactly; return READY_FOR_MANAGER or BLOCKED |
-| FFH-021 | Manager | CLOSED | control-plane only | Work Helper / Super Troubleshooter dedicated role, folder, playbook, and broader recovery authority adopted |
+| FFH-020 | App/Data | BLOCKED | N/A — DEPLOYMENT-ONLY | Pre-existing migration history/dependency drift; wait for FFH-024 recovery plan |
+| FFH-021 | Manager | CLOSED | control-plane only | Work Helper / Super Troubleshooter role upgrade adopted |
+| FFH-022 | Retirement Policy | ACTIVE | policy authority task | Define authoritative legal-marriage contract for HSA spouse-sharing |
+| FFH-023 | Work Helper | ACTIVE | remediation candidate not yet established | Fix FFH-012 cent/reconciliation defects; spouse semantics wait for FFH-022 approval |
+| FFH-024 | Product R&D | ACTIVE | research/recovery plan | Define safe Supabase migration-history reconciliation before FFH-020 live writes |
 
-## Current branch-level evidence
-Milestone integration SHA for FFH-012 production behavior remains `b33e97320c8907193ba8f6a571b0d92684237f18`.
-FFH-012 independent audits may add auditor-owned documentation after that integration SHA without changing the audited production checkpoint.
+## Current verified events
+- FFH-012 Technical & Mathematical Audit: `FAIL — REMEDIATION REQUIRED`; Auditor evidence integrated via PR #10.
+- FFH-012 Financial Policy & Scenario Audit: `FAIL — REMEDIATION REQUIRED`.
+- Both audits independently identify the ambiguous `spouse_partner` authority problem.
+- Technical audit blocks on one-cent Build reconciliation.
+- Policy audit separately identifies a partial-year equal-allocation phantom legal cent.
+- FFH-020 App/Data preflight is BLOCKED by pre-existing migration-history/dependency drift; no live schema/history write was made.
 
 ## Active-chat target
-- Audit / Technical & Mathematical Auditor — FFH-012 integrated checkpoint audit.
-- Audit / Financial Policy & Scenario Auditor — FFH-012 integrated HSA policy/scenario audit.
-- Engineering / Application, Data & Integration Engineer — FFH-020 remains ACTIVE.
+- Financial Policy / Retirement & Tax-Advantaged Policy Analyst — FFH-022.
+- Work Helper / Super Troubleshooter — FFH-023.
+- Research / Product & Technical R&D Engineer — FFH-024.
 - Management / Manager — event-driven only.
 
-FFH-011 is REMEDIATION but should not consume a second same-role App/Data chat until FFH-020 returns unless Manager explicitly reschedules. Core Engineering, Financial Policy, Research, and Work Helper remain IDLE pending events.
+## IDLE / blocked departments
+- Engineering: IDLE until FFH-022/023 or FFH-024 creates an implementation-ready event; FFH-020 and FFH-016 remain BLOCKED.
+- Audit: IDLE after dual FFH-012 FAIL; re-audit only after new integrated remediation checkpoint.
+- Regulatory Research: IDLE unless FFH-022 identifies a genuinely unresolved external legal-rule question.
 
-## Work Helper activation
-Work Helper / Super Troubleshooter is now a dedicated on-demand role under `.ai/work-helper/`. It may be activated immediately by Manager for difficult technical recovery; two failed owner attempts are no longer a mandatory prerequisite. See `.ai/shared/WORK_HELPER_OVERLAY.md`.
+## Work Helper routing
+Work Helper owns technical recovery, not protected semantics. It may immediately fix the two cent/reconciliation defects under FFH-023, but it must not infer legal marriage from `spouse_partner`, filing status, or a new schema field until Manager accepts FFH-022 authority.
 
 ## Integration/readiness disposition
-- FFH-012 remains `AUDIT_READY`, not CLOSED, pending independent audit verdicts.
-- FFH-011 remains REMEDIATION for the newly exposed security-contract test.
-- FFH-020 remains ACTIVE.
-- FFH-021 is CLOSED as a workflow/control-plane upgrade.
+- FFH-012 is REMEDIATION, not AUDIT_READY/CLOSED.
+- FFH-020 remains BLOCKED; do not run `db push`, `migration repair`, MCP `apply_migration`, manual DDL, or migration-history edits until Manager reviews FFH-024.
+- FFH-011 remains REMEDIATION.
 - Phase 5 / PR #5 remains NOT MERGE READY.
