@@ -7,6 +7,9 @@ const contract = readFileSync(new URL("../../lib/calculations/money-priority-hsa
 const snapshot = readFileSync(new URL("../../lib/calculations/money-priority-snapshot.ts", import.meta.url), "utf8");
 const loader = readFileSync(new URL("../../lib/supabase/money-priority-snapshot.ts", import.meta.url), "utf8");
 const actions = readFileSync(new URL("../../app/financial-profile/hsa/actions.ts", import.meta.url), "utf8");
+const authorityMigration = readFileSync(new URL("../../supabase/migrations/20260911170000_ffh_023_hsa_legal_spouse_authority.sql", import.meta.url), "utf8");
+const hsaPage = readFileSync(new URL("../../app/financial-profile/hsa/page.tsx", import.meta.url), "utf8");
+const hypothetical = readFileSync(new URL("../../lib/calculations/money-priority-hypothetical.ts", import.meta.url), "utf8");
 
 const tables = ["person_hsa_tax_year_profiles", "person_hsa_month_statuses", "household_hsa_married_allocations"];
 
@@ -91,4 +94,31 @@ test("equal married-family default is not persisted", () => {
   assert.match(migration, /Absence means no alternate agreement is persisted; the equal default remains derived policy/i);
   assert.doesNotMatch(migration, /equal_default_amount|default_spouse_allocation|default\s+4375/i);
   assert.match(actions, /saveAlternateMarriedHsaAllocation/);
+});
+
+test("FFH-022 legal-spouse authority is pair-specific, tax-year-bound, unknown-safe, and role-protected", () => {
+  assert.match(authorityMigration, /create table public\.household_hsa_legal_spouse_authorities/i);
+  assert.match(authorityMigration, /tax_year smallint not null check \(tax_year between 2004 and 9999\)/i);
+  assert.match(authorityMigration, /'confirmed_legal_spouses','confirmed_not_legal_spouses','unknown'/i);
+  assert.match(authorityMigration, /default 'unknown'/i);
+  assert.match(authorityMigration, /unique \(household_id, tax_year, person_one_id, person_two_id\)/i);
+  assert.match(authorityMigration, /check \(person_one_id < person_two_id\)/i);
+  assert.doesNotMatch(authorityMigration, /insert into|update\s+public\./i);
+  assert.match(authorityMigration, /enable row level security/i);
+  assert.match(authorityMigration, /private\.can_read_household\(household_id\)/i);
+  assert.match(authorityMigration, /private\.can_write_household_financials\(household_id\)/i);
+});
+
+test("loader, normalized contract, reruns, and UI preserve explicit legal-spouse authority", () => {
+  assert.match(loader, /from\("household_hsa_legal_spouse_authorities"\)/);
+  assert.match(loader, /hsaLegalSpouseAuthorities: hsaLegalSpouseAuthorities\.data/);
+  assert.match(snapshot, /hsaLegalSpouseAuthorities\?: Raw\[\] \| null/);
+  assert.match(contract, /legalSpouseAuthorities: HsaLegalSpouseAuthority\[\]/);
+  assert.match(hypothetical, /hsaLegalSpouseAuthorities: snapshot\.hsa\.legalSpouseAuthorities\.map/);
+  assert.match(actions, /saveHsaLegalSpouseAuthority/);
+  assert.match(actions, /confirmation_source: "explicit_household_confirmation"/);
+  assert.match(hsaPage, /Unknown \/ confirm later/);
+  assert.match(hsaPage, /Legally married spouses/);
+  assert.match(hsaPage, /Not legally married to each other/);
+  assert.match(hsaPage, /no prior-year answer carries forward/i);
 });

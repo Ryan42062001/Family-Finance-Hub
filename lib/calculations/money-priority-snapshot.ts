@@ -209,6 +209,7 @@ export type MoneyPriorityRawSnapshot = {
   hsaTaxYearProfiles?: Raw[] | null;
   hsaMonthStatuses?: Raw[] | null;
   hsaMarriedAllocations?: Raw[] | null;
+  hsaLegalSpouseAuthorities?: Raw[] | null;
   goals?: Raw[] | null;
   insuranceExposures?: Raw[] | null;
   preferences?: Raw | null;
@@ -578,6 +579,7 @@ export function buildMoneyPrioritySnapshot(raw: MoneyPriorityRawSnapshot, option
     profiles: raw.hsaTaxYearProfiles,
     months: raw.hsaMonthStatuses,
     marriedAllocations: raw.hsaMarriedAllocations,
+    legalSpouseAuthorities: raw.hsaLegalSpouseAuthorities,
   }, peopleIds);
   if (hsaResult.issues.length) throw new MoneyPrioritySnapshotValidationError(hsaResult.issues as SnapshotValidationIssue[]);
   const hsa = hsaResult.contract;

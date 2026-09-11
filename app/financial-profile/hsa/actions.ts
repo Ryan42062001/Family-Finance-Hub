@@ -11,6 +11,7 @@ const COVERAGE = ["self_only", "family", "none", "unknown"] as const;
 const EVIDENCE = ["confirmed", "planning_assumption", "unknown"] as const;
 const LAST_MONTH_RULE = ["not_elected", "elected", "unknown"] as const;
 const TESTING_PERIOD = ["not_applicable", "pending", "satisfied", "failed", "unknown"] as const;
+const LEGAL_SPOUSE_AUTHORITY = ["confirmed_legal_spouses", "confirmed_not_legal_spouses", "unknown"] as const;
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -234,6 +235,41 @@ export async function saveAlternateMarriedHsaAllocation(formData: FormData) {
   }, { onConflict: "household_id,tax_year" });
   if (error) throw new Error(error.message);
   done(`Alternate married HSA allocation saved for ${taxYear}.`);
+}
+
+export async function saveHsaLegalSpouseAuthority(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const taxYear = taxYearValue(formData.get("tax_year"))!;
+  const firstId = uuidValue(formData.get("person_one_id"), "first person")!;
+  const secondId = uuidValue(formData.get("person_two_id"), "second person")!;
+  if (firstId === secondId) throw new Error("HSA legal-spouse authority requires two different people");
+  await assertPerson(supabase, householdId, firstId);
+  await assertPerson(supabase, householdId, secondId);
+  const [personOneId, personTwoId] = [firstId, secondId].sort();
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("household_hsa_legal_spouse_authorities").upsert({
+    household_id: householdId,
+    tax_year: taxYear,
+    person_one_id: personOneId,
+    person_two_id: personTwoId,
+    authority_status: allowed(formData.get("authority_status"), LEGAL_SPOUSE_AUTHORITY, "legal-spouse authority"),
+    confirmation_source: "explicit_household_confirmation",
+    confirmed_at: now,
+    data_version: 1,
+    updated_at: now,
+  }, { onConflict: "household_id,tax_year,person_one_id,person_two_id" });
+  if (error) throw new Error(error.message);
+  done(`HSA legal-spouse authority saved for ${taxYear}; no status carries into another year.`);
+}
+
+export async function deleteHsaLegalSpouseAuthority(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const id = uuidValue(formData.get("id"), "legal-spouse authority id")!;
+  const { data, error } = await supabase.from("household_hsa_legal_spouse_authorities")
+    .delete().eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("HSA legal-spouse authority not found");
+  done("HSA legal-spouse authority removed; spouse-dependent capacity is unknown until explicitly confirmed.");
 }
 
 export async function deleteAlternateMarriedHsaAllocation(formData: FormData) {

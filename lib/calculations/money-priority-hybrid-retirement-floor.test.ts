@@ -283,6 +283,7 @@ test("married-family HSA schedules reserve one shared ordinary bucket", () => {
     employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
     hsa_eligible: true, hsa_coverage_type: "family",
   }));
+  raw.hsaLegalSpouseAuthorities = [{ id: "authority", tax_year: 2026, person_one_id: "p1", person_two_id: "p2", authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation", confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1 }];
   const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.hsaTotalContributionAnnual, 8750);
   assert.equal(floor.unsupportedScheduledContributionAnnual, 3250);
@@ -313,6 +314,7 @@ test("married HSA catch-up schedule remains owner-specific", () => {
     person_one_ordinary_amount: 8750, person_two_ordinary_amount: 0,
     data_version: 1,
   }];
+  raw.hsaLegalSpouseAuthorities = [{ id: "authority", tax_year: 2026, person_one_id: "p1", person_two_id: "p2", authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation", confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1 }];
   const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.hsaTotalContributionAnnual, 10750);
   assert.equal(floor.unsupportedScheduledContributionAnnual, 1250);
@@ -484,6 +486,7 @@ test("spouse HSA contributions share one deterministic household spending intent
     employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered",
     hsa_eligible: true, hsa_coverage_type: "family",
   }));
+  raw.hsaLegalSpouseAuthorities = [{ id: "authority", tax_year: 2026, person_one_id: "p1", person_two_id: "p2", authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation", confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1 }];
   const forward = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   const reversed = structuredClone(raw);
   reversed.people = [...reversed.people!].reverse();

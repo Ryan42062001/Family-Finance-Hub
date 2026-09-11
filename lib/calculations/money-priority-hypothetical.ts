@@ -73,6 +73,11 @@ function snapshotToRaw(snapshot: MoneyPrioritySnapshot): MoneyPriorityRawSnapsho
       id: item.id, tax_year: item.taxYear, person_one_id: item.personOneId, person_two_id: item.personTwoId,
       person_one_ordinary_amount: item.personOneOrdinaryAmount, person_two_ordinary_amount: item.personTwoOrdinaryAmount, confirmed_at: item.confirmedAt,
     })),
+    hsaLegalSpouseAuthorities: snapshot.hsa.legalSpouseAuthorities.map((item) => ({
+      id: item.id, tax_year: item.taxYear, person_one_id: item.personOneId, person_two_id: item.personTwoId,
+      authority_status: item.status, confirmation_source: item.confirmationSource,
+      confirmed_at: item.confirmedAt, data_version: item.dataVersion,
+    })),
     goals: snapshot.goals.map((item) => ({
       id: item.id, name: item.name, target_amount: item.targetAmount, current_amount: item.currentAmount, target_date: item.targetDate,
       priority: item.priority, goal_class: item.goalClass, necessity: item.necessity, deadline_flexibility: item.deadlineFlexibility,

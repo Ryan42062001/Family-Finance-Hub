@@ -63,6 +63,13 @@ function snapshot(
       coverage_status: fact.coverage,
       evidence_status: "confirmed",
     }))),
+    hsaLegalSpouseAuthorities: facts.length === 2 ? [{
+      id: "authority", tax_year: TAX_YEAR,
+      person_one_id: [facts[0]!.personId, facts[1]!.personId].sort()[0],
+      person_two_id: [facts[0]!.personId, facts[1]!.personId].sort()[1],
+      authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation",
+      confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1,
+    }] : [],
   });
 }
 

@@ -158,6 +158,7 @@ test("Windfall keeps married-family HSA allocations under the shared family limi
     employee_contributed_ytd: 0, employer_contributed_ytd: 0,
     hsa_eligible: true, hsa_coverage_type: "family", match_status: "not_offered",
   }));
+  raw.hsaLegalSpouseAuthorities = [{ id: "authority", tax_year: 2026, person_one_id: "p1", person_two_id: "p2", authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation", confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1 }];
   const { retirement } = windfallRetirement(raw, 20000);
   assert.equal(retirement.reduce((sum, item) => sum + item.allocatedAmount, 0), 8750);
 });

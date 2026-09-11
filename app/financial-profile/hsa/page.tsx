@@ -5,8 +5,10 @@ import {
   addHsaAccount,
   addHsaPerson,
   deleteAlternateMarriedHsaAllocation,
+  deleteHsaLegalSpouseAuthority,
   deleteHsaTaxYearProfile,
   saveAlternateMarriedHsaAllocation,
+  saveHsaLegalSpouseAuthority,
   saveHsaTaxYearProfile,
   updateHsaAccountContract,
 } from "./actions";
@@ -45,14 +47,15 @@ export default async function HsaProfilePage({ searchParams }: PageProps) {
   if (!households?.length) redirect("/onboarding");
   const household = households[0];
 
-  const [peopleResult, hsaResult, profileResult, monthResult, allocationResult] = await Promise.all([
+  const [peopleResult, hsaResult, profileResult, monthResult, allocationResult, spouseAuthorityResult] = await Promise.all([
     supabase.from("household_people").select("id, display_name, relationship, birth_date, is_active").eq("household_id", household.id).order("display_name"),
     supabase.from("retirement_accounts").select("id, owner_person_id, name, balance, monthly_employee_contribution, monthly_employer_contribution, employee_contributed_ytd, employer_contributed_ytd, hsa_ytd_tax_year, hsa_eligible, hsa_coverage_type").eq("household_id", household.id).eq("account_type", "hsa").order("created_at"),
     supabase.from("person_hsa_tax_year_profiles").select("id, person_id, tax_year, medicare_effective_on, last_month_rule_status, testing_period_status, confirmed_at, data_version").eq("household_id", household.id).order("tax_year", { ascending: false }).order("person_id"),
     supabase.from("person_hsa_month_statuses").select("id, person_id, tax_year, month, eligibility_status, coverage_status, evidence_status").eq("household_id", household.id).order("tax_year", { ascending: false }).order("person_id").order("month"),
     supabase.from("household_hsa_married_allocations").select("id, tax_year, person_one_id, person_two_id, person_one_ordinary_amount, person_two_ordinary_amount, confirmed_at").eq("household_id", household.id).order("tax_year", { ascending: false }),
+    supabase.from("household_hsa_legal_spouse_authorities").select("id, tax_year, person_one_id, person_two_id, authority_status, confirmation_source, confirmed_at, data_version").eq("household_id", household.id).order("tax_year", { ascending: false }).order("person_one_id"),
   ]);
-  const firstError = [peopleResult, hsaResult, profileResult, monthResult, allocationResult].find((item) => item.error)?.error;
+  const firstError = [peopleResult, hsaResult, profileResult, monthResult, allocationResult, spouseAuthorityResult].find((item) => item.error)?.error;
   if (firstError) throw new Error(firstError.message);
 
   const people = (peopleResult.data ?? []).filter((person) => person.is_active);
@@ -60,6 +63,7 @@ export default async function HsaProfilePage({ searchParams }: PageProps) {
   const profiles = profileResult.data ?? [];
   const months = monthResult.data ?? [];
   const allocations = allocationResult.data ?? [];
+  const spouseAuthorities = spouseAuthorityResult.data ?? [];
   const personName = (id: string | null) => people.find((person) => person.id === id)?.display_name ?? "Unknown person";
   const money = (value: number | string | null) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value ?? 0));
   const currentTaxYear = new Date().getUTCFullYear();
@@ -112,6 +116,19 @@ export default async function HsaProfilePage({ searchParams }: PageProps) {
         const rows = months.filter((row) => row.person_id === profile.person_id && Number(row.tax_year) === Number(profile.tax_year));
         return <div className="record-row" key={profile.id}><span><strong>{personName(profile.person_id)} · {profile.tax_year}</strong><small>Medicare effective: {profile.medicare_effective_on ?? "unknown"} · last-month: {profile.last_month_rule_status ?? "unknown"} · testing: {profile.testing_period_status ?? "unknown"}</small></span><div className="record-actions"><details className="edit-panel"><summary>Edit 12-month facts</summary><form className="data-form edit-form" action={saveHsaTaxYearProfile}><input type="hidden" name="person_id" value={profile.person_id} /><input type="hidden" name="tax_year" value={profile.tax_year} /><label>Medicare effective date<input name="medicare_effective_on" type="date" defaultValue={profile.medicare_effective_on ?? ""} /></label><label>Last-month rule<select name="last_month_rule_status" defaultValue={profile.last_month_rule_status ?? "unknown"}><option value="unknown">Unknown / not decided</option><option value="not_elected">Not elected</option><option value="elected">Explicitly elected</option></select></label><label>Testing-period status<select name="testing_period_status" defaultValue={profile.testing_period_status ?? "unknown"}><option value="unknown">Unknown</option><option value="not_applicable">Not applicable</option><option value="pending">Pending</option><option value="satisfied">Satisfied</option><option value="failed">Failed</option></select></label><MonthFields rows={rows} /><button type="submit">Save changes</button></form></details><form action={deleteHsaTaxYearProfile}><input type="hidden" name="id" value={profile.id} /><button className="danger-button" type="submit">Delete year</button></form></div></div>;
       })}</div>
+    </section>
+
+    <section className="panel">
+      <h2>HSA legal-spouse authority</h2>
+      <p className="muted">Confirm the legal relationship for this exact person pair and HSA tax year. “Spouse / partner” and tax filing status do not answer this question, and no prior-year answer carries forward.</p>
+      {people.length >= 2 ? <form className="data-form" action={saveHsaLegalSpouseAuthority}>
+        <label>HSA tax year<input name="tax_year" type="number" min="2004" max="9999" step="1" defaultValue={currentTaxYear} required /></label>
+        <label>First person<select name="person_one_id" required><PersonOptions people={people} /></select></label>
+        <label>Second person<select name="person_two_id" required><PersonOptions people={people} /></select></label>
+        <label>Legal relationship for this year<select name="authority_status" defaultValue="unknown"><option value="unknown">Unknown / confirm later</option><option value="confirmed_legal_spouses">Legally married spouses</option><option value="confirmed_not_legal_spouses">Not legally married to each other</option></select></label>
+        <button type="submit">Save legal-spouse authority</button>
+      </form> : <p className="empty-state">At least two financial people are required to confirm pair-specific authority.</p>}
+      <div className="record-list">{spouseAuthorities.map((authority) => <div className="record-row" key={authority.id}><span><strong>{authority.tax_year} · {personName(authority.person_one_id)} and {personName(authority.person_two_id)}</strong><small>{authority.authority_status.replaceAll("_", " ")} · explicitly confirmed for this HSA year</small></span><form action={deleteHsaLegalSpouseAuthority}><input type="hidden" name="id" value={authority.id} /><button className="danger-button" type="submit">Remove authority</button></form></div>)}</div>
     </section>
 
     <section className="panel">

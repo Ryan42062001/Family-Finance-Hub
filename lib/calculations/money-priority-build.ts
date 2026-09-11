@@ -461,7 +461,7 @@ export function evaluateBuildStage(
       - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
       || a.accountId.localeCompare(b.accountId));
   const routableLedger = cloneRetirementCapacityLedger(capacityLedger);
-  let routableAnnualRoom = 0;
+  let routableRetirementMonthlyCapacity = 0;
   for (const destination of retirementDestinations) {
     const room = remainingRetirementCapacity(routableLedger, destination.accountId);
     if (room === null || room <= 0) continue;
@@ -471,9 +471,10 @@ export function evaluateBuildStage(
       "build",
       room,
     );
-    routableAnnualRoom = roundMoney(routableAnnualRoom + consumed.consumedAnnualAmount);
+    routableRetirementMonthlyCapacity = roundMoney(
+      routableRetirementMonthlyCapacity + roundMoney(consumed.consumedAnnualAmount / 12),
+    );
   }
-  const routableRetirementMonthlyCapacity = roundMoney(routableAnnualRoom / 12);
   const allocate = (request: BuildStageAllocation, maximum: number, isProtected = false) => {
     const stillNeeded = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
     const allocated = roundMoney(Math.min(stillNeeded, maximum, remainingMonthlyCapacity));
@@ -550,10 +551,7 @@ export function evaluateBuildStage(
     });
     retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
   }
-  // Annual legal limits do not always divide evenly into cents per month (for
-  // example, $8,750 / 12). A one-cent monthly display residue is not routable
-  // without exceeding the exact annual ledger capacity.
-  if (retirementToRoute > 0.01) {
+  if (retirementToRoute > 0) {
     throw new Error("Retirement capacity ledger routing invariant failed.");
   }
   const unresolvedRetirementMonthlyAmount = retirementRequest?.unfundedMonthlyAmount ?? 0;
