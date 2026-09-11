@@ -1,150 +1,207 @@
 # Technical Audit Handoff
 
-## FFH-012 — HSA Legal-Capacity Calculation
+## FFH-012 — HSA Legal-Capacity Calculation — post-FFH-023 independent re-audit
 
 **Audit role:** Technical & Mathematical Auditor  
 **Audit date:** 2026-09-11  
 **Verdict:** **FAIL — REMEDIATION REQUIRED**
 
-This audit was performed independently from the integrated repository state. Production code was not modified and no Manager-owned task status was changed.
+This re-audit was performed independently against the exact integrated FFH-023 checkpoint. Production code and Manager-owned task/acceptance state were not modified.
 
-## Audited checkpoints
+## Exact audited checkpoints
 
-- Production SHA: `6acdcce25a69bd4449eccea94d480d09b685d1fd`
-- Worker handoff SHA: `b7d01e5bb2df470f76306fab0452679142ba9144`
-- Integration SHA / PR #8 merge: `b33e97320c8907193ba8f6a571b0d92684237f18`
-- Milestone control-plane head used as audit base: `fb6d19641a490763c15ef3f1eb9f6e3f47934e7a`
-- Foundation CI run: `34614840278`
-- Foundation CI job: `103314058423`
+- Manager control-plane head used as audit base: `d765b036abc266b0a42c975e7c70c0ad8c92c3d9`
+- FFH-023 production SHA: `9140d19c27d206b75e2a1825065e58047f1443c2`
+- FFH-023 handoff SHA: `8854ebac7861da215aaac87501adad36bb95bbe0`
+- FFH-023 integration / PR #11 merge SHA: `1487b192491a704ca3500b42d22a50289ee1551b`
+- PR #11: `FFH-023: complete FFH-012 audit remediation`
+- Foundation CI run: `34624938204` (`Foundation CI` run #404)
+- Foundation CI job: `103347645465`
+- Accepted FFH-011 comparison checkpoint: `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`
 
-The checkpoint chain is internally consistent. PR #8 is merged at the stated integration SHA and the later control-plane commit records that exact integration SHA as `AUDIT_READY`.
+The checkpoint chain is independently verified. Commit `9140d19...` is the production implementation commit, `8854eb...` is the Work Helper handoff commit, and `1487b192...` is the actual merge commit integrating PR #11 for independent re-audit.
 
-## CI verification
+## Integrated CI verification
 
-At integration SHA `b33e97320c8907193ba8f6a571b0d92684237f18`, Foundation CI independently reports:
+Foundation CI run `34624938204` is attached to exact head SHA `1487b192491a704ca3500b42d22a50289ee1551b` and completed with the following gate state:
 
 | Step | Result |
 |---|---|
-| Install dependencies | PASS |
-| Audit production dependencies | PASS |
+| Dependency setup/install | PASS |
+| Production dependency audit | PASS |
 | Test calculations | PASS |
 | Test security policy contract | FAIL |
-| Type check | SKIPPED |
+| Typecheck | SKIPPED |
 | Lint | SKIPPED |
 | Build | SKIPPED |
 
-The FFH-012 integration diff from the accepted FFH-011 checkpoint `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a` does not modify the security-policy contract test, its simple-plan/security source path, package/workflow configuration, or another security-policy surface. PR #8 changes are confined to FFH-012 HSA implementation/tests/evidence. Therefore the observed security-policy failure is not attributable to a change introduced by FFH-012. This supports the Manager's isolation of that failure from FFH-012, without treating the unrelated security failure itself as resolved.
+### Security red-step ownership
 
-## Blocking finding 1 — ambiguous `spouse_partner` is promoted to statutory spouse status
+The security red step does **not** block FFH-012/FFH-023 closure by ownership.
+
+`tests/security/simple-plan-limit-contract.test.ts` is byte-identical at the accepted FFH-011 checkpoint and at the FFH-023 integration. GitHub reports blob SHA `9118f427068861e43cd21fac062574d11201294e` at both `a89e9ae...` and `1487b192...`. The SIMPLE normalized-snapshot shape inspected by that textual regex is likewise already present at the accepted FFH-011 checkpoint. PR #11 does not modify `tests/security/simple-plan-limit-contract.test.ts` or the FFH-011 SIMPLE capture/migration surfaces; its only security-test change is the HSA input-contract security test.
+
+The activation packet reported SIMPLE security-test blob `02297242910c554aa9ada8bf099197f20dfbc41e`; that object ID does not match the repository object returned by GitHub at either comparison checkpoint. This is a provenance-note discrepancy only. The independently material fact is that the actual blob is identical at both checkpoints and the red textual assertion predates FFH-023.
+
+## Prior finding dispositions
+
+### PRIOR FINDING A: OPEN
+
+The original implementation defect — treating `spouse_partner` itself as affirmative statutory-spouse authority — is remediated. However, FFH-022's required unknown-safe legal-authority behavior is still incomplete and can expose unsupported HSA capacity. Therefore the protected-semantic finding is not closed as a whole.
+
+Verified repaired behavior:
+
+- affirmative married-family sharing requires `confirmed_legal_spouses` for the canonical pair and target HSA tax year;
+- `confirmed_not_legal_spouses` produces independent HSA evaluation;
+- missing authority is normalized to `unknown`;
+- `spouse_partner` is used only as a candidate-pair signal, not affirmative authority;
+- filing status does not create or erase legal-spouse authority;
+- a married-allocation row does not create spouse authority;
+- prior-year authority is not selected for the target tax year;
+- pair identity is canonical/order-insensitive in persistence and normalization;
+- authority facts are serialized through hypothetical reruns and the regression suite verifies Recommendation Refresh invalidation when authority changes.
+
+Blocking gap: the evaluator's `spouseStatusIsMaterial` predicate fails to recognize some combinations where one person's unresolved eligibility/coverage can make the other person's otherwise-known self-only capacity depend on the unresolved legal-spouse state.
+
+### PRIOR FINDING B: CLOSED
+
+The odd-cent shared ordinary allocation defect is closed.
+
+For an affirmative legal-spouse pair, the evaluator rounds the period-aware shared ordinary base to money, converts it to integer cents, assigns `floor(totalCents / 2)` to the first canonical owner, and assigns the exact remainder to the second canonical owner. Therefore owner allocations always sum exactly to the authorized shared ordinary base.
+
+The required `$5,104.17` case now produces exactly:
+
+- first canonical owner: `$2,552.08`;
+- second canonical owner: `$2,552.09`;
+- sum: `$5,104.17`.
+
+The remainder assignment is deterministic because the candidate pair is sorted by person ID. Reversing person/account/month input order cannot change the canonical pair or the integer-cent split. Explicit alternate allocations remain owner-specific and are rejected as legal authority unless affirmative pair/year spouse authority exists; an affirmative alternate allocation remains constrained not to exceed the period-aware shared base.
+
+No extra cent becomes routable from the equal-default split.
+
+### PRIOR FINDING C: CLOSED
+
+The Build/destination reconciliation defect is closed.
+
+Build now derives aggregate routable monthly retirement capacity from the actual destination ledger consumptions, rounding each consumed annual destination amount to its monthly account route before summing. The final routing loop then routes against the authoritative ledger and throws on **any** positive `retirementToRoute`; the prior `> 0.01` escape hatch is gone.
+
+For the required `$8,750 / $4,375 + $4,375` case:
+
+- owner A monthly destination route = `round($4,375 / 12) = $364.58`;
+- owner B monthly destination route = `round($4,375 / 12) = $364.58`;
+- aggregate Build allocation = `$729.16`;
+- actual destination routes = `$729.16`;
+- the engine does not report `$729.17` as actionable capacity.
+
+A dedicated FFH-023 regression asserts aggregate `$729.16`, routed `$729.16`, and the unresolved planning need separately. Positive routing residuals cannot silently disappear. Annual ledger capacity remains authoritative.
+
+## Blocking finding — incomplete unknown-authority materiality detection
 
 **Severity:** HIGH  
-**Blocks FFH-012 closure:** YES
-
-**Exact paths:**
+**Exact code paths:**
 
 - `lib/calculations/money-priority-hsa-legal-capacity.ts`
+- `lib/calculations/money-priority-retirement-accounts.ts`
 - `lib/calculations/ffh-012-hsa-legal-capacity.test.ts`
-- `supabase/migrations/20260829223642_phase_5_ownership_and_planning_foundation.sql`
-- `supabase/migrations/20260909005000_ffh_010_hsa_input_contract.sql`
+- accepted policy: `.ai/policy/retirement/FFH-022_HSA_LEGAL_MARRIAGE_AUTHORITY_POLICY.md`
 
 **Reproducible scenario:**
 
-Create an active household with exactly two nondependent people: one `relationship = "self"` and one `relationship = "spouse_partner"`. The second person is an unmarried domestic partner rather than a legal spouse. Give both people confirmed full-year 2026 HSA eligibility with family HDHP coverage, no Medicare, age under 55, separate HSA accounts, and zero current-year employee/employer YTD contributions. No explicit married-family allocation is supplied.
+Target tax year 2026. Two active, nondependent household people form the candidate pair:
 
-**Expected behavior:**
+- person A: `relationship = self`, age under 55, HSA profile present, no Medicare, all 12 months `eligibility = eligible`, `coverage = self_only`, HSA YTD = 0;
+- person B: `relationship = spouse_partner`, age under 55, HSA profile present, no Medicare, all 12 months `eligibility = eligible`, but `coverage = unknown`, HSA YTD = 0;
+- legal-spouse authority for A/B/2026 is missing or explicitly `unknown`;
+- no fact is permitted to infer legal marriage from relationship, filing status, or allocation data.
 
-FFH-D005 requires ordinary married-family sharing only for spouses and requires unknown-safe behavior when a material legal-capacity fact is unavailable. The persisted relationship enum deliberately combines `spouse` and `partner` into one value, and the accepted FFH-010 normalized HSA contract does not provide a separate authoritative legal-marriage fact. The calculator therefore must not infer statutory spouse status from `spouse_partner` alone. It needs an authoritative legal-marriage discriminator or must return targeted more-information-needed behavior rather than applying married-family sharing.
+**Expected result:**
 
-**Actual behavior:**
+FFH-022 says unknown/missing legal-spouse authority must return targeted `more_information_needed` wherever spouse status can change legal capacity, and known self-only room remains actionable only when the spouse/non-spouse distinction **cannot change that supported result**.
 
-`evaluateHsaLegalCapacity()` constructs `marriedPairIds` solely by taking the active, nondependent `self` plus `spouse_partner` pair. It then applies the statutory married-family shared ordinary ceiling. In the scenario above, the two unmarried partners are treated as one married HSA couple, producing one 2026 family ordinary base of `$8,750` and, absent an explicit allocation, a default `$4,375 / $4,375` split.
+A's apparently independent `$4,400` full-year self-only limit is not demonstrably independent here. If B's unresolved coverage resolves to `family` and A/B resolves to `confirmed_legal_spouses`, the ordinary married-family shared base is `$8,750` and the default equal allocation gives A `$4,375`, not `$4,400`. The unresolved facts therefore change A's supported legal-capacity amount by `$25` even before considering a possible valid alternate spouse allocation.
 
-**Evidence:**
+A must not be exposed as having an unconditional `$4,400` of verified actionable HSA capacity while that material pair/year state remains unresolved.
 
-The Phase 5 relationship enum is `('self', 'spouse_partner', 'child', 'dependent_adult', 'other')`, so `spouse_partner` is not an unambiguous legal-spouse fact. The FFH-010 HSA migration adds normalized per-person/per-tax-year/month HSA facts and an optional married allocation but no legal-marriage discriminator. The FFH-012 evaluator nevertheless treats `self + spouse_partner` as the married pair. The dedicated FFH-012 test helper also leaves its base `tax_filing_status` as `single` and creates the purported married case only by adding a `spouse_partner`, demonstrating that tests encode this inference rather than testing the missing legal distinction. Filing status is not relied on here as proof of unmarried status; the defect is the promotion of an explicitly ambiguous relationship enum into a statutory spouse fact.
+**Actual result:**
 
-## Blocking finding 2 — one-cent Build tolerance permits an unreconciled allocation cent
+`evaluateHsaLegalCapacity()` treats unknown spouse status as material only when:
 
-**Severity:** MEDIUM  
-**Blocks FFH-012 closure:** YES
+1. both people are known eligible and at least one has known family coverage; or
+2. one person is known eligible with known family coverage while the other person's eligibility is unknown.
 
-**Exact paths:**
-
-- `lib/calculations/money-priority-build.ts`
-- `lib/calculations/money-priority-retirement-capacity.ts`
-- `lib/calculations/money-priority-retirement-integration.test.ts`
-
-**Reproducible scenario:**
-
-Use a valid legally married 2026 household in which both owners are under 55, both are confirmed full-year family-HSA eligible, both have zero YTD HSA contributions, and no alternate ordinary allocation exists. The legal evaluator creates the `$8,750` shared ordinary ceiling and the default equal owner ceilings of `$4,375` each.
-
-The aggregate routable monthly HSA room is rounded from `$8,750 / 12` to `$729.17`. Each owner-specific account can consume at most `$4,375` annually, which is rendered monthly as `round($4,375 / 12) = $364.58`. Two owner allocations therefore sum to `$729.16`.
-
-**Expected behavior:**
-
-The Build stage must preserve cents and reconcile its aggregate allocation to the dollars actually routed to accounts. It may deterministically route only `$729.16` and expose the remaining `$0.01`, or use another deterministic allocation/remainder method that remains consistent with the annual legal ceilings. Rounding must not create or silently discard a dollar fraction.
-
-**Actual behavior:**
-
-PR #8 changed the final Build invariant from rejecting any positive retirement-routing residual to rejecting only `retirementToRoute > 0.01`. In the scenario above, Build can record the aggregate HSA/retirement amount as `$729.17`, route `$364.58 + $364.58 = $729.16` to the two accounts, leave exactly `$0.01`, and accept the result because the residual is not greater than one cent. That cent is neither routed to an account nor reported as unresolved. This does not exceed the annual HSA ceiling, but it violates exact allocation/reconciliation and the workflow invariant that rounding must not create phantom or disappearing dollars.
+It does **not** classify `A = eligible/self_only`, `B = eligible/coverage unknown` as spouse-status material. No legal-spouse-authority missing-data item is therefore added to A. Because there is no affirmative spouse authority, the evaluator enters the independent branch: A receives the full 2026 self-only ordinary capacity of `$4,400`. `money-priority-retirement-accounts.ts` then copies that HSA state/room directly into the retirement opportunity, making it available to downstream capacity-ledger/routing logic.
 
 **Evidence:**
 
-The PR #8 patch to `money-priority-build.ts` explicitly introduces the `> 0.01` exception with a comment about annual legal limits not dividing evenly by 12. The account allocator consumes annual owner room and rounds each consumed annual amount back to monthly display amounts, while the aggregate Build amount was established from the rounded household annual room. The equal `$4,375 / $4,375` case deterministically produces the one-cent mismatch above. Existing tests allow the tolerance rather than asserting exact aggregate-to-account reconciliation for this case.
+The integrated `spouseStatusIsMaterial` predicate explicitly tests known family coverage and certain unknown-eligibility combinations but omits unknown-coverage combinations that can resolve to family coverage. The accepted FFH-022 policy explicitly requires `more_information_needed` whenever spouse status can materially change the result and explicitly permits self-only locality only when the distinction cannot change the supported result.
 
-## Non-blocking finding — transitional HSA fixture adapter can overwrite normalized facts
+The new FFH-023 regression named `unknown spouse authority preserves independently supported self-only capacity` sets **both** people to fully known self-only coverage. That scenario is legitimate and should remain actionable, but it does not cover the asymmetric case where the second candidate's coverage/eligibility is unresolved. The household-uncertainty tests that exercise unknown spouse coverage do so under already-affirmative spouse authority, so they do not cover the missing/unknown-authority interaction above.
+
+**Blocks FFH-012 closure:** YES.
+
+This is a protected-semantic legal-capacity defect, not merely a presentation or test-coverage issue. The original auto-marriage mechanism is fixed, but the accepted FFH-022 unknown-safe contract is not fully implemented.
+
+## Non-blocking finding — transitional HSA fixture helper remains capable of overwriting canonical uncertainty
 
 **Severity:** LOW  
-**Blocks FFH-012 closure:** NO
-
 **Exact path:** `lib/calculations/hsa-test-fixtures.ts`
 
 **Reproducible scenario:**
 
-Pass a legacy-style test snapshot through `withNormalizedHsaFacts()`, or accidentally reuse the helper on a snapshot intended to exercise existing partial-year/unknown normalized HSA facts.
+Wrap a fixture that is intended to preserve canonical partial-year, unknown-coverage/eligibility, or stale-YTD-tax-year HSA facts with `withNormalizedHsaFacts()`.
 
-**Expected behavior:**
+**Expected result:**
 
-A test-only adapter used to migrate historical fixtures should be narrowly scoped and should not accidentally conceal a test's intended canonical HSA state.
+A transitional adapter for legacy fixtures should not silently replace deliberately canonical HSA uncertainty or tax-year conditions.
 
-**Actual behavior:**
+**Actual result:**
 
-The helper derives twelve confirmed canonical HSA month rows from the old account-level `hsa_eligible` / `hsa_coverage_type` hints and force-binds HSA YTD to the requested tax year. If reused indiscriminately, it can replace the very unknown/partial/stale-tax-year conditions that FFH-D005 requires production code to preserve.
+The helper force-sets every HSA account's `hsa_ytd_tax_year` to the requested year, reconstructs profiles, and generates twelve `confirmed` month rows from legacy account-level `hsa_eligible` / `hsa_coverage_type` hints. If reused indiscriminately, it can erase the condition a test intended to exercise.
 
 **Evidence:**
 
-PR #8 wraps several older integration/remediation fixtures with this helper. The affected assertions were retained rather than removed or loosened, and the dedicated FFH-012 tests independently exercise unknown month facts, stale YTD, Medicare, allocation uncertainty, and order invariance without depending on this adapter. Therefore this is a test-maintenance risk, not evidence that the production normalized contract is currently bypassed.
+The helper still has this behavior at `1487b192...`. The dedicated FFH-012/023 adversarial tests directly construct canonical normalized HSA facts for partial-year, unknown, Medicare, stale-YTD, spouse-authority, odd-cent, and order-invariance cases, so current production correctness is not being inferred solely from the helper. Review of PR #11 shows additive spouse/cent regressions rather than removal/skipping of the old HSA assertions. This remains a test-maintenance hazard, not a closure blocker.
 
-## Areas independently verified as correct at the audited checkpoint
+**Blocks FFH-012 closure:** NO.
 
-The audit found no FFH-012 closure blocker in the following areas, assuming a legally married pair is correctly identified where marriage is relevant:
+## Regression/adversarial scope independently reviewed
 
-- Canonical normalized `snapshot.hsa.profiles` / `snapshot.hsa.months` drive HSA legal capacity; legacy account eligibility/coverage hints are not used by the production legal-capacity evaluator to grant twelve months of eligibility.
-- Month-sensitive proration, coverage changes, unknown month handling, and explicit last-month-rule handling are represented in the evaluator/tests.
-- Self-only versus family annual bases are applied month-by-month.
-- Medicare effective month invalidates that month and later months; YTD above reduced legal capacity produces excess/warning behavior.
-- Age-55 catch-up is owner-specific and nontransferable.
-- Employee plus employer HSA YTD is aggregated against the same owner ceiling.
-- HSA YTD must match the target tax year; stale/mismatched tax-year data does not silently consume current-year room.
-- Multiple HSA accounts for the same owner do not multiply owner or household legal capacity.
-- Shared ordinary room and owner catch-up room are propagated into account-level retirement-capacity structures.
-- The retirement-capacity ledger consumes shared group and owner room together and is deterministic under account/input ordering.
-- Existing Cash consumes the authoritative ledger before the final recurring Secure/Build plan is recomputed; Windfall uses a clone of the remaining ledger; Your Plan recreates the original ledger and reapplies one-time consumption before validating recurring retirement additions. No broader one-time/recurring/windfall HSA capacity double counting was found.
-- PR #8's migrated legacy fixtures use the normalized test adapter rather than relying on production legacy account hints. Review of the changed test patches found retained assertions and no removed tests, skips, or broad expectation weakening merely to make the suite green. The one-cent Build tolerance is the exception and is separately blocking above.
-- Dedicated FFH-012 tests cover month sensitivity, self/family coverage, Medicare/excess, tax-year isolation, married allocation mechanics, catch-up ownership, multiple accounts, uncertainty, and input-order invariance. The key missing adversarial case is an unmarried `spouse_partner`; the exact Build penny reconciliation case is also not asserted.
+Outside the blocking unknown-authority edge above, I found no new FFH-023 defect in the following reviewed invariants:
 
-## Repository/workflow discrepancy
+- **Normalized facts vs legacy hints:** production HSA legal-capacity evaluation uses normalized profiles/month rows; legacy account HSA eligibility/coverage hints do not grant canonical legal capacity.
+- **Month sensitivity / partial year:** month-level eligibility and coverage drive ordinary capacity; partial-year shared-family bases remain period-aware.
+- **Self-only / family:** ordinary limits are selected per month from normalized coverage state.
+- **Affirmative married-family sharing:** requires affirmative target-year authority and the existing eligibility/coverage trigger; equal default and explicit alternate allocation behavior remain separated from authority.
+- **Confirmed non-spouses:** no shared spouse group/equal-default allocation is created; each person's HSA facts are evaluated independently.
+- **Catch-up:** age-55 catch-up remains owner-specific and nontransferable.
+- **YTD:** employee plus employer HSA YTD is aggregated by owner; missing/current-year binding is enforced before room is considered known.
+- **Tax-year isolation:** HSA YTD and spouse authority are selected for the target year; prior-year authority does not silently carry forward.
+- **Medicare:** Medicare timing remains part of month eligibility and reduced-capacity/excess evaluation.
+- **Multiple HSAs:** account entries share owner/group capacity so extra accounts do not multiply owner or couple legal room.
+- **Capacity propagation:** shared ordinary remaining room, owner catch-up room, capacity basis, and shared group identifiers flow into retirement opportunities/ledger structures.
+- **Odd cents / boundary values:** integer-cent shared allocation preserves the exact legal base; Build uses destination-derived monthly routing and exact positive-residual rejection.
+- **Determinism/order invariance:** canonical pair sorting and deterministic account ordering preserve equivalent results under reordered inputs for the tested affirmative-authority and allocation paths.
+- **Hypothetical/refresh:** normalized legal-spouse authority records are serialized through `snapshotToRaw()` before hypothetical reruns; the FFH-023 regression verifies authority changes invalidate prior shared-family recommendations.
+- **One-time vs recurring:** the engine creates one authoritative retirement-capacity ledger, uses a clone for provisional planning, lets Existing Cash consume the authoritative ledger, then recomputes Secure/Build against residual needs on that same remaining ledger and enforces the cross-stage capacity invariant.
+- **Secure / Build:** actionable allocations consume the same legal-capacity ledger; Build account routes must reconcile exactly with aggregate retirement allocation.
+- **Windfall / Your Plan:** prior FFH-012 cross-consumer architecture/tests remain unchanged by FFH-023 except for normalized authority propagation; no new duplicate-capacity path was introduced by PR #11.
+- **Persistence:** the additive `household_hsa_legal_spouse_authorities` table is pair/year keyed, canonical-order constrained, tri-state, provenance-bearing, and RLS-protected. It was integrated as repository migration state, not deployed live by FFH-023.
+- **Test legitimacy:** PR #11 adds targeted authority/cent tests and does not weaken the old one-cent failures by tolerance; the exact Build tolerance was removed. The key missing test is the asymmetric unknown-authority + unknown-coverage case described above.
+- **Unrelated semantics:** PR #11's changed-file set is bounded to FFH-023 task/handoff, HSA authority persistence/UI/normalization/evaluator/hypothetical paths, Build cent reconciliation, HSA/retirement regression fixtures/tests, and HSA security coverage. I found no unrelated financial-policy semantic rewrite attributable to FFH-023.
 
-The audit instructions and technical-audit role refer to `.ai/audit/technical/HANDOFF.md`, but that path/directory did not exist at control-plane SHA `fb6d19641a490763c15ef3f1eb9f6e3f47934e7a`. This audit branch creates that Auditor-owned evidence path. This discrepancy does not change the mathematical verdict and no production or Manager-owned task state was modified.
+## Required bounded remediation before another technical re-audit
 
-## Required remediation before re-audit
+1. Expand unknown-authority materiality detection so `unknown`/missing legal-spouse authority blocks a person's HSA capacity whenever unresolved facts on the candidate pair can make the legally supported result differ between spouse and non-spouse resolution. This must include at least `eligible/self_only` for one person plus `eligible/coverage unknown` for the other, and the analogous unresolved eligibility/coverage permutations where family coverage remains possible.
+2. Add adversarial regressions for missing **and** explicit `unknown` authority with asymmetric fact certainty. Prove that genuinely independent all-self-only facts remain actionable while any amount that can change under a legal-spouse + family resolution is `more_information_needed`.
+3. Preserve the now-correct Finding B integer-cent split and Finding C exact Build routing behavior unchanged.
+4. Preferably harden `withNormalizedHsaFacts()` against overwriting deliberately supplied canonical HSA facts; this remains non-blocking.
 
-1. Introduce or consume an authoritative legal-marriage fact for HSA spouse-sharing rules, or fail safely with targeted more-information-needed behavior when `spouse_partner` cannot be disambiguated. Add an explicit unmarried-partner regression test. Do not infer marriage from the combined relationship enum.
-2. Remove the Build one-cent silent residual exception as an accounting escape hatch. Implement deterministic cent reconciliation so the aggregate amount reported as allocated exactly equals routed account allocations (or the residual is explicitly exposed/unresolved), while preserving annual owner/shared HSA ceilings. Add an exact reconciliation regression test for the `$8,750` / `$4,375 + $4,375` case.
-3. Preferably harden `withNormalizedHsaFacts()` so accidental use cannot overwrite an intentionally canonical HSA test scenario; this item is non-blocking relative to the two defects above.
-
-## Final audit disposition
+## Final disposition
 
 **FAIL — REMEDIATION REQUIRED**
 
-FFH-012 must not be closed at the audited checkpoint because the integrated implementation can apply married-family HSA sharing to an unmarried partner and because Build can silently accept a one-cent aggregate-to-account reconciliation mismatch. Manager retains final disposition authority.
+- `PRIOR FINDING A: OPEN`
+- `PRIOR FINDING B: CLOSED`
+- `PRIOR FINDING C: CLOSED`
+
+FFH-023 successfully repairs both cent/accounting defects and removes the original direct `spouse_partner -> married` inference. FFH-012 still must not be closed because one material unknown-authority/unknown-coverage combination can expose HSA capacity that FFH-022 requires to remain unresolved. Manager retains final task/acceptance/closure authority.
