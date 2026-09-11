@@ -25,7 +25,8 @@ Long-term differentiators include the Money Priority Engine, Household Financial
 - Phase 5C recurring goal-versus-retirement competition: APPROVED as FFH-D004; implementation task FFH-017 is queued after retirement-capacity stabilization.
 - HSA legal-capacity/data contract: APPROVED as FFH-D005.
 - MFJ spousal-IRA scarce-compensation capacity: APPROVED as FFH-D006.
-- Workflow V2 operating model: APPROVED as FFH-D007.
+- Workflow V2 task/integration safeguards: APPROVED as FFH-D007 and remain authoritative underneath V3.
+- Workflow V3 operating overlay: APPROVED/CANONICAL through FFH-019 for five-department workforce presentation, task-scoped chats, context hygiene, and Work-mode routing/fallback.
 
 ## Completed waves / tasks
 
@@ -60,7 +61,13 @@ Live SIMPLE migration/runtime parity is now in FFH-016. Core statutory SIMPLE fo
 ### FFH-014 — Workflow V2 operating-system upgrade
 Owner: Manager / Architect
 Status: CLOSED
-Result: FFH-D007 adopted; task files, explicit checkpoints, event-driven Manager, isolated future task branches, CI ownership, escalation, and compact role bootstrapping are canonical.
+Result: FFH-D007 adopted; task files, explicit checkpoints, event-driven Manager, isolated future task branches, CI ownership, escalation, and compact role bootstrapping are canonical safeguards.
+
+### FFH-019 — Workflow V3 operating overlay
+Owner: Manager / Architect
+Status: CLOSED / MANAGER ACCEPTED
+Integration checkpoint: `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`.
+Result: five-department user-facing model, `ROLE = DURABLE`, `CHAT = DISPOSABLE`, `TASK = UNIT OF WORK`, `REPOSITORY = MEMORY`, fresh task-scoped worker chats, Manager context rollover guidance, and `STANDARD_CHAT` / `WORK_MODE_PREFERRED` / `WORK_MODE_HIGH_VALUE` routing with fallbacks. No production financial behavior or audit gate changed.
 
 ## Active wave — FFH-PW-003
 
@@ -133,7 +140,7 @@ Do not pre-authorize Phase 5D–5G production work from prior chat discussion.
 
 ## Phase 6 — Scenario Lab
 
-PLANNED / NOT STARTED. Remains downstream of an accepted Phase 5 recommendation engine. Future Phase 6 production should use smaller Workflow V2 milestone/task branches rather than repeating the single very-large-PR pattern where practical.
+PLANNED / NOT STARTED. Remains downstream of an accepted Phase 5 recommendation engine. Future Phase 6 production should use smaller task/milestone branches and Workflow V3 task-scoped chats rather than repeating the single very-large-PR pattern where practical.
 
 ## Phase 7 — Private Beta
 
