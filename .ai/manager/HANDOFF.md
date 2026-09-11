@@ -2,46 +2,76 @@
 
 HANDOFF
 
-Task event: FFH-012 Manager verification/integration + FFH-011 inherited-failure attribution
+Task event: FFH-012 dual-audit failure + FFH-020 deployment/history blocker routing
 Role: Manager / Architect
-Status: EVENT COMPLETE — FFH-012 AUDIT_READY; FFH-011 REMEDIATION; FFH-020 ACTIVE
+Status: EVENT COMPLETE — FFH-012 REMEDIATION; FFH-020 BLOCKED; FFH-022/023/024 ACTIVE
 
 ## Verified repository event
 Repository: `Ryan42062001/Family-Finance-Hub`
 Milestone branch: `phase-5-money-priority-engine`
-FFH-012 PR #8 production SHA: `6acdcce25a69bd4449eccea94d480d09b685d1fd`
-FFH-012 worker handoff SHA: `b7d01e5bb2df470f76306fab0452679142ba9144`
-PR #8 was independently reviewed, marked ready, and merged.
-Integration SHA: `b33e97320c8907193ba8f6a571b0d92684237f18`
-PR #5 remains open and Phase 5 remains NOT MERGE READY.
+FFH-012 audited production/integration remains:
+- production SHA `6acdcce25a69bd4449eccea94d480d09b685d1fd`
+- integration SHA `b33e97320c8907193ba8f6a571b0d92684237f18`
+- Foundation CI run `34614840278` / job `103314058423`: calculation PASS; separately attributed FFH-011 security-contract FAIL
 
-## FFH-012 Manager disposition
-Manager verified the narrow eight-file production/test diff, corrected task/handoff evidence, branch freshness, PR mergeability, and integration result. The FFH-012 production checkpoint locally passed 792/792 calculations. Foundation CI run `34614840278`, job `103314058423`, on exact integration SHA passed `Test calculations`, independently clearing the previous 54/20 HSA blocker.
+Technical audit evidence was integrated via PR #10. Policy audit evidence is present under `.ai/audit/policy/`.
 
-FFH-012 is accepted/integrated for its owned calculation surface and advanced to `AUDIT_READY`. It is not CLOSED. Independent Technical & Mathematical and Financial Policy & Scenario audits are required on exact integration SHA `b33e97320c8907193ba8f6a571b0d92684237f18`.
+## FFH-012 disposition
+Both independent auditors returned `FAIL — REMEDIATION REQUIRED`.
 
-## Integration CI failure attribution
-The same CI run failed at `Test security policy contract`; typecheck/lint/build were skipped and are not claimed.
+Manager accepts three blocking remediation targets:
+1. HIGH protected-semantic gap — `spouse_partner` cannot be treated as proven statutory spouse authority without an approved authoritative fact/contract.
+2. MEDIUM technical defect — odd-cent partial-year married equal allocation can create one cent of legal capacity beyond the rounded shared base.
+3. MEDIUM technical/accounting defect — Build can report one cent more aggregate monthly allocation than is routed because the PR #8 one-cent tolerance silently accepts an unreconciled residual.
 
-Manager isolated the FFH-011 security-contract mismatch. `tests/security/simple-plan-limit-contract.test.ts` expects the literal source shape `simplePlanLimitCategory: nullableString(row.simple_plan_limit_category)`. The accepted snapshot implementation instead creates a local `simplePlanLimitCategory` and returns it via property shorthand. That implementation shape already existed at FFH-011 accepted checkpoint `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`, and PR #8 did not modify the SIMPLE snapshot/security files. The security failure is therefore attributed to FFH-011 validation debt, not FFH-012.
+Non-blocking audit findings: stale married-ledger component remaining metadata and risk of transitional fixture adapter overwriting intentionally canonical test facts.
 
-FFH-011 is reopened to `REMEDIATION`. App/Data should make the smallest semantic-test correction after the current FFH-020 same-role event unless Manager explicitly reschedules. No SIMPLE financial-policy or Core-formula change is authorized by this finding.
+FFH-012 is returned from `AUDIT_READY` to `REMEDIATION`.
 
-## Workforce
-ACTIVE: Technical & Mathematical Auditor — FFH-012.
-ACTIVE: Financial Policy & Scenario Auditor — FFH-012.
-ACTIVE: App/Data — FFH-020 deployment task.
-IDLE: Core Engineering pending FFH-012 audit verdict; Financial Policy; Research; Troubleshooting.
-QUEUED REMEDIATION: FFH-011 App/Data after FFH-020 event.
-BLOCKED: FFH-016 until FFH-020 acceptance.
+## FFH-012 routing
+FFH-022 — ACTIVE — Retirement & Tax-Advantaged Policy Analyst.
+Purpose: define the authoritative legal-marriage input/behavior contract for spouse vs non-spouse partner vs unknown. No code/schema implementation.
+
+FFH-023 — ACTIVE — Work Helper / Super Troubleshooter.
+Purpose: immediately fix the two cent/reconciliation defects with exact reproduction/regression evidence. The spouse-identity implementation is soft-blocked until Manager accepts FFH-022. Work Helper may not invent that protected semantic.
+
+After FFH-022 is accepted, Manager may authorize FFH-023 to complete the spouse-identity technical implementation or route the persistence/UI portion to App/Data if that is cleaner.
+
+Both independent audit roles remain IDLE until Manager integrates a new remediation checkpoint; then both must re-audit.
+
+## FFH-020 disposition
+App/Data correctly returned `BLOCKED` without live writes.
+
+Verified blockers include:
+- genuinely unapplied repository Phase 5A migration `20260902190000_phase_5a_hybrid_retirement_floor.sql` and absent expected live column;
+- repository Phase 5B version `20260903134156` versus live history `20260903135253` while Phase 5B schema is already present;
+- older `0001_household_foundation.sql` versus live `20260829180242 household_foundation` history mismatch;
+- FFH-010 `20260909005000` and FFH-011 `20260909033000` remain absent live;
+- current connected MCP migration tool cannot preserve requested repository migration versions.
+
+No `db push`, `migration repair`, MCP migration application, manual DDL, or migration-history edit is authorized yet.
+
+FFH-024 — ACTIVE — Product & Technical R&D Engineer.
+Purpose: use current authoritative Supabase guidance and repository/live facts to design the lowest-risk supported migration-history reconciliation/deployment sequence. Diagnosis/recovery-plan only; no live writes.
+
+FFH-020 and FFH-016 remain BLOCKED pending Manager review of FFH-024. Implementation Engineer is IDLE for this stream until an execution-ready plan is approved.
+
+## Current smallest useful workforce
+ACTIVE: Financial Policy — FFH-022.
+ACTIVE: Work Helper / Super Troubleshooter — FFH-023.
+ACTIVE: Product & Technical R&D — FFH-024.
+IDLE: Implementation Engineer pending upstream decisions.
+IDLE: Audit pending new FFH-012 integrated remediation checkpoint.
+IDLE: Regulatory Research unless FFH-022 raises a new external-authority question.
+Management: event-driven.
 
 ## Exact next events
-1. Independent Technical Auditor returns FFH-012 verdict.
-2. Independent Policy/Scenario Auditor returns FFH-012 verdict.
-3. App/Data returns FFH-020 READY_FOR_MANAGER or BLOCKED.
-4. After FFH-020 Manager event, activate the narrow FFH-011 security-contract remediation unless sequencing evidence changes.
-5. Manager closes FFH-012 only if required audits pass; otherwise route audit findings to remediation.
+1. FFH-022 returns READY_FOR_MANAGER or a precise Regulatory question.
+2. FFH-023 returns a validated technical remediation candidate, BLOCKED, or ESCALATION_REQUIRED.
+3. FFH-024 returns a supported migration-history recovery plan or exact capability blocker.
+4. Manager reviews each result independently and activates Implementation Engineer only when semantics/recovery sequence are implementation-ready.
+5. FFH-012 re-enters dual independent audit only after a new Manager-verified integration checkpoint exists.
 
 PRODUCTION_SHA: N/A — Manager orchestration only
-VALIDATED_CI: Foundation CI run `34614840278` / job `103314058423` on integration SHA, with calculation PASS and separately attributed FFH-011 security FAIL
-INTEGRATION_SHA: `b33e97320c8907193ba8f6a571b0d92684237f18` for FFH-012
+VALIDATED_CI: N/A for this routing event
+INTEGRATION_SHA: prior FFH-012 integration remains `b33e97320c8907193ba8f6a571b0d92684237f18`; remediation integration not yet established
