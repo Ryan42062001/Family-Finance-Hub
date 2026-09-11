@@ -1,12 +1,20 @@
 # Family Finance Hub — Manager Integration & Readiness Queue
 
-Workflow V2 integration/readiness control. Workers do not merge their own production tasks. Verification-only pre-merge gates may appear here even when they produce no production SHA.
+Workflow V2 integration/readiness control with Workflow V3 workforce/chat/execution-mode overlay. Workers do not merge their own production tasks. Verification-only pre-merge gates may appear here even when they produce no production SHA.
 
 Last refreshed: 2026-09-10
 
 ## Ready for Manager
 
 None.
+
+## Accepted / integrated control-plane work
+
+### FFH-019 — Workflow V3 operating overlay
+State: CLOSED / MANAGER ACCEPTED
+Integration checkpoint: `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`
+Validation: exact PR #6 diff reviewed as control-plane/documentation only. The concurrent milestone-branch advance touched different task/state files, so integration was collision-free.
+Remaining effect: V3 is canonical for five-department workforce presentation, task-scoped chats, context hygiene, and Work-mode routing/fallback. Workflow V2 remains authoritative underneath for task lifecycle, checkpoints, branch/integration safety, troubleshooting, financial safeguards, and audits.
 
 ## Accepted / integrated in place
 
