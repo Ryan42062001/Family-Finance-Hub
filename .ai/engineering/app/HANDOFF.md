@@ -2,93 +2,105 @@
 
 HANDOFF
 
-Task ID: FFH-011
+Task ID: FFH-016
 
 Role: Application, Data & Integration Engineer
 
-Status: READY_FOR_MANAGER — OWNER REMEDIATION COMPLETE; FFH-011-OWNED REGRESSION ISOLATED AND REMOVED
+Status: BLOCKED — LIVE SUPABASE MIGRATION MISMATCH REQUIRES MANAGER-AUTHORIZED REMEDIATION
 
-Verified starting state: Workflow V2 task `FFH-011` was in `REMEDIATION`. Manager evidence established Foundation CI #309 had 55 calculation failures: 54 HSA failures inherited from FFH-012 plus one incremental FFH-011 regression, `SIMPLE age 40 higher=true uses plan-specific limit`. The remediation iteration started from shared-branch checkpoint `44f3ace8495a256bd512e263e71e2ca9c8a24a1a`.
+## Verified repository state
 
-Assigned objective: Diagnose and fix only the isolated FFH-011 SIMPLE regression and any other regression demonstrably introduced by FFH-011. Do not repair FFH-012 HSA behavior and do not implement FFH-015 Core SIMPLE formula remediation, FFH-013, FFH-017 Phase 5C, or unrelated work.
+- Repository: `Ryan42062001/Family-Finance-Hub`
+- Milestone branch refreshed during execution: `phase-5-money-priority-engine`
+- Latest verified branch head before recording this handoff: `35d27030539af60118d43270df7172143b83ebfc`
+- PR #5 remained open, unmerged, mergeable, and pointed at the milestone branch.
+- `.ai/shared/WORKFLOW_V3.md` is now canonical for workforce/chat/execution-mode routing while `.ai/shared/WORKFLOW.md` safeguards remain authoritative.
+- `FFH-016` is the Manager-approved App/Data verification-only task.
 
-## Work completed
+## Assigned verification scope
 
-- Traced the isolated failure to `lib/calculations/money-priority-advanced-retirement.test.ts`.
-- The formula regression fixture still supplied deprecated persisted input `simple_higher_limit_eligible`, while FFH-011 intentionally makes that legacy ambiguous field non-authoritative.
-- Changed only that regression fixture so the existing Core-formula test supplies the runtime compatibility boolean directly rather than relying on the deprecated persistence field.
-- Preserved the FFH-011 safety contract: legacy `simple_higher_limit_eligible` does not become affirmative statutory evidence through snapshot normalization.
-- Did not modify production persistence, migration, loader/normalizer semantics, HSA behavior, or Core retirement formulas.
-- Did not perform FFH-015, FFH-012, FFH-013, FFH-017, or unrelated remediation.
+Verify the accepted live persistence/runtime contracts for:
+- FFH-010: `supabase/migrations/20260909005000_ffh_010_hsa_input_contract.sql`
+- FFH-011: `supabase/migrations/20260909033000_ffh_011_simple_plan_limit_contract.sql`
 
-## Exact production / test checkpoint
+The task explicitly forbids silently deploying or fixing a live mismatch; any required migration/deployment remediation must be routed back to Manager first.
 
-PRODUCTION_SHA: `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`
+## Live environment identified
 
-Commit: `test: isolate FFH-011 SIMPLE runtime regression fixture`
+Linked Supabase project:
+- project ref: `tsqwvggojeudgspnumze`
+- name: `Ryan4206's Project`
+- region: `us-east-2`
+- PostgreSQL: `17.6.1.166`
 
-Parent / remediation starting checkpoint: `44f3ace8495a256bd512e263e71e2ca9c8a24a1a`
+The project was initially `INACTIVE`. A read attempt timed out because the database was paused. The project was restored so the assigned live verification could be performed; it subsequently reached `ACTIVE_HEALTHY`. No schema migration, DDL remediation, or production-code change was applied by FFH-016.
 
-Changed file only:
-- `lib/calculations/money-priority-advanced-retirement.test.ts`
+## Reproducible live evidence
 
-No production implementation file changed in this remediation iteration.
+### Migration history
 
-## Validation actually observed
+`list_migrations` succeeded after the project was healthy. The latest applied migration returned was:
 
-Exact GitHub workflow evidence:
-- workflow: `Foundation CI`
-- run number: `#348`
-- run ID: `34526162325`
-- exact head SHA: `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`
-- conclusion: `FAILURE` at calculation-test stage because inherited FFH-012 failures remain
-- calculation job ID: `103035463838`
+- `20260903135253` — `phase_5b_goal_intelligence`
 
-Observed calculation summary on the exact remediation SHA:
-- tests: 810
-- pass: 756
-- fail: 54
-- cancelled: 0
-- skipped: 0
-- todo: 0
-- process exit code: 1 because the calculation command contains failing tests
+The live migration history did **not** contain:
+- `20260909005000` — FFH-010 HSA input contract
+- `20260909033000` — FFH-011 SIMPLE plan-limit contract
 
-Scoped ownership interpretation:
-- Manager-established pre-remediation attribution: 54 inherited FFH-012 HSA failures + 1 incremental FFH-011 SIMPLE failure = 55 total.
-- Post-remediation run #348 returned to exactly 54 failures.
-- The one focused remediation changed only the isolated SIMPLE regression fixture; therefore the incremental FFH-011 failure is removed and the remaining aggregate failure count matches the Manager-isolated FFH-012 baseline.
-- No additional FFH-011-owned regression is demonstrated by the post-remediation evidence.
+### Live schema introspection
 
-Successful steps observed before the calculation gate:
-- checkout/setup;
-- dependency installation;
-- production dependency audit.
+A read-only SQL query checked the concrete objects required by those two accepted repository migrations. Every check returned `false`:
 
-Not validated by run #348 because the workflow stopped after calculation failure:
-- security policy-contract tests;
-- TypeScript typecheck;
-- lint;
-- production build.
+- `public.person_hsa_tax_year_profiles` exists: false
+- `public.person_hsa_month_statuses` exists: false
+- `public.household_hsa_married_allocations` exists: false
+- `public.retirement_accounts.hsa_ytd_tax_year` exists: false
+- `public.retirement_accounts.simple_plan_limit_category` exists: false
+- `public.retirement_accounts.simple_plan_limit_tax_year` exists: false
 
-These downstream skips are caused by the inherited branch-level calculation red state, not claimed as passes. No local CLI validation is claimed.
+This proves the accepted repository migration files exist in source but have not been applied to the linked live Supabase project.
 
-## Persistence/runtime safety retained
+## Source/runtime contract already confirmed in repository
 
-FFH-011 continues to require explicit prospective SIMPLE category semantics and unknown-safe legacy handling. The deprecated persisted `simple_higher_limit_eligible` field remains non-authoritative; unknown/legacy data is not promoted to affirmative statutory evidence. The remediation did not alter the explicit SIMPLE category/age persistence contract or snapshot normalization.
+Repository inspection confirmed the application is wired to the missing live schema:
+- `app/financial-profile/hsa/actions.ts` writes the FFH-010 HSA tables/columns.
+- `app/financial-profile/hsa/page.tsx` reads the HSA profile/month/allocation tables and HSA YTD tax-year column.
+- `app/financial-profile/simple/actions.ts` writes the explicit SIMPLE category + tax-year contract.
+- `lib/supabase/money-priority-snapshot.ts` selects HSA profile/month/allocation rows plus HSA/SIMPLE retirement-account columns for the authoritative runtime snapshot.
+- `lib/calculations/money-priority-snapshot.ts` preserves explicit SIMPLE category/tax-year semantics through normalization.
+- `lib/calculations/money-priority-hsa-input-contract.ts` preserves explicit `unknown` HSA status values and validates person/tax-year/month references.
 
-## Remaining evidence boundary / unverified items
+Therefore the live schema mismatch blocks the normal application/PostgREST loader path rather than representing unused repository-only columns.
 
-- Live linked Supabase deployment/runtime parity for the FFH-011 migration remains unverified and is not claimed here.
-- Foundation CI remains globally red because FFH-012 owns the remaining 54 HSA calculation failures.
-- Downstream security/typecheck/lint/build were not reached on run #348 due fail-fast behavior.
-- Manager retains acceptance/integration authority and should independently verify this scoped evidence before accepting FFH-011.
+## Verification stopped at authorized mismatch boundary
 
-## Blocking issues
+Not executed/claimed because the prerequisite schema is absent:
+- authenticated PostgREST select/write success for FFH-010/FFH-011 objects;
+- FFH-010 household RLS owner/member/viewer/nonmember matrix on the missing tables;
+- live persistence -> reload -> normalized snapshot parity for HSA and SIMPLE values;
+- browser capture/reload;
+- Recommendation Refresh propagation using live FFH-010/FFH-011 data.
 
-No remaining blocker is demonstrated inside the authorized FFH-011 remediation scope. The 54 remaining calculation failures are Manager-attributed FFH-012 HSA failures and must not be repaired by App/Data.
+Continuing those checks cannot produce valid success evidence until the accepted migrations are actually applied. Per FFH-016 non-goals, no silent deployment or migration repair was performed.
+
+## Checkpoints
+
+PRODUCTION_SHA: N/A — VERIFICATION-ONLY; no production code/schema remediation authorized
+
+VALIDATED_CI: N/A — live verification task; no remediation CI claimed
+
+HANDOFF_SHA: established by this documentation commit; record exact SHA in FFH-016 task file after write
+
+INTEGRATION_SHA: N/A — no remediation integrated
+
+Runtime evidence: FAIL/BLOCKED at migration-application and live-schema gates
+
+Validation status: BLOCKED — accepted FFH-010 and FFH-011 migrations are absent from linked live Supabase
+
+Escalation count: 0 — this is a discovered environment/deployment mismatch, not repeated same-root implementation guessing
 
 ## Exact next action
 
-Manager / Architect verifies `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a` plus Foundation CI #348 scoped failure-count evidence, then either accepts FFH-011 or returns a specific FFH-011-owned finding. Manager should refresh the Manager-owned `.ai/tasks/TASK_INDEX.md` as part of that review. FFH-015 remains blocked until Manager accepts FFH-011 and schedules a collision-safe Core slot.
+Manager / Architect should review this live evidence and authorize a separate deployment/remediation step to apply the already-accepted FFH-010 and FFH-011 migrations to the intended linked Supabase environment. After deployment is independently evidenced, reactivate FFH-016 to resume PostgREST, RLS, persistence/reload, normalized snapshot, and browser/runtime parity verification.
 
-Checkpoint: FFH-011 owner remediation is READY_FOR_MANAGER at production/test checkpoint `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`. This handoff write is documentation-only and advances the shared branch without changing the validated remediation checkpoint.
+Do not mark Phase 5 merge-ready from repository migration-file existence alone.
