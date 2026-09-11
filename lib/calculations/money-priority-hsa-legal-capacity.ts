@@ -182,6 +182,13 @@ function monthOrdinaryLimit(fact: MonthFact, taxPolicy: MoneyPriorityTaxPolicy):
   return null;
 }
 
+function spouseStatusCouldChangeOrdinaryCapacity(a: MonthFact, b: MonthFact): boolean {
+  const bothCouldBeEligible = a.eligibility !== "ineligible" && b.eligibility !== "ineligible";
+  const familyCoverageIsPossible = a.coverage === "family" || a.coverage === "unknown"
+    || b.coverage === "family" || b.coverage === "unknown";
+  return bothCouldBeEligible && familyCoverageIsPossible;
+}
+
 export function evaluateHsaLegalCapacity(
   snapshot: MoneyPrioritySnapshot,
   taxPolicy: MoneyPriorityTaxPolicy,
@@ -218,13 +225,7 @@ export function evaluateHsaLegalCapacity(
     const [aId, bId] = candidatePairIds;
     const a = facts.get(aId)!;
     const b = facts.get(bId)!;
-    const spouseStatusIsMaterial = a.months.some((am, index) => {
-      const bm = b.months[index]!;
-      return (am.eligibility === "eligible" && bm.eligibility === "eligible"
-        && (am.coverage === "family" || bm.coverage === "family"))
-        || (am.eligibility === "eligible" && am.coverage === "family" && bm.eligibility === "unknown")
-        || (bm.eligibility === "eligible" && bm.coverage === "family" && am.eligibility === "unknown");
-    });
+    const spouseStatusIsMaterial = a.months.some((am, index) => spouseStatusCouldChangeOrdinaryCapacity(am, b.months[index]!));
     if (spouseStatusIsMaterial) {
       const message = `Legal-spouse authority for ${aId} and ${bId} is required for HSA spouse-sharing in ${taxYear}.`;
       a.missingData.add(message);
