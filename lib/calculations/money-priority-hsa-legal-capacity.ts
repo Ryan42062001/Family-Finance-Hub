@@ -248,10 +248,18 @@ export function evaluateHsaLegalCapacity(
       }
 
       if (am.eligibility === "eligible") {
-        a.missingData.add(`HSA month ${month} spouse eligibility can change married-family sharing for ${taxYear}.`);
+        if (am.coverage === "self_only" && bm.coverage === "self_only") {
+          a.independentOrdinary += taxPolicy.hsaSelfOnlyLimit / 12;
+        } else {
+          a.missingData.add(`HSA month ${month} spouse eligibility can change married-family sharing for ${taxYear}.`);
+        }
         b.missingData.add(`HSA month ${month} eligibility is unresolved for ${bId}.`);
       } else if (bm.eligibility === "eligible") {
-        b.missingData.add(`HSA month ${month} spouse eligibility can change married-family sharing for ${taxYear}.`);
+        if (bm.coverage === "self_only" && am.coverage === "self_only") {
+          b.independentOrdinary += taxPolicy.hsaSelfOnlyLimit / 12;
+        } else {
+          b.missingData.add(`HSA month ${month} spouse eligibility can change married-family sharing for ${taxYear}.`);
+        }
         a.missingData.add(`HSA month ${month} eligibility is unresolved for ${aId}.`);
       }
     }

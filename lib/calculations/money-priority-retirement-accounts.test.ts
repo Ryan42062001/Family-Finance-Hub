@@ -8,11 +8,50 @@ function snapshot(
   people: Record<string, unknown>[] = [],
   preferences: Record<string, unknown> | null = null,
 ) {
+  const normalizedRetirementAccounts = retirementAccounts.map((account) => ({
+    balance: 0,
+    monthly_employee_contribution: 0,
+    monthly_employer_contribution: 0,
+    ...account,
+    ...(account.account_type === "hsa" ? { hsa_ytd_tax_year: 2026 } : {}),
+  }));
+  const hsaByOwner = new Map<string, Record<string, unknown>>();
+  for (const account of normalizedRetirementAccounts) {
+    if (account.account_type === "hsa" && typeof account.owner_person_id === "string" && !hsaByOwner.has(account.owner_person_id)) {
+      hsaByOwner.set(account.owner_person_id, account);
+    }
+  }
+  const hsaTaxYearProfiles = [...hsaByOwner.keys()].map((personId) => ({
+    id: `hsa-profile-${personId}`,
+    person_id: personId,
+    tax_year: 2026,
+    medicare_effective_on: null,
+    last_month_rule_status: "not_elected",
+    testing_period_status: "not_applicable",
+    data_version: 1,
+  }));
+  const hsaMonthStatuses = [...hsaByOwner.entries()].flatMap(([personId, account]) => {
+    const eligibility = account.hsa_eligible === true ? "eligible" : account.hsa_eligible === false ? "ineligible" : "unknown";
+    const coverage = account.hsa_coverage_type === "family" || account.hsa_coverage_type === "self_only"
+      ? account.hsa_coverage_type
+      : "unknown";
+    return Array.from({ length: 12 }, (_, index) => ({
+      id: `hsa-month-${personId}-${index + 1}`,
+      person_id: personId,
+      tax_year: 2026,
+      month: index + 1,
+      eligibility_status: eligibility,
+      coverage_status: coverage,
+      evidence_status: "confirmed",
+    }));
+  });
   return buildMoneyPrioritySnapshot({
     householdId: "h1",
     people,
     income: [], expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [],
-    retirementAccounts: retirementAccounts.map((account) => ({ balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, ...account })),
+    retirementAccounts: normalizedRetirementAccounts,
+    hsaTaxYearProfiles,
+    hsaMonthStatuses,
     preferences,
   });
 }
