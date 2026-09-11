@@ -193,11 +193,17 @@ export function evaluateHsaLegalCapacity(
   if (!hsaAccounts.length) return { byAccountId, warnings: [] };
 
   const accountOwners = [...new Set(hsaAccounts.map((account) => account.ownerPersonId).filter((id): id is string => Boolean(id)))];
-  const marriedPeople = snapshot.people
+  const spouseCandidates = snapshot.people
     .filter((person) => person.isActive && !person.isDependent && (person.relationship === "self" || person.relationship === "spouse_partner"))
     .sort((a, b) => a.id.localeCompare(b.id));
-  const marriedPairIds = marriedPeople.length === 2 ? marriedPeople.map((person) => person.id) : [];
-  const relevantPeople = [...new Set([...accountOwners, ...marriedPairIds])].sort();
+  const candidatePairIds = spouseCandidates.length === 2 ? spouseCandidates.map((person) => person.id) : [];
+  const spouseAuthority = candidatePairIds.length === 2
+    ? snapshot.hsa.legalSpouseAuthorities.find((item) => item.taxYear === taxYear
+      && item.personOneId === candidatePairIds[0] && item.personTwoId === candidatePairIds[1])
+    : undefined;
+  const spouseAuthorityStatus = spouseAuthority?.status ?? "unknown";
+  const marriedPairIds = spouseAuthorityStatus === "confirmed_legal_spouses" ? candidatePairIds : [];
+  const relevantPeople = [...new Set([...accountOwners, ...candidatePairIds])].sort();
   const facts = new Map(relevantPeople.map((personId) => [personId, personMonthFacts(snapshot, personId, taxYear)] as const));
 
   for (const personId of relevantPeople) {
@@ -206,6 +212,38 @@ export function evaluateHsaLegalCapacity(
     value.ytd = ytd.value;
     ytd.missing.forEach((item) => value.missingData.add(item));
     value.warnings.forEach((item) => warnings.add(item));
+  }
+
+  if (candidatePairIds.length === 2 && spouseAuthorityStatus === "unknown") {
+    const [aId, bId] = candidatePairIds;
+    const a = facts.get(aId)!;
+    const b = facts.get(bId)!;
+    const spouseStatusIsMaterial = a.months.some((am, index) => {
+      const bm = b.months[index]!;
+      return (am.eligibility === "eligible" && bm.eligibility === "eligible"
+        && (am.coverage === "family" || bm.coverage === "family"))
+        || (am.eligibility === "eligible" && am.coverage === "family" && bm.eligibility === "unknown")
+        || (bm.eligibility === "eligible" && bm.coverage === "family" && am.eligibility === "unknown");
+    });
+    if (spouseStatusIsMaterial) {
+      const message = `Legal-spouse authority for ${aId} and ${bId} is required for HSA spouse-sharing in ${taxYear}.`;
+      a.missingData.add(message);
+      b.missingData.add(message);
+    }
+  }
+
+  if (candidatePairIds.length === 2) {
+    const filingStatus = snapshot.preferences?.taxFilingStatus;
+    if (spouseAuthorityStatus === "confirmed_legal_spouses" && (filingStatus === "single" || filingStatus === "head_of_household")) {
+      warnings.add(`hsa_legal_spouse_filing_status_mismatch:${taxYear}: affirmative legal-spouse authority controls HSA sharing; review the planning filing status.`);
+    }
+    if (spouseAuthorityStatus === "confirmed_not_legal_spouses" && (filingStatus === "married_filing_jointly" || filingStatus === "married_filing_separately")) {
+      warnings.add(`hsa_non_spouse_filing_status_mismatch:${taxYear}: confirmed non-spouse authority controls HSA sharing; review the planning filing status.`);
+    }
+    if (spouseAuthorityStatus !== "confirmed_legal_spouses"
+      && snapshot.hsa.marriedAllocations.some((item) => item.taxYear === taxYear)) {
+      warnings.add(`hsa_married_allocation_without_spouse_authority:${taxYear}: the alternate allocation is non-authoritative without affirmative legal-spouse authority.`);
+    }
   }
 
   let sharedOrdinaryBase = 0;
@@ -359,7 +397,7 @@ export function evaluateHsaLegalCapacity(
         a.remaining = 0;
         b.remaining = 0;
         marriedSharedRemaining = 0;
-      } else if (allocation) {
+      } else if (allocation && a.annualCeiling !== null && b.annualCeiling !== null) {
         if (a.ytd > a.annualCeiling) warnings.add(`possible_excess_hsa_contribution:${aId}:${taxYear}: owner HSA YTD exceeds the explicit allocated owner ceiling.`);
         if (b.ytd > b.annualCeiling) warnings.add(`possible_excess_hsa_contribution:${bId}:${taxYear}: owner HSA YTD exceeds the explicit allocated owner ceiling.`);
       }

@@ -4,6 +4,7 @@ import test from "node:test";
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 import {
   consumeRetirementCapacity,
   createRetirementCapacityLedger,
@@ -77,6 +78,7 @@ function raw(options: {
   profiles?: Record<string, unknown>[];
   months?: Record<string, unknown>[];
   allocations?: Record<string, unknown>[];
+  authorities?: Record<string, unknown>[];
 } = {}): MoneyPriorityRawSnapshot {
   return {
     householdId: "ffh-012",
@@ -86,6 +88,7 @@ function raw(options: {
     hsaTaxYearProfiles: options.profiles ?? [profile("a")],
     hsaMonthStatuses: options.months ?? months("a"),
     hsaMarriedAllocations: options.allocations ?? [],
+    hsaLegalSpouseAuthorities: options.authorities ?? [],
     preferences: { tax_profile_year: YEAR, tax_filing_status: "single", estimated_modified_agi: 100000 },
   };
 }
@@ -103,6 +106,7 @@ function married(options: { aYtd?: number; bYtd?: number; aBirth?: string; bBirt
     profiles: [profile("a"), profile("b")],
     months: [...months("a", Array.from({ length: 12 }, () => ({ coverage: "family" as const }))), ...months("b", Array.from({ length: 12 }, () => ({ coverage: "family" as const })))],
     allocations: options.allocations,
+    authorities: [{ id: "authority", tax_year: YEAR, person_one_id: "a", person_two_id: "b", authority_status: "confirmed_legal_spouses", confirmation_source: "explicit_household_confirmation", confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1 }],
   });
 }
 
@@ -214,6 +218,106 @@ test("Build aggregate monthly retirement allocation exactly equals routed accoun
   assert.equal(aggregate, 729.16);
   assert.equal(routed, 729.16);
   assert.equal(result.build.unresolvedRetirementMonthlyAmount, 470.84);
+});
+
+test("confirmed non-spouse partners are evaluated independently", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities![0]!.authority_status = "confirmed_not_legal_spouses";
+  const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input));
+  const hsas = result.opportunities.filter((item) => item.accountType === "hsa");
+  assert.deepEqual(hsas.map((item) => item.annualLimit), [8750, 8750]);
+  assert.deepEqual(hsas.map((item) => item.sharedCapacityGroup), ["hsa:a", "hsa:b"]);
+});
+
+test("missing legal-spouse authority blocks material family sharing", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities = [];
+  const hsas = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities;
+  assert.ok(hsas.every((item) => item.state === "more_information_needed"));
+  assert.ok(hsas.every((item) => item.missingData.some((message) => message.includes("Legal-spouse authority"))));
+});
+
+test("MFJ filing status cannot create legal-spouse authority", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities = [];
+  input.preferences = { ...input.preferences, tax_filing_status: "married_filing_jointly" };
+  assert.ok(evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities
+    .every((item) => item.state === "more_information_needed"));
+});
+
+test("single filing status cannot erase affirmative legal-spouse authority", () => {
+  const input = married();
+  input.preferences = { ...input.preferences, tax_filing_status: "single" };
+  const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input));
+  assert.deepEqual(result.opportunities.map((item) => item.annualLimit), [4375, 4375]);
+  assert.ok(result.warnings.some((message) => message.includes("hsa_legal_spouse_filing_status_mismatch")));
+});
+
+test("MFJ filing status cannot override confirmed non-spouse authority", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities![0]!.authority_status = "confirmed_not_legal_spouses";
+  input.preferences = { ...input.preferences, tax_filing_status: "married_filing_jointly" };
+  const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input));
+  assert.deepEqual(result.opportunities.map((item) => item.annualLimit), [8750, 8750]);
+  assert.ok(result.warnings.some((message) => message.includes("hsa_non_spouse_filing_status_mismatch")));
+});
+
+test("married allocation cannot create authority", () => {
+  const input = married({ allocations: [{ id: "alloc", tax_year: YEAR, person_one_id: "a", person_two_id: "b", person_one_ordinary_amount: 6000, person_two_ordinary_amount: 2750 }] });
+  input.hsaLegalSpouseAuthorities = [];
+  const result = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input));
+  assert.ok(result.opportunities.every((item) => item.state === "more_information_needed"));
+  assert.ok(result.warnings.some((message) => message.includes("hsa_married_allocation_without_spouse_authority")));
+});
+
+test("unknown spouse authority preserves independently supported self-only capacity", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities = [];
+  input.hsaMonthStatuses = [...months("a"), ...months("b")];
+  const hsas = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities;
+  assert.deepEqual(hsas.map((item) => item.annualLimit), [4400, 4400]);
+  assert.ok(hsas.every((item) => item.state === "available"));
+});
+
+test("unknown authority blocks only spouse-dependent HSA routes", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities = [];
+  input.retirementAccounts!.push({ id: "ira-a", owner_person_id: "a", name: "IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0, match_status: "not_offered" });
+  const opportunities = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities;
+  assert.ok(opportunities.filter((item) => item.accountType === "hsa").every((item) => item.state === "more_information_needed"));
+  assert.equal(opportunities.find((item) => item.accountId === "ira-a")?.state, "available");
+});
+
+test("legal-spouse authority is isolated to its HSA tax year", () => {
+  const input = married();
+  input.hsaLegalSpouseAuthorities![0]!.tax_year = 2025;
+  const hsas = evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities;
+  assert.ok(hsas.every((item) => item.state === "more_information_needed"));
+});
+
+test("pair and person input order cannot change affirmative spouse results", () => {
+  const first = married();
+  const second = married();
+  second.people = [...second.people!].reverse();
+  second.retirementAccounts = [...second.retirementAccounts!].reverse();
+  second.hsaTaxYearProfiles = [...second.hsaTaxYearProfiles!].reverse();
+  second.hsaMonthStatuses = [...second.hsaMonthStatuses!].reverse();
+  const summarize = (input: MoneyPriorityRawSnapshot) => evaluateRetirementAccountOpportunities(buildMoneyPrioritySnapshot(input)).opportunities
+    .map((item) => ({ id: item.accountId, limit: item.annualLimit, group: item.sharedCapacityGroup, state: item.state }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  assert.deepEqual(summarize(first), summarize(second));
+});
+
+test("authority change invalidates stale shared-family recommendations", () => {
+  const beforeRaw = married();
+  beforeRaw.income = [{ id: "income", name: "Income", monthly_amount: 10000, monthly_gross_amount: 10000, is_active: true }];
+  const afterRaw = structuredClone(beforeRaw);
+  afterRaw.hsaLegalSpouseAuthorities![0]!.authority_status = "confirmed_not_legal_spouses";
+  const before = runMoneyPriorityEngine(beforeRaw, "2026-01-01");
+  const after = runMoneyPriorityEngine(afterRaw, "2026-01-01");
+  const refresh = assessRecommendationRefresh(before, after);
+  assert.notEqual(refresh.state, "current");
+  assert.notDeepEqual(after.retirementCapacityLedger.groups, before.retirementCapacityLedger.groups);
 });
 
 test("explicit alternate married allocation is tax-year-bound and owner-specific", () => {

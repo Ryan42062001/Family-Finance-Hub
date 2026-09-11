@@ -3,6 +3,7 @@ export type HsaCoverageStatus = "self_only" | "family" | "none" | "unknown";
 export type HsaEvidenceStatus = "confirmed" | "planning_assumption" | "unknown";
 export type HsaLastMonthRuleStatus = "not_elected" | "elected" | "unknown";
 export type HsaTestingPeriodStatus = "not_applicable" | "pending" | "satisfied" | "failed" | "unknown";
+export type HsaLegalSpouseAuthorityStatus = "confirmed_legal_spouses" | "confirmed_not_legal_spouses" | "unknown";
 
 export type HsaTaxYearProfile = {
   id: string;
@@ -35,16 +36,29 @@ export type HsaMarriedAllocation = {
   confirmedAt: string | null;
 };
 
+export type HsaLegalSpouseAuthority = {
+  id: string;
+  taxYear: number;
+  personOneId: string;
+  personTwoId: string;
+  status: HsaLegalSpouseAuthorityStatus;
+  confirmationSource: string | null;
+  confirmedAt: string | null;
+  dataVersion: number;
+};
+
 export type HsaSnapshotContract = {
   profiles: HsaTaxYearProfile[];
   months: HsaMonthStatus[];
   marriedAllocations: HsaMarriedAllocation[];
+  legalSpouseAuthorities: HsaLegalSpouseAuthority[];
 };
 
 export type RawHsaSnapshotContract = {
   profiles?: Record<string, unknown>[] | null;
   months?: Record<string, unknown>[] | null;
   marriedAllocations?: Record<string, unknown>[] | null;
+  legalSpouseAuthorities?: Record<string, unknown>[] | null;
 };
 
 export type HsaContractValidationIssue = {
@@ -58,6 +72,7 @@ const COVERAGE: readonly HsaCoverageStatus[] = ["self_only", "family", "none", "
 const EVIDENCE: readonly HsaEvidenceStatus[] = ["confirmed", "planning_assumption", "unknown"];
 const LAST_MONTH_RULE: readonly HsaLastMonthRuleStatus[] = ["not_elected", "elected", "unknown"];
 const TESTING_PERIOD: readonly HsaTestingPeriodStatus[] = ["not_applicable", "pending", "satisfied", "failed", "unknown"];
+const LEGAL_SPOUSE_AUTHORITY: readonly HsaLegalSpouseAuthorityStatus[] = ["confirmed_legal_spouses", "confirmed_not_legal_spouses", "unknown"];
 
 function parseNumber(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -167,10 +182,12 @@ export function buildHsaSnapshotContract(
   const profileRows = raw.profiles ?? [];
   const monthRows = raw.months ?? [];
   const allocationRows = raw.marriedAllocations ?? [];
+  const authorityRows = raw.legalSpouseAuthorities ?? [];
 
   stableIds(profileRows, "hsaTaxYearProfiles", issues);
   stableIds(monthRows, "hsaMonthStatuses", issues);
   stableIds(allocationRows, "hsaMarriedAllocations", issues);
+  stableIds(authorityRows, "hsaLegalSpouseAuthorities", issues);
 
   const profileKeys = new Set<string>();
   const profiles = profileRows.map((row, index) => {
@@ -231,5 +248,28 @@ export function buildHsaSnapshotContract(
     } satisfies HsaMarriedAllocation;
   }).sort((a, b) => `${a.taxYear}:${a.personOneId}:${a.personTwoId}:${a.id}`.localeCompare(`${b.taxYear}:${b.personOneId}:${b.personTwoId}:${b.id}`));
 
-  return { contract: { profiles, months, marriedAllocations }, issues };
+  const authorityKeys = new Set<string>();
+  const legalSpouseAuthorities = authorityRows.map((row, index) => {
+    const taxYear = requiredInteger(row.tax_year, `hsaLegalSpouseAuthorities[${index}].tax_year`, issues, 2004, 9999);
+    const personOneId = reference(row.person_one_id, peopleIds, `hsaLegalSpouseAuthorities[${index}].person_one_id`, issues);
+    const personTwoId = reference(row.person_two_id, peopleIds, `hsaLegalSpouseAuthorities[${index}].person_two_id`, issues);
+    if (personOneId && personOneId === personTwoId) issues.push({ path: `hsaLegalSpouseAuthorities[${index}]`, code: "invalid_reference", message: "Legal-spouse authority requires two different people." });
+    const ordered = [personOneId, personTwoId].sort();
+    if (personOneId && personTwoId && personOneId !== ordered[0]) issues.push({ path: `hsaLegalSpouseAuthorities[${index}]`, code: "invalid_reference", message: "Legal-spouse authority person IDs must use canonical order." });
+    const key = `${taxYear}:${ordered[0]}:${ordered[1]}`;
+    if (authorityKeys.has(key)) issues.push({ path: `hsaLegalSpouseAuthorities[${index}]`, code: "duplicate_id", message: "Only one legal-spouse authority is allowed per person pair and HSA tax year." });
+    authorityKeys.add(key);
+    return {
+      id: requiredString(row.id, `hsaLegalSpouseAuthorities[${index}].id`, issues),
+      taxYear,
+      personOneId,
+      personTwoId,
+      status: enumValue(row.authority_status, LEGAL_SPOUSE_AUTHORITY, `hsaLegalSpouseAuthorities[${index}].authority_status`, issues, "unknown") as HsaLegalSpouseAuthorityStatus,
+      confirmationSource: nullableString(row.confirmation_source),
+      confirmedAt: nullableString(row.confirmed_at),
+      dataVersion: requiredInteger(row.data_version, `hsaLegalSpouseAuthorities[${index}].data_version`, issues, 1, 32767),
+    } satisfies HsaLegalSpouseAuthority;
+  }).sort((a, b) => `${a.taxYear}:${a.personOneId}:${a.personTwoId}:${a.id}`.localeCompare(`${b.taxYear}:${b.personOneId}:${b.personTwoId}:${b.id}`));
+
+  return { contract: { profiles, months, marriedAllocations, legalSpouseAuthorities }, issues };
 }

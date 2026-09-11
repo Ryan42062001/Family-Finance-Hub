@@ -114,7 +114,7 @@ test("legacy account eligibility and coverage remain hints and do not create per
     employer_contributed_ytd: 100,
   })];
   const snapshot = buildMoneyPrioritySnapshot(raw);
-  assert.deepEqual(snapshot.hsa, { profiles: [], months: [], marriedAllocations: [] });
+  assert.deepEqual(snapshot.hsa, { profiles: [], months: [], marriedAllocations: [], legalSpouseAuthorities: [] });
   assert.equal(snapshot.retirementAccounts[0]?.hsaEligible, true);
   assert.equal(snapshot.retirementAccounts[0]?.hsaCoverageType, "family");
   assert.equal(snapshot.retirementAccounts[0]?.hsaYtdTaxYear, null);

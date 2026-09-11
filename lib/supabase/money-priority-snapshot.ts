@@ -4,7 +4,7 @@ import { buildMoneyPrioritySnapshot, type MoneyPrioritySnapshot } from "@/lib/ca
 export async function loadMoneyPrioritySnapshot(householdId: string): Promise<MoneyPrioritySnapshot> {
   const supabase = await createClient();
 
-  const [people, income, expenses, accounts, debts, retirementAccounts, goals, insuranceExposures, preferences, hsaTaxYearProfiles, hsaMonthStatuses, hsaMarriedAllocations] = await Promise.all([
+  const [people, income, expenses, accounts, debts, retirementAccounts, goals, insuranceExposures, preferences, hsaTaxYearProfiles, hsaMonthStatuses, hsaMarriedAllocations, hsaLegalSpouseAuthorities] = await Promise.all([
     supabase.from("household_people").select("id, display_name, relationship, birth_date, planned_retirement_age, covered_by_workplace_retirement_plan, estimated_taxable_compensation_annual, is_dependent, is_active").eq("household_id", householdId).order("created_at"),
     supabase.from("income_sources").select("id, owner_person_id, name, monthly_amount, monthly_gross_amount, income_type, is_variable, is_active").eq("household_id", householdId).order("created_at"),
     supabase.from("expenses").select("id, name, category, monthly_amount, is_essential, cash_flow_treatment").eq("household_id", householdId).order("created_at"),
@@ -17,9 +17,10 @@ export async function loadMoneyPrioritySnapshot(householdId: string): Promise<Mo
     supabase.from("person_hsa_tax_year_profiles").select("id, person_id, tax_year, medicare_effective_on, last_month_rule_status, testing_period_status, confirmed_at, data_version").eq("household_id", householdId).order("person_id").order("tax_year"),
     supabase.from("person_hsa_month_statuses").select("id, person_id, tax_year, month, eligibility_status, coverage_status, evidence_status").eq("household_id", householdId).order("person_id").order("tax_year").order("month"),
     supabase.from("household_hsa_married_allocations").select("id, tax_year, person_one_id, person_two_id, person_one_ordinary_amount, person_two_ordinary_amount, confirmed_at").eq("household_id", householdId).order("tax_year"),
+    supabase.from("household_hsa_legal_spouse_authorities").select("id, tax_year, person_one_id, person_two_id, authority_status, confirmation_source, confirmed_at, data_version").eq("household_id", householdId).order("tax_year").order("person_one_id"),
   ]);
 
-  const results = [people, income, expenses, accounts, debts, retirementAccounts, goals, insuranceExposures, preferences, hsaTaxYearProfiles, hsaMonthStatuses, hsaMarriedAllocations];
+  const results = [people, income, expenses, accounts, debts, retirementAccounts, goals, insuranceExposures, preferences, hsaTaxYearProfiles, hsaMonthStatuses, hsaMarriedAllocations, hsaLegalSpouseAuthorities];
   const firstError = results.find((result) => result.error)?.error;
   if (firstError) throw firstError;
 
@@ -37,5 +38,6 @@ export async function loadMoneyPrioritySnapshot(householdId: string): Promise<Mo
     hsaTaxYearProfiles: hsaTaxYearProfiles.data,
     hsaMonthStatuses: hsaMonthStatuses.data,
     hsaMarriedAllocations: hsaMarriedAllocations.data,
+    hsaLegalSpouseAuthorities: hsaLegalSpouseAuthorities.data,
   });
 }

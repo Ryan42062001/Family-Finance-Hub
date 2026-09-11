@@ -23,6 +23,7 @@ function baseSnapshot(): MoneyPrioritySnapshot {
       profiles: [],
       months: [],
       marriedAllocations: [],
+      legalSpouseAuthorities: [],
     },
     goals: [],
     insuranceExposures: [{ id: "x1", personId: null, name: "Auto", type: "auto", deductibleAmount: 1000, familyDeductibleAmount: null, outOfPocketMax: null, percentageDeductible: null, insuredValue: null, isRelevantToReserve: true }],

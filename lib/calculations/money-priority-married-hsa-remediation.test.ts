@@ -119,6 +119,11 @@ function marriedHsaRaw(options: {
     ],
     hsaTaxYearProfiles: [profile("a"), profile("b")],
     hsaMonthStatuses: [...months("a"), ...months("b")],
+    hsaLegalSpouseAuthorities: [{
+      id: "authority", tax_year: YEAR, person_one_id: "a", person_two_id: "b",
+      authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation",
+      confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1,
+    }],
     hsaMarriedAllocations: options.allocation ? [{
       id: "allocation",
       tax_year: YEAR,

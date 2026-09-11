@@ -135,6 +135,11 @@ function raw(
       person_two_ordinary_amount: options.marriedAllocation.b,
       data_version: 1,
     }] : [],
+    hsaLegalSpouseAuthorities: [{
+      id: "authority", tax_year: TAX_YEAR, person_one_id: "a", person_two_id: "b",
+      authority_status: "confirmed_legal_spouses", confirmation_source: "test_confirmation",
+      confirmed_at: "2026-01-01T00:00:00.000Z", data_version: 1,
+    }],
     preferences: {
       emergency_fund_months_override: 3, known_income_disruption: false,
       debt_vs_investing: "balanced", job_replacement_difficulty: "easy",
