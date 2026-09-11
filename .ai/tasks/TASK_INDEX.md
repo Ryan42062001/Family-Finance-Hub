@@ -7,48 +7,44 @@ Last refreshed: 2026-09-11
 | Task | Owner | State | Production / integration checkpoint | Validation / next gate |
 |---|---|---|---|---|
 | FFH-009 | Retirement Policy | ACCEPTED | policy artifact | FFH-D006 complete for current wave |
-| FFH-010 | App/Data | ACCEPTED | `8f39e7d6e638711a80300786869a407113d3d0c4` | CI #300 SUCCESS; live deployment remains FFH-020 |
-| FFH-011 | App/Data | REMEDIATION | accepted source `a89e9ae...`; current security debt independently re-proven | Narrow semantic security-test remediation may activate now; FFH-020 is blocked |
-| FFH-012 | Core / recovery | AUDIT_READY | remediation integration `1487b192...` | Foundation CI #404 calculations PASS; dual fresh re-audits required |
-| FFH-013 | Core Engine | QUEUED | Not established | Wait for FFH-012 re-audit disposition |
+| FFH-010 | App/Data | ACCEPTED | `8f39e7d6...` | CI #300 SUCCESS; live deployment remains FFH-020 |
+| FFH-011 | App/Data | REMEDIATION | candidate `c32942f1...` on PR #13 | Owned security gate PASS; worker task/handoff completion still required; inherited typecheck errors remain separately attributable |
+| FFH-012 | Core / recovery | REMEDIATION | audited integration `1487b192...` | Dual re-audit FAIL; Finding A OPEN, B/C CLOSED; FFH-025 active |
+| FFH-013 | Core Engine | QUEUED | Not established | Wait for FFH-012 closure/reassessment |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted |
 | FFH-015 | Core Engine | QUEUED | Not established | Wait for FFH-011 validation stability and Core slot |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
 | FFH-017 | Core Engine | QUEUED | Not established | Wait for Phase-5 blockers |
-| FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-observability after current recovery wave |
-| FFH-019 | Manager | CLOSED | `11c757141fb17c00c5b37bc702cbd0ed55c38a5c` | Workflow V3 adopted |
-| FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint only | Secure Supabase CLI/auth/protected-backup execution environment required; no repair or DDL write occurred |
+| FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness recovery wave |
+| FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
+| FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
 | FFH-021 | Manager | CLOSED | control-plane | Work Helper / Super Troubleshooter role adopted |
-| FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e531309e10cb7d1127fb022362d4d5f942b` | Legal-marriage authority implemented by FFH-023 |
-| FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Integrated remediation accepted; parent FFH-012 re-audit is the next gate |
-| FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Recovery plan accepted; FFH-020 blocked only by secure CLI/auth/backup capability |
+| FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e53...` | Legal-marriage authority remains sufficient for FFH-025; no new authority gap |
+| FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | B/C and structural authority remediation independently verified; bounded FFH-025 edge remains in parent FFH-012 |
+| FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
+| FFH-025 | Work Helper | ACTIVE | Not established | Narrow compound unknown-authority materiality remediation; then dual re-audit |
 
-## Current verified recovery state
-- PR #11 is merged at FFH-012 remediation integration SHA `1487b192491a704ca3500b42d22a50289ee1551b`.
-- Foundation CI #404 / run `34624938204` / job `103347645465` on that exact SHA passes `Test calculations`, then fails `Test security policy contract`; typecheck/lint/build are skipped and are not claimed green.
-- Manager independently re-proved that the remaining security mismatch is FFH-011-owned stale textual validation debt: the security-test blob is identical at accepted FFH-011 and current integration checkpoints, PR #11 does not modify that test or the SIMPLE normalization block, and the regex requires a source shape absent from the accepted implementation.
-- FFH-023 is accepted as the remediation task. FFH-012 is AUDIT_READY, not CLOSED.
-- FFH-020 remains BLOCKED before any migration-history or live DDL write because the required secure CLI/auth/backup environment is unavailable.
-- FFH-016 remains BLOCKED behind FFH-020.
+## Current verified state
+- Both post-FFH-023 auditors returned `FAIL — REMEDIATION REQUIRED` on `1487b192491a704ca3500b42d22a50289ee1551b` for the same HIGH compound authority/eligibility/coverage materiality defect.
+- Prior Finding B odd-cent conservation is CLOSED by both auditors.
+- Prior Finding C Build/account reconciliation is CLOSED by both auditors.
+- Prior Finding A remains OPEN only because unresolved counterparty HSA facts can make unknown spouse authority material even when the current owner is known self-only.
+- FFH-022 supplies sufficient authority; no new Policy or R&D decision is needed for FFH-025.
+- Technical re-audit evidence is integrated through PR #14; policy re-audit evidence is already on the milestone.
+- FFH-011 PR #13 is retargeted to the milestone. Its exact branch CI reaches and PASSES the SIMPLE security gate, then fails on five pre-existing test TypeScript errors. Its worker-owned task/handoff packet is not yet complete, so Manager has not accepted/merged it.
+- FFH-020 remains BLOCKED before any live write.
+- FFH-018 remains queued; permanent CI detailed test-output artifacts are not yet implemented.
 
 ## ACTIVATE NOW
-- Auditor/QA — Technical & Mathematical Auditor — FFH-012 fresh re-audit of exact integration `1487b192...`.
-- Auditor/QA — Financial Policy & Scenario Auditor — FFH-012 fresh independent re-audit of the same exact integration in a separate conversation.
+- Work Helper / Super Troubleshooter — FFH-025.
+- Implementation Engineer / App-Data — finish FFH-011 evidence/handoff on existing branch/PR; no new code expected unless new evidence changes the diagnosis.
 
-## Available independent remediation
-- Implementation Engineer / App-Data may now execute the narrow FFH-011 security-contract remediation because FFH-020 is blocked and no longer occupies the role. This work is independent of the FFH-012 re-audits.
+## IDLE / BLOCKED
+- Auditor/QA: IDLE until FFH-025 is integrated, then both independent re-audits run again.
+- Financial Policy: IDLE; authority is sufficient.
+- R&D: IDLE.
+- FFH-020 execution: BLOCKED on secure CLI/auth/backup capability.
+- Core Engineering: IDLE pending FFH-012 disposition.
+- Manager: event-driven after routing.
 
-## Idle / blocked departments
-- FFH-020 Implementation execution: BLOCKED pending secure Supabase CLI/auth/backup capability.
-- Financial Policy: IDLE after FFH-022 acceptance.
-- R&D: IDLE after FFH-024 acceptance.
-- Core Engineering: IDLE pending FFH-012 re-audit disposition.
-- Manager: event-driven after this routing event.
-
-## Integration/readiness disposition
-- FFH-012: AUDIT_READY.
-- FFH-023: ACCEPTED.
-- FFH-011: REMEDIATION.
-- FFH-020: BLOCKED before first history repair.
-- FFH-016: BLOCKED.
-- Phase 5 / PR #5 remains NOT MERGE READY.
+Phase 5 / PR #5 remains NOT MERGE READY.

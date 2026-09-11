@@ -2,85 +2,66 @@
 
 HANDOFF
 
-Task event: FFH-023 integration / FFH-012 re-audit authorization
+Task event: full reconciliation after FFH-012 dual re-audit + FFH-011 candidate CI
 Role: Manager / Architect
-Status: EVENT COMPLETE — FFH-012 AUDIT_READY; FFH-023 ACCEPTED; FFH-011 REMEDIATION
+Status: ROUTED — FFH-025 ACTIVE; FFH-011 EVIDENCE COMPLETION NEXT
+Date: 2026-09-11
 
-## Verified repository event
+## Repository checkpoints
 Repository: `Ryan42062001/Family-Finance-Hub`
-Milestone branch: `phase-5-money-priority-engine`
-Verified production integration checkpoint: `1487b192491a704ca3500b42d22a50289ee1551b`
-PR #11: MERGED
-Main remains `8d68af5d5cdeef866d4a8a481bc3bb31f098199e`.
+Milestone: `phase-5-money-priority-engine`
+FFH-023 integrated production behavior under re-audit: `1487b192491a704ca3500b42d22a50289ee1551b`
+Technical re-audit branch evidence integrated via PR #14. Policy re-audit report/handoff already integrated independently.
 
-## FFH-023 Manager disposition
-Work Helper completed the accepted FFH-022 legal-spouse authority contract plus both cent/accounting audit remediations. Manager reviewed PR #11 and integrated it.
+## FFH-012 dual re-audit disposition
+Both independent auditors returned `FAIL — REMEDIATION REQUIRED` on exact `1487b192...`.
 
-Checkpoints:
-- PRODUCTION_SHA `9140d19c27d206b75e2a1825065e58047f1443c2`
-- HANDOFF_SHA `8854ebac7861da215aaac87501adad36bb95bbe0`
-- INTEGRATION_SHA `1487b192491a704ca3500b42d22a50289ee1551b`
-- Foundation CI #404 / run `34624938204` / job `103347645465`
+Consensus:
+- Prior Finding A: OPEN — HIGH.
+- Prior Finding B: CLOSED.
+- Prior Finding C: CLOSED.
 
-Exact integrated CI reached:
-- dependency setup/audit: PASS;
-- Test calculations: PASS;
-- Test security policy contract: FAIL;
-- typecheck: SKIPPED;
-- lint: SKIPPED;
-- build: SKIPPED.
+The remaining blocker is narrow. The direct `spouse_partner` authority bug is fixed, but `spouseStatusIsMaterial` can expose a known self-only owner's `$4,400` as actionable when the other candidate person's unresolved HSA eligibility/coverage plus unknown legal-spouse authority still permits a spouse/family resolution that changes that owner to `$4,375` under equal-default sharing. Accepted FFH-022 requires targeted uncertainty because the amount is not invariant across supported legal resolutions.
 
-FFH-023 is ACCEPTED. Its additive legal-spouse-authority migration remains source-only and was not deployed.
+No new policy authority is needed. FFH-025 assigns the bounded implementation/test correction to Work Helper.
 
-## Final CI ownership verification
-The remaining security red step is independently attributable to FFH-011 stale textual validation debt:
-1. current `tests/security/simple-plan-limit-contract.test.ts` still requires the literal inline expression `simplePlanLimitCategory: nullableString(row.simple_plan_limit_category)`;
-2. that security-test file has identical blob SHA `02297242910c554aa9ada8bf099197f20dfbc41e` at accepted FFH-011 SHA `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a` and current FFH-012 integration `1487b192491a704ca3500b42d22a50289ee1551b`;
-3. accepted/current SIMPLE code instead normalizes into a local variable and returns it through property shorthand;
-4. PR #11 does not modify the SIMPLE security test and its snapshot patch is HSA-authority work, not a SIMPLE normalization change.
+The actual pre-remediation SIMPLE security-test blob at both accepted FFH-011 and FFH-023 integration is `9118f427068861e43cd21fac062574d11201294e`; earlier Manager note `022972...` was a provenance typo. Ownership conclusion remains unchanged.
 
-The mismatch therefore predates FFH-023. FFH-011 remains in REMEDIATION. This attribution does not convert the overall Foundation CI run to green.
+## FFH-011 candidate
+Branch: `task/FFH-011-simple-persisted-field-contract-remediation`
+PR #13 is now correctly based on `phase-5-money-priority-engine`.
+Candidate SHA: `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`.
+Scope is only `tests/security/simple-plan-limit-contract.test.ts` (5 additions / 1 deletion); no production change.
 
-## FFH-012 disposition
-FFH-012 moves from REMEDIATION to AUDIT_READY on exact remediated integration `1487b192491a704ca3500b42d22a50289ee1551b`.
+Foundation CI run `34628911063`, job `103360669269` on exact candidate:
+- install/dependency audit PASS;
+- calculations PASS;
+- security PASS;
+- typecheck FAIL;
+- lint/build skipped.
 
-Both prior audit blockers in mathematical/accounting behavior plus the protected spouse-authority blocker have remediation candidates integrated. Their closure is not presumed: each fresh auditor must explicitly re-open the prior findings and determine whether each is actually CLOSED or still OPEN.
+Exact typecheck debt is pre-existing and outside the one-file FFH-011 candidate: one HSA result-union narrowing error and four retirement-account fixture `actual_tax_treatment` inference errors. Do not make FFH-011 own these merely because its security fix exposes the next fail-fast gate.
 
-Required next reviews:
-- fresh Technical & Mathematical Auditor re-audit;
-- fresh Financial Policy & Scenario Auditor re-audit in a separate conversation.
+FFH-011 is not yet Manager-accepted because its task file and App/Data handoff on the branch still describe the old remediation/blocker. Implementation Engineer should finish that evidence package without changing unrelated code.
 
-FFH-012 remains open until both reviews pass and Manager independently verifies their evidence.
+## FFH-020 / Supabase
+Still BLOCKED. No migration repair, db push, manual SQL, or live history/DDL write occurred. Resume only in a secure CLI/auth/backup-capable environment under accepted FFH-024 staged recovery.
 
-## FFH-011 / FFH-020 sequencing
-FFH-020 is BLOCKED before any write because the attempted runtime lacks the required secure Supabase CLI/auth/backup capability. That frees the App/Data role for the independent narrow FFH-011 security-contract remediation if activated. FFH-011 must not broaden into live migration work.
-
-FFH-016 remains BLOCKED behind FFH-020.
-
-## Current workforce routing
-ACTIVATE NOW:
-- Auditor/QA #1 — Technical & Mathematical Auditor — FFH-012 re-audit.
-- Auditor/QA #2 — Financial Policy & Scenario Auditor — FFH-012 re-audit in a separate fresh chat.
-
-AVAILABLE IN PARALLEL:
-- Implementation Engineer / App-Data — FFH-011 narrow security-contract remediation.
-
-BLOCKED:
-- Implementation Engineer live FFH-020 execution — secure Supabase CLI/auth/backup environment required.
-- FFH-016 live parity verification — waits for FFH-020.
-
-IDLE:
-- Financial Policy after FFH-022 acceptance.
-- R&D after FFH-024 acceptance.
-- Core Engineering unless a re-audit returns remediation.
-
-Manager returns to event-driven mode after routing.
+## Current workforce
+ACTIVE: Work Helper — FFH-025.
+ACTIVE, bounded completion: Implementation Engineer — FFH-011 evidence/handoff only.
+IDLE: both Auditor/QA roles until FFH-025 integration.
+IDLE: Financial Policy; FFH-022 authority sufficient.
+IDLE: R&D.
+BLOCKED: FFH-020 / FFH-016 live Supabase path.
+Manager: event-driven.
 
 ## Exact next events
-1. Receive Technical Auditor FFH-012 re-audit verdict/evidence.
-2. Receive Policy Auditor FFH-012 re-audit verdict/evidence.
-3. Independently verify each before closing or remediating FFH-012.
-4. Separately receive FFH-011 remediation when activated.
-5. Resume FFH-020 only when a secure authorized execution environment exists.
+1. Work Helper returns FFH-025 candidate.
+2. Implementation Engineer completes FFH-011 READY_FOR_MANAGER evidence packet.
+3. Manager independently verifies/integrates each separately.
+4. FFH-012 gets two fresh independent re-audits after FFH-025 integration.
+5. Any inherited typecheck debt remaining after these integrations is separately attributed/routed; do not contaminate FFH-011 ownership.
+6. FFH-018 CI observability remains queued after the correctness recovery wave.
 
 Phase 5 / PR #5 remains NOT MERGE READY.
