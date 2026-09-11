@@ -1,6 +1,6 @@
 # Family Finance Hub — Workflow V3 Operating Overlay
 
-Status: PROPOSED / CONTROL-PLANE ONLY
+Status: APPROVED / CANONICAL OPERATING OVERLAY / CONTROL-PLANE ONLY
 Task: FFH-019
 Base workflow: `.ai/shared/WORKFLOW.md` (Workflow V2 safeguards remain in force)
 
@@ -193,4 +193,4 @@ These controls are justified for a financial application.
 
 Do not interrupt or rewrite currently active FFH tasks merely to adopt V3. Existing task IDs, branch/checkpoint evidence, and in-flight remediation remain valid.
 
-Manager should adopt V3 at the next reconciliation point, update canonical state/decisions only where necessary, and use V3 activation/bootstrap rules for newly created or replacement chats thereafter.
+Workflow V3 is Manager-accepted and canonical for workforce presentation, chat lifecycle, execution-mode routing, and replacement-chat bootstrapping. Workflow V2 remains authoritative for all preserved task, financial, integration, troubleshooting, and audit safeguards.
