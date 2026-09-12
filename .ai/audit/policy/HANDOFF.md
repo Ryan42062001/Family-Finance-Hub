@@ -1,35 +1,73 @@
 # Financial Policy & Scenario Audit — HANDOFF
 
 Task: FFH-012 — HSA Legal-Capacity Calculation
-Re-audit after: FFH-023 — FFH-012 Audit Remediation
-Audit target: `1487b192491a704ca3500b42d22a50289ee1551b`
-Verdict: FAIL — REMEDIATION REQUIRED
+Process: canonical Workflow V3.1 fresh independent re-audit
+Audit packet: `FFH-012-ffde8440-2026-09-12`
+Frozen audit target: `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`
+Verdict: **PASS WITH NON-BLOCKING FINDINGS**
+
+## Independence / boundary
+
+- Audited only the frozen financial-behavior target `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`.
+- Later milestone commits were treated only as Manager control-plane/task/audit documentation.
+- The Technical & Mathematical Auditor's new verdict was not read or used.
+- No production code or Manager-owned lifecycle/task/shared state was changed.
 
 ## Prior finding disposition
 
-- PRIOR FINDING A: OPEN — the direct `spouse_partner`/filing/allocation authority defect is structurally remediated, but unknown-authority materiality is incomplete for a compound case. If A is confirmed eligible+self-only, B eligibility is unresolved while B coverage is family/possibly family, and target-year legal-spouse authority is unknown, A can be exposed as `available` at $4,400 even though affirmative spouse authority plus B becoming eligible changes A's equal-default ordinary allocation to $4,375. FFH-022 requires targeted `more_information_needed` because the result is materially spouse-dependent.
-- PRIOR FINDING B: CLOSED — the seven-month $5,104.17 shared ordinary base is split by integer cents as $2,552.08 + $2,552.09, conserving the exact legal base with deterministic canonical-owner remainder placement and order invariance.
-- PRIOR FINDING C: CLOSED — Build derives aggregate monthly routable capacity from the same per-destination rounded monthly amounts used by actual account routing; $4,375 + $4,375 routes/reports $364.58 + $364.58 = $729.16 monthly, and any positive monthly reconciliation residue throws rather than being silently discarded. Exact annual room remains separately represented in the ledger.
+- **FINDING A: CLOSED** — FFH-025 now blocks unknown/missing target-year legal-spouse authority whenever both people may still be HSA-eligible and family coverage is known or remains possible for either person. Required asymmetric `A=self-only` / unresolved-B family-possible cases are targeted `more_information_needed`; fully known self-only/self-only and known-ineligible counterpart cases remain local/actionable. Confirmed non-spouses remain independent; confirmed spouses with family coverage receive shared-family behavior. No marriage authority is inferred from `spouse_partner`, filing status, allocation rows, input ordering, or prior-year state.
+- **FINDING B: CLOSED** — odd-cent shared-base allocation conserves integer cents exactly. Seven shared-family months produce `$5,104.17 = $2,552.08 + $2,552.09` with no phantom/lost legal cent.
+- **FINDING C: CLOSED** — Build aggregate monthly retirement capacity is derived from the same rounded destination routes used for account routing. `$4,375 + $4,375` produces `$364.58 + $364.58 = $729.16`; any positive monthly reconciliation residue throws. Exact annual legal room remains separately represented.
 
-## Blocking finding
+## Non-blocking findings
 
-HIGH — compound unknown spouse authority + unresolved other-person eligibility/family coverage can expose optimistic actionable HSA room. Exact path: `lib/calculations/money-priority-hsa-legal-capacity.ts` `spouseStatusIsMaterial` -> independent branch -> available HSA opportunity. Accepted FFH-022 authority is sufficient to decide the case; this is not an authority gap. Narrow remediation must block the affected HSA result without poisoning unrelated supported IRA/workplace routes or truly spouse-independent self-only capacity.
+### LOW — confirmed-spouse `coverage=none` locality is over-conservative
 
-## Non-blocking finding
+With explicit `confirmed_legal_spouses`, A known eligible/self-only, and B eligibility unknown but B coverage explicitly `none`, family sharing cannot arise from the recorded coverage facts. Accepted FFH-007 targeted-missing-data policy supports A's spouse-independent self-only room, but the affirmative-spouse branch preserves A only when B coverage is specifically `self_only`; `none` therefore causes A to become `more_information_needed` unnecessarily.
 
-LOW — in `money-priority-retirement-capacity.ts`, married-family consumption still updates the authoritative account/shared/owner totals used for routing but leaves copied component fields such as `sharedOrdinaryRemainingRoom` / catch-up component remaining values stale. Current routing stays capped; do not expose/reuse those stale component values as authoritative residual room without reconciliation.
+This suppresses a supported HSA opportunity but cannot create illegal capacity, double-count shared room, transfer catch-up, or poison unrelated IRA/workplace routes. It does not reopen Finding A, whose unknown-authority materiality predicate correctly treats no-family-possible combinations as non-material.
 
-## Checkpoint / CI evidence
+### LOW — copied married-ledger component `remaining` metadata can become stale
 
-- FFH-023 production: `9140d19c27d206b75e2a1825065e58047f1443c2`.
-- FFH-023 handoff: `8854ebac7861da215aaac87501adad36bb95bbe0`.
-- Integrated audit target / PR #11 merge: `1487b192491a704ca3500b42d22a50289ee1551b`.
-- Manager control plane supplied: `d765b036abc266b0a42c975e7c70c0ad8c92c3d9`, one later documentation/control-plane commit.
-- Foundation CI #404 / run `34624938204` / job `103347645465` ran on exact `1487b192...`: dependency setup/audit PASS, Test calculations PASS, Test security policy contract FAIL, later typecheck/lint/build SKIPPED.
-- The reached security failure is separately attributable to the FFH-011 SIMPLE textual source-shape contract and is not HSA-policy evidence. It does not cure or cause the blocking HSA materiality defect above.
+Married-family consumption decrements the authoritative account total, account-specific total, couple shared group, and owner group used by `remainingRetirementCapacity()`, but does not decrement copied fields such as `sharedCapacityRemainingRoom`, `sharedOrdinaryRemainingRoom`, or `catchUpRemainingRoom`. Current Existing Cash, Secure, Build, Windfall, Retirement Floor, and Your Plan routing remains capped by authoritative entry/group room, so this is metadata/future-use risk rather than a legal-capacity defect.
 
-Exact re-audit report: `.ai/audit/policy/FFH-012_POLICY_SCENARIO_REAUDIT.md`.
+## Required household/scenario results
 
-Required next role: Manager / Architect to return FFH-012 for narrow remediation of the compound unknown-authority materiality case. Manager owns task state, integration, re-audit routing, and final closure.
+- unknown/missing authority + B eligible/coverage unknown: affected HSA blocked;
+- unknown/missing authority + B eligibility unknown/family: affected HSA blocked;
+- unknown authority + B eligibility unknown/coverage unknown: affected HSA blocked;
+- all known self-only: actionable `$4,400` per supported under-55 owner;
+- known-ineligible counterpart: local/non-blocking;
+- confirmed non-spouses: independent HSA limits, no married group;
+- confirmed legal spouses + family coverage: `$8,750` shared ordinary base, `$4,375/$4,375` equal default;
+- filing status/allocation/prior-year state: non-authoritative for marriage;
+- pair/person/account/profile/month ordering: legal outcome invariant;
+- unresolved HSA authority: unrelated Traditional IRA/workplace 401(k) opportunities remain usable;
+- Medicare, period-aware eligibility/coverage, age-55 catch-up, target-year YTD, multiple HSAs, alternate allocation, spouse-without-HSA participation, Recommendation Refresh, hypothetical reruns, and shared-ledger cross-consumer behavior remain consistent with accepted authority, subject only to the LOW locality/metadata notes above.
 
-No production code or Manager-owned task state was changed by this audit.
+## CI evidence
+
+Exact frozen target Foundation CI run `34669630244`, job `103488407900`:
+
+- dependency setup PASS;
+- production dependency audit PASS;
+- Test calculations PASS;
+- Test security policy contract PASS;
+- Type check FAIL on Manager-tracked inherited `CI-001` diagnostics;
+- lint/build skipped after fail-fast.
+
+The policy verdict does not waive `CI-001` or broader Manager merge gates.
+
+## Auditor evidence
+
+Fresh frozen re-audit report:
+`.ai/audit/policy/FFH-012_POLICY_SCENARIO_FROZEN_REAUDIT.md`
+
+Report commit:
+`9fe947601140b683922ffb13e091fbf49006853f`
+
+## Manager disposition
+
+From the financial-policy and household-safety perspective, FFH-012 is safe for Manager closure after dual-audit reconciliation. The two LOW findings are non-blocking and may be separately tracked/routed at Manager discretion.
+
+Manager alone owns final FFH-012 closure, lifecycle state, CI-debt routing, and subsequent milestone sequencing.
