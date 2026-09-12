@@ -24,29 +24,31 @@ Last refreshed: 2026-09-12
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | READY_FOR_MANAGER | production `f537b7b...`; integrated through milestone `ffde8440...` | Manager acceptance verification, then frozen dual FFH-012 re-audit |
 | FFH-026 | App/Data | QUEUED | Not established | Phase 7 production deployment/release readiness after Phase 5 + Phase 6 acceptance; establish stable URL and add GitHub About link |
-| FFH-027 | Manager | ACCEPTED | control-plane PR #16 | Manager validation complete; merge, record integration SHA, mark Workflow V3.1 canonical, then close |
+| FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical; state validator/CI debt/audit packet/task schema adopted |
 
 ## Current verified state
-- Milestone `phase-5-money-priority-engine` is at `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`, the FFH-025 integration merge.
+- FFH-027 PR #16 merged into `phase-5-money-priority-engine` at `789ae68d2b2e84f4d687aba9db36bcbf512e6fd3`; follow-up Manager documentation commits mark Workflow V3.1 canonical and close the task.
+- Workflow V3.1 is canonical. Future activation/bootstrap prompts should read `.ai/shared/WORKFLOW_V3_1.md` in addition to Workflow V3 and V2.
+- `npm run ai:validate-state` now checks canonical task states, task/index consistency, and stronger `FFH_TASK_V1` gates. CI invokes the validator before application validation.
+- Known inherited CI failures now use `.ai/manager/KNOWN_CI_DEBT.md`; current TypeScript debt is `CI-001` rather than being reassigned to whichever task is newest.
+- High-impact independent audits now use the frozen packet contract in `.ai/audit/AUDIT_PACKET_TEMPLATE.md`.
 - Both post-FFH-023 auditors returned `FAIL — REMEDIATION REQUIRED` on `1487b192491a704ca3500b42d22a50289ee1551b` for the same HIGH compound authority/eligibility/coverage materiality defect.
 - Prior Finding B odd-cent conservation is CLOSED by both auditors.
 - Prior Finding C Build/account reconciliation is CLOSED by both auditors.
 - Prior Finding A remains OPEN pending Manager acceptance of the integrated FFH-025 remediation and a fresh dual independent audit.
-- FFH-022 supplies sufficient authority; no new Policy or R&D decision is currently needed for FFH-025.
 - FFH-011 task evidence is `READY_FOR_MANAGER`; PR #13 is already merged into the milestone lineage. Manager acceptance remains distinct from merge state.
-- FFH-025 is normalized to canonical `READY_FOR_MANAGER`; PR #15 is already merged into milestone `ffde8440...`. Manager acceptance remains distinct from merge state.
-- Foundation CI run `34669630244`, job `103488407900`, on the FFH-025 integration passes install, production dependency audit, calculations, and security, then fails at Type check. The inherited test TypeScript failure family is tracked as `CI-001` in `.ai/manager/KNOWN_CI_DEBT.md`.
+- FFH-025 is normalized to canonical `READY_FOR_MANAGER`; PR #15 is already merged into the milestone lineage. Manager acceptance remains distinct from merge state.
+- Foundation CI run `34669630244`, job `103488407900`, on the FFH-025 integration passes install, production dependency audit, calculations, and security, then fails at Type check; the inherited failure family is tracked as `CI-001`.
 - FFH-020 remains BLOCKED before any live write.
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
-- FFH-027 is Manager-accepted on PR #16 and remains control-plane only; integration/closure is the next gate.
 
 ## ACTIVATE NOW
-- Manager / Architect — integrate/close FFH-027, then resume FFH-011/FFH-025 acceptance verification.
+- Manager / Architect — verify/accept FFH-011 and FFH-025 from actual integrated evidence. If FFH-025 passes the Manager gate, instantiate one frozen FFH-012 audit packet and activate two fresh independent Auditor/QA chats against the same exact target.
 
 ## IDLE / BLOCKED
 - Work Helper: IDLE; FFH-025 worker work is complete and awaiting Manager disposition.
 - Implementation Engineer: IDLE; FFH-011 worker work is complete and awaiting Manager disposition.
-- Auditor/QA: IDLE until Manager accepts the FFH-025 integrated target, then launch two fresh independent FFH-012 audits from one frozen packet.
+- Auditor/QA: IDLE until Manager accepts the FFH-025 integrated target.
 - Financial Policy: IDLE; current HSA authority is sufficient.
 - R&D: IDLE.
 - FFH-020 execution: BLOCKED on secure CLI/auth/backup capability.
