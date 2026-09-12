@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import {
+  buildMoneyPrioritySnapshot,
+  type MoneyPriorityRawSnapshot,
+  type RetirementAccountType,
+} from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 
 const YEAR = 2026;
@@ -23,7 +27,9 @@ function person(id: string, relationship: "self" | "spouse_partner") {
   };
 }
 
-function hsaAccount(id: string, owner: string) {
+type RawRetirementAccountFixture = Record<string, unknown> & { account_type: RetirementAccountType };
+
+function hsaAccount(id: string, owner: string): RawRetirementAccountFixture {
   return {
     id,
     owner_person_id: owner,
@@ -41,7 +47,7 @@ function hsaAccount(id: string, owner: string) {
   };
 }
 
-function traditionalIra(id: string, owner: string) {
+function traditionalIra(id: string, owner: string): RawRetirementAccountFixture {
   return {
     id,
     owner_person_id: owner,
@@ -56,7 +62,7 @@ function traditionalIra(id: string, owner: string) {
   };
 }
 
-function workplace401k(id: string, owner: string) {
+function workplace401k(id: string, owner: string): RawRetirementAccountFixture {
   return {
     id,
     owner_person_id: owner,
