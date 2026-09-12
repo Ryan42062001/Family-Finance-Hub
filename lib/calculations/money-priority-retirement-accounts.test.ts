@@ -8,7 +8,7 @@ function snapshot(
   people: Record<string, unknown>[] = [],
   preferences: Record<string, unknown> | null = null,
 ) {
-  const normalizedRetirementAccounts = retirementAccounts.map((account) => ({
+  const normalizedRetirementAccounts: Record<string, unknown>[] = retirementAccounts.map((account) => ({
     balance: 0,
     monthly_employee_contribution: 0,
     monthly_employer_contribution: 0,
