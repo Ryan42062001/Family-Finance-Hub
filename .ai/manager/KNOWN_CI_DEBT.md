@@ -26,7 +26,7 @@ Resolution gate: <what closes the entry>
 Status: OPEN
 Owner: Existing Phase-5 test debt; exact remediation owner remains Manager-routed
 First verified checkpoint: FFH-025 validation evidence before integration
-Last verified checkpoint: milestone integration `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`; Foundation CI run `34669630244`, job `103488407900`, reaches Type check and fails after calculations/security pass
+Last verified checkpoint: FFH-028 validation SHA `d13c412851c8a35d1d7cc4a85054d3dcf8bae94f`; Foundation CI run `34698588257`, job `103566232253`, reaches Type Check after AI-state validation, dependency audit, calculations, and security all PASS. FFH-028 production/test changed files do not intersect the registered debt-owned tests.
 Failure identity:
 - `money-priority-married-hsa-remediation.test.ts:219` TS2339 family
 - `money-priority-retirement-accounts.test.ts:20` four TS2339 diagnostics
@@ -41,4 +41,4 @@ Resolution gate: Manager assigns a bounded owner, the exact diagnostics are corr
 - Reference registry IDs from task files and Manager integration notes instead of recopied prose when possible.
 - Update `Last verified checkpoint` when the same failure is reproduced unchanged.
 - Close or supersede entries promptly; do not let stale debt labels mask a new regression.
-- If a failure changes identity, treat that as new evidence and re-attribute it rather than automatically extending an old entry.
+- If a failure changes identity, treat that as new evidence and re-attribute it rather than automatically extending the old debt.
