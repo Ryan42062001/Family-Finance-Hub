@@ -24,9 +24,9 @@ Resolution gate: <what closes the entry>
 
 ### CI-001 — Inherited test TypeScript diagnostics after FFH-025
 Status: OPEN
-Owner: Existing Phase-5 test debt; exact remediation owner remains Manager-routed
+Owner: FFH-029 — Work Helper / Super Troubleshooter
 First verified checkpoint: FFH-025 validation evidence before integration
-Last verified checkpoint: FFH-028 validation SHA `d13c412851c8a35d1d7cc4a85054d3dcf8bae94f`; Foundation CI run `34698588257`, job `103566232253`, reaches Type Check after AI-state validation, dependency audit, calculations, and security all PASS. FFH-028 production/test changed files do not intersect the registered debt-owned tests.
+Last verified checkpoint: post-FFH-028 frozen integration `51c3cd5978837b892f0323617b49986347c7d938`; Foundation CI run `34698898118`, job `103567059188`, reaches Type Check after AI-state validation, dependency audit, calculations, and security all PASS
 Failure identity:
 - `money-priority-married-hsa-remediation.test.ts:219` TS2339 family
 - `money-priority-retirement-accounts.test.ts:20` four TS2339 diagnostics
@@ -34,7 +34,7 @@ Owned files:
 - `lib/calculations/money-priority-married-hsa-remediation.test.ts`
 - `lib/calculations/money-priority-retirement-accounts.test.ts`
 Non-owner rule: unrelated tasks whose changed files do not intersect these tests or their directly implicated contracts must not inherit remediation ownership solely because their commit is newer.
-Resolution gate: Manager assigns a bounded owner, the exact diagnostics are corrected or intentionally superseded, and a later validated checkpoint proves the registry entry no longer reproduces.
+Resolution gate: FFH-029 reproduces and corrects the exact diagnostics without changing financial behavior; Manager accepts/integrates the correction; later exact validation proves the registered diagnostics no longer reproduce and downstream lint/build gates are observable.
 
 ## Operating rules
 - Add an entry only when the failure identity and ownership basis are evidence-backed.
