@@ -1,22 +1,20 @@
 # Work Helper / Super Troubleshooter Handoff
 
-Task: FFH-023 — FFH-012 Audit Remediation
-Status: READY_FOR_MANAGER
-Starting milestone: `phase-5-money-priority-engine` at `6ba3a6980faad82a1f6ca71d6ad1565592f9c0cb`
-Audited FFH-012 integration: `b33e97320c8907193ba8f6a571b0d92684237f18`
-Branch: `ffh/ffh-023-ffh012-audit-remediation`
-PR: #11
+Task: FFH-025 — HSA Compound Authority Materiality Remediation
+Status: READY_FOR_MANAGER_VERIFICATION
+Starting milestone: `2459ad1c75df98c9c53acfa572ed9a36cef8aba0`
+Branch: `ffh/ffh-025-hsa-compound-authority-materiality`
+PR: #15
+Original behavior checkpoint: `1047f58de0ce8bf37cdd51cd066441b6d3cb28ab`
+PRODUCTION_SHA: `f537b7b7021288b578acb504a52cd9ac285a2fc2`
+HANDOFF_SHA: documentation commit containing this file; read final branch head.
 
-Completed: preserved the demonstrated integer-cent HSA ceiling and Build routing reconciliation fixes. Implemented FFH-022's accepted pair/year tri-state legal-spouse authority through an additive RLS-protected table, canonical input contract, Supabase loader, hypothetical refresh, legal-capacity evaluator, server actions, UI capture, fixtures, and adversarial regressions.
+Outcome: preserved the narrow HSA compound-authority correction and fixed only FFH-025's test-fixture type ownership. Raw HSA, Traditional IRA, and 401(k) factories now explicitly constrain `account_type` to the canonical `RetirementAccountType` union; runtime HSA behavior is unchanged.
 
-Runtime behavior: `confirmed_legal_spouses` alone authorizes married-family sharing; `confirmed_not_legal_spouses` stays independent; missing/unknown authority produces targeted `more_information_needed` only when spouse status can alter HSA capacity. `spouse_partner`, filing status, and allocation rows are never authority, and no authority crosses tax years. Independently supported routes continue.
+Manager-provided evidence: Foundation CI run `34644012014`, job `103410321478`, reported four FFH-025 TS2345 diagnostics at lines 322/346/371/396 plus one inherited integration-fixture TS2345 at `money-priority-engine.integration.test.ts:8108`. The former handoff's blanket inherited classification was incorrect. The current retrievable repository/log representation differs—the file is 232 lines and the returned log lists an older five-error set—so the worker applied the semantic type correction rather than inventing unavailable line edits. Local typecheck after the patch names no FFH-025 file.
 
-Cent evidence: `$5,104.17` now splits `$2,552.08 + $2,552.09`; `$8,750` annual shared room now reports and routes `$729.16` monthly as `$364.58 + $364.58` with no tolerance escape hatch.
+Validation: focused 63/63; full calculations 814/814; security 20/21 with only inherited FFH-011 assertion; lint passes with zero errors/one inherited warning. Local typecheck/build retain five inherited test-only TS2339 errors in `money-priority-married-hsa-remediation.test.ts:219` and `money-priority-retirement-accounts.test.ts:20`; production compilation succeeds.
 
-Validation: focused affected suites 128/128; full calculations 805/805; post-fix Secure+FFH-012 38/38; lint 0 errors/1 inherited warning. HSA security coverage passes. Overall security remains 18/19 on the inherited FFH-011 SIMPLE-plan textual assertion. Typecheck/build retain only five inherited test typing errors (one married-HSA result shape, four retirement-account fixture inference); production compilation succeeds before that test typecheck gate.
+No policy, production calculator, migration, or live Supabase change was made. Existing odd-cent and Build reconciliation regressions remain green.
 
-Migration boundary: `supabase/migrations/20260911170000_ffh_023_hsa_legal_spouse_authority.sql` is additive and isolated on PR #11. It was not deployed and live migration history was not changed. Manager must sequence it with FFH-020.
-
-Checkpoint vocabulary: `PRODUCTION_SHA` is `9140d19c27d206b75e2a1825065e58047f1443c2`; `HANDOFF_SHA` is the following evidence/documentation commit; `VALIDATED_CI` is exact-SHA evidence if available; `INTEGRATION_SHA` is not established.
-
-Exact next action: Manager verifies PR #11 and CI, decides migration sequencing, then sends the complete FFH-012 candidate back to technical and policy audit. Work Helper does not merge, accept, mark audit-ready, or close.
+Exact next action: Manager verifies PR #15 and exact-SHA CI, integrates if accepted, then routes the new integration checkpoint to both independent auditors. Work Helper does not merge or self-accept.
