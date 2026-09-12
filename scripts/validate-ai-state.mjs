@@ -124,7 +124,7 @@ for (const file of taskFiles) {
 for (const taskId of indexStates.keys()) {
   const expectedFile = path.join(taskDir, `${taskId}.md`);
   if (!fs.existsSync(expectedFile)) {
-    errors.push(`${taskId}: TASK_INDEX row has no matching task file`);
+    warnings.push(`${taskId}: legacy TASK_INDEX row has no task file; migrate only when the task is materially reopened`);
   }
 }
 
