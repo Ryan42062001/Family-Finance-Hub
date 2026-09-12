@@ -1,136 +1,153 @@
 # Technical Audit Handoff
 
-## FFH-012 — HSA Legal-Capacity Calculation — Workflow V3.1 frozen technical re-audit
+## FFH-012 — HSA Legal-Capacity Calculation — post-FFH-028 Workflow V3.1 technical re-audit
 
 **Audit role:** Technical & Mathematical Auditor  
 **Audit date:** 2026-09-12  
 **Execution mode:** `STANDARD_CHAT`  
-**Frozen audit target:** `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`  
-**Control-plane base when audit artifact branch was created:** `5d941d2c8f90984b749a98af9aedbe1e4bf90ba1`  
-**Verdict:** **FAIL — REMEDIATION REQUIRED**  
-**FFH-012 safe to close:** **NO**
+**Frozen financial-behavior target:** `51c3cd5978837b892f0323617b49986347c7d938`  
+**Control-plane base when audit branch was created:** `72bfc06f086e22946603990f4d517c60de8f6853`  
+**Verdict:** **PASS WITH NON-BLOCKING FINDINGS**  
+**Manager closure authority:** unchanged; this audit does not close FFH-012.
 
-This is a fresh independent technical/mathematical re-audit of the exact frozen target required by `.ai/audit/FFH-012_FROZEN_AUDIT_PACKET.md`. Later milestone commits were treated as Manager control-plane/task/audit-document lineage only and did not change the audited production target. The separate Financial Policy & Scenario Auditor verdict was not read or relied on. No production behavior or Manager-owned lifecycle state was modified.
+This was a fresh independent Technical & Mathematical Auditor re-audit of the exact post-FFH-028 frozen target required by `.ai/audit/FFH-012_FROZEN_AUDIT_PACKET_51c3cd59.md`. Later milestone commits were treated only as Workflow V3.1/control-plane/task/audit-document lineage and did not redefine the financial-behavior target. The new Financial Policy & Scenario Auditor verdict was not read or relied on. No production behavior, Manager-owned task state, or policy artifact was modified.
 
-## Audit basis
+## Authoritative basis and target lineage
 
-The audit applied Workflow V3.1/V3/V2 controls, FFH-D005, the accepted FFH-022 HSA legal-marriage authority contract, the frozen FFH-012 packet, the exact frozen implementation/tests, persistence/input reachability needed to test adversarial states, and exact GitHub CI/commit evidence.
+The audit applied Workflow V3.1/V3/V2, FFH-D005, the accepted FFH-022 HSA legal-marriage authority policy, FFH-012/022/025/028 task contracts, the frozen packet, exact implementation/tests at `51c3cd59...`, and exact GitHub commit/CI evidence necessary to test the frozen target.
 
-FFH-025 is integrated at the frozen target. Comparing the immediate pre-FFH-025 parent `19bc304008959a3df46ff77256afb94f13712782` to `ffde8440...` shows only four changed paths:
+The FFH-028 production comparison is bounded. Comparing pre-FFH-028 approved baseline `e06bf586f6c43254eb64816cc7482f6b9212beda` to FFH-028 production SHA `f266c112abff752e268c48dd097d7d562ac58169` changes exactly:
 
-- `.ai/tasks/FFH-025.md`
-- `.ai/work-helper/HANDOFF.md`
-- `lib/calculations/ffh-025-hsa-compound-authority-materiality.test.ts`
 - `lib/calculations/money-priority-hsa-legal-capacity.ts`
+- `lib/calculations/ffh-028-hsa-candidate-pair-cardinality.test.ts`
 
-The frozen target therefore contains the bounded FFH-025 authority-materiality remediation without unrelated Build/persistence/UI/security-file changes.
+Comparing `f266c112...` to frozen target `51c3cd5978837b892f0323617b49986347c7d938` adds only task/handoff/control-plane documentation. Therefore the audited frozen target has the same financial-behavior tree as the inspected FFH-028 production remediation.
 
 ## Finding disposition
 
-| ID | Severity | Status | Disposition |
+| ID | Severity | Status | Technical disposition |
 |---|---|---|---|
-| A — compound unknown legal-spouse-authority materiality | HIGH | CLOSED at frozen target | FFH-025 now blocks missing/explicit-unknown authority when both candidates could be eligible and family coverage is present or unresolved, while preserving supported locality for fully known self-only facts and known-ineligible counterparties. |
-| B — odd-cent shared-capacity conservation | HIGH | CLOSED | Integer-cent allocation deterministically conserves `$5,104.17 = $2,552.08 + $2,552.09` with no lost/extra cent. |
-| C — Build/account reconciliation | HIGH | CLOSED | `$8,750` annual shared capacity reconciles as `$4,375 + $4,375`; monthly account routing is `$364.58 + $364.58 = $729.16`; Build consumes/routes the actual destination ledger values and rejects any positive residual. |
-| D — candidate-pair cardinality bypass | HIGH | **OPEN / BLOCKING** | With three or more active nondependent `self`/`spouse_partner` candidate records, the evaluator sets no candidate pair, can ignore a valid target-year A/B authority row, skips the authority-materiality guard, and can fall back to independent HSA family limits. This can double the ordinary family capacity from `$8,750` to `$17,500`. |
-| E — transitional HSA fixture helper can overwrite canonical uncertainty | LOW | OPEN / NON-BLOCKING | `withNormalizedHsaFacts()` still rewrites HSA YTD tax year, profiles, and twelve month rows from legacy account hints. Dedicated canonical adversarial tests do not depend solely on this helper, so this remains test-maintenance debt rather than a production-closure blocker. |
+| A — compound unknown legal-spouse-authority materiality | HIGH | **CLOSED** | Missing/explicit-unknown pair-year authority blocks HSA capacity whenever both candidates could be eligible and family coverage is present or unresolved, while preserving conservative locality. |
+| B — odd-cent shared-capacity conservation | MEDIUM | **CLOSED** | Integer-cent shared allocation exactly preserves `$5,104.17 = $2,552.08 + $2,552.09`, deterministically. |
+| C — Build/account reconciliation | HIGH | **CLOSED** | `$8,750 = $4,375 + $4,375` and account-level monthly routing `$364.58 + $364.58 = $729.16` reconcile exactly; any positive Build routing residual is rejected. |
+| D — candidate-pair cardinality bypass | HIGH | **CLOSED** | FFH-028 no longer lets three-or-more candidate ambiguity erase the candidates and silently fall back to independent family HSA limits; materially ambiguous HSA owners become `more_information_needed`. |
+| E — `withNormalizedHsaFacts()` can overwrite canonical fixture uncertainty | LOW | **OPEN / NON-BLOCKING** | Helper behavior remains a test-maintenance hazard, but the material adversarial/legal-capacity regressions independently construct canonical facts and do not make this helper authoritative for production correctness. |
 
-## Finding A — CLOSED at frozen target
+No new CRITICAL, HIGH, or MEDIUM finding was identified.
 
-The FFH-025 materiality predicate now treats legal-spouse status as material in each month when both candidate people could be HSA-eligible and family coverage is known or still possible (`family` or `unknown`). Missing or explicit `unknown` pair/year authority then adds targeted `legal_spouse_authority` missing-data state to both candidate people rather than exposing positive HSA capacity.
+## Finding A — CLOSED
 
-The required asymmetric regression is covered: A is eligible/self-only, B is eligible with coverage unknown, and pair/year authority is missing or explicitly unknown. A no longer exposes an unconditional `$4,400` self-only amount. Additional frozen FFH-025 regressions independently support locality and protected-semantic behavior: both fully known self-only candidates remain actionable; a known-ineligible counterparty does not unnecessarily trigger the authority gate; confirmed non-spouses evaluate independently; confirmed legal spouses with family coverage share the family ordinary base; `spouse_partner`, filing status, and married-allocation rows do not establish legal marriage; prior-year authority does not carry; pair/input order is invariant; and unrelated IRA/workplace opportunities remain usable while HSA is `more_information_needed`.
+At the frozen target, the FFH-025 materiality helper evaluates each month as material when both candidate people could be HSA-eligible and family coverage is known or still possible (`family` or `unknown`). Missing or explicit `unknown` target-year legal-spouse authority then produces targeted `legal_spouse_authority` missing-data state instead of unsupported positive capacity.
+
+The retained asymmetric case remains protected: A eligible/self-only plus B eligible/coverage-unknown does not expose A's full `$4,400` as unconditional verified room. The frozen FFH-025 regressions also retain locality for both-known-self-only candidates and known-ineligible counterparties; confirmed non-spouses remain independent; confirmed legal spouses with family coverage share the family ordinary base; relationship, filing status, and married-allocation rows do not establish legal marriage; prior-year authority does not carry; ordering is invariant; and unrelated IRA/workplace opportunities remain usable when HSA requires more information.
 
 ## Finding B — CLOSED
 
-For an affirmative legal-spouse shared ordinary base, the frozen evaluator rounds the base to money, converts it to integer cents, gives the first canonical owner `floor(totalCents / 2)`, and gives the second canonical owner the exact remainder. Canonical person-ID ordering makes the remainder deterministic and input-order invariant.
+The shared ordinary base is rounded to money and converted to integer cents. The first canonical owner receives `floor(totalCents / 2)` and the second receives the exact remainder. Canonical ID ordering makes remainder ownership deterministic and input-order invariant.
 
-Required boundary case:
+Required retained boundary:
 
 `$5,104.17 = $2,552.08 + $2,552.09`
 
-The exact cent is conserved; there is no tolerance-based leakage or phantom routable cent.
+There is no dropped or fabricated cent and no tolerance-based leakage.
 
 ## Finding C — CLOSED
 
-The frozen Build path derives routable monthly retirement capacity from actual annual destination-ledger consumption. Each destination converts its consumed annual amount with `roundMoney(consumedAnnualAmount / 12)`, and actual routing uses the same account-level conversion. Build throws if any positive `retirementToRoute` remains; there is no cent-sized epsilon escape hatch.
+The frozen Build path derives routable monthly retirement capacity from actual annual destination-ledger consumptions. Each account destination uses `roundMoney(consumedAnnualAmount / 12)`, and actual routing uses the same destination-level conversion. The final Build invariant throws on any positive `retirementToRoute`; there is no one-cent epsilon escape hatch.
 
-Required reconciliation case:
+Required retained reconciliation:
 
-- annual ordinary shared capacity: `$8,750.00`;
+- shared annual ordinary capacity: `$8,750.00`;
 - owner A annual destination: `$4,375.00`;
 - owner B annual destination: `$4,375.00`;
 - owner A monthly route: `$364.58`;
 - owner B monthly route: `$364.58`;
-- aggregate monthly Build/account route: `$729.16`.
+- aggregate account/Build monthly route: `$729.16`.
 
-The engine therefore reconciles displayed/routed account amounts rather than presenting an idealized `$729.17` monthly aggregate that cannot be reproduced by the two destination routes.
+The engine therefore routes the reproducible account-level `$729.16`, not an idealized `$729.17` that the two destination routes cannot reproduce.
 
-## Finding D — HIGH — OPEN / BLOCKING
+## Finding D — CLOSED by FFH-028
 
-### Defect
+### Frozen implementation behavior
 
-At the frozen target, candidate people are all active, nondependent household people whose relationship is `self` or `spouse_partner`, sorted by ID. A legal-spouse candidate pair is formed only when that candidate array has **exactly two** entries. If the candidate count is three or more, `candidatePairIds` becomes empty. That makes candidate authority unavailable, married-pair state unavailable, and the unknown-authority materiality guard inapplicable for the actual pair.
+The evaluator still forms the ordinary two-person candidate pair only when there are exactly two active, nondependent household people whose relationship is `self` or `spouse_partner`. FFH-028 adds a separate ambiguity path for candidate counts greater than two instead of treating the candidate set as empty for legal-capacity safety purposes.
 
-This is unsafe because the application/persistence contract does not guarantee exactly two such records. The HSA person action accepts `self` and `spouse_partner` and does not enforce a maximum-two canonical pair; the HSA UI does not impose that maximum; the household-person migration has no one-self/one-spouse-partner cardinality constraint; and snapshot loading admits the active records without rejecting this ambiguity. The state is therefore application/persistence reachable, not merely a hand-constructed impossible snapshot.
+For three-or-more candidates, all candidate IDs are retained as ambiguous candidates. Each HSA-owning candidate is checked against every other ambiguous candidate with the same materiality predicate used by the two-person unknown-authority safety logic: if both could be eligible and family coverage is known or possible in any month, targeted legal-spouse-authority missing data is added for that HSA owner. The resulting HSA opportunity becomes `more_information_needed` and does not expose annual/monthly HSA capacity.
 
-### Minimal deterministic reproduction
+The implementation deliberately does **not** use a relationship label, filing status, allocation, account ownership, input ordering, prior-year state, or a single authority row to invent a canonical pair among three or more candidates.
 
-Use target year 2026 with three active, nondependent household records: A=`self`, B=`spouse_partner`, C=`spouse_partner`. A and B are under 55, HSA-eligible for all twelve months, have family HDHP coverage for all twelve months, and have zero current-year HSA contributions. C does not need to own an HSA account. Add explicit target-year authority confirming A and B are legal spouses.
+### Required adversarial scenario
 
-Because there are three spouse candidates, the evaluator forms no candidate pair and does not select the valid A/B authority row. A and B can fall through to independent evaluation, each exposing the `$8,750` family ordinary limit. The household can therefore expose `$17,500` of ordinary HSA room even though confirmed legal spouses A/B must share one `$8,750` ordinary family pool.
+The frozen dedicated FFH-028 regression constructs:
 
-### Why this blocks closure
+- A = `self`, B = `spouse_partner`, C = `spouse_partner`;
+- all active and nondependent;
+- A/B full-year HSA-eligible with family coverage;
+- C can own no HSA account;
+- explicit target-year authority confirming A/B as legal spouses.
 
-This violates FFH-D005 and FFH-022's pair-specific legal-authority contract and the no-overstatement requirement. The error is financially material and can route contributions above the lawful shared ordinary capacity. It is not cured by the now-correct two-candidate unknown-authority materiality logic.
+The result is not two independent `$8,750` family capacities. A/B HSA opportunities are `more_information_needed`, have no positive annual/monthly HSA capacity, and carry targeted `legal_spouse_authority` missing-data state. The prior `$17,500` overstatement path is therefore closed. Unrelated IRA/workplace opportunities remain usable.
 
-Manager-directed remediation should ensure ambiguous/multiple spouse-candidate states cannot silently fall back to independent family limits. A bounded fix could derive an explicit canonical pair from authoritative pair/year data where unambiguous, or return targeted `more_information_needed` when multiple candidates make pair identity ambiguous. A regression should include a third candidate with no HSA account plus an affirmative A/B target-year authority row.
+### Additional cardinality/locality checks
 
-## Finding E — LOW — OPEN / NON-BLOCKING
+The frozen FFH-028 regressions also cover:
 
-`lib/calculations/hsa-test-fixtures.ts` remains capable of overwriting deliberately canonical uncertainty: `withNormalizedHsaFacts()` forces each HSA account's YTD tax year to the requested year, rebuilds profiles, and generates twelve `confirmed` month rows from legacy account-level eligibility/coverage hints. If applied to a fixture intended to preserve partial-year, unknown, Medicare-timing, or stale-year facts, it can replace the condition the test meant to exercise.
+- three candidates with no affirmative authority: materially ambiguous HSA capacity is `more_information_needed` rather than independent family limits;
+- all-known self-only candidates: conservative locality remains actionable because spouse status cannot change the supported self-only result;
+- known-ineligible extra candidate(s): no unnecessary authority blocker is introduced where that candidate cannot make spouse status material;
+- candidate/person/account/month/authority input reordering: equivalent results remain deterministic.
 
-The frozen FFH-012/FFH-025 adversarial coverage directly constructs canonical facts for the material legal-capacity scenarios reviewed here, so Finding E does not independently invalidate production correctness. It remains LOW test-maintenance debt.
+The remediation therefore closes Finding D without replacing the bypass with hidden pair or marriage inference.
 
-## Frozen packet regression matrix
+## Broader frozen regression/adversarial review
 
-| Audit question | Result | Technical evidence/disposition |
-|---|---|---|
-| Locality | PASS for the intended two-candidate contract | Fully known self-only facts stay actionable; known-ineligible counterparty does not unnecessarily block the eligible owner. |
-| No marriage inference | PASS for supported candidate-pair states | Relationship, filing status, and allocation data do not create affirmative legal-spouse authority. |
-| Unrelated-route usability | PASS | HSA `more_information_needed` does not disable otherwise valid IRA/workplace retirement routes. |
-| Ordering invariance | PASS | Pair normalization/sorting and deterministic cent remainder assignment preserve equivalent results under reordered inputs. |
-| Target-year authority isolation | PASS | Authority lookup requires target tax year and normalized pair identity; prior-year authority does not carry. |
-| Target-year/YTD isolation | PASS | Current-year employee + employer HSA contributions are aggregated by owner; stale/prior-year facts do not silently reduce the target-year room. |
-| Medicare | PASS | Medicare timing participates in month eligibility and proration so Medicare-ineligible months do not contribute ordinary capacity. |
-| Catch-up | PASS | Age-55 catch-up remains owner-specific/nontransferable rather than part of the shared ordinary family base. |
-| Partial-year | PASS | Ordinary capacity is month-prorated from normalized eligibility/coverage facts. |
-| Multi-account | PASS | Capacity is grouped by owner/shared group rather than multiplied by the number of HSA accounts. |
-| Cents/reconciliation | PASS | Findings B and C remain exact at required cent boundaries. |
-| Candidate-pair cardinality / authority reachability | **FAIL** | Finding D can erase pair identity when three or more candidate household records exist and materially overstate family HSA room. |
+The following required dimensions were independently reviewed against the frozen implementation/tests and remain consistent with FFH-D005/FFH-022:
 
-## CI-001 independent attribution
+- **No marriage inference:** `spouse_partner`, filing status, allocation rows, account ownership, ordering, prior-year authority, and a single authority row in an ambiguous multi-candidate household do not manufacture a canonical legal-spouse pair.
+- **Unrelated recommendation usability:** HSA `more_information_needed` remains localized; otherwise valid IRA/workplace retirement opportunities continue to be available.
+- **Ordering invariance:** candidate IDs/pair identities are normalized/sorted and cent remainder assignment is deterministic; FFH-028 explicitly reorders people/accounts/months/authority input.
+- **Target-year authority isolation:** authority is selected for the exact target tax year and normalized pair identity; prior-year authority does not silently carry.
+- **YTD/tax-year isolation:** target-year employee plus employer HSA contributions are aggregated by owner; stale/prior-year YTD facts do not silently reduce the target-year limit.
+- **Medicare:** month-level Medicare ineligibility/timing remains part of the normalized HSA eligibility path and proration.
+- **Catch-up ownership:** age-55 catch-up remains owner-specific and nontransferable rather than part of the shared ordinary family pool.
+- **Partial-year behavior:** ordinary capacity remains month-prorated from normalized eligibility/coverage facts.
+- **Multi-account behavior:** multiple HSA accounts share the owner/shared-group capacity rather than multiplying legal contribution room.
+- **Recommendation Refresh/hypothetical behavior:** normalized legal-spouse authority is carried through snapshot serialization for hypothetical reruns, and the existing refresh regression changes the recommendation when authority changes rather than reusing stale married-family capacity.
+- **Cent/Build routing:** Findings B/C remain exact and FFH-028 does not alter Build or cent-allocation behavior outside the bounded HSA evaluator change.
 
-Foundation CI for the exact frozen target is run `34669630244`, job `103488407900`, head SHA `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`. GitHub reports:
+## Finding E — LOW — retained non-blocking
 
-| Gate | Frozen target |
-|---|---|
-| Install dependencies | PASS |
-| Production dependency audit | PASS |
-| Test calculations | PASS |
-| Test security policy contract | PASS |
-| Type check | FAIL |
-| Lint | SKIPPED |
-| Build | SKIPPED |
+`lib/calculations/hsa-test-fixtures.ts` still allows `withNormalizedHsaFacts()` to overwrite deliberately canonical fixture conditions: it forces HSA YTD tax year to the helper's requested year, rebuilds profiles, and generates twelve `confirmed` month rows from legacy account-level eligibility/coverage hints.
 
-The immediate pre-FFH-025 parent `19bc304008959a3df46ff77256afb94f13712782` has Foundation CI run `34668565637`, job `103485384458`, with the same gate pattern: calculation/security PASS, Typecheck FAIL, lint/build skipped. The exact parent-to-frozen comparison changes only the four FFH-025 paths listed above. This independently establishes that the red Typecheck gate predates FFH-025 and that FFH-025 did not introduce a changed legacy TypeScript surface merely by integration. Per Workflow V3.1 and `.ai/manager/KNOWN_CI_DEBT.md`, CI-001 remains inherited known debt and is not assigned to FFH-012/FFH-025 on the basis of this run.
+That can erase a partial-year, unknown, or stale-year condition if the helper is applied indiscriminately. However, the material FFH-012/025/028 adversarial regressions reviewed here construct the relevant canonical month/authority facts directly. The helper is therefore not materially authoritative for the evidence supporting Findings A-D. Finding E remains **LOW / NON-BLOCKING** and is not upgraded.
 
-The skipped lint/build gates are not claimed as passing at the frozen target; they are unexecuted because the inherited Typecheck gate failed first.
+## CI-001 independent ownership review
+
+Frozen target Foundation CI:
+
+- run `34698898118`;
+- job `103567059188`;
+- exact head `51c3cd5978837b892f0323617b49986347c7d938`;
+- AI control-plane validation: PASS;
+- production dependency audit: PASS;
+- calculation tests: PASS;
+- security policy contract: PASS;
+- Type Check: FAIL;
+- lint: SKIPPED;
+- build: SKIPPED.
+
+Pre-FFH-028 baseline `e06bf586f6c43254eb64816cc7482f6b9212beda` Foundation CI run `34696917399`, job `103561861405`, has the same relevant gate identity: AI control-plane validation PASS, dependency audit PASS, calculations PASS, security contract PASS, Type Check FAIL, lint/build skipped.
+
+The FFH-028 production diff changes only the HSA evaluator and its dedicated regression test, and the later production-to-frozen diff changes only control-plane/task/handoff documentation. The red Type Check gate therefore predates FFH-028 and is consistent with registered inherited CI-001; it is not assigned to FFH-012/FFH-028 merely because the frozen run is red.
+
+**Evidence limitation:** the STANDARD_CHAT GitHub connector exposed run/job step outcomes but did not yield usable raw TypeScript compiler diagnostic lines for either job during this audit. Exact compiler-message/file parity between baseline and frozen target is therefore not independently asserted. This does not create contrary evidence of changed failure identity: step identity is unchanged, FFH-028's changed production surface is bounded, and calculations/security pass at both checkpoints. Lint/build are explicitly not claimed as passing because they were skipped behind the inherited Type Check failure.
 
 ## Final disposition
 
-**FAIL — REMEDIATION REQUIRED**
+**PASS WITH NON-BLOCKING FINDINGS**
 
-Findings A, B, and C are closed at the frozen target, and the required two-candidate authority/materiality, deterministic cent, and Build reconciliation regressions are technically sound. However, new Finding D is a HIGH protected-semantic defect in a reachable household state: three or more spouse-candidate records can prevent selection of valid pair/year authority and can expose independent family HSA limits that exceed the lawful shared ordinary capacity. FFH-012 must not be closed until that ambiguity/cardinality path is remediated and independently re-audited.
+Findings A, B, C, and D are closed at the exact frozen target `51c3cd5978837b892f0323617b49986347c7d938`. FFH-028 closes the candidate-cardinality overstatement path by making materially ambiguous multi-candidate HSA outputs fail safe instead of silently exposing independent family limits, while retaining conservative locality and unrelated-route usability. The only retained technical finding is LOW Finding E, a non-authoritative test-fixture maintenance hazard.
 
-Manager retains task lifecycle, acceptance, merge, and closure authority. This audit changed only the Technical Auditor-owned handoff artifact and made no production change.
+CI-001 remains inherited known debt based on independently matched baseline/frozen gate identity and bounded FFH-028 changes, subject to the documented raw-diagnostic-text limitation above.
+
+Manager alone owns FFH-012 acceptance and closure.
