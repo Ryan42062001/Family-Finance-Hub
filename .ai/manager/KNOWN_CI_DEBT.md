@@ -23,10 +23,10 @@ Resolution gate: <what closes the entry>
 ## Current entries
 
 ### CI-001 — Inherited test TypeScript diagnostics after FFH-025
-Status: OPEN
+Status: CLOSED
 Owner: FFH-029 — Work Helper / Super Troubleshooter
 First verified checkpoint: FFH-025 validation evidence before integration
-Last verified checkpoint: post-FFH-028 frozen integration `51c3cd5978837b892f0323617b49986347c7d938`; Foundation CI run `34698898118`, job `103567059188`, reaches Type Check after AI-state validation, dependency audit, calculations, and security all PASS
+Last verified checkpoint: FFH-029 final PR head `863eb61d5a7e83ccd09779d1c318ec4ebbcec4a4`; Foundation CI run `34709128169`, job `103594530450` — AI-state validation, dependency audit, calculations, security, Type Check, lint, and build all PASS; Manager integration `61ad63ea1f41002e47708887505bf2b3365ea077`
 Failure identity:
 - `money-priority-married-hsa-remediation.test.ts:219` TS2339 family
 - `money-priority-retirement-accounts.test.ts:20` four TS2339 diagnostics
@@ -34,7 +34,7 @@ Owned files:
 - `lib/calculations/money-priority-married-hsa-remediation.test.ts`
 - `lib/calculations/money-priority-retirement-accounts.test.ts`
 Non-owner rule: unrelated tasks whose changed files do not intersect these tests or their directly implicated contracts must not inherit remediation ownership solely because their commit is newer.
-Resolution gate: FFH-029 reproduces and corrects the exact diagnostics without changing financial behavior; Manager accepts/integrates the correction; later exact validation proves the registered diagnostics no longer reproduce and downstream lint/build gates are observable.
+Resolution gate: SATISFIED — FFH-029 reproduced and corrected the exact diagnostics without changing financial behavior; Manager accepted/integrated PR #18; exact candidate and final-head validation prove the registered diagnostics no longer reproduce and downstream lint/build are observable and green.
 
 ## Operating rules
 - Add an entry only when the failure identity and ownership basis are evidence-backed.
