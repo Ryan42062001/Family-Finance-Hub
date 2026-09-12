@@ -10,6 +10,7 @@ export type MoneyPriorityTaxPolicy = {
   simpleEmployeeDeferralLimit: number;
   simpleApplicableHigherEmployeeDeferralLimit: number;
   simpleCatchUpAge50: number;
+  simpleApplicableHigherCatchUpAge50: number;
   simpleCatchUpAge60To63: number;
   sepEmployerContributionLimit: number;
   sepEmployerCompensationRate: number;
@@ -34,7 +35,7 @@ export type MoneyPriorityTaxPolicy = {
 
 export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
   taxYear: 2026,
-  version: "2026.2",
+  version: "2026.3",
   workplaceEmployeeDeferralLimit: 24500,
   workplaceCatchUpAge50: 8000,
   workplaceCatchUpAge60To63: 11250,
@@ -42,6 +43,7 @@ export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
   simpleEmployeeDeferralLimit: 17000,
   simpleApplicableHigherEmployeeDeferralLimit: 18100,
   simpleCatchUpAge50: 4000,
+  simpleApplicableHigherCatchUpAge50: 3850,
   simpleCatchUpAge60To63: 5250,
   sepEmployerContributionLimit: 72000,
   sepEmployerCompensationRate: 0.25,
