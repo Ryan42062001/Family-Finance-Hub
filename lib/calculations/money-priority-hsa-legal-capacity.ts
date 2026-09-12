@@ -204,13 +204,14 @@ export function evaluateHsaLegalCapacity(
     .filter((person) => person.isActive && !person.isDependent && (person.relationship === "self" || person.relationship === "spouse_partner"))
     .sort((a, b) => a.id.localeCompare(b.id));
   const candidatePairIds = spouseCandidates.length === 2 ? spouseCandidates.map((person) => person.id) : [];
+  const ambiguousCandidateIds = spouseCandidates.length > 2 ? spouseCandidates.map((person) => person.id) : [];
   const spouseAuthority = candidatePairIds.length === 2
     ? snapshot.hsa.legalSpouseAuthorities.find((item) => item.taxYear === taxYear
       && item.personOneId === candidatePairIds[0] && item.personTwoId === candidatePairIds[1])
     : undefined;
   const spouseAuthorityStatus = spouseAuthority?.status ?? "unknown";
   const marriedPairIds = spouseAuthorityStatus === "confirmed_legal_spouses" ? candidatePairIds : [];
-  const relevantPeople = [...new Set([...accountOwners, ...candidatePairIds])].sort();
+  const relevantPeople = [...new Set([...accountOwners, ...candidatePairIds, ...ambiguousCandidateIds])].sort();
   const facts = new Map(relevantPeople.map((personId) => [personId, personMonthFacts(snapshot, personId, taxYear)] as const));
 
   for (const personId of relevantPeople) {
@@ -230,6 +231,24 @@ export function evaluateHsaLegalCapacity(
       const message = `Legal-spouse authority for ${aId} and ${bId} is required for HSA spouse-sharing in ${taxYear}.`;
       a.missingData.add(message);
       b.missingData.add(message);
+    }
+  }
+
+  if (ambiguousCandidateIds.length > 0) {
+    for (const ownerId of accountOwners) {
+      if (!ambiguousCandidateIds.includes(ownerId)) continue;
+      const owner = facts.get(ownerId)!;
+      const pairIdentityIsMaterial = ambiguousCandidateIds.some((candidateId) => {
+        if (candidateId === ownerId) return false;
+        const candidate = facts.get(candidateId)!;
+        return owner.months.some((ownerMonth, index) =>
+          spouseStatusCouldChangeOrdinaryCapacity(ownerMonth, candidate.months[index]!));
+      });
+      if (pairIdentityIsMaterial) {
+        owner.missingData.add(
+          `Unambiguous legal-spouse pair authority among ${ambiguousCandidateIds.join(", ")} is required for HSA spouse-sharing in ${taxYear}.`,
+        );
+      }
     }
   }
 
