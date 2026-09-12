@@ -17,6 +17,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm ci
+      - name: Validate AI control-plane state
+        run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
       - name: Test calculations
