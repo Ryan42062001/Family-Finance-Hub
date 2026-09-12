@@ -239,7 +239,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       const simplePlanLimitCategory = account.type === "simple_ira" && account.simplePlanLimitTaxYear === taxPolicy.taxYear
         ? account.simplePlanLimitCategory
         : null;
-      if (account.type === "simple_ira" && simplePlanLimitCategory === null) missingData.push(`SIMPLE plan-limit category for tax year ${taxPolicy.taxYear} is required; the standard limit is used conservatively.`);
+      if (account.type === "simple_ira" && simplePlanLimitCategory === null) missingData.push(`Whether this SIMPLE plan qualifies for the higher applicable-plan limit for tax year ${taxPolicy.taxYear} is unknown; the standard limit is used.`);
       const simpleHigherLimit = simplePlanLimitCategory === "certain_applicable_higher";
       const catchUp = account.type === "simple_ira" ? simpleCatchUpAmount(age, simpleHigherLimit, taxPolicy) : catchUpAmount(age, account.type, taxPolicy);
       let catchUpMustBeRoth: boolean | null = false;
