@@ -21,6 +21,8 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Test FFH-029 affected files
+        run: node --test lib/calculations/money-priority-married-hsa-remediation.test.ts lib/calculations/money-priority-retirement-accounts.test.ts
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
