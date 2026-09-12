@@ -24,7 +24,7 @@ Last refreshed: 2026-09-12
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | READY_FOR_MANAGER | production `f537b7b...`; integrated through milestone `ffde8440...` | Manager acceptance verification, then frozen dual FFH-012 re-audit |
 | FFH-026 | App/Data | QUEUED | Not established | Phase 7 production deployment/release readiness after Phase 5 + Phase 6 acceptance; establish stable URL and add GitHub About link |
-| FFH-027 | Manager | ACTIVE | control-plane only | Implement/validate Workflow V3.1 determinism upgrade; no financial behavior change |
+| FFH-027 | Manager | ACCEPTED | control-plane PR #16 | Manager validation complete; merge, record integration SHA, mark Workflow V3.1 canonical, then close |
 
 ## Current verified state
 - Milestone `phase-5-money-priority-engine` is at `ffde8440a4e671ab91ea02c35df8a73e1a3da18e`, the FFH-025 integration merge.
@@ -38,10 +38,10 @@ Last refreshed: 2026-09-12
 - Foundation CI run `34669630244`, job `103488407900`, on the FFH-025 integration passes install, production dependency audit, calculations, and security, then fails at Type check. The inherited test TypeScript failure family is tracked as `CI-001` in `.ai/manager/KNOWN_CI_DEBT.md`.
 - FFH-020 remains BLOCKED before any live write.
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
-- FFH-027 is a control-plane-only workflow upgrade and does not change FFH-012 acceptance or activate later phases.
+- FFH-027 is Manager-accepted on PR #16 and remains control-plane only; integration/closure is the next gate.
 
 ## ACTIVATE NOW
-- Manager / Architect — FFH-027 control-plane upgrade and subsequent FFH-011/FFH-025 acceptance verification.
+- Manager / Architect — integrate/close FFH-027, then resume FFH-011/FFH-025 acceptance verification.
 
 ## IDLE / BLOCKED
 - Work Helper: IDLE; FFH-025 worker work is complete and awaiting Manager disposition.
