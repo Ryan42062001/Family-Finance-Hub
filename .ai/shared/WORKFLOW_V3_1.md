@@ -1,10 +1,12 @@
 # Family Finance Hub — Workflow V3.1 Determinism Overlay
 
-Status: APPROVED BY USER / MANAGER IMPLEMENTATION PENDING INTEGRATION
+Status: APPROVED / CANONICAL OPERATING OVERLAY / CONTROL-PLANE ONLY
 Task: FFH-027
 Base workflow: `.ai/shared/WORKFLOW_V3.md` + `.ai/shared/WORKFLOW.md`
 
 This overlay tightens control-plane determinism without changing financial policy, production behavior, specialist authority, or the five-department operating model.
+
+Future Manager activation prompts and replacement-chat bootstraps should include `.ai/shared/WORKFLOW_V3_1.md` in addition to `.ai/shared/WORKFLOW_V3.md` and `.ai/shared/WORKFLOW.md`. Repository/task/runtime/CI evidence remains authoritative over chat memory.
 
 ## 1. Machine-checkable task state
 
