@@ -41,8 +41,9 @@ test("loader and normalized snapshot carry the new contract while the legacy boo
   assert.match(loader, /simple_plan_limit_tax_year/);
   assert.match(snapshot, /simplePlanLimitCategory\?: SimplePlanLimitCategory \| null/);
   assert.match(snapshot, /simplePlanLimitTaxYear\?: number \| null/);
-  assert.match(snapshot, /simplePlanLimitCategory: nullableString\(row\.simple_plan_limit_category\)/);
-  assert.match(snapshot, /simplePlanLimitTaxYear: nullableNumber\(row\.simple_plan_limit_tax_year\)/);
+  assert.match(snapshot, /nullableString\(row\.simple_plan_limit_category\)/);
+  assert.match(snapshot, /nullableNumber\(row\.simple_plan_limit_tax_year\)/);
+  assert.match(snapshot, /simplePlanLimitCategory,\s*\n\s*simplePlanLimitTaxYear,/);
   assert.doesNotMatch(snapshot, /simpleHigherLimitEligible: nullableBoolean\(row\.simple_higher_limit_eligible\)/);
   assert.match(snapshot, /simplePlanLimitCategory === "standard" \? false : null/);
 });

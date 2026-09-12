@@ -2,155 +2,99 @@
 
 HANDOFF
 
-Task ID: FFH-020
+Task ID: FFH-011
 
 Role: Application, Data & Integration Engineer
 
-Status: BLOCKED — STAGE A STOPPED AT SECURE CLI / AUTH / PROTECTED-BACKUP PREREQUISITE
+Status: READY_FOR_MANAGER
 
 ## Current authority
 
 - Repository: `Ryan42062001/Family-Finance-Hub`
-- Milestone branch: `phase-5-money-priority-engine`
-- Manager control-plane head independently verified before this Stage-A attempt: `6ba3a6980faad82a1f6ca71d6ad1565592f9c0cb`.
-- FFH-024 is Manager-accepted recovery authority.
-- FFH-020 is authorized for **Stage A only**: protected backup, supported history-only repair, exact migration-list reconciliation, and exact `db push --linked --include-all --dry-run`. The live DDL push is not authorized.
+- Milestone / PR base: `phase-5-money-priority-engine`
+- Branch: `task/FFH-011-simple-persisted-field-contract-remediation`
+- PR: #13
+- Manager control-plane checkpoint used for evidence completion: `2885838a9aaa05e35df45fd08dd69fe557d909e3`
+- Execution scope: evidence/handoff completion only after the existing FFH-011 security-test correction; no further production remediation authorized.
 
-## Repository migration source refreshed
+## FFH-011 implementation checkpoint
 
-At the Manager-authorized checkpoint:
-- `0001_household_foundation.sql` — blob `52db76f93c60c933f5f420a420d143cb80226d77`
-- `20260902190000_phase_5a_hybrid_retirement_floor.sql` — blob `4bd9c98d9404c8eaa35b213fd7f4a1df6d8cf98c`
-- `20260903134156_phase_5b_goal_intelligence.sql` — blob `2c99e849bb8960732cb898e43e709e9a15b3524f`
-- `20260909005000_ffh_010_hsa_input_contract.sql` — blob `2e2a75a17439c2d75422ec271492333c0eb283c1`
-- `20260909033000_ffh_011_simple_plan_limit_contract.sql` — blob `3f01921b5a346c1e1e95259db30d104e68f8a184`
+PRODUCTION_SHA: `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`
 
-No migration file was renamed or edited.
+The candidate changes exactly one implementation-owned file:
+- `tests/security/simple-plan-limit-contract.test.ts`
 
-## Live target refresh — 2026-09-11
+The correction removes brittle dependence on an inline source-expression shape and continues to prove the approved SIMPLE persisted-field semantics: category and tax-year persistence, normalization, shorthand propagation, legacy ambiguity safety, and no direct promotion of `simple_higher_limit_eligible`.
 
-Target project positively re-verified through the connected Supabase integration:
-- ref: `tsqwvggojeudgspnumze`
-- name: `Ryan4206's Project`
-- region: `us-east-2`
-- PostgreSQL: `17.6.1.166`
-- state: `ACTIVE_HEALTHY`
+No production source file, SIMPLE formula, HSA/retirement behavior, migration, or live database state was changed by FFH-011.
 
-Remote migration history remains unchanged from FFH-024:
-1. `20260829180242 household_foundation`
-2. `20260829182715 phase_2_household_financial_profile`
-3. `20260829183541 phase_2_expenses`
-4. `20260829223642 phase_5_ownership_and_planning_foundation`
-5. `20260829223716 phase_5_ownership_foundation_indexes`
-6. `20260829223935 phase_5_priority_engine_context`
-7. `20260829234300 phase_5_tax_profile_context`
-8. `20260829234446 phase_5_tax_profile_mfs_context`
-9. `20260831235822 phase_5_closure_input_context`
-10. `20260901020220 phase_5_adversarial_audit_remediation`
-11. `20260903135253 phase_5b_goal_intelligence`
+Manager provenance correction retained for the record: the actual pre-remediation SIMPLE security-test blob at the accepted/integration checkpoints is `9118f427068861e43cd21fac062574d11201294e`; the earlier `022972...` note was a provenance typo. The ownership conclusion is unchanged.
 
-Fresh read-only schema checks also match FFH-024:
-- foundation schema effects are present (`public.household_role`, `public.households`, `public.household_members`, `private.is_household_member(uuid)`);
-- Phase 5A `expected_hsa_medical_spending_annual` is absent;
-- representative Phase 5B columns are present (`goal_intelligence_confirmed`, `underlying_need`, `expected_borrowing_apr`);
-- FFH-010 profile/month/allocation tables and `retirement_accounts.hsa_ytd_tax_year` are absent;
-- FFH-011 `simple_plan_limit_category` and `simple_plan_limit_tax_year` are absent.
+## Exact Foundation CI evidence
 
-Conclusion: no material live drift from the accepted FFH-024 baseline was found.
+Run: `34628911063`
+Job: `103360669269`
+Head: `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`
 
-## CLI semantics and version evidence
+Gate results:
+- Checkout: PASS
+- Setup Node: PASS
+- Install dependencies: PASS
+- Audit production dependencies: PASS
+- Run calculation tests: PASS
+- Run security tests: PASS
+- Type Check: FAIL
+- ESLint: SKIPPED due fail-fast; not evaluated
+- Build: SKIPPED due fail-fast; not evaluated
 
-Current official Supabase documentation was refreshed and still defines:
-- `supabase migration repair [version] ... [flags]`;
-- `--status applied` as inserting/marking a history record applied;
-- `--status reverted` as removing/marking a history record reverted;
-- migration repair as history-only (it does not replay or revert migration SQL);
-- linked `db push --dry-run` as the pending-migration preview;
-- `--include-all` as the mechanism needed when an older migration remains pending behind later recorded history.
+The FFH-011-owned security blocker is cleared because the complete security stage passed on the exact candidate.
 
-Latest stable upstream Supabase CLI release independently observed from the official `supabase/cli` release feed: `v2.117.0`, published 2026-09-07.
+### Exact TypeScript diagnostics
 
-**Local CLI version:** unavailable. The current execution shell has no `supabase` executable, so the required local `supabase --version` and help commands could not be run.
+`npm run typecheck` invoked `tsc --noEmit` and emitted exactly five diagnostics:
 
-## Secure execution / backup blocker
+1. `lib/calculations/money-priority-married-hsa-remediation.test.ts(219,80): error TS2339: Property 'accountType' does not exist on type '{ accountId: string; opportunityTier: string; allocatedMonthlyAmount: number; allocatedAnnualAmount: number; }'.`
+2. `lib/calculations/money-priority-retirement-accounts.test.ts(20,17): error TS2339: Property 'account_type' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+3. `lib/calculations/money-priority-retirement-accounts.test.ts(20,58): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+4. `lib/calculations/money-priority-retirement-accounts.test.ts(20,114): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+5. `lib/calculations/money-priority-retirement-accounts.test.ts(21,30): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
 
-Pre-write runtime checks found:
-- no Supabase CLI executable;
-- no cached Supabase CLI auth/config under normal runtime config locations;
-- no `SUPABASE_ACCESS_TOKEN` environment variable;
-- no `SUPABASE_DB_PASSWORD` environment variable;
-- no `SUPABASE_PROJECT_ID` environment variable;
-- no `docker` executable;
-- no `psql` executable.
+The step then exited with code 2.
 
-Attempts to obtain the CLI without requesting credentials failed because the isolated shell has no outbound DNS:
-- `npx --yes supabase@latest --version` timed out without a version result;
-- `npx --yes supabase@2.117.0 --version` timed out without a version result;
-- shell network checks to GitHub/npm failed with `Could not resolve host`.
+## Typecheck ownership classification
 
-The connected Supabase tool session is authenticated for supported integration actions, but its authentication cannot be transferred into the shell CLI session. Stage A expressly forbids substituting MCP `apply_migration`, manual SQL, or direct migration-history-table edits.
+The five diagnostics are inherited, out-of-scope HSA/retirement test typing debt:
+- FFH-011 changes only the SIMPLE security-contract test;
+- none of the diagnostics points to that file or to FFH-011 production/migration code;
+- one diagnostic is in the married-HSA remediation test;
+- four diagnostics are in the retirement-account test fixture typing;
+- Manager independently classified the typecheck debt as pre-existing and directed that FFH-011 not absorb or repair it merely because the security fix exposed the next fail-fast gate.
 
-The required protected pre-change backup therefore could not be established. Official Supabase backup guidance requires an authenticated CLI/database path for roles/schema/data/history dumps, and this runtime lacks the required CLI/database credentials and Docker/psql support.
+No inherited HSA/retirement typing debt was modified.
 
-Read-only history/schema evidence was preserved, but it is **not** being represented as the protected recovery backup required by Stage A.
+## Scope confirmation
 
-Per the Manager-defined stop condition, execution stopped before the first migration-history mutation.
-
-## Repair commands executed
-
-NONE.
-
-The following authorized commands were **not** executed because secure auth/link and backup were not established first:
-- `supabase migration repair 0001 --status applied --linked`
-- `supabase migration repair 20260829180242 --status reverted --linked`
-- `supabase migration repair 20260903134156 --status applied --linked`
-- `supabase migration repair 20260903135253 --status reverted --linked`
-
-There is therefore no after-each-repair history output. The live history remains the unchanged 11-row pre-change history listed above.
-
-## Final migration-list / dry-run evidence
-
-- CLI `supabase migration list --linked`: NOT RUN because the CLI/auth/backup prerequisite failed. Equivalent read-only remote history was re-verified through the connected Supabase integration and is listed above.
-- `supabase db push --linked --include-all --dry-run`: NOT RUN.
-- Exact dry-run output: unavailable; it would be incorrect to invent or infer it.
-
-## No-write confirmation
-
-During this Stage-A attempt:
-- no `supabase migration repair` ran;
-- no `supabase db push` ran, including no actual Stage-B DDL push;
-- no MCP `apply_migration` was used;
-- no migration SQL was manually executed;
-- no direct `supabase_migrations` mutation occurred;
-- no live DDL, data, RLS, configuration, or migration-history state changed.
-
-Repository changes are documentation-only: FFH-020 task evidence and this handoff.
+- No additional production code was changed during evidence completion.
+- No migration semantics changed.
+- No live Supabase writes occurred.
+- No FFH-020 work was performed.
+- No HSA/retirement debt was repaired.
+- PR #13 remains unmerged for Manager verification.
 
 ## Checkpoints
 
-PRODUCTION_SHA: N/A — live environment recovery
+PRODUCTION_SHA: `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`
+VALIDATED_CI_RUN: `34628911063`
+VALIDATED_CI_JOB: `103360669269`
+HANDOFF_SHA: documentation-only completion commit created from this packet; exact resulting branch SHA is reported after commit creation
+INTEGRATION_SHA: N/A — Manager-owned
 
-VALIDATED_CI: N/A
+Validation status: READY_FOR_MANAGER — FFH-011 calculations/security gates pass; the subsequent typecheck failure is inherited HSA/retirement test typing debt outside this task, and lint/build were skipped by fail-fast.
 
-HANDOFF_SHA: this documentation checkpoint; verify exact branch SHA after write
+## Prior App/Data blocker retained
 
-INTEGRATION_SHA: N/A
+FFH-020 remains BLOCKED on the previously documented secure Supabase CLI/auth/link/protected-backup prerequisite. This FFH-011 evidence pass did not execute `supabase migration repair`, `supabase db push`, manual SQL, direct migration-history mutation, MCP `apply_migration`, or any live DDL/data/RLS/configuration write. FFH-020 resumes only under its separate Manager-approved recovery authority.
 
-DEPLOYMENT_TARGET: `tsqwvggojeudgspnumze`
+## Exact next action
 
-Validation status: BLOCKED — secure CLI/auth/link/protected-backup prerequisite unavailable in current execution runtime
-
-Escalation count: 0 — capability boundary, not repeated same-root remediation
-
-## Exact secure action required
-
-Continue Stage A from a user-controlled or Work/cloud execution environment that can run the current stable Supabase CLI from a refreshed Family Finance Hub checkout and authenticate through Supabase's supported secure login/link flow.
-
-Required setup, without exposing credentials in chat or Git:
-1. Install current stable Supabase CLI and verify `supabase --version`, `supabase migration list --help`, `supabase migration repair --help`, and `supabase db push --help`.
-2. Run `supabase login` using the supported browser/native secure flow.
-3. Run `supabase link --project-ref tsqwvggojeudgspnumze`; enter any database credential only in the secure local prompt/credential mechanism, never in ChatGPT or a committed file.
-4. Establish the FFH-024 protected pre-change backup using the official Supabase backup flow before any repair command.
-5. Resume FFH-020 Stage A. The executor must re-check target history/schema immediately before `migration repair`; do not pre-run repair commands or any DDL push outside that controlled sequence.
-
-FFH-016 remains blocked. Stage B remains unauthorized until Manager independently accepts a completed Stage-A evidence packet.
+Manager independently verifies PR #13, PRODUCTION_SHA `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`, Foundation CI run `34628911063` / job `103360669269`, and this documentation-only handoff commit. Worker state is `READY_FOR_MANAGER`. Do not self-accept or merge PR #13.
