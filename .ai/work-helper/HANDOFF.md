@@ -1,20 +1,20 @@
 # Work Helper / Super Troubleshooter Handoff
 
-Task: FFH-025 — HSA Compound Authority Materiality Remediation
-Status: READY_FOR_MANAGER_VERIFICATION
-Starting milestone: `2459ad1c75df98c9c53acfa572ed9a36cef8aba0`
-Branch: `ffh/ffh-025-hsa-compound-authority-materiality`
-PR: #15
-Original behavior checkpoint: `1047f58de0ce8bf37cdd51cd066441b6d3cb28ab`
-PRODUCTION_SHA: `f537b7b7021288b578acb504a52cd9ac285a2fc2`
-HANDOFF_SHA: documentation commit containing this file; read final branch head.
+Task: FFH-028 — HSA Candidate-Pair Cardinality Safety Remediation
+Status: READY_FOR_MANAGER
+Starting milestone: `e06bf586f6c43254eb64816cc7482f6b9212beda`
+Branch: `ffh/ffh-028-hsa-candidate-pair-cardinality`
+PR: #17
+PRODUCTION_SHA: `f266c112abff752e268c48dd097d7d562ac58169`
+VALIDATED_CI: run `34698588257`, job `103566232253`, validation SHA `d13c412851c8a35d1d7cc4a85054d3dcf8bae94f`
+HANDOFF_SHA: documentation commit containing this file; read final branch head
 
-Outcome: preserved the narrow HSA compound-authority correction and fixed only FFH-025's test-fixture type ownership. Raw HSA, Traditional IRA, and 401(k) factories now explicitly constrain `account_type` to the canonical `RetirementAccountType` union; runtime HSA behavior is unchanged.
+Outcome: reproduced `$17,500 !== $8,750` before production editing. Three active self/spouse_partner candidates erased `candidatePairIds`, causing pair/year authority and materiality handling to be skipped. The evaluator now retains all ambiguous candidate identities and applies the existing FFH-025 month-level materiality test per HSA owner against every other candidate. Materially ambiguous HSA outputs are targeted `more_information_needed`; all-known self-only locality and unrelated IRA/workplace opportunities remain usable.
 
-Manager-provided evidence: Foundation CI run `34644012014`, job `103410321478`, reported four FFH-025 TS2345 diagnostics at lines 322/346/371/396 plus one inherited integration-fixture TS2345 at `money-priority-engine.integration.test.ts:8108`. The former handoff's blanket inherited classification was incorrect. The current retrievable repository/log representation differs—the file is 232 lines and the returned log lists an older five-error set—so the worker applied the semantic type correction rather than inventing unavailable line edits. Local typecheck after the patch names no FFH-025 file.
+No legal pair is inferred from relationship, filing status, allocations, account ownership, order, prior year, or a lone authority row. Findings A/B/C remain preserved, including `$5,104.17 = $2,552.08 + $2,552.09` and monthly Build routing `$364.58 + $364.58 = $729.16`.
 
-Validation: focused 63/63; full calculations 814/814; security 20/21 with only inherited FFH-011 assertion; lint passes with zero errors/one inherited warning. Local typecheck/build retain five inherited test-only TS2339 errors in `money-priority-married-hsa-remediation.test.ts:219` and `money-priority-retirement-accounts.test.ts:20`; production compilation succeeds.
+Changed code/test scope: `lib/calculations/money-priority-hsa-legal-capacity.ts`; `lib/calculations/ffh-028-hsa-candidate-pair-cardinality.test.ts`.
 
-No policy, production calculator, migration, or live Supabase change was made. Existing odd-cent and Build reconciliation regressions remain green.
+Validation: focused 67/67; full calculations 818/818; exact CI AI state, dependency, calculations, and security all PASS. CI Type check fails only on the five exact Manager-registered `CI-001` diagnostics in `money-priority-married-hsa-remediation.test.ts:219` and `money-priority-retirement-accounts.test.ts:20`; lint/build are skipped in CI. Local lint passes with one inherited warning; local build compiles production then stops on CI-001.
 
-Exact next action: Manager verifies PR #15 and exact-SHA CI, integrates if accepted, then routes the new integration checkpoint to both independent auditors. Work Helper does not merge or self-accept.
+Exact next action: Manager verifies PR #17, updates canonical task/index lifecycle, integrates if accepted, and freezes a new FFH-012 dual re-audit packet. Work Helper does not merge, accept, close, or activate auditors.
