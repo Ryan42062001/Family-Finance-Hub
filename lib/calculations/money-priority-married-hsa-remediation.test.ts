@@ -216,7 +216,7 @@ test("existing cash cannot deploy more than the corrected $750 HSA room", () => 
   const group = engine.retirementCapacityLedger.groups.find((item) => item.id === "hsa:married-family")!;
   assert.equal(group.consumed.one_time, 750);
   assert.equal(group.remainingAnnualRoom, 0);
-  assert.equal(engine.build.retirementAccountAllocations.filter((item) => item.accountType === "hsa").length, 0);
+  assert.equal(engine.build.retirementAccountAllocations.filter((item) => item.accountId === "hsa-a" || item.accountId === "hsa-b").length, 0);
 });
 
 test("Secure HSA payroll match is constrained by the same corrected room", () => {

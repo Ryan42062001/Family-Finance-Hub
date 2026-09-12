@@ -1,20 +1,56 @@
 # Work Helper / Super Troubleshooter Handoff
 
-Task: FFH-028 — HSA Candidate-Pair Cardinality Safety Remediation
+Task: FFH-029 — Phase-5 Inherited TypeScript Test-Debt Cleanup
 Status: READY_FOR_MANAGER
-Starting milestone: `e06bf586f6c43254eb64816cc7482f6b9212beda`
-Branch: `ffh/ffh-028-hsa-candidate-pair-cardinality`
-PR: #17
-PRODUCTION_SHA: `f266c112abff752e268c48dd097d7d562ac58169`
-VALIDATED_CI: run `34698588257`, job `103566232253`, validation SHA `d13c412851c8a35d1d7cc4a85054d3dcf8bae94f`
-HANDOFF_SHA: documentation commit containing this file; read final branch head
+Execution mode: STANDARD_CHAT
+Assigned baseline: `d472f8d85ed058eec345d0975ed32565a1bb4476`
+Refreshed milestone/base: `a417acc4fec7672acaab28d11806c0963137fa56`
+Branch: `ffh/ffh-029-ci001-typescript-test-debt`
+PR: #18 — https://github.com/Ryan42062001/Family-Finance-Hub/pull/18
+IMPLEMENTATION_SHA: `5b06448ae1e11d50635d9c12b00a700bfed29c5c`
+PRODUCTION_SHA: N/A — test-only remediation
+VALIDATED_CI: Foundation CI run `34708768213`, job `103593557184`, exact implementation SHA `5b06448ae1e11d50635d9c12b00a700bfed29c5c`
+FOCUSED_VALIDATION: run `34708987406`, job `103594145850`, exact validation SHA `b7fe4c2489af80e2098f231f0b4b9c5f3dfa08eb`; `Test FFH-029 affected files` PASS. Temporary workflow instrumentation was reverted at `e200d6a44abe2962609e22a535d3f575401fcfff` and is not part of the final diff.
+HANDOFF_SHA: documentation commit containing this file; use the exact commit that introduced this handoff.
 
-Outcome: reproduced `$17,500 !== $8,750` before production editing. Three active self/spouse_partner candidates erased `candidatePairIds`, causing pair/year authority and materiality handling to be skipped. The evaluator now retains all ambiguous candidate identities and applies the existing FFH-025 month-level materiality test per HSA owner against every other candidate. Materially ambiguous HSA outputs are targeted `more_information_needed`; all-known self-only locality and unrelated IRA/workplace opportunities remain usable.
+## Refresh and failure identity
 
-No legal pair is inferred from relationship, filing status, allocations, account ownership, order, prior year, or a lone authority row. Findings A/B/C remain preserved, including `$5,104.17 = $2,552.08 + $2,552.09` and monthly Build routing `$364.58 + $364.58 = $729.16`.
+The approved integration branch advanced from the Manager-recorded assignment baseline to `a417acc4fec7672acaab28d11806c0963137fa56` before execution. FFH-029 remained ACTIVE and assigned to Work Helper, with no pre-existing task branch or FFH-029 PR. Current-milestone Foundation CI run `34700520728`, job `103571341426`, reproduced registered CI-001 exactly before editing:
 
-Changed code/test scope: `lib/calculations/money-priority-hsa-legal-capacity.ts`; `lib/calculations/ffh-028-hsa-candidate-pair-cardinality.test.ts`.
+1. `lib/calculations/money-priority-married-hsa-remediation.test.ts(219,87): error TS2339: Property 'accountType' does not exist on type 'RetirementAccountAllocationResult'.`
+2. `lib/calculations/money-priority-retirement-accounts.test.ts(20,17): error TS2339: Property 'account_type' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+3. `lib/calculations/money-priority-retirement-accounts.test.ts(20,57): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+4. `lib/calculations/money-priority-retirement-accounts.test.ts(20,109): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+5. `lib/calculations/money-priority-retirement-accounts.test.ts(21,34): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
 
-Validation: focused 67/67; full calculations 818/818; exact CI AI state, dependency, calculations, and security all PASS. CI Type check fails only on the five exact Manager-registered `CI-001` diagnostics in `money-priority-married-hsa-remediation.test.ts:219` and `money-priority-retirement-accounts.test.ts:20`; lint/build are skipped in CI. Local lint passes with one inherited warning; local build compiles production then stops on CI-001.
+No failure-identity reclassification was required.
 
-Exact next action: Manager verifies PR #17, updates canonical task/index lifecycle, integrates if accepted, and freezes a new FFH-012 dual re-audit packet. Work Helper does not merge, accept, close, or activate auditors.
+## Root cause and correction
+
+- The married-HSA test used stale `item.accountType` access even though `RetirementAccountAllocationResult` exposes account identity through `accountId`. The assertion now checks the two fixture HSA account IDs (`hsa-a` / `hsa-b`) without changing the intended assertion.
+- The retirement-account test helper accepts `Record<string, unknown>[]`, but mapped-object inference narrowed the normalized fixture to only the explicitly emitted common properties. The normalized array is now explicitly typed `Record<string, unknown>[]`, preserving guarded access to fixture keys without `any`, casts, blanket assertions, runtime changes, or weakened expectations.
+
+Exact implementation files changed:
+- `lib/calculations/money-priority-married-hsa-remediation.test.ts`
+- `lib/calculations/money-priority-retirement-accounts.test.ts`
+
+No production files, financial formulas, accepted FFH-012 behavior, or accepted FFH-028 behavior changed.
+
+## Validation
+
+Implementation candidate Foundation CI run `34708768213` / job `103593557184` is SUCCESS on exact SHA `5b06448ae1e11d50635d9c12b00a700bfed29c5c`:
+- AI control-plane state: PASS
+- production dependency audit: PASS
+- full calculation suite: PASS
+- security suite: PASS
+- Type check: PASS; all five registered TS2339 diagnostics are gone
+- lint: PASS
+- build: PASS
+
+Focused validation run `34708987406` / job `103594145850` explicitly ran both affected test files and the `Test FFH-029 affected files` step passed. The validation-only workflow step was then removed so the repository workflow returned to its original content.
+
+Remaining failure identity: NONE observed after CI-001 removal. Lint and build are observable and green again. `CI-001` is technically remediated; `.ai/manager/KNOWN_CI_DEBT.md` remains Manager-owned, so administrative registry closure is left to Manager acceptance rather than self-acceptance by Work Helper.
+
+## Manager next action
+
+Verify PR #18 against `phase-5-money-priority-engine`, clear Manager-tracked CI-001 if accepted, and integrate FFH-029. Work Helper does not merge, self-accept, close the task, or activate FFH-013/015/017/020 or Supabase work.
