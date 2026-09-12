@@ -61,11 +61,14 @@ function workplaceLimit(age: number | null, taxPolicy: MoneyPriorityTaxPolicy): 
   if (age !== null && age >= 50) return base + taxPolicy.workplaceCatchUpAge50;
   return base;
 }
+function simpleCatchUpAmount(age: number | null, higherLimit: boolean, taxPolicy: MoneyPriorityTaxPolicy): number {
+  if (age === null || age < 50) return 0;
+  if (age >= 60 && age <= 63) return taxPolicy.simpleCatchUpAge60To63;
+  return higherLimit ? taxPolicy.simpleApplicableHigherCatchUpAge50 : taxPolicy.simpleCatchUpAge50;
+}
 function simpleLimit(age: number | null, higherLimit: boolean, taxPolicy: MoneyPriorityTaxPolicy): number {
   const base = higherLimit ? taxPolicy.simpleApplicableHigherEmployeeDeferralLimit : taxPolicy.simpleEmployeeDeferralLimit;
-  if (age !== null && age >= 60 && age <= 63) return base + taxPolicy.simpleCatchUpAge60To63;
-  if (age !== null && age >= 50) return base + taxPolicy.simpleCatchUpAge50;
-  return base;
+  return base + simpleCatchUpAmount(age, higherLimit, taxPolicy);
 }
 function catchUpAmount(age: number | null, type: string, taxPolicy: MoneyPriorityTaxPolicy): number {
   if (age === null || age < 50) return 0;
@@ -233,14 +236,18 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       if (!sharedWorkplaceTypes.has(account.type) && compensation === null) missingData.push("Participant compensation is required to calculate the applicable employee contribution ceiling.");
       if (sharedWorkplaceTypes.has(account.type) && account.employerContributedYtd === null) missingData.push("Employer contributions YTD are required to apply the defined-contribution annual-additions limit.");
       if (sharedWorkplaceTypes.has(account.type) && account.ownerPersonId && (workplaceAccountCountByOwner.get(account.ownerPersonId) ?? 0) > 1) missingData.push("Employer/plan identity is required to allocate annual-additions capacity precisely across multiple workplace accounts; each account's plan-specific compensation remains separate and no separate plan limit is inferred.");
-      if (account.type === "simple_ira" && account.simpleHigherLimitEligible == null) missingData.push("Whether this SIMPLE plan qualifies for the higher applicable-plan limit is unknown; the standard limit is used.");
-      const catchUp = catchUpAmount(age, account.type, taxPolicy);
+      const simplePlanLimitCategory = account.type === "simple_ira" && account.simplePlanLimitTaxYear === taxPolicy.taxYear
+        ? account.simplePlanLimitCategory
+        : null;
+      if (account.type === "simple_ira" && simplePlanLimitCategory === null) missingData.push(`SIMPLE plan-limit category for tax year ${taxPolicy.taxYear} is required; the standard limit is used conservatively.`);
+      const simpleHigherLimit = simplePlanLimitCategory === "certain_applicable_higher";
+      const catchUp = account.type === "simple_ira" ? simpleCatchUpAmount(age, simpleHigherLimit, taxPolicy) : catchUpAmount(age, account.type, taxPolicy);
       let catchUpMustBeRoth: boolean | null = false;
       if (catchUp > 0 && (sharedWorkplaceTypes.has(account.type) || account.type === "457b")) {
         if (account.priorYearSponsorWages == null) { catchUpMustBeRoth = null; missingData.push("Prior-year wages from this plan's sponsoring employer are required to determine Roth catch-up treatment."); }
         else if (account.priorYearSponsorWages > taxPolicy.highWageRothCatchUpThreshold) { catchUpMustBeRoth = true; if (account.rothCatchUpSupported == null) missingData.push("Plan Roth catch-up support is required for this high-wage participant."); if (account.rothCatchUpSupported === false) missingData.push("This plan cannot support the Roth catch-up required for this high-wage participant."); }
       }
-      const statutoryLimit = account.type === "simple_ira" ? simpleLimit(age, account.simpleHigherLimitEligible === true, taxPolicy) : workplaceLimit(age, taxPolicy);
+      const statutoryLimit = account.type === "simple_ira" ? simpleLimit(age, simpleHigherLimit, taxPolicy) : workplaceLimit(age, taxPolicy);
       const rothSupportedLimit = catchUpMustBeRoth === true && account.rothCatchUpSupported !== true ? statutoryLimit - catchUp : statutoryLimit;
       const annualLimit = compensation === null ? rothSupportedLimit : roundMoney(Math.min(rothSupportedLimit, compensation));
       let remainingAnnualRoom = contributedYtd === null ? null : roundMoney(Math.max(0, annualLimit - contributedYtd));
