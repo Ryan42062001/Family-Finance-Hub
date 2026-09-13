@@ -13,6 +13,7 @@ import {
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
+  consumeRetirementCapacityForEqualOwnerTie,
   createRetirementCapacityLedger,
   remainingRetirementCapacity,
   type RetirementCapacityLedger,
@@ -530,8 +531,25 @@ export function evaluateBuildStage(
 
   const retirementAccountAllocations: BuildStageResult["retirementAccountAllocations"] = [];
   let retirementToRoute = retirementRequest?.allocatedMonthlyAmount ?? 0;
+  const routedTieGroups = new Set<string>();
   for (const destination of retirementDestinations) {
     if (retirementToRoute <= 0) break;
+    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
+    if (tieKey && routedTieGroups.has(tieKey)) continue;
+    if (tieKey) {
+      routedTieGroups.add(tieKey);
+      const tiedAccountIds = retirementDestinations
+        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
+        .map((item) => item.accountId);
+      const consumptions = consumeRetirementCapacityForEqualOwnerTie(capacityLedger, tiedAccountIds, "build", roundMoney(retirementToRoute * 12));
+      for (const consumption of consumptions) {
+        const allocatedMonthlyAmount = roundMoney(consumption.consumedAnnualAmount / 12);
+        retirementAccountAllocations.push({ accountId: consumption.accountId, opportunityTier: destination.opportunityTier!, allocatedMonthlyAmount, allocatedAnnualAmount: consumption.consumedAnnualAmount });
+        retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
+      }
+      continue;
+    }
     const annualRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
     if (annualRoom === null || annualRoom <= 0) continue;
     const requestedAnnualAmount = roundMoney(Math.min(retirementToRoute * 12, annualRoom));
