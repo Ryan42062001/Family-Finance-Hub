@@ -70,6 +70,14 @@ When a recovery task is assigned, Work Helper may diagnose and implement the tec
 
 Do not route unresolved financial-policy, regulatory-meaning, roadmap, or ambiguous schema-semantics decisions into technical recovery.
 
+## Financial-engine acceptance review
+
+For production work that changes monetary routing, destination splitting, shared legal capacity, grouped ledgers, rounding, or annual/monthly conversion, apply `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` before Manager acceptance.
+
+Independently hand-check at least one adversarial boundary outside the worker's summary. Compare the aggregate amount, concrete destination totals, ledger consumption, residual, and any unit conversion. Green CI is necessary but not sufficient.
+
+If the worker's planning/prepass path and actual router use different logic, require direct equivalence evidence. A reachable cent mismatch, hidden positive residual, epsilon/tolerance waiver, or aggregate/destination disagreement is remediation-worthy even when statutory annual capacity remains bounded.
+
 ## Existing authority and gates
 
 Manager alone may move tasks to `ACCEPTED`, `AUDIT_READY`, or `CLOSED`. For isolated production branches, independently verify `PRODUCTION_SHA` + `VALIDATED_CI`, integrate accepted work into the milestone branch, record `INTEGRATION_SHA`, and verify integration CI.
