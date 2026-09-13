@@ -40,6 +40,12 @@ AUDIT_STATUS: NOT_READY
 - Task-owned: ...
 - Inherited: reference `.ai/manager/KNOWN_CI_DEBT.md` entries, if any.
 
+## Financial reconciliation gate
+Applicability: REQUIRED | NOT_APPLICABLE — <reason>
+Authoritative routing unit: <annual/monthly/one-time/N/A>
+Aggregate-to-destination invariant: <exact invariant or N/A>
+Required adversarial money boundaries: <odd-cent/order/shared-group/unit-conversion cases or N/A>
+
 ## Acceptance criteria
 ...
 
@@ -59,3 +65,5 @@ AUDIT_STATUS: NOT_READY
 - A merged PR does not itself set `MANAGER_VERDICT`, `AUDIT_STATUS`, or `State`.
 - `AUDIT_STATUS` may be `NOT_READY`, `REQUIRED`, `IN_PROGRESS`, `PASS`, `PASS_WITH_NON_BLOCKING_FINDINGS`, `FAIL_REMEDIATION_REQUIRED`, or `NOT_REQUIRED — <reason>`.
 - Verification-only/control-plane tasks may use explicit `N/A — <reason>` checkpoint values where a production code SHA is not meaningful.
+- Any task changing money routing, splitting, shared/grouped capacity, or annual/monthly conversion must mark the Financial reconciliation gate `REQUIRED` and apply `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`.
+- `READY_FOR_MANAGER` evidence for a required reconciliation gate must include exact aggregate/destination reconciliation and the applicable adversarial money-boundary result.
