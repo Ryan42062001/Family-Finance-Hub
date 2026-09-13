@@ -1,73 +1,68 @@
 # Financial Policy & Scenario Audit — HANDOFF
 
-Task: FFH-012 — HSA Legal-Capacity Calculation
-Process: canonical Workflow V3.1 fresh independent post-FFH-028 re-audit
-Audit packet: `FFH-012_FROZEN_AUDIT_PACKET_51c3cd59.md`
-Frozen audit target: `51c3cd5978837b892f0323617b49986347c7d938`
-Verdict: **PASS WITH NON-BLOCKING FINDINGS**
+Task: FFH-015 — Narrow R1 SIMPLE Core Remediation
+Process: canonical Workflow V3.1 fresh independent policy/scenario audit
+Execution mode: `STANDARD_CHAT`
+Frozen audit packet: `.ai/audit/FFH-015_FROZEN_AUDIT_PACKET_01d9c225.md`
+Frozen audit target: `01d9c22522d331ca560895e1ad59e6fab9827e8b`
+Manager control-plane checkpoint: `5d4f01b66409cbc486a9df75fb7783b210decc78`
+Verdict: **PASS**
 
 ## Independence / boundary
 
-- Audited only the frozen financial-behavior target `51c3cd5978837b892f0323617b49986347c7d938`.
-- Later milestone commits were treated only as Manager control-plane/task/audit documentation.
-- The Technical & Mathematical Auditor's new conclusions/verdict were not read or used.
-- No production code or Manager-owned lifecycle/task/shared state was changed.
+- Audited only the frozen financial-behavior checkpoint `01d9c22522d331ca560895e1ad59e6fab9827e8b`.
+- The new Technical & Mathematical Auditor verdict was not read or reused.
+- Later Manager/control-plane state was not substituted for the frozen behavior target.
+- No production, Manager/shared task state, policy/research authority, credentials, or database state was changed.
 
-## Finding disposition
+## R1 disposition
 
-- **FINDING A: CLOSED** — exact-two-candidate FFH-025 compound authority materiality remains correct. Missing/unknown target-year spouse authority blocks affected HSA outputs when both people may still be eligible and family coverage is known/possible, while fully known self-only and known-ineligible locality remain actionable. Unrelated IRA/workplace routes remain usable.
-- **FINDING B: CLOSED** — odd-cent shared-base conservation remains exact: `$5,104.17 = $2,552.08 + $2,552.09`.
-- **FINDING C: CLOSED** — shared annual/montly reconciliation remains exact: `$8,750 = $4,375 + $4,375`; `$364.58 + $364.58 = $729.16`, with positive routing residue rejected and exact annual legal room preserved separately.
-- **FINDING D: CLOSED** — FFH-028 prevents `>2` active nondependent `self`/`spouse_partner` candidate ambiguity from falling through to optimistic independent family limits. Material candidate-pair ambiguity produces targeted HSA `more_information_needed`; one A/B authority row does not infer that A/B are the unique relevant pair while a third material candidate remains. All-self-only and known-ineligible/local scenarios remain actionable, and unrelated IRA/workplace opportunities continue.
+**CLOSED.**
 
-## No-inference / household behavior
+The frozen target correctly distinguishes the 2026 SIMPLE categories:
 
-Confirmed at the frozen target:
+- standard base `$17,000`;
+- certain-applicable higher base `$18,100`;
+- standard general age-50+ catch-up `$4,000`;
+- certain-applicable higher general age-50+ catch-up `$3,850`;
+- age 60–63 catch-up `$5,250` as a replacement rather than stacked catch-up.
 
-- `spouse_partner` relationship labels do not establish legal marriage;
-- filing status does not establish or erase legal marriage authority;
-- married-allocation rows are downstream preference only and do not establish marriage;
-- account ownership does not establish pair identity;
-- prior-year authority does not carry into the target HSA tax year;
-- input ordering does not change supported legal results;
-- exactly two confirmed legal spouses retain shared-family behavior;
-- confirmed non-spouses remain independent;
-- exact-two missing/unknown authority retains targeted FFH-025 materiality behavior;
-- Medicare, age-55 catch-up, employee/employer YTD, partial-year capacity, multiple-HSA, alternate-allocation, and spouse-without-HSA cases remain coherent.
+The prior `$150` higher-category overstatement for affected ages 50–59 and 64+ is no longer present.
 
-## Retained non-blocking findings
+## Household-policy conclusions
 
-### LOW — confirmed-spouse `coverage=none` locality is over-conservative
+- Standard SIMPLE receives only standard capacity.
+- Current-target-year explicit `certain_applicable_higher` authority is required for higher capacity.
+- Ages 60–63 receive one `$5,250` catch-up; age 64+ returns to the applicable category-specific general catch-up.
+- Under-50 receives no age catch-up.
+- Legacy `simpleHigherLimitEligible` does not establish higher legal authority.
+- Stale prior-year category authority does not carry forward.
+- Missing/unknown authority remains targeted `more_information_needed`, produces no verified/consumable SIMPLE ledger room, and does not become silent standard certainty.
+- Exact-limit YTD produces zero additional room; just-below preserves the exact residual; excess YTD manufactures no room.
+- Unrelated verified 401(k), workplace, IRA, and HSA behavior remains usable/unaffected.
+- No ordering/default/legacy path was found that can manufacture higher SIMPLE room.
 
-For exactly two confirmed legal spouses, A eligible/self-only and B eligibility unknown with B coverage explicitly `none` can cause A to become `more_information_needed` even though family sharing cannot arise from the recorded coverage fact. This suppresses a supportable HSA opportunity but cannot create excess capacity, duplicate room, transfer catch-up, or contaminate unrelated retirement routes.
+## CI attribution
 
-### LOW — copied married-ledger component `remaining` metadata can become stale
+Foundation CI run `34729503423`, job `103649562344`: SUCCESS across AI-state validation, dependency audit, calculation tests, security-policy contract tests, typecheck, lint, and build.
 
-Married-family consumption reduces the authoritative account total plus shared/owner groups used by `remainingRetirementCapacity()`, but copied component fields such as `sharedCapacityRemainingRoom`, `sharedOrdinaryRemainingRoom`, and `catchUpRemainingRoom` are not decremented in that special branch. Current routing remains capped; this is metadata/future-use risk rather than an active legal-capacity defect.
+GitHub records the CI run head as production SHA `378f18728615732e281d527e56fce9fb1b387406`, not the later integration SHA. Independent comparison shows `378f187... -> 01d9c225...` changes only `.ai/engineering/engine/HANDOFF.md`, so the CI-covered executable/test tree is identical to the frozen integration target. CI is regression/attribution evidence only; policy correctness was independently established against accepted repository authority and scenario behavior.
 
-## CI evidence / ownership
+## Findings
 
-Exact frozen integration Foundation CI run `34698898118`, job `103567059188`, head `51c3cd5978837b892f0323617b49986347c7d938`:
-
-- Validate AI state PASS;
-- dependency setup/audit PASS;
-- Test calculations PASS;
-- Test security policy contract PASS;
-- Type check FAIL;
-- lint/build skipped after fail-fast.
-
-The TypeScript errors match Manager-registered inherited `CI-001` (`money-priority-married-hsa-remediation.test.ts` and `money-priority-retirement-accounts.test.ts` TS2339 families). No new FFH-012/FFH-028 failure identity was identified. This verdict does not waive CI-001 or broader Manager release gates.
+CRITICAL — none.
+HIGH — none.
+MEDIUM — none.
+LOW — none.
 
 ## Auditor evidence
 
-Fresh post-FFH-028 frozen re-audit report:
-`.ai/audit/policy/FFH-012_POLICY_SCENARIO_FROZEN_REAUDIT_51c3cd59.md`
+Report:
+`.ai/audit/policy/FFH-015_POLICY_SCENARIO_AUDIT_01d9c225.md`
 
 Report commit:
-`7916d2d915ba16a482bcbb505fff7db4c1566e9d`
+`3b644b9c6ab44a584487a6d5a4e1eebf42cf8029`
 
 ## Manager disposition
 
-From the financial-policy and household-safety perspective, FFH-012 is safe for Manager closure after dual-audit reconciliation. The two LOW findings are non-blocking and may be separately tracked/routed at Manager discretion.
-
-Manager alone owns final FFH-012 closure, lifecycle state, CI-debt routing, and subsequent milestone sequencing.
+From the financial-policy and household-scenario perspective, the frozen FFH-015 target passes and R1 is closed. This audit does **not** close FFH-015 and does **not** activate FFH-013. Manager retains dual-audit reconciliation, lifecycle closure, and sequencing authority.
