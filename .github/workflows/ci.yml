@@ -2,7 +2,10 @@ name: Foundation CI
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - phase-5-money-priority-engine
+  workflow_dispatch:
 
 jobs:
   verify:
