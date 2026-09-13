@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { evaluateBuildStage } from "./money-priority-build.ts";
+import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { buildMoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 import { consumeRetirementCapacity, consumeRetirementCapacityForEqualOwnerTie, createRetirementCapacityLedger, remainingRetirementCapacity, retirementCapacityInvariantHolds } from "./money-priority-retirement-capacity.ts";
@@ -124,6 +125,141 @@ test("financially tied spouse routes use equal fulfillment and stable final-cent
   assert.deepEqual(allocations.map((item) => [item.accountId, item.consumedAnnualAmount]), [["ira-a", 2500.01], ["ira-b", 2500]]);
   assert.equal(ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 5000);
   assert.ok(retirementCapacityInvariantHolds(ledger));
+});
+
+test("A01 annual tied demand is capped to the common shared group before equal fulfillment", () => {
+  const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(withFacts(10000.01, 0, 0, 0)));
+  const allocations = consumeRetirementCapacityForEqualOwnerTie(ledger, ["ira-b", "ira-a"], "one_time", 15000);
+  assert.deepEqual(allocations.map((item) => [item.accountId, item.consumedAnnualAmount]), [
+    ["ira-a", 5000.01],
+    ["ira-b", 5000],
+  ]);
+  assert.equal(allocations.reduce((sum, item) => sum + item.consumedAnnualAmount, 0), 10000.01);
+  assert.equal(ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 0);
+  assert.ok(retirementCapacityInvariantHolds(ledger));
+});
+
+test("A01 account-ID reversal changes only the unavoidable final cent", () => {
+  const allocate = (ids: [string, string]) => {
+    const value = withFacts(10000.01, 0, 0, 0);
+    value.retirementAccounts[0]!.id = ids[0];
+    value.retirementAccounts[1]!.id = ids[1];
+    const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(value));
+    return consumeRetirementCapacityForEqualOwnerTie(ledger, [...ids].reverse(), "windfall", 15000)
+      .map((item) => ({ owner: ledger.entries.find((entry) => entry.accountId === item.accountId)!.ownerPersonId, amount: item.consumedAnnualAmount }))
+      .sort((a, b) => a.owner!.localeCompare(b.owner!));
+  };
+  const ordinary = allocate(["ira-a", "ira-b"]);
+  const reversed = allocate(["z-ira-a", "a-ira-b"]);
+  assert.equal(ordinary.reduce((sum, item) => sum + item.amount, 0), 10000.01);
+  assert.equal(reversed.reduce((sum, item) => sum + item.amount, 0), 10000.01);
+  assert.ok(Math.abs(Math.round(ordinary[0]!.amount * 100) - Math.round(ordinary[1]!.amount * 100)) <= 1);
+  assert.ok(Math.abs(Math.round(reversed[0]!.amount * 100) - Math.round(reversed[1]!.amount * 100)) <= 1);
+});
+
+test("A02 zero YTD active monthly IRA schedule reserves planning room without becoming YTD", () => {
+  const value = withFacts(10000, 0, 0, 0);
+  value.retirementAccounts[0]!.monthlyEmployeeContribution = 625;
+  const opportunities = evaluateRetirementAccountOpportunities(value);
+  assert.equal(opportunities.opportunities[0]!.contributedYtd, 0);
+  assert.equal(opportunities.opportunities[0]!.planningReservationAnnual, 7500);
+  const ledger = createRetirementCapacityLedger(opportunities);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-a"), 0);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-b"), 2500);
+  assert.equal(ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))?.consumed.scheduled, 7500);
+});
+
+test("A02 partial YTD is not double-counted with the active annual schedule", () => {
+  const value = withFacts(10000, 0, 2500, 0);
+  value.retirementAccounts[0]!.monthlyEmployeeContribution = 625;
+  const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(value));
+  assert.equal(ledger.entries.find((item) => item.accountId === "ira-a")?.plannedReservationAnnual, 5000);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-a"), 0);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-b"), 2500);
+});
+
+test("A02 both spouses and multiple IRA accounts reserve each owner schedule exactly once", () => {
+  const value = withFacts(10000, 0, 0, 0);
+  value.retirementAccounts[0]!.monthlyEmployeeContribution = 200;
+  value.retirementAccounts[1]!.monthlyEmployeeContribution = 200;
+  value.retirementAccounts.push({ ...value.retirementAccounts[0]!, id: "roth-a", name: "A Roth", type: "roth_ira", monthlyEmployeeContribution: 112.5, employeeContributedYtd: 0 });
+  const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(value));
+  const shared = ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))!;
+  assert.equal(shared.consumed.scheduled, 6150);
+  assert.equal(shared.remainingAnnualRoom, 3850);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-a"), 3750);
+  assert.equal(remainingRetirementCapacity(ledger, "roth-a"), 3750);
+  assert.equal(remainingRetirementCapacity(ledger, "ira-b"), 3850);
+});
+
+test("A02 staged Existing Cash, Build, and Windfall consumers cannot reuse scheduled capacity", () => {
+  const value = withFacts(10000, 0, 0, 0);
+  value.retirementAccounts[0]!.monthlyEmployeeContribution = 500;
+  const ledger = createRetirementCapacityLedger(evaluateRetirementAccountOpportunities(value));
+  const existingCash = consumeRetirementCapacityForEqualOwnerTie(ledger, ["ira-a", "ira-b"], "one_time", 2000);
+  const build = consumeRetirementCapacityForEqualOwnerTie(ledger, ["ira-a", "ira-b"], "build", 2000);
+  const windfall = consumeRetirementCapacityForEqualOwnerTie(ledger, ["ira-a", "ira-b"], "windfall", 2000);
+  const routed = [...existingCash, ...build, ...windfall].reduce((sum, item) => sum + item.consumedAnnualAmount, 0);
+  const shared = ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))!;
+  assert.equal(shared.consumed.scheduled, 6000);
+  assert.equal(routed, 4000);
+  assert.equal(shared.remainingAnnualRoom, 0);
+  assert.equal(shared.consumed.scheduled + routed, shared.originalRemainingAnnualRoom);
+  assert.ok(retirementCapacityInvariantHolds(ledger));
+});
+
+test("A03 authoritative YTD creates and enforces the shared feasible set after pre-YTD equality", () => {
+  const summarize = (reverse: boolean) => evaluateRetirementAccountOpportunities(withFacts(10000, 5000, 8000, 0, reverse));
+  for (const result of [summarize(false), summarize(true)]) {
+    assert.ok(result.opportunities.every((item) => item.remainingAnnualRoom === 0));
+    assert.ok(result.opportunities.every((item) => item.sharedCapacityGroup?.startsWith("ira:mfj-compensation:")));
+    assert.ok(result.warnings.some((item) => item.includes("owner compensation ceiling")));
+  }
+});
+
+test("A04 owner-only excess for either spouse and joint excess fail closed for the pair", () => {
+  const higherOwnerExcess = evaluateRetirementAccountOpportunities(withFacts(4000, 2000, 5000, 0));
+  assert.ok(higherOwnerExcess.opportunities.every((item) => item.remainingAnnualRoom === 0));
+  assert.ok(higherOwnerExcess.warnings.some((item) => item.includes("A's") && item.includes("owner compensation ceiling")));
+
+  const lowerOwnerExcess = evaluateRetirementAccountOpportunities(withFacts(10000, 2000, 0, 8000));
+  assert.ok(lowerOwnerExcess.opportunities.every((item) => item.remainingAnnualRoom === 0));
+  assert.ok(lowerOwnerExcess.warnings.some((item) => item.includes("B's") && item.includes("owner compensation ceiling")));
+
+  const jointExcess = evaluateRetirementAccountOpportunities(withFacts(4000, 2000, 4000, 3000));
+  assert.ok(jointExcess.opportunities.every((item) => item.remainingAnnualRoom === 0));
+  assert.ok(jointExcess.warnings.some((item) => item.includes("exceed supported joint compensation")));
+});
+
+test("A05 household-facing reasons identify conditional maxima as non-additive", () => {
+  const result = evaluateRetirementAccountOpportunities(withFacts(10000, 0, 0, 0));
+  assert.deepEqual(result.opportunities.map((item) => item.remainingAnnualRoom), [7500, 7500]);
+  assert.ok(result.opportunities.every((item) => item.reasons.some((reason) => reason.includes("conditional, not additive") && reason.includes("$10000.00"))));
+  const ledger = createRetirementCapacityLedger(result);
+  assert.equal(ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 10000);
+  assert.equal(consumeRetirementCapacityForEqualOwnerTie(ledger, ["ira-a", "ira-b"], "one_time", 15000)
+    .reduce((sum, item) => sum + item.consumedAnnualAmount, 0), 10000);
+});
+
+test("A05 household recommendation cannot present two conditional maxima as additive room", () => {
+  const engine = runMoneyPriorityEngine({
+    householdId: "ffh-013-a05",
+    people: [
+      { id: "a", display_name: "A", relationship: "self", birth_date: "1990-01-01", estimated_taxable_compensation_annual: 10000, covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false },
+      { id: "b", display_name: "B", relationship: "spouse_partner", birth_date: "1990-01-01", estimated_taxable_compensation_annual: 0, covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false },
+    ],
+    retirementAccounts: [
+      { id: "ira-a", owner_person_id: "a", name: "A IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
+      { id: "ira-b", owner_person_id: "b", name: "B IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
+    ],
+    income: [{ id: "income", owner_person_id: "a", name: "Income", monthly_amount: 5000, monthly_gross_amount: 6000, is_active: true }],
+    expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [],
+    preferences: { tax_profile_year: 2026, tax_filing_status: "married_filing_jointly", estimated_modified_agi: 10000 },
+  }, "2026-08-29");
+  const recommendation = engine.recommendations.find((item) => item.id === "build-retirement-account-options");
+  assert.ok(recommendation?.explanation.includes("conditional and non-additive"));
+  assert.ok(recommendation?.explanation.includes("shared MFJ compensation capacity"));
+  assert.ok(!recommendation?.explanation.includes("$15000.00 of planning room remaining"));
 });
 
 test("FFH-013-M01 Build recurring routes reconcile exactly at the $10,000.01 shared-pool boundary", () => {

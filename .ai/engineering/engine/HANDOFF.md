@@ -3,118 +3,99 @@
 HANDOFF
 
 Task ID: FFH-013
-Remediation: FFH-013-M01 — recurring equal-fulfillment cent reconciliation
 Role: Core Financial Engine Engineer
-Worker status: REMEDIATION COMPLETE — READY_FOR_MANAGER RE-REVIEW
+Worker status: FFH-013-M02 REMEDIATION COMPLETE — READY_FOR_MANAGER
+Task state retained: REMEDIATION pending Manager verification, integration, and fresh frozen dual re-audit
 Execution mode: STANDARD_CHAT
-Assigned Manager control-plane head verified: `8f8c8d449e17d169d608d01a62676d340b9afc4a`
-Final canonical milestone/control-plane head refreshed and synchronized: `79658834bd2e4a4371caa0fe32f62dea863ecfcc` (two later workflow-only commits; no financial-production delta)
-Approved audited production integration base retained from FFH-013: `b5111010ebc1f104709a4b27f8c79daef555f435`
-Current milestone target: `phase-5-money-priority-engine`
-Branch: `ffh/ffh-013-spousal-ira-ledger`
-Pull request: #21 (draft)
-PRODUCTION_SHA: `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`
-VALIDATED_CI: Foundation CI run `34732621610`, verify job `103658103064` — SUCCESS on exact production/test candidate
-HANDOFF_SHA: recorded in the FFH-013 task checkpoint from the commit containing this final remediation handoff
+Manager control-plane head verified and synchronized: `de2034b67e894910591922c1de2e021255c7a7fc`
+Branch: `ffh/ffh-013-audit-remediation`
+Pull request: #23 (draft, open, unmerged)
+Prior PR head before M02: `0fdb57bebb7f77dd6eaaabd0fb9375432a58355c`
+Prior production candidate: `0dd0a7891afa3e6e5f3f7da29497d8afb527938c`
+PRODUCTION_SHA: `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`
+VALIDATED_CI: Foundation CI run `34737929168`, verify job `103672520594` — SUCCESS on the exact production/test candidate
+HANDOFF_SHA: documentation commit containing this file
 
-## FFH-013-M01 exact reproduction
+## FFH-013-M02 before behavior
 
-The Manager-reproduced reachable case was retained as the adversarial boundary:
-- shared MFJ compensation remaining: `$10,000.01`;
-- each spouse owner-conditional room: `$7,500.00`;
-- old routable-capacity prepass consumed destinations sequentially and derived `$625.00 + $208.33 = $833.33/month`;
-- Build therefore authorized `$833.33/month` of retirement routing;
-- actual equal-fulfillment routing converted that request to `roundMoney($833.33 * 12) = $9,999.96` annually, split it `$4,999.98 / $4,999.98`, then independently rounded each route to `$416.67/month`;
-- account-level monthly routes therefore summed to `$833.34/month`, one cent above the authoritative Build retirement request;
-- the subtraction/clamp path hid the mismatch by clamping the remaining routing amount to zero.
+Accepted FFH-009 / FFH-D006 policy says equal-compensation spouses do not enter the lower-compensation spousal-IRA enhancement/shared feasible set. Each spouse independently uses `max(0, min(L_i, C_i) - Y_i)`.
 
-Annual statutory capacity was still bounded, but recurring account routes and the Build request failed the exact routing/accounting invariant.
+Before M02 remediation, PR #23 calculated `ownerExcesses` after YTD and treated any nonempty owner-excess set as sufficient to create/fail closed the MFJ shared compensation group. For equal compensation `$10,000/$10,000`, both under age 50 with `$7,500` individual IRA limits and YTD `$8,000/$0`, owner A correctly had zero owner room but `ownerExcesses=[A]` also forced shared remaining to `$0` and attached that zero shared group to both spouses. Spouse B's independently supported `$7,500` room was therefore incorrectly reduced to `$0`.
 
 ## Root cause
 
-The routable-capacity prepass and actual equal-owner router reconciled in different monetary domains. The prepass sequentially consumed annual capacity and rounded each result to monthly dollars; the actual router split an annual request first and then independently rounded each account to monthly dollars. Those operations are not cent-conserving at recurring equal-fulfillment boundaries.
+The post-YTD excess path did not distinguish the accepted legal scopes:
+- unequal compensation, where one spouse is lower-compensation and FFH-D006's shared MFJ spousal feasible set applies; versus
+- equal compensation, where neither spouse receives a spousal enhancement and owner limits remain independent.
 
-## Bounded remediation
+`ownerExcesses.length > 0` and `jointExcess` were being used as unconditional shared-group materiality/fail-closed signals even when `higher === null` proved there was no spousal shared feasible set.
 
-Build equal-owner tie planning and actual tied routing now use the same deterministic recurring-monthly-cent reconciliation method:
-- the authoritative recurring request is converted to integer monthly cents;
-- equal-owner fulfillment allocates those cents deterministically;
-- stable sorted account identity is used only for an unavoidable odd final recurring cent;
-- each route consumes annual legal capacity as exactly `allocatedMonthlyCents * 12`;
-- the routable-capacity prepass uses the same monthly-cent allocator as actual routing;
-- no epsilon/tolerance was introduced;
-- the existing routing invariant was not weakened;
-- legal capacity was not reverted to sorted-owner preallocation.
+## M02 correction
 
-## Before / after cent math
+The evaluator now derives `sharedSpousalFeasibleSetApplies = higher !== null` and gates all MFJ shared-group materiality/fail-closed creation through that accepted unequal-compensation condition.
 
-Before:
-- Build retirement request: `$833.33/month`;
-- routes: `$416.67 + $416.67 = $833.34/month`;
-- recurring over-route: `$0.01/month`.
+Equal compensation now behaves owner-locally:
+- owner-only excess still clamps that owner's additional room to zero through the owner ceiling;
+- the warning remains owner-specific and explicitly says additional room for this owner is zero;
+- no `ira:mfj-compensation:*` group is created solely because of that owner excess;
+- the unaffected spouse retains independently supported room;
+- no correction mechanics are invented.
 
-After:
-- Build retirement request: `83,333` cents = `$833.33/month`;
-- `ira-a`: `41,667` cents = `$416.67/month` = `$5,000.04/year`;
-- `ira-b`: `41,666` cents = `$416.66/month` = `$4,999.92/year`;
-- route sum: `$833.33/month` exactly;
-- annual routed total: `$9,999.96`;
-- shared legal pool remaining: `$10,000.01 - $9,999.96 = $0.05`;
-- retirement-capacity invariant holds.
+Unequal compensation is intentionally unchanged in legal effect: applicable owner/joint excess still fails the affected shared MFJ group closed, preserving accepted A03/A04 behavior.
 
-Reversing the IRA account input order produces the same account allocations, so stable identity affects only the unavoidable final cent and input order does not affect the result.
+## Direct M02 evidence
 
-## Exact FFH-013-M01 changed files
+Dedicated regressions in `lib/calculations/ffh-013-m02-equal-compensation-excess.test.ts` pass in the exact full calculation CI suite:
+- `$10,000/$10,000` compensation, A YTD `$8,000`, B YTD `$0`: A room `$0`, B room `$7,500`; capacity groups remain owner-local (`ira:a`, `ira:b`); A receives the owner-excess warning; no MFJ shared group is created.
+- Reversed excess, A YTD `$0`, B YTD `$8,000`: A retains `$7,500`, B room is `$0`, with B's owner-local warning.
+- Reversing person input order preserves both owner-specific result sets.
+- Reversing IRA account input order preserves both owner-specific result sets.
+- Unequal-compensation A04 pin remains: `$4,000/$2,000` compensation with `$5,000/$0` YTD produces `$0/$0`, retains the shared MFJ group, and retains the affected-shared-group warning.
 
-Production/test remediation only:
-- `lib/calculations/money-priority-retirement-capacity.ts`
-- `lib/calculations/money-priority-build.ts`
-- `lib/calculations/ffh-013-spousal-ira-ledger.test.ts`
+## A01–A05 and M01 preservation
 
-Control-plane synchronization/documentation on the worker branch is separate from the bounded behavioral change. The final branch also incorporates the milestone's later workflow-only `.ai/shared/WORKFLOW_V3_1.md` and `.ai/roles/manager.md` updates so PR #21 is not stale against the current canonical milestone.
+The pre-existing FFH-013 adversarial suite remains green under the exact candidate:
+- A01 annual tied equal fulfillment remains shared-cap aware before allocation and cent-exact.
+- A02 scheduled/current-plan IRA reservations remain planning-ledger reservations distinct from authoritative YTD.
+- A03 unequal-compensation post-YTD materiality remains shared-feasible-set aware.
+- A04 unequal-compensation owner/joint supported excess remains fail closed for the affected shared group.
+- A05 household-facing owner maxima remain explicitly conditional/non-additive where a shared MFJ group exists.
+- M01 remains exact: `$416.67 + $416.66 = $833.33/month`; annual legal consumption `$9,999.96`; shared annual remainder `$0.05`.
 
-## Direct adversarial Build regression
+Roth direct eligibility, Traditional IRA deductibility, FFH-015 SIMPLE, FFH-012/028 HSA, unrelated workplace retirement, multiple-account non-multiplication, scheduled-vs-YTD semantics, Existing Cash / Secure / Build / Windfall conservation, exact-cent reconciliation, and owner/input-order invariance remain covered by the full calculation suite and passed on the exact candidate.
 
-`FFH-013-M01 Build recurring routes reconcile exactly at the $10,000.01 shared-pool boundary` passes and proves:
-- retirement Build `allocatedMonthlyAmount === 833.33`;
-- sum of `retirementAccountAllocations[].allocatedMonthlyAmount === 833.33` exactly;
-- routes are `$416.67` and `$416.66` monthly;
-- annual legal consumption is `$5,000.04 + $4,999.92 = $9,999.96`;
-- shared remaining room is `$0.05`;
-- capacity invariant holds;
-- account-order reversal leaves the routed result unchanged.
+## Exact changed files for this M02 remediation
+
+Behavioral/test change only:
+- `lib/calculations/money-priority-retirement-accounts.ts`
+- `lib/calculations/ffh-013-m02-equal-compensation-excess.test.ts`
+
+Control-plane synchronization to Manager head `de2034b67e894910591922c1de2e021255c7a7fc` without product-semantic changes:
+- `.ai/tasks/FFH-013.md`
+- `.ai/tasks/TASK_INDEX.md`
+
+Worker evidence update:
+- `.ai/engineering/engine/HANDOFF.md`
+
+The control-plane sync was also recorded as a no-content merge-parent checkpoint so PR #23 is genuinely based on the current milestone head rather than merely carrying copied file contents. Against the current milestone base, the synchronized task/index files therefore do not expand the PR diff.
 
 ## Validation
 
-Exact Foundation CI on `PRODUCTION_SHA` `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`:
-- run `34732621610`;
-- verify job `103658103064`;
-- Validate AI control-plane state: PASS;
-- Audit production dependencies: PASS;
-- full calculations / `npm test`: PASS, including FFH-013 shared-compensation/YTD, multiple-IRA, missing-information, owner/account reorder, exact-cent, Roth eligibility, Traditional deductibility, FFH-015 SIMPLE, and FFH-012/028 HSA regressions;
-- security policy contract: PASS;
-- typecheck: PASS;
-- lint: PASS;
-- build: PASS;
-- workflow conclusion: SUCCESS.
+Exact Foundation CI for `PRODUCTION_SHA` `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`:
+- run `34737929168`
+- verify job `103672520594`
+- Validate AI control-plane state — PASS
+- Audit production dependencies — PASS
+- Test calculations — PASS, including the five dedicated M02 regressions and the complete existing FFH-013/A01–A05/M01 suite
+- Test security policy contract — PASS
+- Type check — PASS
+- Lint — PASS
+- Build — PASS
 
-The workflow is configured to run only for pull requests targeting `main`, so PR #21 was temporarily retargeted to `main` solely to obtain exact candidate CI and was restored to `phase-5-money-priority-engine` for Manager review. No merge was performed.
+The full calculation gate also exercises Existing Cash, Secure/retirement-floor, Build, Windfall, Roth eligibility, Traditional deductibility, FFH-015 SIMPLE, FFH-012/028 HSA, and workplace-retirement regressions. No inherited CI failure is being claimed.
 
-The final milestone advance from `8f8c8d4...` to `7965883...` changed only workflow/control-plane documentation. It was synchronized after the green production candidate without changing the validated financial behavior.
+## Scope / authority confirmation
 
-## Policy / scope preservation
+No financial policy was changed. No A01–A05 redesign was performed. M01 was not reopened. No FFH-017, schema/UI, HSA policy, SIMPLE policy, Supabase, or live-database work was performed. PR #23 remains unmerged. The worker has not self-accepted or closed FFH-013. Manager retains acceptance, integration, fresh dual-audit routing, closure, and FFH-017 activation authority.
 
-Unchanged by FFH-013-M01:
-- annual shared MFJ legal-capacity semantics and exact statutory conservation;
-- owner-conditional IRA maxima and shared compensation ledger architecture;
-- Roth IRA eligibility behavior;
-- Traditional IRA deductibility behavior;
-- FFH-015 SIMPLE policy/implementation;
-- FFH-012/FFH-028 HSA policy/implementation;
-- schema/UI;
-- Supabase/live database;
-- FFH-017 / Phase 5C.
-
-No forbidden-domain behavior changed. Manager retains lifecycle authority for acceptance, merge/integration, independent audit routing, closure, and FFH-017 activation. PR #21 remains draft and unmerged.
-
-Exact next action: Manager independently verifies FFH-013-M01 against PR #21 and the exact CI evidence above, then decides re-acceptance/integration and audit routing.
+Exact next action: Manager independently verifies M02 and the preserved A01–A05/M01 behavior at `PRODUCTION_SHA` `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`, reviews PR #23 and this final handoff, then decides acceptance/integration and freezes one new target for Technical and Policy re-audit.
