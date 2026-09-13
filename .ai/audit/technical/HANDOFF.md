@@ -1,23 +1,35 @@
 # Technical Audit Handoff
 
-## FFH-013 — Spousal-IRA Shared Compensation Ledger — frozen Workflow V3.1 technical audit
+## FFH-013 — Spousal-IRA Shared Compensation Ledger — fresh frozen technical re-audit
 
 **Audit role:** Technical & Mathematical Auditor  
-**Audit packet:** `FFH-013-0a8c2f2a-2026-09-13`  
+**Audit packet:** `FFH-013-e811ef1f-2026-09-13`  
 **Execution mode:** `STANDARD_CHAT`  
-**Frozen audit target:** `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`  
-**Manager control-plane base when audit branch was created:** `188f9acbf32b9811cf07153b2fe4005cfdcae8a1`  
-**Production checkpoint:** `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`  
-**Worker handoff checkpoint:** `234b900706d34c4b1bb5fdafb8c8a889d73b1414`  
-**PR:** `#21`  
-**Verdict:** **FAIL — REMEDIATION REQUIRED**  
-**FFH-013-M01 disposition:** **CLOSED**
+**Frozen audit target:** `e811ef1f1f786196d909391262b19d71fe0f9a71`  
+**Manager control-plane base when audit branch was created:** `aac67d9fc0808e12255b938e3c0d675401d7552f`  
+**Production checkpoint:** `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`  
+**Final worker/handoff head:** `c298ac4bfe0d63f248c2a7ec993f0d8031c7377d`  
+**PR:** `#23`  
+**Verdict:** **FAIL — REMEDIATION REQUIRED**
 
-This is a fresh independent Technical & Mathematical Auditor review of the exact frozen FFH-013 integration target required by `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_0a8c2f2a.md`. The separate Financial Policy & Scenario Auditor verdict was not read or relied on. Later Manager/control-plane commits were used only to obtain the frozen packet, current workflow, reconciliation gate, and routing state; they were not substituted for the frozen financial-behavior target. No production behavior, Manager-owned task state, or dependent-task activation was modified.
+This is a fresh independent Technical & Mathematical Auditor re-audit of the exact frozen FFH-013 target required by `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_e811ef1f.md`. The separate Financial Policy & Scenario Auditor verdict was not read or relied on. Later Manager/control-plane commits were used only for current workflow/task/audit context and were not substituted for the frozen financial implementation target. No production behavior, Manager-owned lifecycle state, or dependent-task activation was modified.
 
 ## Evidence inspected
 
-The audit read Workflow V3.1/V3/V2, `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`, `TASK_INDEX.md`, `FFH-013.md`, the frozen packet, Technical Auditor role/handoff, `KNOWN_CI_DEBT.md`, `FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`, FFH-D006, and accepted FFH-015 / FFH-012 / FFH-028 evidence only as necessary for regression preservation.
+Required control-plane/policy evidence inspected:
+
+- `.ai/shared/WORKFLOW_V3_1.md`
+- `.ai/shared/WORKFLOW_V3.md`
+- `.ai/shared/WORKFLOW.md`
+- `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`
+- `.ai/tasks/TASK_INDEX.md`
+- `.ai/tasks/FFH-013.md`
+- `.ai/roles/technical-audit.md`
+- `.ai/audit/technical/HANDOFF.md`
+- `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_e811ef1f.md`
+- `.ai/manager/KNOWN_CI_DEBT.md`
+- `.ai/policy/retirement/FFH-009_SPOUSAL_IRA_LEGAL_CAPACITY_POLICY.md`
+- FFH-D006 in `.ai/shared/DECISIONS.md`
 
 Exact frozen implementation/test evidence inspected included:
 
@@ -27,175 +39,186 @@ Exact frozen implementation/test evidence inspected included:
 - `lib/calculations/money-priority-existing-cash.ts`
 - `lib/calculations/money-priority-windfall.ts`
 - `lib/calculations/money-priority-engine.ts`
-- `lib/calculations/money-priority-retirement-projection.ts`
+- `lib/calculations/money-priority-retirement-floor.ts`
+- `lib/calculations/money-priority-secure.ts`
 - `lib/calculations/ffh-013-spousal-ira-ledger.test.ts`
-- `lib/calculations/money-priority-advanced-retirement.test.ts`
-- `lib/calculations/phase-5-closure-spousal-ira.test.ts`
-- `lib/calculations/money-priority-existing-cash-full.test.ts`
-- `lib/calculations/money-priority-windfall.test.ts`
-- the retained FFH-015 SIMPLE and FFH-012/025/028 HSA regression surfaces.
+- `lib/calculations/ffh-013-m02-equal-compensation-excess.test.ts`
+- `lib/calculations/money-priority-hybrid-retirement-floor.test.ts`
+- relevant retained IRA/Roth/Traditional, SIMPLE, HSA, and workplace-retirement regression evidence.
 
-Repository lineage and CI evidence were independently inspected for the approved base, production SHA, worker handoff, integration SHA, PR #21, candidate Foundation CI, integration/control-plane comparisons, and later broadened-workflow proof.
+Repository/CI evidence inspected included PR #23, production/final/integration lineage, candidate Foundation CI run `34737929168` / job `103672520594`, final-head run `34738110144` / job `103673023089`, and exact commit comparisons.
 
-## Target lineage / scope
+## Target lineage and CI
 
-The production delta from approved base `b5111010ebc1f104709a4b27f8c79daef555f435` to `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457` contains the expected FFH-013 retirement-capacity/routing implementation and tests plus task/handoff documentation. Production SHA to worker handoff contains only control-plane/handoff documentation. Production SHA to frozen integration target adds no financial-calculation changes; the later integration delta is control-plane/workflow documentation, including the CI trigger update. The frozen target therefore has the same FFH-013 financial behavior as the inspected production candidate.
+Candidate Foundation CI run `34737929168`, job `103672520594`, is green on exact production SHA `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63` through AI-state validation, dependency audit, calculations, security, Type Check, lint, and build.
 
-## What is technically correct
+Final-head Foundation CI run `34738110144`, job `103673023089`, is green on exact final worker/handoff head `c298ac4bfe0d63f248c2a7ec993f0d8031c7377d` through the same gates.
 
-The implementation makes substantial progress toward FFH-D006:
+`5e3f21c... -> c298ac4...` changes only `.ai/engineering/engine/HANDOFF.md`. `c298ac4... -> e811ef1...` has **zero file differences**; both commits have the same tree. Therefore the frozen integration target contains exactly the financial implementation exercised by the final-head green CI. Later `e811ef1... -> aac67d9...` changes only the frozen audit packet and Manager-owned FFH-013 task/index state, not financial implementation.
 
-- Traditional + Roth actual YTD is aggregated by owner; multiple IRA accounts do not independently multiply owner YTD or owner capacity.
-- In baseline scarce unequal-compensation cases, the higher-compensation spouse is limited by own supported compensation and the lower spouse can expose spousal-IRA capacity subject to one shared MFJ group.
-- Shared and owner groups are represented separately in the retirement-capacity ledger; group room is initialized from a maximum rather than summed duplicate account room.
-- `remainingRetirementCapacity()` applies entry, owner-group, and shared-group constraints; `consumeRetirementCapacity()` decrements the applicable entry/group state so Existing Cash, Secure, Build, and later Windfall cannot normally recreate an already-consumed shared pool.
-- Missing material owner/compensation/account-inventory/YTD facts are generally targeted as `more_information_needed`; absence of a spouse IRA record is not treated as authoritative zero YTD where it is material.
-- Roth direct-contribution eligibility remains a separate constraint from compensation capacity, and Traditional IRA deductibility remains separate from contribution eligibility/shared compensation capacity.
-- Input arrays are normalized/sorted for group identity and routing, preventing raw input order from being a legal-capacity rule.
-- The retained SIMPLE/HSA/workplace calculation suites remain green and no separate regression in those accepted domains was identified.
+`CI-001` remains CLOSED; no inherited CI debt is available to explain or mask the technical finding below. Green CI is evidence, not proof of correctness.
 
-Those correct properties do not cure the three HIGH findings below.
+## Named finding disposition
 
-## Findings
+| Finding | Severity | Independent disposition |
+|---|---|---|
+| FFH-013-A01 — annual tied-spouse shared-cap-first equal fulfillment | HIGH | **CLEARED** |
+| FFH-013-A02 — scheduled/current-plan IRA reservation | HIGH | **CLEARED** |
+| FFH-013-A03 — unequal post-YTD materiality at `$10k/$5k`, `$8k/$0` | HIGH | **CLEARED** |
+| FFH-013-A04 — scarce unequal owner/joint supported excess fail-closed behavior | HIGH | **CLEARED** |
+| FFH-013-A05 — conditional owner maxima non-additive household presentation | MEDIUM | **CLEARED** |
+| FFH-013-M01 — recurring equal-fulfillment cent reconciliation | HIGH | **CLEARED / REMAINS CLOSED** |
+| FFH-013-M02 — equal-compensation owner-only excess remains owner-local | HIGH | **CLEARED** |
+| **T1 — non-scarce unequal-compensation owner excess incorrectly zeroes unaffected spouse** | **HIGH** | **OPEN / BLOCKING** |
 
-| ID | Severity | Status | Technical disposition |
-|---|---|---|---|
-| T1 — annual equal-owner tie is not capped to the common shared MFJ group before owner shares are computed | HIGH | **OPEN / BLOCKING** | Existing Cash/Windfall annual tie routing can let stable account identity determine thousands of dollars when tied owner-conditional room exceeds the shared group. Total shared consumption is clipped safely, but equal-fulfillment/final-cent neutrality is violated. |
-| T2 — active scheduled/current-plan IRA contributions are not reserved in the planning capacity ledger | HIGH | **OPEN / BLOCKING** | Schedules remain separate from YTD, which is correct, but no reservation is made before Existing Cash/Secure/Build/Windfall consume the ledger. Additional recommendations can reuse legal room already occupied by the active plan. |
-| T3 — shared MFJ compensation group/warnings are gated by pre-YTD scarcity | HIGH | **OPEN / BLOCKING** | If joint compensation is not initially below the sum of conditional maxima, owner YTD excess can make shared compensation material later without creating the shared group; the other spouse can then be overstated and supported-excess warnings can be skipped. |
-| FFH-013-M01 — recurring equal-fulfillment cent reconciliation | HIGH | **CLOSED** | The recurring monthly helper caps to shared monthly authority before splitting, uses the same helper for prepass and execution, consumes exact annual cents implied by routed monthly cents, and passes the required `$10,000.01` adversarial case exactly. |
+No CRITICAL finding was identified. No separate MEDIUM or LOW finding is necessary beyond T1's test-sufficiency consequence.
 
-No CRITICAL finding was identified. No additional MEDIUM or LOW finding is necessary beyond the test-sufficiency consequences of T1–T3.
+## A01 — CLEARED
 
-## T1 — HIGH — annual tied-spouse routing violates owner neutrality
+`consumeRetirementCapacityForEqualOwnerTie()` now determines the common shared group before calculating owner shares and caps annual integer cents to `min(requested, summed owner availability, common shared availability)`.
 
-`consumeRetirementCapacityForEqualOwnerTie()` calculates `totalAvailableCents` by summing owner-conditional available room and caps the requested one-time amount only to that sum. It does **not** cap the amount to the common shared MFJ group before proportional owner targets are calculated. It then consumes those owner targets sequentially against the ledger.
+Required adversarial case independently reconciles:
 
-Reachable adversarial reproduction:
-
-- owner A conditional room: `$7,500.00`;
-- owner B conditional room: `$7,500.00`;
-- common shared MFJ room: `$10,000.01`;
-- tied one-time retirement demand: `$15,000.00`.
-
-The helper first plans `$7,500.00 + $7,500.00`. The first stable-sorted account consumes `$7,500.00`, leaving `$2,500.01` in the shared group; the second account is then clipped to `$2,500.01`. Household legal conservation remains `$10,000.01`, but stable identity determines a `$4,999.99` material allocation difference rather than only an unavoidable final cent. Reassigning stable account IDs can flip which spouse receives the large share.
-
-Existing Cash and Windfall both call this annual helper for financially tied MFJ IRA destinations. Their callers do not pre-cap tied demand to shared-group room, so this is not an unreachable helper-only defect.
-
-This violates FFH-D006 rule 9 and the Financial Engine Reconciliation Gate's equal-fulfillment/final-cent rule. The focused FFH-013 test requests only `$5,000.01` against `$10,000.01` of shared room, so it never exercises an annual tied request that exceeds the shared pool.
-
-## T2 — HIGH — scheduled/current-plan IRA reservations are omitted
-
-FFH-D006 rule 4 requires actual YTD to reduce legal capacity once while active scheduled/current-plan allocations **reserve planning capacity without being relabeled as YTD**.
-
-The frozen evaluator correctly aggregates only `employeeContributedYtd` into IRA YTD. However, `createRetirementCapacityLedger()` receives only the resulting opportunities and initializes legal/planning room from those YTD-derived amounts. The engine then immediately supplies that ledger to Existing Cash/Secure/Build, and Windfall later clones the resulting final ledger. No initial step reserves `monthlyEmployeeContribution` / active current-plan IRA schedules against owner/shared planning capacity.
-
-This matters because the retirement projection and Build assessment do treat the current monthly contribution schedule as current baseline retirement saving and compute `recommendedMonthlyIncrease` as an **additional** amount. A participant with `$7,500` legal annual IRA room, YTD `$0`, and an active `$625/month` IRA schedule can therefore still expose the full `$7,500` ledger room to one-time or additional recurring routing. The current plan already intends `$7,500/year`, yet another consumer can reuse that same legal room.
-
-The implementation has correctly avoided falsely recording planned dollars as YTD, but it omitted the required planning reservation. The FFH-013 focused scenarios use zero monthly IRA contributions, and the Existing Cash/Windfall retirement tests do not exercise a scheduled MFJ IRA reservation against the shared ledger.
-
-This violates FFH-D006 rules 4 and 6 and the baseline no-double-consumption invariant.
-
-## T3 — HIGH — YTD can make shared compensation material after the shared group was skipped
-
-For unequal-compensation MFJ pairs, the frozen evaluator computes:
-
-- higher owner conditional limit = `min(individual limit, higher own compensation)`;
-- lower owner conditional limit = individual IRA limit;
-- joint compensation = both spouses' supported compensation.
-
-It creates the shared MFJ compensation group only when `jointCompensation < higherLimit + lowerLimit` **before applying actual YTD**. The excess warnings are also inside that guarded shared-group path.
-
-Reachable reproduction for spouses under age 50:
-
-- A compensation: `$10,000`;
-- B compensation: `$5,000`;
-- each individual limit: `$7,500`;
-- A actual IRA YTD: `$8,000`;
-- B actual IRA YTD: `$0`.
-
-`jointCompensation = $15,000` and `higherLimit + lowerLimit = $15,000`, so the shared group is not created. A correctly reaches zero owner room, but B still exposes `$7,500` additional room. If B uses it, household actual-plus-new contributions become `$15,500` against `$15,000` supported joint compensation. Under FFH-D006's approved equations, `sharedRemaining` is `$7,000`, so B's conditional additional maximum is only `$7,000`. The higher-owner excess warning is also skipped because warning generation is inside the shared-group branch that did not execute.
-
-The existing supported-excess regression uses an already-scarce compensation pair, so it enters the shared branch and does not challenge this boundary.
-
-This violates FFH-D006 rules 1, 2, 5, and 12 and is a direct legal-capacity overstatement.
-
-## Financial Engine Reconciliation Gate and FFH-013-M01
-
-The **required recurring Build adversarial case passes exactly** at the frozen target:
-
-- shared MFJ annual remaining: `$10,000.01`;
+- tied demand: `$15,000.00`;
+- shared MFJ room: `$10,000.01`;
 - conditional owner room: `$7,500.00` each;
-- authoritative recurring amount: `$833.33/month`;
-- tied destination routes: `$416.67 + $416.66 = $833.33/month` exactly;
+- routed amounts: `$5,000.01 + $5,000.00 = $10,000.01`;
+- shared remainder: `$0.00`.
+
+The odd cent is assigned only after equal fulfillment has been applied. Reversing stable account IDs can move only that unavoidable cent, not a substantive share. Existing Cash and Windfall both use this remediated helper for tied MFJ IRA annual routing.
+
+## A02 — CLEARED
+
+The evaluator now keeps authoritative IRA YTD and active-plan reservation as separate facts. Traditional + Roth YTD is aggregated by owner. Active IRA schedule targets are converted to planning reservations net of already-recorded owner YTD; the reservation is allocated deterministically across that owner's scheduled IRA accounts.
+
+`createRetirementCapacityLedger()` records those amounts as `consumed.scheduled` and subtracts them from entry, owner-group, and MFJ-shared planning room before any new consumer routes dollars. They are not added to `contributedYtd`.
+
+Direct adversarial evidence clears:
+
+- YTD `$0`, `$625/month` active IRA schedule => YTD remains `$0`, reservation `$7,500`, no additional room for that owner;
+- YTD `$2,500`, same annual schedule => reservation `$5,000`, not `$7,500`, so YTD is not double counted;
+- multiple Traditional/Roth accounts for one owner share one owner reservation;
+- both spouses' schedules reduce one MFJ shared ledger exactly once;
+- staged Existing Cash, Build, and Windfall cannot reuse scheduled room.
+
+The retirement-floor layer reads the already-reserved IRA planning ledger rather than consuming those scheduled IRA dollars a second time. Gross verified legal capacity and post-schedule planning capacity remain separately reportable.
+
+## A03 — CLEARED
+
+For unequal compensation `$10,000/$5,000`, individual limits `$7,500/$7,500`, and authoritative YTD `$8,000/$0`, the evaluator now detects the higher-owner supported-compensation/individual ceiling excess after YTD even though pre-YTD joint compensation equals the sum of conditional maxima. It creates the applicable MFJ shared group, fails that affected group closed, produces `$0/$0` additional room, and emits the owner-excess warning. Person/account reorder preserves the result.
+
+The prior phantom `$7,500` spouse room no longer exists for this required pin.
+
+## A04 — CLEARED for the required scarce unequal case
+
+For compensation `$4,000/$2,000` and YTD `$5,000/$0`, the higher owner's excess is detected, the scarce unequal-compensation shared feasible set is failed closed, both additional rooms are `$0`, and the warning identifies the supported owner-compensation excess without inventing contribution-correction mechanics.
+
+The retained tests also cover lower-owner excess and joint-compensation excess in scarce unequal scenarios. A04's required behavior remains intact after M02.
+
+## A05 — CLEARED
+
+Where an MFJ shared compensation group applies, owner opportunity explanations explicitly state that spouse-specific maxima are conditional/non-additive and identify the shared MFJ compensation amount. The household recommendation layer also states that the spouse-specific IRA maxima are conditional/non-additive and draw from one shared MFJ pool; it does not present `$7,500 + $7,500` as `$15,000` independent room when the pool is only `$10,000`.
+
+## M01 — CLEARED / REMAINS CLOSED
+
+The required recurring Build case passes exactly:
+
+- shared annual room: `$10,000.01`;
+- conditional owner room: `$7,500.00` each;
+- authoritative Build retirement amount: `$833.33/month`;
+- routes: `$416.67 + $416.66 = $833.33/month` exactly;
 - annual ledger consumption: `$5,000.04 + $4,999.92 = $9,999.96`;
 - shared annual remainder: `$0.05`.
 
-The recurring helper converts annual room to authoritative monthly cents, caps the tied request to the shared recurring monthly authority **before** owner shares are calculated, assigns only the unavoidable odd monthly cent by stable identity, converts routed monthly cents back to exact annual cents, and throws if actual consumption differs from that exact annual representation. Build's planning/prepass and actual tied-spouse router use the same recurring helper. The final Build invariant requires exact aggregate monthly equality with destination monthly allocations and has no epsilon/tolerance escape.
+Build's prepass and execution both use the same recurring monthly-cent tie helper. Monthly cents are authoritative for recurring routing; annual legal consumption is exactly the routed monthly cents times 12. Execution computes the destination sum and throws unless it exactly equals the aggregate Build retirement allocation. No epsilon/tolerance or subtract-and-clamp allowance is used to excuse a positive reconciliation residual. Account-order reversal preserves the material result.
 
-Reversing account input order preserves the material result. Therefore **FFH-013-M01 is independently CLOSED** and should not be reopened by remediation of the separate findings.
+## M02 — CLEARED
 
-The **overall Financial Engine Reconciliation Gate is nevertheless NOT satisfied for FFH-013**, because the gate also applies to one-time/Windfall destination equality, equal-fulfillment, shared consumption, and stable-identity final-cent behavior. T1 violates that standard in the annual tied-spouse path. T2 additionally leaves current-plan reservations outside the planning-capacity reconciliation model.
+Equal compensation `$10,000/$10,000` with individual limits `$7,500/$7,500` and YTD `$8,000/$0` now produces:
 
-## Shared/owner ledger and multi-account conclusion
+- owner A room `$0` plus owner-local possible-excess warning;
+- owner B room `$7,500`;
+- owner-local groups `ira:a` / `ira:b`;
+- no `ira:mfj-compensation:*` group solely from A's owner excess.
 
-Within cases where the shared group is correctly instantiated, shared and owner ledgers are conserved across staged consumers. Multiple Traditional/Roth accounts for one owner cannot multiply room: owner YTD aggregates across represented accounts, the owner group uses one owner-level maximum, and a first account's consumption reduces the owner group seen by the owner's other accounts. The same shared group prevents both spouses' multiple accounts from independently multiplying the household pool.
+The reverse-owner case is symmetric. Person and account reordering are materially invariant. The exact scarce unequal A04 case remains shared/fail-closed, so M02 did not reopen A04.
 
-This part is technically sound, including staged direct ledger tests. T3 shows that the shared group is not instantiated for every case where actual YTD makes the joint constraint material, so the representation is not yet a complete implementation of the approved feasible set.
+## T1 — HIGH — non-scarce unequal owner excess incorrectly zeroes unaffected spouse
 
-## Build / Existing Cash / Windfall conclusion
+The remediation defines `sharedSpousalFeasibleSetApplies = higher !== null`, which is true for **every unequal-compensation pair**, even when joint compensation is non-scarce and the shared joint-compensation constraint is mathematically redundant.
 
-- **Build recurring routing:** PASS for the required recurring-cent reconciliation and staged shared-group consumption; M01 is CLOSED.
-- **Existing Cash:** shares the authoritative engine ledger with later stages, so it does not recreate a fresh shared pool; however its tied-spouse annual helper is affected by T1, and scheduled reservations are absent under T2.
-- **Windfall:** clones the engine's final retirement-capacity ledger, so earlier Existing Cash/Secure/Build consumption is preserved rather than recreated; however its tied-spouse annual helper is also affected by T1 and the underlying ledger never received the T2 scheduled reservation.
-- **Cross-consumer shared-group conservation:** PASS when the group exists; T3 is the exception because some YTD-material shared constraints are never represented as a group.
+The normal no-excess path partly compensates for this with `preYtdSharedConstraintCanBind = jointCompensation < conditionalTotal`, so the accepted FFH-009 non-scarce scenario does not create a shared group at YTD `$0/$0`. But the post-YTD excess path uses:
 
-## Ordering / final-cent conclusion
+`sharedFeasibleSetExcess = sharedSpousalFeasibleSetApplies && (ownerExcesses.length > 0 || jointExcess)`
 
-Raw person/account array order is not used as a statutory capacity rule. Pair/group identities and ledger entries are sorted/canonicalized, and the required recurring case remains invariant when account input order is reversed.
+and creates a zero MFJ shared group whenever any owner excess exists. That over-applies the scarce/shared fail-closed rule.
 
-However, T1 means **stable identity has a prohibited substantive effect** in overloaded annual tied-spouse routing: sorted ID determines which spouse consumes the large first share of the shared pool. Stable identity therefore affects much more than the final unavoidable cent. This is blocking even though raw array reordering alone remains deterministic.
+Independent reachable reproduction, both spouses under age 50:
 
-## Roth and Traditional tax-rule preservation
+- A compensation: `$100,000`;
+- B compensation: `$50,000`;
+- individual limits: `$7,500/$7,500`;
+- A authoritative IRA YTD: `$8,000`;
+- B authoritative IRA YTD: `$0`.
 
-Roth direct-contribution eligibility remains evaluated separately after compensation/shared legal-capacity constraints; the shared compensation ledger does not manufacture direct Roth eligibility. Traditional IRA contribution eligibility/shared compensation capacity also remains separate from Traditional deductibility. The retained closure regression confirms MFJ Traditional deductibility continues to use the persisted spouse relationship independently of compensation routing.
+Accepted FFH-009 explicitly classifies `$100,000/$50,000` as **non-scarce compensation**: each spouse has independent `$7,500` combined IRA capacity and shared compensation does not bind.
 
-No blocking Roth-eligibility or Traditional-deductibility regression was identified.
+FFH-D006's approved equations give:
 
-## SIMPLE / HSA / workplace regression conclusion
+- `sharedRemaining = $150,000 - $8,000 - $0 = $142,000`;
+- `higherRemaining = max(0, $7,500 - $8,000) = $0`;
+- `lowerIndividualRemaining = $7,500`;
+- conditional A additional room = `$0`;
+- conditional B additional room = `$7,500`;
+- household maximum additional room = `$7,500`.
 
-FFH-013 does not rewrite the accepted FFH-015 SIMPLE category/year or catch-up policy, and no SIMPLE regression was identified. HSA opportunities continue through their dedicated legal-capacity evaluator; the retained FFH-012/025/028 HSA regressions remain present and the full calculation suite is green. Unrelated workplace retirement behavior also remains covered by the advanced/workplace suites.
+The frozen implementation instead sees unequal compensation (`higher !== null`), sees A in `ownerExcesses`, sets `sharedFeasibleSetExcess = true`, creates an `ira:mfj-compensation:*` group with `$0`, and applies that zero group to both spouses. Result: A `$0`, **B incorrectly `$0`**. The warning also says the affected shared MFJ group is zero even though the shared joint-compensation ceiling is not affected.
 
-The three open findings are therefore FFH-013 IRA/shared-ledger defects, not evidence that accepted SIMPLE/HSA/workplace behavior regressed.
+This violates:
+
+- FFH-009 Scenario 1 non-scarce compensation;
+- FFH-D006's approved mathematical representation;
+- FFH-D006 rule 12 / frozen-packet requirement that supported excess fail closed only for the legally affected owner/shared feasible set;
+- the same owner-locality principle that M02 correctly restores for equal compensation.
+
+Severity is **HIGH** because a supported valid spouse IRA capacity can be suppressed by `$7,500` based solely on the other spouse's owner-only excess, materially changing household recommendations. This is the same correctness class as the Manager's HIGH M02, now exposed in an unequal-but-non-scarce household.
+
+Required narrow remediation should preserve A01–A05, M01, and M02 while distinguishing “unequal compensation” from “shared/ scarce compensation can actually bind” for owner-excess fail-closed scope. Add direct non-scarce unequal excess tests in both owner directions and reorder variants.
+
+## Shared/owner ledger, multiple-account, and cross-consumer conclusion
+
+When the correct owner/shared groups are established, ledger conservation is sound. Multiple Traditional/Roth IRA accounts cannot multiply owner room; owner YTD aggregates once and the owner group constrains all of that owner's accounts. Multiple spouse accounts sharing an MFJ group cannot multiply household room. Entry/group invariants require total consumed amounts to remain within original room.
+
+Existing Cash mutates the engine's authoritative ledger; Secure and Build then consume that same ledger. Windfall clones the final already-consumed ledger rather than recreating capacity. Scheduled reservation is present before these stages. Therefore no separate cross-consumer recreation/double-spend defect remains from A01/A02.
+
+T1 is a **group-scope/classification** defect: it creates a zero shared group where the accepted non-scarce feasible set says the unaffected spouse remains owner-local.
+
+## Missing-information behavior
+
+The scarce/shared cases directly tested remain conservative: missing material spouse compensation, missing owner/account inventory, and unknown aggregate IRA YTD produce targeted information-needed rather than optimistic shared room; absence of a manually recorded spouse IRA is not used as zero when the shared constraint can bind.
+
+At the exact `$10,000/$5,000` pre-YTD equality boundary, missing spouse YTD does not change the known owner's `$7,500` room anywhere inside the other spouse's lawful owner ceiling; known excess evidence is handled separately by A03/A04. No separate missing-data finding is opened.
+
+## Roth / Traditional / SIMPLE / HSA / workplace preservation
+
+No separate regression was identified in:
+
+- direct Roth eligibility: Roth MAGI/direct-contribution status remains a distinct destination constraint rather than shared compensation room;
+- Traditional IRA deductibility: contribution/shared-compensation eligibility remains technically separate from deductibility;
+- FFH-015 SIMPLE: category/year authority and catch-up behavior are not rewritten by this remediation;
+- FFH-012/028 HSA: HSA legal-capacity evaluation remains dedicated, and generic planned IRA reservations are zero for non-IRA opportunities;
+- unrelated workplace retirement: workplace group/annual-additions logic remains intact and the full regression suite is green.
 
 ## Test sufficiency conclusion
 
-The FFH-013 suite is meaningfully adversarial in several areas: one-earner/zero-earner MFJ behavior, scarce joint compensation, asymmetric YTD, both spouses with YTD, multiple IRA accounts, missing spouse inventory, missing YTD, supported excess in an already-scarce case, person/account reordering, staged ledger consumption, the exact M01 recurring-cent case, Roth/Traditional separation, and broader retirement regressions.
+The remediation suite is materially adversarial and now meaningfully covers every named A01–A05/M01/M02 pin: annual shared overload, final-cent reversal, scheduled-vs-YTD separation, partial YTD, multiple accounts, staged consumers, post-YTD equality materiality, scarce owner/joint excess, conditional/non-additive household presentation, exact recurring reconciliation, equal-compensation owner-local excess, and person/account reordering.
 
-It is **not sufficient for closure** because it misses all three reachable blocking cases discovered independently:
-
-1. annual tied demand exceeding the shared MFJ group while conditional owner room remains larger in aggregate (T1);
-2. nonzero active scheduled IRA contributions that should reserve planning capacity without becoming YTD (T2);
-3. owner YTD excess making the joint constraint material when pre-YTD joint compensation was not initially scarce (T3).
-
-The Existing Cash and Windfall suites likewise do not provide end-to-end MFJ overload/scheduled-reservation coverage for those cases. Green tests therefore do not establish the required feasible-set/reconciliation semantics.
-
-## CI and failure attribution
-
-Exact production candidate Foundation CI run `34732621610`, job `103658103064`, head `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`, passes AI-state validation, production dependency audit, calculations, security, Type Check, lint, and build.
-
-No Foundation CI run was found whose exact head SHA is frozen integration target `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`; this audit therefore does **not** claim exact-target CI execution. The production-to-integration comparison contains no financial-calculation change. The integration updates the workflow trigger surface rather than weakening its verification steps. A later broadened-workflow Foundation CI run `34733564895`, job `103660789091`, head `2f05ecf31e6f155ea3a47b45b5f82967b389f9df`, passes the same full gate set, and the comparison from the green production candidate to that later checkpoint contains no financial-calculation changes.
-
-Accordingly there is no evidence of a new type/lint/build regression at the frozen financial behavior. CI-001 remains CLOSED and was not reused to excuse any failure. The blocking audit findings are semantic/mathematical cases not exercised by the green suite.
+It is nevertheless **insufficient for closure** because it does not cover the reachable non-scarce unequal-compensation owner-excess case in T1. The accepted policy has an explicit `$100,000/$50,000` non-scarce scenario, but the remediation tests only pin owner-excess locality for equal compensation and fail-closed behavior for scarce unequal compensation. The missing middle quadrant allows the frozen defect to pass green CI.
 
 ## Final disposition
 
 **FAIL — REMEDIATION REQUIRED**
 
-FFH-013-M01 is **CLOSED**: the recurring Build cent-reconciliation remediation is exact, order-stable, and conserves the required `$10,000.01` adversarial case. However, the exact frozen target does not fully implement FFH-D006 or the Financial Engine Reconciliation Gate because three independent HIGH defects remain:
+All named A01–A05, M01, and M02 checks independently clear at frozen target `e811ef1f1f786196d909391262b19d71fe0f9a71`, and M01 remains CLOSED. However, new HIGH T1 is blocking: unequal compensation is being treated as sufficient to make any owner-only excess a shared-group excess, so a non-scarce household can lose the unaffected spouse's valid IRA room.
 
-- annual tied-spouse Existing Cash/Windfall routing can let stable identity determine material allocation when shared capacity is the binding constraint;
-- active scheduled/current-plan IRA contributions are not reserved against the planning ledger;
-- owner YTD excess can make shared MFJ compensation binding after the evaluator has skipped creation of the shared group, overstating the other spouse's additional room and skipping the required excess warning.
-
-Manager retains remediation, closure, and FFH-017 activation authority. This audit does not close FFH-013 and does not activate FFH-017.
+Manager retains remediation, FFH-013 closure, and FFH-017 activation authority. This audit does not close FFH-013 and does not activate FFH-017.
