@@ -2,43 +2,85 @@
 
 HANDOFF
 
-Task ID: FFH-012
+Task ID: FFH-015
 Role: Core Financial Engine Engineer
-Status: READY_FOR_MANAGER — residual calculation failures remediated locally; exact-SHA CI pending
-Milestone start: `phase-5-money-priority-engine` at `3298b3adb22c4b2e375ed6955f6e6c7aab6cc307`
-Remediation branch: `ai/ffh-012-residual-remediation`
-Pull request: #8 (draft)
-Production checkpoint: `6acdcce25a69bd4449eccea94d480d09b685d1fd`
+Status: READY_FOR_MANAGER
+Execution mode: STANDARD_CHAT
+Approved production integration base: `61ad63ea1f41002e47708887505bf2b3365ea077`
+Manager control-plane head verified during execution: `682ccf5f59f8f7f37923c289ab988cf6d504aacf`
+Branch: `ffh/ffh-015-simple-core-remediation`
+Pull request: #19 (draft), targeting `phase-5-money-priority-engine`
+PRODUCTION_SHA: `378f18728615732e281d527e56fce9fb1b387406`
+VALIDATED_CI: Foundation CI run `34729503423`, job `103649562344` — PASS
 
-Assigned objective: Determine exactly why the original approximately 54 HSA-related calculation failures fell to approximately 20, enumerate the residual failures from local test output, and apply only the narrow remediation justified by FFH-012 and the accepted FFH-010 input contract. Do not redesign the money-priority engine or repair FFH-011.
+Assigned objective: Implement only the narrow FFH-015 SIMPLE Core statutory remediation after FFH-011 established the explicit persisted/runtime plan-category contract. Preserve accepted HSA behavior, unrelated retirement capacity, and the clean FFH-029 CI baseline. Do not redesign persistence/schema/UI, implement FFH-013/FFH-017, perform Supabase work, merge, or self-accept.
 
-Work completed: Refreshed the live milestone and reproduced both failure sets locally. The original isolated Core checkpoint `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546` produced 54 failures (804 total, 750 passed). The current milestone checkpoint produced 20 failures (792 total, 772 passed). Every current failure was captured by test identity, assertion, expected/actual values, stack, and implicated path before production code was changed.
+Before behavior: Core did not consume the Manager-accepted FFH-011 `simplePlanLimitCategory` + `simplePlanLimitTaxYear` authority. It instead allowed the legacy `simpleHigherLimitEligible` boolean to influence higher-limit SIMPLE capacity. The SIMPLE limit helper also applied the ordinary `$4,000` age-50 catch-up to both categories outside ages 60–63, which overstated a verified certain-applicable higher plan by `$150` in those age bands. Ages 60–63 already had a distinct catch-up band but category authority was still not correctly sourced.
 
-Differential diagnosis: Fifteen residual failures used downstream fixtures that supplied only legacy `hsa_eligible` / `hsa_coverage_type` hints and omitted normalized per-person HSA profiles, eligible months, and tax-year-bound YTD data made authoritative by FFH-010. One cluster omitted a single-owner Medicare-excess warning. Two cases dropped shared ordinary/catch-up capacity fields while constructing the HSA opportunity. One reconciliation case rounded `$8,750 / 12` to monthly cents and left a display-only `$0.01` remainder that incorrectly tripped the unroutable-cash invariant. One married catch-up test expected a non-default ordinary split without specifying the explicit allocation required by FFH-D005; its fixture was completed rather than changing policy.
+Root cause: The FFH-011 persistence/runtime contract was accepted after older Core formula tests and helpers had been written around the legacy boolean. Core therefore had two stale assumptions: legacy boolean authority and one shared general SIMPLE age-50 catch-up. During final CI remediation, one integration regression also still hard-coded tax-policy version `2026.2`; FFH-015 legitimately adds a new approved 2026 SIMPLE policy datum and advances that policy version to `2026.3`.
 
-Why the earlier 34 failures passed: The earlier remediation corrected normalized legal-capacity behavior and updated/replaced part of the original test generation. Those cases reached the normalized HSA path or were no longer represented by unchanged test identities. They did not exercise all downstream legacy fixture builders, the single-owner warning branch, the opportunity forwarding omission, or the cent-level reconciliation boundary. The comparison therefore does not support a broad HSA rewrite.
+Implementation completed:
+- Core now treats explicit SIMPLE category plus matching tax year 2026 as the sole authority for the higher category.
+- Verified `standard` uses the `$17,000` base and `$4,000` age-50 catch-up outside ages 60–63.
+- Verified `certain_applicable_higher` uses the `$18,100` base and `$3,850` age-50 catch-up outside ages 60–63.
+- Ages 60–63 use the `$5,250` catch-up as a replacement band for either category; catch-ups do not stack.
+- Missing, stale, unknown, or legacy-only category evidence stays conservative at the standard limit and `more_information_needed`; legacy `simple_higher_limit_eligible` cannot grant higher capacity.
+- Capacity-ledger tests prove standard and higher-category catch-up room remain distinct.
+- Existing Core statutory and advanced-retirement fixtures were migrated to the accepted explicit category/year contract where those tests intend verified standard/higher SIMPLE behavior.
+- The engine tax-policy-version regression now expects `2026.3`, matching the newly added approved SIMPLE policy datum.
 
-Implementation: Added one shared normalized HSA test-fixture adapter for affected downstream suites; forwarded already-computed shared ordinary/catch-up capacity fields; preserved the single-owner Medicare-excess warning; and treated a sub-cent-derived one-cent reconciliation residue as rounding rather than legal allocatable room. Updated the married catch-up fixture to state its explicit allocation. No legal limit, eligibility, tax treatment, employer-contribution rule, or allocation priority was invented or changed.
+Files changed at PRODUCTION_SHA relative to the Manager control-plane branch:
+- `lib/calculations/ffh-006-retirement-statutory-remediation.test.ts`
+- `lib/calculations/ffh-015-simple-core-remediation.test.ts`
+- `lib/calculations/money-priority-advanced-retirement.test.ts`
+- `lib/calculations/money-priority-retirement-accounts.ts`
+- `lib/calculations/money-priority-retirement-integration.test.ts`
+- `lib/calculations/money-priority-tax-policy.ts`
 
-Files changed at the production checkpoint: `lib/calculations/hsa-test-fixtures.ts`; `lib/calculations/money-priority-build.ts`; `lib/calculations/money-priority-hsa-legal-capacity.ts`; `lib/calculations/money-priority-retirement-accounts.ts`; `lib/calculations/money-priority-final-audit-remediation.test.ts`; `lib/calculations/money-priority-fresh-final-remediation.test.ts`; `lib/calculations/money-priority-hybrid-retirement-floor.test.ts`; `lib/calculations/money-priority-retirement-integration.test.ts`.
+After behavior / proved boundaries:
+- Standard age 50–59 or 64+: `$21,000` total capacity.
+- Verified higher age 50–59 or 64+: `$21,950` total capacity.
+- Standard ages 60–63: `$22,250` total capacity.
+- Verified higher ages 60–63: `$23,350` total capacity.
+- Below age 50 uses only the applicable base limit.
+- Exact annual-limit boundaries reach zero remaining room without category leakage.
+- Legacy boolean alone and stale tax-year authority do not grant the higher limit.
+- Unrelated 401(k) capacity remains unchanged.
 
-Validation actually performed: Exact formerly failing tests passed. Full `npm test` passed 792/792. FFH-012-focused and directly affected Phase-5 regressions passed. The security policy-contract suite passed 18 tests and retained one inherited FFH-011 textual-regex failure. Typecheck/build retained inherited FFH-011/test errors. Lint reported zero errors and one pre-existing warning. No CI success is claimed for the final production SHA because no workflow run exists for it.
+Validation actually performed on exact PRODUCTION_SHA `378f18728615732e281d527e56fce9fb1b387406`:
+- Foundation CI run `34729503423`, job `103649562344`: PASS.
+- Validate AI control-plane state: PASS.
+- Audit production dependencies: PASS.
+- Full calculation test suite: PASS, including focused FFH-015 SIMPLE/category/age-band/boundary tests and existing FFH-011/Core regressions.
+- Security policy contract: PASS.
+- Type check: PASS.
+- Lint: PASS.
+- Build: PASS.
 
-CI evidence: Foundation CI run `34556817515` (#373) tested the milestone starting SHA and failed at Test calculations with the reproduced 20 failures. No workflow run exists for production SHA `6acdcce25a69bd4449eccea94d480d09b685d1fd` as of this handoff.
+CI diagnosis/remediation note: Candidate `35e48b745d1d7278e0a3a9d929d4e2a32f5a71f9` failed full calculation tests. Direct candidate inspection found the remaining stale regression in `money-priority-retirement-integration.test.ts`, which asserted tax-policy version `2026.2`. Updating only that expected policy version to `2026.3` produced exact candidate `378f18728615732e281d527e56fce9fb1b387406`, after which the complete Foundation CI pipeline passed. This failure was task-owned and was not relabeled as closed CI-001 debt.
 
-Blocking issues: No known FFH-012 calculation failure remains locally. Exact-SHA CI evidence is still missing. The inherited FFH-011 security/typecheck/build failures are out of FFH-012 scope and need separate Manager disposition.
+Scope / forbidden-domain verification: PR #19's worker delta against `phase-5-money-priority-engine` contains only the six calculation/test files listed above. No schema or persistence contract changes, UI changes, Supabase/live-database changes, HSA policy/implementation changes, FFH-013 implementation, FFH-017 implementation, or unrelated retirement-engine refactor were made. Accepted FFH-012/FFH-028 HSA behavior remained covered by the green full calculation/security pipeline.
 
-Unverified items: Independent Manager/Technical/Financial Policy verification; exact-final-SHA CI; integration checkpoint.
+Blocking issues: NONE for Engineering handoff. Manager acceptance, merge authority, and any later audit/integration lifecycle remain Manager-owned.
+
+Unverified / intentionally not performed: Manager acceptance, merge, FFH-013 activation, FFH-017 activation, Supabase/live-database work, independent audit.
 
 Recommended next role: Manager / Architect.
 
-Exact next action: Manager verifies PR #8 and production checkpoint `6acdcce25a69bd4449eccea94d480d09b685d1fd`, obtains or routes exact-SHA Foundation CI, and classifies inherited FFH-011 failures separately. Engineering must not mark FFH-012 `ACCEPTED`, `AUDIT_READY`, or `CLOSED`, and must not merge.
+Exact next action: Manager verifies PR #19, PRODUCTION_SHA `378f18728615732e281d527e56fce9fb1b387406`, exact green Foundation CI run `34729503423` / job `103649562344`, and this Core handoff commit; Manager then owns acceptance/integration/audit routing. Engineering must not mark FFH-015 ACCEPTED/CLOSED or merge the PR.
 
-Checkpoint vocabulary: `PRODUCTION_SHA` is `6acdcce25a69bd4449eccea94d480d09b685d1fd`. `VALIDATED_CI` is not established. `HANDOFF_SHA` is the documentation commit containing this file and `.ai/tasks/FFH-012.md`; read PR #8 branch head after write. `INTEGRATION_SHA` is not established.
+Checkpoint vocabulary:
+- `PRODUCTION_SHA`: `378f18728615732e281d527e56fce9fb1b387406`
+- `VALIDATED_CI`: Foundation CI run `34729503423`, job `103649562344`, PASS
+- `HANDOFF_SHA`: the documentation commit containing this file; use the repository write commit as the exact handoff checkpoint
+- `INTEGRATION_SHA`: not established by Engineering
 
 Constraints preserved:
-- No broad money-priority-engine redesign.
-- No new financial policy.
-- No FFH-011 repair.
-- No FFH-013/R6 or Phase 5C work.
-- No acceptance, audit-ready, closure, merge, or specialist activation by Engineering.
+- FFH-011 accepted SIMPLE category/year contract is the sole explicit higher-category authority.
+- No persistence/schema/UI redesign.
+- No HSA remediation or policy changes.
+- No FFH-013 or FFH-017 implementation.
+- No Supabase/live-database work.
+- No unrelated retirement refactor.
+- No reopening/relabeling of closed CI-001.
+- No self-acceptance, merge, or Manager lifecycle transition by Engineering.
