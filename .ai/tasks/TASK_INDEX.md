@@ -2,7 +2,7 @@
 
 Manager-maintained execution dashboard. Individual `.ai/tasks/FFH-###.md` files are authoritative.
 
-Last refreshed: 2026-09-12
+Last refreshed: 2026-09-13
 
 | Task | Owner | State | Production / integration checkpoint | Validation / next gate |
 |---|---|---|---|---|
@@ -10,11 +10,11 @@ Last refreshed: 2026-09-12
 | FFH-010 | App/Data | ACCEPTED | `8f39e7d6...` | CI #300 SUCCESS; live deployment remains FFH-020 |
 | FFH-011 | App/Data | ACCEPTED | production `c32942f1...`; integration `19bc3040...` | SIMPLE persisted-field contract consumed by closed FFH-015 |
 | FFH-012 | Core / recovery | CLOSED | final frozen target `51c3cd59...` | Final Technical + Policy re-audits both PASS WITH NON-BLOCKING FINDINGS; A/B/C/D closed |
-| FFH-013 | Core Engine | ACTIVE | approved post-audit base `b5111010...` | Implement spousal-IRA shared MFJ compensation ledger; return READY_FOR_MANAGER with full green CI |
+| FFH-013 | Core Engine | REMEDIATION | candidate `7b28d7c8...`; PR #21 open | Fix blocking FFH-013-M01 recurring equal-fulfillment cent reconciliation, then return READY_FOR_MANAGER |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | QUEUED | Not established | Wait for FFH-013 shared-compensation baseline and Manager activation |
+| FFH-017 | Core Engine | QUEUED | Not established | Wait for accepted/audited FFH-013 shared-compensation baseline and Manager activation |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness recovery wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -33,25 +33,24 @@ Last refreshed: 2026-09-12
 - FFH-012 remains CLOSED and Findings A/B/C/D remain closed.
 - FFH-029 remains ACCEPTED; CI-001 is CLOSED and no inherited CI debt is currently registered.
 - FFH-015 is CLOSED. Both fresh independent auditors inspected frozen target `01d9c22522d331ca560895e1ad59e6fab9827e8b` and independently closed regulatory Finding R1.
-- Financial Policy & Scenario Auditor verdict: PASS, no FFH-015 findings. Report commit `1f81119144644a512360ce507b496c34ab8edba4`; handoff commit `c1d76827ba6d6a22b2b20396f85d0b674b565311`.
-- Technical & Mathematical Auditor verdict: PASS WITH NON-BLOCKING FINDINGS. No open CRITICAL/HIGH/MEDIUM finding; retained LOW T1 recommends direct one-cent-boundary and reordered-SIMPLE-account hardening. Technical handoff commit `1f70ccb270a284ffccd7bd51e81c86c2de921664`; evidence integrated via PR #20 at `b5111010ebc1f104709a4b27f8c79daef555f435`.
-- Exact FFH-015 frozen-integration Foundation CI run `34729794786`, job `103650352136`, is fully green through AI-state validation, dependency audit, calculations, security, Type Check, lint, and build.
-- FFH-013 is now ACTIVE as the only Core implementation task, using the post-FFH-015-audit base `b5111010ebc1f104709a4b27f8c79daef555f435`. Execution mode is WORK_MODE_PREFERRED because the shared-compensation ledger is a multi-file legal-capacity implementation with repeated adversarial validation.
+- FFH-013 candidate PR #21 establishes the intended shared MFJ IRA legal-capacity structure and passed Foundation CI run `34731613908`, job `103655304259`, but Manager review found blocking FFH-013-M01: Build's equal-fulfillment spouse-IRA recurring routing can disagree by one cent with the authorized Build retirement request because the planning-capacity prepass and actual tied routing use different rounding paths.
+- The concrete FFH-013-M01 boundary is a `$10,000.01` shared pool with `$7,500` conditional owner room each: planning prepass yields `$833.33/month`, while the actual equal split can produce two `$416.67/month` account routes totaling `$833.34/month`. Annual legal capacity remains bounded, but monthly Build/account reconciliation is not exact.
+- FFH-013 is therefore REMEDIATION, not accepted or merged. PR #21 stays open on `ffh/ffh-013-spousal-ira-ledger` for the bounded fix and direct Build-level regression.
 - FFH-017 remains QUEUED behind FFH-013.
 - FFH-020 remains BLOCKED before any live write.
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
 
 ## ACTIVATE NOW
-- Core Financial Engine Engineer — execute FFH-013 from `.ai/tasks/FFH-013.md` in `WORK_MODE_PREFERRED` from approved post-audit production base `b5111010ebc1f104709a4b27f8c79daef555f435`.
+- Core Financial Engine Engineer — continue FFH-013 remediation on PR #21 in `WORK_MODE_PREFERRED`; reproduce and close FFH-013-M01 without weakening annual legal-capacity or routing invariants.
 
 ## IDLE / BLOCKED
-- Technical & Mathematical Auditor: IDLE after passing FFH-015 frozen audit.
-- Financial Policy & Scenario Auditor: IDLE after passing FFH-015 frozen audit.
+- Technical & Mathematical Auditor: IDLE pending a Manager-accepted FFH-013 integration checkpoint.
+- Financial Policy & Scenario Auditor: IDLE pending a Manager-accepted FFH-013 integration checkpoint.
 - Work Helper / Super Troubleshooter: IDLE.
 - Financial Policy Analyst: IDLE.
-- Core Engineering: only FFH-013 ACTIVE; FFH-017 remains QUEUED.
+- Core Engineering: FFH-013 REMEDIATION; FFH-017 remains QUEUED.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Phase 5 / PR #5 remains NOT MERGE READY. The current near-term gate is FFH-013, followed by FFH-017; FFH-020 remains separately blocked on secure Supabase execution capability.
+Phase 5 / PR #5 remains NOT MERGE READY. Current near-term gate is closing FFH-013-M01, then Manager acceptance/integration and likely fresh high-impact audit of FFH-013 before FFH-017 activation. FFH-020 remains a separate blocked database-recovery track.
