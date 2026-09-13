@@ -1,114 +1,88 @@
 # Financial Policy & Scenario Audit — HANDOFF
 
 Task: FFH-013 — Spousal-IRA Shared Compensation Ledger
-Process: canonical Workflow V3.1 fresh independent policy/scenario audit
-Frozen audit packet: `FFH-013_FROZEN_AUDIT_PACKET_0a8c2f2a.md`
-Audit packet ID: `FFH-013-0a8c2f2a-2026-09-13`
-Frozen audit target: `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`
+Process: canonical Workflow V3.1 fresh independent financial-policy/scenario re-audit
+Frozen packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_e811ef1f.md`
+Frozen target: `e811ef1f1f786196d909391262b19d71fe0f9a71`
 Verdict: **FAIL — REMEDIATION REQUIRED**
 
 ## Independence / boundary
 
-- Audited only exact frozen financial-behavior target `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`.
-- Manager control-plane head `188f9acbf32b9811cf07153b2fe4005cfdcae8a1` was verified separately and was not substituted as the target.
-- The Technical & Mathematical Auditor's new verdict was not read or used.
-- No production code, Manager lifecycle/task state, FFH-013 closure state, or FFH-017 activation state was changed.
+- Audited only exact frozen behavior target `e811ef1f1f786196d909391262b19d71fe0f9a71`.
+- Manager control-plane head `aac67d9fc0808e12255b938e3c0d675401d7552f` was verified separately and was not substituted as the implementation target.
+- The new Technical & Mathematical Auditor verdict was not read or used.
+- No production code, Manager lifecycle/task state, FFH-013 closure, FFH-017 activation, policy, or live/Supabase state was changed.
 
-## Policy conclusions
+## Independent finding dispositions
 
-The frozen implementation substantially implements FFH-D006 / FFH-009 correctly:
+- **FFH-013-A01: CLOSED / CLEARS.** `$15,000` tied demand against `$10,000.01` shared room caps to the shared group first and allocates `$5,000.01 + $5,000.00` with only final-cent deterministic identity effect.
+- **FFH-013-A02: OPEN / REMEDIATION REQUIRED.** The new `scheduled` ledger consumer is distinct from YTD, but the reservation amount is derived as `max(0, monthlyContribution * 12 - YTD)`. The repository otherwise models `monthly_employee_contribution` as the active current monthly pace over remaining tax-year months. This can reserve zero for a still-active future schedule when YTD exceeds the inferred annualized pace, allowing later consumers to recommend the same future IRA capacity again. It can also over-reserve late-year capacity. See FFH-013-P03 below.
+- **FFH-013-A03: CLOSED / CLEARS.** Post-YTD materiality correctly fails the unequal-compensation shared set closed in the `$10,000/$5,000`, `$8,000/$0` YTD adversary.
+- **FFH-013-A04: CLOSED / CLEARS.** Unequal-compensation owner/joint supported excess fails the affected shared group closed, warns, and invents no correction mechanics.
+- **FFH-013-A05: CLOSED / CLEARS.** Household-facing output now labels spouse maxima conditional/non-additive and surfaces the one shared MFJ planning capacity.
+- **FFH-013-M01: CLOSED / CLEARS.** `$416.67 + $416.66 = $833.33/month`; annual legal consumption `$9,999.96`; shared remainder `$0.05`; no epsilon/tolerance/residual hiding.
+- **FFH-013-M02: CLOSED / CLEARS.** Equal compensation `$10,000/$10,000`, YTD `$8,000/$0` keeps A excess owner-local, B retains `$7,500`, no MFJ shared group is invented, reverse/reorder cases are equivalent, and unequal A04 remains fail-closed.
 
-- scarce MFJ compensation is represented as owner constraints plus one shared compensation group rather than a sorted-owner statutory split;
-- higher-compensation owner remains subject to own supported compensation;
-- lower/zero-compensation spouse can receive conditional spousal-IRA room;
-- actual Traditional + Roth YTD aggregates once;
-- scheduled/current-plan contributions remain planning reservations rather than YTD;
-- multiple accounts cannot multiply owner/shared capacity;
-- missing spouse compensation/YTD/account inventory remains targeted;
-- Roth direct eligibility and Traditional deductibility remain separate;
-- one-time/Build/Windfall routing consumes the same shared ledger.
+## FFH-013-P03 — HIGH / BLOCKING
 
-## FFH-013-M01
+**Active IRA monthly schedule can be omitted or overstated as a planning reservation.**
 
-**CLOSED.**
+Frozen evaluator reservation:
+`max(0, monthlyEmployeeContribution * 12 - aggregate IRA YTD)`.
 
-Required `$10,000.01` recurring boundary reconciles exactly:
+But the persisted/UI field is `Your monthly contribution`, and current-year retirement-floor logic uses the monthly schedule over remaining contribution months. The snapshot separately has `annualContributionTarget`; the monthly field is not itself annual-target authority.
 
-- Build authority `$833.33/month`;
-- routes `$416.67 + $416.66 = $833.33/month`;
-- annual legal consumption `$9,999.96`;
-- shared remainder `$0.05`;
-- account-order reversal preserves the result;
-- stable identity assigns only the unavoidable final cent.
+Blocking adversary as of September 1, 2026:
+- A/B compensation `$10,000/$0`;
+- A/B actual IRA YTD `$7,000/$0`;
+- A active IRA schedule `$500/month`;
+- B schedule `$0`.
 
-## Blocking findings
+Legal shared room before schedules is `$3,000`; A owner room is `$500`. The still-active future A schedule should reserve that supported `$500`, leaving at most `$2,500` for new shared recommendations. Frozen math computes `$6,000 - $7,000 = $0` reservation, leaving all `$3,000` available to later consumers. A reachable current plan can therefore combine `$7,000` YTD + `$3,000` newly recommended + the still-active supported `$500` scheduled contribution, overcommitting the `$10,000` shared pool by `$500`.
 
-### FFH-013-P01 — HIGH — owner-only excess does not fail closed for the shared group
+The converse late-year case can over-reserve capacity because `12 × monthly` is used instead of the supported future schedule for the remaining period.
 
-When authoritative YTD exceeds one spouse's supported individual/compensation ceiling but combined YTD remains below joint compensation, the frozen evaluator warns on the affected owner yet leaves residual shared compensation actionable for the other spouse.
+Required remediation: reserve the authoritative active future schedule for the applicable remaining period (or another explicit schedule/target authority), cap it through owner/shared legal capacity, keep it distinct from YTD, and expose the remainder to later consumers exactly once.
 
-Example:
-- A compensation `$4,000`, A YTD `$5,000`;
-- B compensation `$2,000`, B YTD `$0`;
-- joint compensation `$6,000`.
+## Other policy/scenario conclusions
 
-Frozen behavior leaves B `$1,000` additional shared IRA room. FFH-D006 / FFH-009 requires zero new room for the affected shared group once an authoritative individual or joint ceiling is exceeded.
+PASS except A02/P03 across:
+- one-earner / low-earner scarce-compensation households;
+- asymmetric YTD and exact joint exhaustion;
+- equal-compensation semantics;
+- multiple Traditional/Roth accounts;
+- missing spouse compensation/YTD/account inventory locality;
+- no-account-is-not-zero-YTD behavior when material;
+- Roth direct eligibility separation;
+- Traditional IRA deductibility separation;
+- owner/account order invariance;
+- accepted HSA behavior;
+- accepted SIMPLE behavior;
+- unrelated workplace-retirement behavior.
 
-The lower-compensation spouse's individual excess is also not independently warned when joint compensation has not itself been exceeded.
+## CI / tree identity
 
-### FFH-013-P02 — MEDIUM — conditional maxima are presented as independent-looking known room
+Candidate:
+- SHA `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`;
+- Foundation CI run `34737929168`, job `103672520594` — full pipeline PASS.
 
-The ledger enforces non-additivity, but `build-retirement-account-options` describes each spouse IRA as `$X of known contribution room` without also surfacing the shared MFJ compensation remaining amount/conditional nature.
+Final worker head:
+- SHA `c298ac4bfe0d63f248c2a7ec993f0d8031c7377d`;
+- Foundation CI run `34738110144`, job `103673023089` — full pipeline PASS.
 
-In a `$10,000 / $0` compensation case the household can therefore see `$7,500` for each spouse without being told in that explanation that both draw from one `$10,000` shared pool. Concrete routing stays safe, but the household-facing legal-capacity explanation does not satisfy FFH-009's conditional-maxima presentation requirement.
+Frozen integration:
+- `e811ef1f1f786196d909391262b19d71fe0f9a71`.
 
-## Other scenario results
-
-PASS:
-- one-earner and reversed-earner households;
-- `$6,000 / $4,000` and equal-compensation semantics;
-- ordinary individual-limit exhaustion without existing excess;
-- asymmetric/partial YTD and exact joint exhaustion;
-- one-cent shared capacity;
-- multiple Traditional/Roth accounts for one or both spouses;
-- Roth-ineligible routes remaining separate from compensation capacity;
-- Traditional partial/nondeductible status remaining separate from contribution capacity;
-- missing lower-spouse YTD / no recorded spouse IRA producing targeted information-needed;
-- supported joint-compensation excess producing zero shared room plus warning without invented correction mechanics;
-- person/account reorder invariance.
-
-FAIL:
-- supported owner-only excess fail-closed behavior (P01).
-
-## Preservation
-
-No FFH-013 regression identified in:
-- FFH-012 / FFH-028 HSA behavior;
-- FFH-015 SIMPLE behavior;
-- unrelated 401(k)/workplace opportunities;
-- Roth direct eligibility semantics;
-- Traditional IRA deductibility semantics.
-
-## CI
-
-Exact candidate Foundation CI:
-- run `34732621610`;
-- job `103658103064`;
-- head `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`;
-- AI-state, dependency audit, calculations, security, Type Check, lint, and build all PASS.
-
-No workflow run is attached directly to merge SHA `0a8c2f2a...`. The delta from the green production candidate to the frozen integration target contains control-plane/workflow/CI/handoff files only and no later FFH-013 financial production-code change.
-
-Green CI does not clear P01/P02 because those policy scenarios are not covered by the passing suite.
+Final worker head and frozen integration share exact tree SHA `edbb304f599250d91d37e578c18bf05be08261af`; there are no file differences. Green CI does not clear P03 because the failing schedule/YTD boundary is not covered by the passing suite.
 
 ## Auditor evidence
 
 Detailed report:
-`.ai/audit/policy/FFH-013_POLICY_SCENARIO_AUDIT_0a8c2f2a.md`
+`.ai/audit/policy/FFH-013_POLICY_SCENARIO_REAUDIT_e811ef1f.md`
 
 Report commit:
-`1a1c8a8d2ae686998f453d24145407feb8767580`
+`21fbcbbbb4f7e7f1687d9c91e13c1c0aabd85b45`
 
 ## Manager disposition
 
-FFH-013 does not satisfy the frozen Financial Policy & Scenario audit gate while FFH-013-P01 remains open. Manager alone owns remediation routing, FFH-013 closure, and FFH-017 activation.
+FFH-013 does not satisfy the frozen Financial Policy & Scenario audit gate while A02 / FFH-013-P03 remains open. Manager alone owns remediation routing, dual-audit reconciliation, FFH-013 closure, and FFH-017 activation.
