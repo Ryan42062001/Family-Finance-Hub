@@ -6,6 +6,7 @@ import { buildResidualNeedsSnapshot } from "./money-priority-residual-needs.ts";
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
+  consumeRetirementCapacityForEqualOwnerTie,
   remainingRetirementCapacity,
   retirementCapacityInvariantHolds,
 } from "./money-priority-retirement-capacity.ts";
@@ -215,8 +216,26 @@ export function allocateWindfall(
     engine.build.retirement.recommendedMonthlyIncrease * policy.existingCash.retirementCatchUpMonths
       - engine.residualNeeds.retirementCatchUpApplied,
   ));
+  const routedTieGroups = new Set<string>();
   for (const opportunity of directOpportunities) {
     if (remaining <= 0 || retirementNeed <= 0) break;
+    const isMfjTie = opportunity.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+    const tieKey = isMfjTie ? `${opportunity.sharedCapacityGroup}:${opportunity.opportunityTier}` : null;
+    if (tieKey && routedTieGroups.has(tieKey)) continue;
+    if (tieKey) {
+      routedTieGroups.add(tieKey);
+      const tiedAccountIds = directOpportunities
+        .filter((item) => item.sharedCapacityGroup === opportunity.sharedCapacityGroup && item.opportunityTier === opportunity.opportunityTier)
+        .map((item) => item.accountId);
+      const consumptions = consumeRetirementCapacityForEqualOwnerTie(retirementCapacityLedger, tiedAccountIds, "windfall", Math.min(retirementNeed, remaining));
+      for (const consumption of consumptions) {
+        const tiedOpportunity = directOpportunities.find((item) => item.accountId === consumption.accountId)!;
+        const amount = deploy("retirement", "retirement", tiedOpportunity.accountId, `Use the windfall for ${tiedOpportunity.accountName}`, consumption.consumedAnnualAmount,
+          [...tiedOpportunity.reasons, `This is a modeled direct one-time contribution destination in the ${tiedOpportunity.opportunityTier} tier.`, "Financially equivalent spouse IRA routes use equal fulfillment; stable identity resolves only a final-cent remainder."]);
+        retirementNeed = roundMoney(retirementNeed - amount);
+      }
+      continue;
+    }
     const room = remainingRetirementCapacity(retirementCapacityLedger, opportunity.accountId);
     if (room === null || room <= 0) continue;
     const requested = Math.min(retirementNeed, room, remaining);

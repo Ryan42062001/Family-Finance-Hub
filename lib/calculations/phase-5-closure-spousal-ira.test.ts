@@ -50,6 +50,6 @@ test("MFJ spousal IRA compensation pool excludes a nondependent adult child", ()
   const spouseRoth = result.opportunities.find((item) => item.accountId === "spouse-roth");
   const childRoth = result.opportunities.find((item) => item.accountId === "child-roth");
   assert.equal(selfRoth?.annualLimit, 3750);
-  assert.equal(spouseRoth?.annualLimit, 0);
+  assert.equal(spouseRoth?.annualLimit, 3750);
   assert.equal(childRoth?.annualLimit, 3750);
 });

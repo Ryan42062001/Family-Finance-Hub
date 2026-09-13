@@ -60,13 +60,14 @@ test("MFJ spousal IRA permits separate zero-earner capacity without exceeding ho
   assert.deepEqual(result.opportunities.map((item) => [item.ownerPersonId, item.annualLimit]), [["a", 7500], ["b", 7500]]);
 });
 
-test("limited MFJ household compensation is allocated deterministically and never doubled", () => {
+test("limited MFJ household compensation exposes non-additive conditional maxima", () => {
   const result = evaluateRetirementAccountOpportunities(make([
     { id: "a", owner_person_id: "a", name: "A", account_type: "traditional_ira", employee_contributed_ytd: 0 },
     { id: "b", owner_person_id: "b", name: "B", account_type: "traditional_ira", employee_contributed_ytd: 0 },
   ], [person("a", 1990, 10000), person("b", 1990, 0, "spouse_partner")], profile({ tax_filing_status: "married_filing_jointly" })));
-  assert.equal(result.opportunities.reduce((sum, item) => sum + (item.annualLimit ?? 0), 0), 10000);
-  assert.deepEqual(result.opportunities.map((item) => item.annualLimit), [7500, 2500]);
+  assert.deepEqual(result.opportunities.map((item) => item.annualLimit), [7500, 7500]);
+  assert.deepEqual(result.opportunities.map((item) => item.sharedCapacityRemainingRoom), [10000, 10000]);
+  assert.equal(new Set(result.opportunities.map((item) => item.sharedCapacityGroup)).size, 1);
 });
 
 test("non-joint zero-earner IRA receives targeted missing data, not spousal capacity", () => {

@@ -5,6 +5,7 @@ import type { OptimizeStageResult } from "./money-priority-optimize.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import {
   consumeRetirementCapacity,
+  consumeRetirementCapacityForEqualOwnerTie,
   createRetirementCapacityLedger,
   remainingRetirementCapacity,
   type RetirementCapacityLedger,
@@ -192,8 +193,31 @@ export function evaluateExistingCashDeployment(
           deployable,
           allocation.unfundedMonthlyAmount * policy.existingCash.retirementCatchUpMonths,
         ));
+        const routedTieGroups = new Set<string>();
         for (const destination of retirementDestinations) {
           if (requested <= 0 || deployable <= 0) break;
+          const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+          const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
+          if (tieKey && routedTieGroups.has(tieKey)) continue;
+          if (tieKey) {
+            routedTieGroups.add(tieKey);
+            const tiedAccountIds = retirementDestinations
+              .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
+              .map((item) => item.accountId);
+            const consumptions = consumeRetirementCapacityForEqualOwnerTie(capacityLedger, tiedAccountIds, "one_time", Math.min(requested, deployable));
+            for (const consumption of consumptions) {
+              const tiedDestination = retirementDestinations.find((item) => item.accountId === consumption.accountId)!;
+              const result = deploy(deployments, deployable, consumption.consumedAnnualAmount, {
+                id: `existing-cash-build-retirement-${tiedDestination.accountId}`, stage: "build", category: "retirement", relatedEntityId: tiedDestination.accountId,
+                retirementCapacityGroup: consumption.sharedCapacityGroup, title: `Use existing cash for a one-time retirement contribution to ${tiedDestination.accountName}`,
+                reasons: [...allocation.reasons, `The one-time contribution is capped at ${policy.existingCash.retirementCatchUpMonths} months of the unfunded retirement pace and the verified legal room remaining for this account and its shared statutory group.`, "Financially equivalent spouse IRA routes use equal fulfillment; stable identity resolves only a final-cent remainder.", "This concrete destination consumes the same legal-capacity ledger used by Secure and Build."],
+              });
+              deployable = result.remaining;
+              remaining = roundMoney(remaining - result.amount);
+              requested = roundMoney(Math.max(0, requested - result.amount));
+            }
+            continue;
+          }
           const availableRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
           if (availableRoom === null || availableRoom <= 0) continue;
           const amountForAccount = roundMoney(Math.min(requested, deployable, availableRoom));

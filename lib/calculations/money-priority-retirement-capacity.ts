@@ -49,8 +49,32 @@ export type RetirementCapacityConsumption = {
   remainingAnnualRoom: number;
 };
 
+export type RetirementCapacityTieAllocation = RetirementCapacityConsumption;
+
+export type RetirementRecurringTieAllocation = RetirementCapacityConsumption & {
+  allocatedMonthlyAmount: number;
+};
+
+export type RetirementRecurringTieResult = {
+  allocations: RetirementRecurringTieAllocation[];
+  consumedMonthlyAmount: number;
+  consumedAnnualAmount: number;
+};
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function annualCents(value: number): number {
+  return Math.round(roundMoney(Math.max(0, value)) * 100);
+}
+
+function recurringMonthlyCentsFromAnnual(value: number): number {
+  return Math.floor(annualCents(value) / 12);
+}
+
+function recurringAnnualFromMonthlyCents(monthlyCents: number): number {
+  return roundMoney((Math.max(0, monthlyCents) * 12) / 100);
 }
 
 function zeroConsumption(): Record<RetirementCapacityConsumer, number> {
@@ -88,6 +112,12 @@ function groupOriginalRoom(groupId: string, entries: RetirementCapacityLedgerEnt
       0,
     ));
   }
+  if (groupId.startsWith("ira:mfj-compensation:")) {
+    return roundMoney(groupEntries.reduce(
+      (largest, entry) => Math.max(largest, entry.sharedCapacityRemainingRoom ?? 0),
+      0,
+    ));
+  }
   return roundMoney(groupEntries.reduce(
     (largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0),
     0,
@@ -105,9 +135,10 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
         accountType: opportunity.accountType,
         ownerPersonId: opportunity.ownerPersonId,
         sharedCapacityGroup: opportunity.sharedCapacityGroup ?? null,
-        ownerCapacityGroup: opportunity.sharedCapacityGroup === "hsa:married-family" && opportunity.ownerPersonId
-          ? `hsa-owner:${opportunity.ownerPersonId}`
-          : null,
+        ownerCapacityGroup: opportunity.ownerCapacityGroup
+          ?? (opportunity.sharedCapacityGroup === "hsa:married-family" && opportunity.ownerPersonId
+            ? `hsa-owner:${opportunity.ownerPersonId}`
+            : null),
         verified,
         informationNeeded: verified ? [] : [...opportunity.missingData],
         originalRemainingAnnualRoom,
@@ -128,7 +159,7 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
     .flatMap((entry) => [entry.sharedCapacityGroup, entry.ownerCapacityGroup])
     .filter((groupId): groupId is string => Boolean(groupId)))].sort();
   const groups = groupIds.map((id): RetirementCapacityLedgerGroup => {
-    const originalRemainingAnnualRoom = id.startsWith("hsa-owner:")
+    const originalRemainingAnnualRoom = id.startsWith("hsa-owner:") || id.startsWith("ira-owner:")
       ? roundMoney(entries
           .filter((entry) => entry.ownerCapacityGroup === id && entry.verified)
           .reduce((largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0), 0))
@@ -243,6 +274,121 @@ export function consumeRetirementCapacity(
     requestedAnnualAmount: requested,
     consumedAnnualAmount: consumed,
     remainingAnnualRoom: remainingRetirementCapacity(ledger, accountId) ?? 0,
+  };
+}
+
+export function consumeRetirementCapacityForEqualOwnerTie(
+  ledger: RetirementCapacityLedger,
+  accountIds: string[],
+  consumer: RetirementCapacityConsumer,
+  requestedAnnualAmount: number,
+): RetirementCapacityTieAllocation[] {
+  const ownerDestinations = [...accountIds]
+    .sort()
+    .map((accountId) => ({ accountId, entry: ledger.entries.find((item) => item.accountId === accountId) }))
+    .filter((item) => item.entry?.ownerPersonId)
+    .filter((item, index, all) => all.findIndex((candidate) => candidate.entry!.ownerPersonId === item.entry!.ownerPersonId) === index)
+    .map((item) => ({ ...item, available: remainingRetirementCapacity(ledger, item.accountId) ?? 0 }))
+    .filter((item) => item.available > 0);
+  const requestedCents = Math.round(Math.max(0, requestedAnnualAmount) * 100);
+  const totalAvailableCents = ownerDestinations.reduce((sum, item) => sum + Math.round(item.available * 100), 0);
+  const amountCents = Math.min(requestedCents, totalAvailableCents);
+  if (amountCents <= 0 || totalAvailableCents <= 0) return [];
+  const shares = ownerDestinations.map((item) => ({
+    ...item,
+    availableCents: Math.round(item.available * 100),
+    allocatedCents: Math.floor(amountCents * Math.round(item.available * 100) / totalAvailableCents),
+  }));
+  let remainder = amountCents - shares.reduce((sum, item) => sum + item.allocatedCents, 0);
+  for (const share of shares) {
+    if (remainder <= 0) break;
+    if (share.allocatedCents < share.availableCents) {
+      share.allocatedCents += 1;
+      remainder -= 1;
+    }
+  }
+  return shares
+    .filter((share) => share.allocatedCents > 0)
+    .map((share) => consumeRetirementCapacity(ledger, share.accountId, consumer, share.allocatedCents / 100));
+}
+
+export function consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
+  ledger: RetirementCapacityLedger,
+  accountIds: string[],
+  consumer: RetirementCapacityConsumer,
+  requestedMonthlyAmount: number | null,
+): RetirementRecurringTieResult {
+  const ownerDestinations = [...accountIds]
+    .sort()
+    .map((accountId) => ({ accountId, entry: ledger.entries.find((item) => item.accountId === accountId) }))
+    .filter((item) => item.entry?.ownerPersonId)
+    .filter((item, index, all) => all.findIndex((candidate) => candidate.entry!.ownerPersonId === item.entry!.ownerPersonId) === index)
+    .map((item) => ({
+      ...item,
+      availableMonthlyCents: recurringMonthlyCentsFromAnnual(remainingRetirementCapacity(ledger, item.accountId) ?? 0),
+    }))
+    .filter((item) => item.availableMonthlyCents > 0);
+  if (!ownerDestinations.length) return { allocations: [], consumedMonthlyAmount: 0, consumedAnnualAmount: 0 };
+
+  const sharedGroupIds = [...new Set(ownerDestinations
+    .map((item) => item.entry?.sharedCapacityGroup)
+    .filter((groupId): groupId is string => Boolean(groupId)))];
+  const sharedGroup = sharedGroupIds.length === 1
+    ? ledger.groups.find((group) => group.id === sharedGroupIds[0])
+    : null;
+  const ownerAvailableMonthlyCents = ownerDestinations.reduce((sum, item) => sum + item.availableMonthlyCents, 0);
+  const sharedAvailableMonthlyCents = sharedGroup
+    ? recurringMonthlyCentsFromAnnual(sharedGroup.remainingAnnualRoom)
+    : ownerAvailableMonthlyCents;
+  const totalAvailableMonthlyCents = Math.min(ownerAvailableMonthlyCents, sharedAvailableMonthlyCents);
+  const requestedMonthlyCents = requestedMonthlyAmount === null
+    ? totalAvailableMonthlyCents
+    : Math.round(Math.max(0, requestedMonthlyAmount) * 100);
+  const amountMonthlyCents = Math.min(requestedMonthlyCents, totalAvailableMonthlyCents);
+  if (amountMonthlyCents <= 0 || totalAvailableMonthlyCents <= 0) {
+    return { allocations: [], consumedMonthlyAmount: 0, consumedAnnualAmount: 0 };
+  }
+
+  const shares = ownerDestinations.map((item) => ({
+    ...item,
+    allocatedMonthlyCents: Math.floor(
+      amountMonthlyCents * item.availableMonthlyCents / ownerAvailableMonthlyCents,
+    ),
+  }));
+  let remainder = amountMonthlyCents - shares.reduce((sum, item) => sum + item.allocatedMonthlyCents, 0);
+  for (const share of shares) {
+    if (remainder <= 0) break;
+    if (share.allocatedMonthlyCents < share.availableMonthlyCents) {
+      share.allocatedMonthlyCents += 1;
+      remainder -= 1;
+    }
+  }
+
+  const allocations = shares
+    .filter((share) => share.allocatedMonthlyCents > 0)
+    .map((share): RetirementRecurringTieAllocation => {
+      const requestedAnnual = recurringAnnualFromMonthlyCents(share.allocatedMonthlyCents);
+      const consumption = consumeRetirementCapacity(ledger, share.accountId, consumer, requestedAnnual);
+      if (annualCents(consumption.consumedAnnualAmount) !== share.allocatedMonthlyCents * 12) {
+        throw new Error("Recurring retirement tie allocation failed annual-capacity reconciliation.");
+      }
+      return {
+        ...consumption,
+        allocatedMonthlyAmount: share.allocatedMonthlyCents / 100,
+      };
+    });
+  const consumedMonthlyCents = allocations.reduce(
+    (sum, allocation) => sum + Math.round(allocation.allocatedMonthlyAmount * 100),
+    0,
+  );
+  const consumedAnnualCents = allocations.reduce(
+    (sum, allocation) => sum + annualCents(allocation.consumedAnnualAmount),
+    0,
+  );
+  return {
+    allocations,
+    consumedMonthlyAmount: consumedMonthlyCents / 100,
+    consumedAnnualAmount: consumedAnnualCents / 100,
   };
 }
 
