@@ -109,3 +109,13 @@ Manager may make those control-plane improvements without pausing for separate p
 Manager should make the smallest useful upgrade, commit it to the canonical control plane, validate state consistency where applicable, and report the change after execution rather than repeatedly asking the user for permission to improve the workflow itself.
 
 If a proposed workflow upgrade crosses any protected product, financial, security, production-data, external-account, spending, or resource-consumption boundary, the existing specialist/user authorization gate still applies.
+
+## 11. Financial-engine reconciliation gate
+
+Any implementation that changes money routing, monetary splitting, shared legal-capacity consumption, grouped ledgers, or annual/monthly conversion must apply `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`.
+
+The worker must prove exact aggregate-to-destination reconciliation at applicable monetary boundaries. A planner/prepass and the actual router must use one authoritative reconciliation path or be proven exactly equivalent, including odd-cent and ordering cases.
+
+Manager acceptance for such work requires an independent adversarial hand-check of at least one boundary scenario in addition to green CI. Green CI alone does not establish that routed account amounts reconcile with the aggregate amount presented by the stage.
+
+High-impact audit packets for affected work must carry the applicable reconciliation invariants into the Technical & Mathematical audit. A reachable mismatch returns the task to `REMEDIATION`; it must not be waived with epsilon/tolerance or hidden by residual clamping.
