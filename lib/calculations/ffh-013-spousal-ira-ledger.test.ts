@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { evaluateBuildStage } from "./money-priority-build.ts";
 import { buildMoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
 import { consumeRetirementCapacity, consumeRetirementCapacityForEqualOwnerTie, createRetirementCapacityLedger, remainingRetirementCapacity, retirementCapacityInvariantHolds } from "./money-priority-retirement-capacity.ts";
@@ -17,6 +18,30 @@ function scenario() {
     ],
     income: [], expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [],
     preferences: { tax_profile_year: 2026, tax_filing_status: "married_filing_jointly", estimated_modified_agi: 10000 },
+  });
+}
+
+function buildRoutingScenario() {
+  return buildMoneyPrioritySnapshot({
+    householdId: "ffh-013-build",
+    people: [
+      { id: "a", display_name: "A", relationship: "self", birth_date: "1990-01-01", estimated_taxable_compensation_annual: 10000.01, covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false },
+      { id: "b", display_name: "B", relationship: "spouse_partner", birth_date: "1990-01-01", estimated_taxable_compensation_annual: 0, covered_by_workplace_retirement_plan: false, is_active: true, is_dependent: false },
+    ],
+    income: [
+      { id: "income-a", owner_person_id: "a", name: "Job", monthly_amount: 5000, monthly_gross_amount: 10000, is_active: true },
+    ],
+    retirementAccounts: [
+      { id: "ira-a", owner_person_id: "a", name: "A IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
+      { id: "ira-b", owner_person_id: "b", name: "B IRA", account_type: "traditional_ira", balance: 0, monthly_employee_contribution: 0, monthly_employer_contribution: 0, employee_contributed_ytd: 0, employer_contributed_ytd: 0 },
+    ],
+    expenses: [], accounts: [], debts: [], goals: [], insuranceExposures: [],
+    preferences: {
+      tax_profile_year: 2026,
+      tax_filing_status: "married_filing_jointly",
+      estimated_modified_agi: 10000.01,
+      retirement_spending_basis: "today_dollars",
+    },
   });
 }
 
@@ -99,6 +124,24 @@ test("financially tied spouse routes use equal fulfillment and stable final-cent
   assert.deepEqual(allocations.map((item) => [item.accountId, item.consumedAnnualAmount]), [["ira-a", 2500.01], ["ira-b", 2500]]);
   assert.equal(ledger.groups.find((item) => item.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 5000);
   assert.ok(retirementCapacityInvariantHolds(ledger));
+});
+
+test("FFH-013-M01 Build recurring routes reconcile exactly at the $10,000.01 shared-pool boundary", () => {
+  const result = evaluateBuildStage(buildRoutingScenario(), "2026-08-29");
+  const retirementAllocation = result.allocations.find((item) => item.category === "retirement");
+  const routes = [...result.retirementAccountAllocations].sort((a, b) => a.accountId.localeCompare(b.accountId));
+  const routedMonthly = Math.round(routes.reduce((sum, route) => sum + route.allocatedMonthlyAmount, 0) * 100) / 100;
+  const routedAnnual = Math.round(routes.reduce((sum, route) => sum + route.allocatedAnnualAmount, 0) * 100) / 100;
+
+  assert.equal(retirementAllocation?.allocatedMonthlyAmount, 833.33);
+  assert.equal(routedMonthly, retirementAllocation?.allocatedMonthlyAmount);
+  assert.deepEqual(routes.map((route) => [route.accountId, route.allocatedMonthlyAmount, route.allocatedAnnualAmount]), [
+    ["ira-a", 416.67, 5000.04],
+    ["ira-b", 416.66, 4999.92],
+  ]);
+  assert.equal(routedAnnual, 9999.96);
+  assert.equal(result.retirementCapacityLedger.groups.find((group) => group.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 0.05);
+  assert.ok(retirementCapacityInvariantHolds(result.retirementCapacityLedger));
 });
 
 test("multiple Traditional and Roth accounts cannot multiply either owner's or household room", () => {
