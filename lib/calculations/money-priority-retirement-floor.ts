@@ -13,6 +13,7 @@ import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
   createRetirementCapacityLedger,
+  withoutScheduledRetirementReservations,
   remainingRetirementCapacity,
   type RetirementCapacityLedger,
 } from "./money-priority-retirement-capacity.ts";
@@ -120,7 +121,30 @@ function reserveScheduledContributions(
     hsaEmployerAnnual: 0,
   };
 
+  const iraRequestedByGroup = new Map<string, number>();
+  for (const account of snapshot.retirementAccounts.filter((item) => IRA_TYPES.has(item.type))) {
+    const entry = clone.entries.find((item) => item.accountId === account.id);
+    const requested = roundMoney(account.monthlyEmployeeContribution * modeledMonths);
+    if (requested <= 0) continue;
+    result.requestedAnnual = roundMoney(result.requestedAnnual + requested);
+    if (!entry?.verified || !entry.sharedCapacityGroup) {
+      result.unverifiedAnnual = roundMoney(result.unverifiedAnnual + requested);
+      continue;
+    }
+    iraRequestedByGroup.set(entry.sharedCapacityGroup, roundMoney(
+      (iraRequestedByGroup.get(entry.sharedCapacityGroup) ?? 0) + requested,
+    ));
+  }
+  for (const [groupId, requested] of iraRequestedByGroup) {
+    const group = clone.groups.find((item) => item.id === groupId);
+    const supported = roundMoney(Math.min(requested, group?.consumed.scheduled ?? 0));
+    result.iraAnnual = roundMoney(result.iraAnnual + supported);
+    result.supportedAnnual = roundMoney(result.supportedAnnual + supported);
+    result.unsupportedAnnual = roundMoney(result.unsupportedAnnual + requested - supported);
+  }
+
   for (const account of [...snapshot.retirementAccounts].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (IRA_TYPES.has(account.type)) continue;
     const requestedEmployee = roundMoney(account.monthlyEmployeeContribution * modeledMonths);
     const requestedEmployer = roundMoney(account.monthlyEmployerContribution * modeledMonths);
     const requested = roundMoney(requestedEmployee + requestedEmployer);
@@ -395,7 +419,10 @@ export function evaluateHybridRetirementFloor(
     && (projectionRequiredCorrectiveRate > policy.hybridRetirementFloor.maximumProtectedCorrectiveRate
       || (grossHouseholdIncomeAnnual !== null
         && projectionRequiredCorrectiveRate * grossHouseholdIncomeAnnual > feasibleAnnualCeiling));
-  const additionalVerifiedLegalCapacityAnnual = availableLegalCapacity(opportunities, ledger);
+  const additionalVerifiedLegalCapacityAnnual = availableLegalCapacity(
+    opportunities,
+    withoutScheduledRetirementReservations(ledger),
+  );
   const remainingLegalCapacityAfterScheduledAnnual = availableLegalCapacity(
     opportunities,
     currentYearReservation.ledger,
