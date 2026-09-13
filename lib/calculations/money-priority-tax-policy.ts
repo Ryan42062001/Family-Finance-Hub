@@ -43,6 +43,8 @@ export const MONEY_PRIORITY_TAX_POLICY_2026: MoneyPriorityTaxPolicy = {
   simpleEmployeeDeferralLimit: 17000,
   simpleApplicableHigherEmployeeDeferralLimit: 18100,
   simpleCatchUpAge50: 4000,
+  // The certain-applicable higher category has its own general age-50 catch-up;
+  // ages 60–63 use the separate replacement amount below instead.
   simpleApplicableHigherCatchUpAge50: 3850,
   simpleCatchUpAge60To63: 5250,
   sepEmployerContributionLimit: 72000,
