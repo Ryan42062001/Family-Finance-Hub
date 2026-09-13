@@ -142,6 +142,19 @@ test("FFH-013-M01 Build recurring routes reconcile exactly at the $10,000.01 sha
   assert.equal(routedAnnual, 9999.96);
   assert.equal(result.retirementCapacityLedger.groups.find((group) => group.id.startsWith("ira:mfj-compensation:"))?.remainingAnnualRoom, 0.05);
   assert.ok(retirementCapacityInvariantHolds(result.retirementCapacityLedger));
+
+  const reordered = buildRoutingScenario();
+  const reorderedResult = evaluateBuildStage({
+    ...reordered,
+    retirementAccounts: [...reordered.retirementAccounts].reverse(),
+  }, "2026-08-29");
+  const reorderedRoutes = [...reorderedResult.retirementAccountAllocations]
+    .sort((a, b) => a.accountId.localeCompare(b.accountId));
+  assert.equal(
+    reorderedResult.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount,
+    retirementAllocation?.allocatedMonthlyAmount,
+  );
+  assert.deepEqual(reorderedRoutes, routes);
 });
 
 test("multiple Traditional and Roth accounts cannot multiply either owner's or household room", () => {
