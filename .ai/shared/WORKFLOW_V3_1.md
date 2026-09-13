@@ -94,3 +94,18 @@ Future tasks should use `FFH_TASK_V1` unless Manager records a specific exceptio
 ## 9. Adoption boundary
 
 FFH-027 is control-plane only. It does not accept FFH-012, resolve FFH-020, activate Phase 6/7, change Supabase state, or alter financial calculations.
+
+## 10. Standing workflow-improvement authority
+
+The user has granted Manager standing authority to implement bounded workflow/control-plane upgrades whenever they materially improve determinism, reliability, auditability, task routing, prompt quality, state hygiene, observability, or execution efficiency.
+
+Manager may make those control-plane improvements without pausing for separate per-change user approval when all of the following remain true:
+- financial policy and statutory/regulatory interpretation are unchanged;
+- production financial behavior is unchanged unless separately authorized through the normal task lifecycle;
+- specialist role separation, Manager acceptance authority, independent audit, CI attribution, and release gates are preserved or strengthened;
+- no destructive repository/database/production action is introduced;
+- no live-data, secret, credential, security-boundary, external-account-permission, paid-service, or separately metered-resource action is implicitly authorized by the workflow change.
+
+Manager should make the smallest useful upgrade, commit it to the canonical control plane, validate state consistency where applicable, and report the change after execution rather than repeatedly asking the user for permission to improve the workflow itself.
+
+If a proposed workflow upgrade crosses any protected product, financial, security, production-data, external-account, spending, or resource-consumption boundary, the existing specialist/user authorization gate still applies.
