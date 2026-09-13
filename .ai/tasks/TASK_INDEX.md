@@ -10,11 +10,11 @@ Last refreshed: 2026-09-13
 | FFH-010 | App/Data | ACCEPTED | `8f39e7d6...` | CI #300 SUCCESS; live deployment remains FFH-020 |
 | FFH-011 | App/Data | ACCEPTED | production `c32942f1...`; integration `19bc3040...` | SIMPLE persisted-field contract consumed by closed FFH-015 |
 | FFH-012 | Core / recovery | CLOSED | final frozen target `51c3cd59...` | Final Technical + Policy re-audits both PASS WITH NON-BLOCKING FINDINGS; A/B/C/D closed |
-| FFH-013 | Core Engine | AUDIT_READY | production `3a78bb9b...`; integration `0a8c2f2a...` | Manager accepted; frozen dual audit required; FFH-013-M01 Manager-closed pending independent verification |
+| FFH-013 | Core Engine | REMEDIATION | failed frozen target `0a8c2f2a...` | Dual audit FAIL; close A01–A05 while preserving independently closed M01 |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | QUEUED | Not established | Wait for FFH-013 dual-audit closure and Manager activation |
+| FFH-017 | Core Engine | QUEUED | Not established | Wait for FFH-013 remediation + fresh dual re-audit closure |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness recovery wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -30,27 +30,27 @@ Last refreshed: 2026-09-13
 | FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
 
 ## Current verified state
-- Workflow V3.1 remains canonical and now includes `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`.
-- FFH-030 is CLOSED. Manager/Core/Technical Audit guidance and future task/audit templates now require exact aggregate-to-destination reconciliation for applicable money-routing changes; Foundation CI now targets pull requests to both `main` and `phase-5-money-priority-engine` and supports manual dispatch.
-- FFH-013 remediation passed Manager re-review under the new reconciliation gate. Exact production candidate `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457` passed Foundation CI run `34732621610`, job `103658103064`.
-- FFH-013-M01 is Manager-closed: the `$10,000.01` shared-pool boundary now routes `$416.67 + $416.66 = $833.33/month` exactly, with `$9,999.96` annual legal consumption and `$0.05` shared annual remainder; no epsilon/tolerance or hidden positive residual is used.
-- PR #21 merged at integration SHA `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`.
-- Frozen audit packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_0a8c2f2a.md`.
-- FFH-013 is AUDIT_READY and requires fresh independent Technical & Mathematical plus Financial Policy & Scenario audits of the exact integration SHA.
-- FFH-017 remains QUEUED behind FFH-013 audit closure.
+- Workflow V3.1 remains canonical with `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` binding for applicable money-routing work.
+- FFH-013 frozen audit target was `0a8c2f2aff85d5745c28e30ccfde23b89750fab7`.
+- Technical & Mathematical Auditor verdict: FAIL — REMEDIATION REQUIRED. FFH-013-M01 remains independently CLOSED. Open HIGH findings: annual tied-spouse shared-cap/equal-fulfillment defect (A01), missing active-schedule reservation (A02), and post-YTD shared-materiality/group defect (A03).
+- Financial Policy & Scenario Auditor verdict: FAIL — REMEDIATION REQUIRED. FFH-013-M01 remains independently CLOSED. Open findings: HIGH owner-only supported-excess fail-closed defect (A04) and MEDIUM conditional-maxima/shared-capacity explanation defect (A05).
+- No auditor found an FFH-013 regression in accepted HSA, SIMPLE, Roth direct-eligibility, Traditional deductibility, or unrelated workplace-retirement behavior.
+- Prior green Foundation CI does not clear A01–A05 because those scenarios were not exercised.
+- FFH-013 is REMEDIATION. A fresh dual re-audit will be required after a Manager-accepted remediation integration checkpoint.
+- FFH-017 remains QUEUED behind FFH-013 closure.
 - FFH-020 remains separately BLOCKED before any live write.
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
 
 ## ACTIVATE NOW
-- Technical & Mathematical Auditor — fresh independent FFH-013 audit of exact target `0a8c2f2aff85d5745c28e30ccfde23b89750fab7` using `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_0a8c2f2a.md`.
-- Financial Policy & Scenario Auditor — separate fresh independent FFH-013 audit of the same exact target and packet.
+- Core Financial Engine Engineer — execute bounded FFH-013 audit remediation A01–A05 on `ffh/ffh-013-audit-remediation` in `WORK_MODE_PREFERRED`; preserve M01 exactly and return READY_FOR_MANAGER with full green CI.
 
 ## IDLE / BLOCKED
-- Core Financial Engine Engineer: IDLE after FFH-013 Manager integration; FFH-017 not yet activated.
+- Technical & Mathematical Auditor: IDLE after FFH-013 FAIL verdict; wait for a new frozen remediation target.
+- Financial Policy & Scenario Auditor: IDLE after FFH-013 FAIL verdict; wait for a new frozen remediation target.
 - Work Helper / Super Troubleshooter: IDLE.
 - Financial Policy Analyst: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Phase 5 / PR #5 remains NOT MERGE READY. Current near-term gate is the FFH-013 fresh dual audit, followed by FFH-017 if the audits clear the frozen target. FFH-020 remains a separate blocked database-recovery track.
+Phase 5 / PR #5 remains NOT MERGE READY. Current near-term gate is the bounded FFH-013 audit remediation, followed by a fresh dual re-audit. FFH-017 cannot activate until FFH-013 closes. FFH-020 remains a separate blocked database-recovery track.
