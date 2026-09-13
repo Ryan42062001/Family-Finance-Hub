@@ -3,7 +3,7 @@ import type {
   RetirementAccountOpportunityResult,
 } from "./money-priority-retirement-accounts.ts";
 
-export type RetirementCapacityConsumer = "one_time" | "secure" | "build" | "windfall";
+export type RetirementCapacityConsumer = "scheduled" | "one_time" | "secure" | "build" | "windfall";
 
 export type RetirementCapacityLedgerEntry = {
   accountId: string;
@@ -22,6 +22,7 @@ export type RetirementCapacityLedgerEntry = {
   sharedOrdinaryRemainingRoom: number | null;
   catchUpRemainingRoom: number | null;
   accountSpecificRemainingRoom: number | null;
+  plannedReservationAnnual: number;
   consumed: Record<RetirementCapacityConsumer, number>;
 };
 
@@ -78,7 +79,7 @@ function recurringAnnualFromMonthlyCents(monthlyCents: number): number {
 }
 
 function zeroConsumption(): Record<RetirementCapacityConsumer, number> {
-  return { one_time: 0, secure: 0, build: 0, windfall: 0 };
+  return { scheduled: 0, one_time: 0, secure: 0, build: 0, windfall: 0 };
 }
 
 function annualAdditionsRoom(opportunity: RetirementAccountOpportunity): number | null {
@@ -124,11 +125,25 @@ function groupOriginalRoom(groupId: string, entries: RetirementCapacityLedgerEnt
   ));
 }
 
+function groupReservation(groupId: string, entries: RetirementCapacityLedgerEntry[]): number {
+  const reservationsByOwner = new Map<string, number>();
+  for (const entry of entries.filter((item) => item.verified && (item.sharedCapacityGroup === groupId || item.ownerCapacityGroup === groupId))) {
+    if (!entry.ownerPersonId) continue;
+    reservationsByOwner.set(entry.ownerPersonId, roundMoney(
+      (reservationsByOwner.get(entry.ownerPersonId) ?? 0) + entry.plannedReservationAnnual,
+    ));
+  }
+  return roundMoney([...reservationsByOwner.values()].reduce((sum, amount) => sum + amount, 0));
+}
+
 export function createRetirementCapacityLedger(result: RetirementAccountOpportunityResult): RetirementCapacityLedger {
   const entries = result.opportunities
     .map((opportunity): RetirementCapacityLedgerEntry => {
       const verified = opportunity.state === "available" || opportunity.state === "limit_reached";
       const originalRemainingAnnualRoom = verified ? roundMoney(Math.max(0, opportunity.remainingAnnualRoom ?? 0)) : null;
+      const plannedReservationAnnual = verified
+        ? roundMoney(Math.min(originalRemainingAnnualRoom ?? 0, Math.max(0, opportunity.planningReservationAnnual ?? 0)))
+        : 0;
       const workplaceEmployeeType = ["401k", "403b", "457", "457b", "tsp", "simple_ira"].includes(opportunity.accountType);
       return {
         accountId: opportunity.accountId,
@@ -142,15 +157,16 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
         verified,
         informationNeeded: verified ? [] : [...opportunity.missingData],
         originalRemainingAnnualRoom,
-        remainingAnnualRoom: originalRemainingAnnualRoom,
+        remainingAnnualRoom: originalRemainingAnnualRoom === null ? null : roundMoney(originalRemainingAnnualRoom - plannedReservationAnnual),
         employeeElectiveDeferralRemainingRoom: workplaceEmployeeType ? originalRemainingAnnualRoom : null,
         annualAdditionsRemainingRoom: annualAdditionsRoom(opportunity),
         compensationBasedRemainingRoom: compensationRoom(opportunity),
         sharedCapacityRemainingRoom: opportunity.sharedCapacityRemainingRoom ?? null,
         sharedOrdinaryRemainingRoom: opportunity.sharedOrdinaryRemainingRoom ?? null,
         catchUpRemainingRoom: catchUpRoom(opportunity),
-        accountSpecificRemainingRoom: originalRemainingAnnualRoom,
-        consumed: zeroConsumption(),
+        accountSpecificRemainingRoom: originalRemainingAnnualRoom === null ? null : roundMoney(originalRemainingAnnualRoom - plannedReservationAnnual),
+        plannedReservationAnnual,
+        consumed: { ...zeroConsumption(), scheduled: plannedReservationAnnual },
       };
     })
     .sort((a, b) => a.accountId.localeCompare(b.accountId));
@@ -164,6 +180,7 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
           .filter((entry) => entry.ownerCapacityGroup === id && entry.verified)
           .reduce((largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0), 0))
       : groupOriginalRoom(id, entries);
+    const plannedReservationAnnual = groupReservation(id, entries);
     return {
       id,
       ownerPersonIds: [...new Set(entries
@@ -171,8 +188,8 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
         .map((entry) => entry.ownerPersonId)
         .filter((ownerId): ownerId is string => Boolean(ownerId)))].sort(),
       originalRemainingAnnualRoom,
-      remainingAnnualRoom: originalRemainingAnnualRoom,
-      consumed: zeroConsumption(),
+      remainingAnnualRoom: roundMoney(Math.max(0, originalRemainingAnnualRoom - plannedReservationAnnual)),
+      consumed: { ...zeroConsumption(), scheduled: Math.min(originalRemainingAnnualRoom, plannedReservationAnnual) },
     };
   });
 
@@ -186,6 +203,20 @@ export function cloneRetirementCapacityLedger(ledger: RetirementCapacityLedger):
     entries: ledger.entries.map((entry) => ({ ...entry, informationNeeded: [...entry.informationNeeded], consumed: { ...entry.consumed } })),
     groups: ledger.groups.map((group) => ({ ...group, ownerPersonIds: [...group.ownerPersonIds], consumed: { ...group.consumed } })),
   };
+}
+
+export function withoutScheduledRetirementReservations(ledger: RetirementCapacityLedger): RetirementCapacityLedger {
+  const clone = cloneRetirementCapacityLedger(ledger);
+  for (const entry of clone.entries) {
+    entry.remainingAnnualRoom = entry.originalRemainingAnnualRoom;
+    entry.accountSpecificRemainingRoom = entry.originalRemainingAnnualRoom;
+    entry.consumed.scheduled = 0;
+  }
+  for (const group of clone.groups) {
+    group.remainingAnnualRoom = group.originalRemainingAnnualRoom;
+    group.consumed.scheduled = 0;
+  }
+  return clone;
 }
 
 export function remainingRetirementCapacity(ledger: RetirementCapacityLedger, accountId: string): number | null {
@@ -292,7 +323,16 @@ export function consumeRetirementCapacityForEqualOwnerTie(
     .filter((item) => item.available > 0);
   const requestedCents = Math.round(Math.max(0, requestedAnnualAmount) * 100);
   const totalAvailableCents = ownerDestinations.reduce((sum, item) => sum + Math.round(item.available * 100), 0);
-  const amountCents = Math.min(requestedCents, totalAvailableCents);
+  const sharedGroupIds = [...new Set(ownerDestinations
+    .map((item) => item.entry?.sharedCapacityGroup)
+    .filter((groupId): groupId is string => Boolean(groupId)))];
+  const sharedGroup = sharedGroupIds.length === 1
+    ? ledger.groups.find((group) => group.id === sharedGroupIds[0])
+    : null;
+  const sharedAvailableCents = sharedGroup
+    ? annualCents(sharedGroup.remainingAnnualRoom)
+    : totalAvailableCents;
+  const amountCents = Math.min(requestedCents, totalAvailableCents, sharedAvailableCents);
   if (amountCents <= 0 || totalAvailableCents <= 0) return [];
   const shares = ownerDestinations.map((item) => ({
     ...item,
