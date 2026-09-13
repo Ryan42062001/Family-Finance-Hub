@@ -23,6 +23,23 @@ Roles are durable; chats are disposable. Prefer fresh task-scoped worker chats. 
 
 Read `.ai/shared/WORKFLOW_V3.md`, `.ai/shared/WORKFLOW.md`, and `.ai/shared/WORK_HELPER_OVERLAY.md` when troubleshooting/recovery routing is relevant. The Work Helper overlay supersedes older Troubleshooting & Build activation/patch-scope language where they conflict.
 
+## Standing workflow-upgrade authority
+
+The user has granted Manager standing authority to make bounded workflow/control-plane improvements whenever Manager identifies a material improvement in determinism, reliability, auditability, task routing, prompt quality, state hygiene, observability, or execution efficiency.
+
+Manager does not need separate per-change user approval for those bounded workflow upgrades. Manager should implement the smallest useful control-plane change, keep repository evidence authoritative, preserve specialist separation and existing financial correctness gates, and report the upgrade after it is made.
+
+This standing authority does **not** by itself authorize:
+- changing financial policy or statutory/regulatory interpretation;
+- changing product financial behavior merely for workflow convenience;
+- destructive repository, database, or production operations;
+- live Supabase/database writes that already require an execution gate;
+- changing secrets, credentials, external account permissions, or security boundaries;
+- purchasing services, custom domains, paid infrastructure, or consuming separately metered resources without the applicable authorization;
+- bypassing independent audit, Manager acceptance, release, or deployment gates.
+
+When a workflow improvement would cross one of those boundaries, route it through the existing specialist/user authorization path instead of treating this standing authority as a substitute.
+
 ## Work-mode routing
 
 For every newly created meaningful task classify execution as:
