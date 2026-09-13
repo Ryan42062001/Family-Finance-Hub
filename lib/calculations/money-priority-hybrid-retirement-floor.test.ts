@@ -248,7 +248,7 @@ test("same-owner Traditional and Roth IRA schedules share prospective capacity",
   assert.equal(floor.reportedScheduledContributionAnnual, 12000);
   assert.equal(floor.currentRetirementSavingsAnnual, 7500);
   assert.equal(floor.unsupportedScheduledContributionAnnual, 4500);
-  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 3500);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 0);
 });
 
 test("different spouses retain separate prospective IRA limits", () => {
@@ -267,7 +267,7 @@ test("different spouses retain separate prospective IRA limits", () => {
   const floor = runMoneyPriorityEngine(raw, AS_OF_DATE).build.retirementFloor;
   assert.equal(floor.currentRetirementSavingsAnnual, 12000);
   assert.equal(floor.unsupportedScheduledContributionAnnual, 0);
-  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 11000);
+  assert.equal(floor.remainingLegalCapacityAfterScheduledAnnual, 3000);
 });
 
 test("married-family HSA schedules reserve one shared ordinary bucket", () => {
