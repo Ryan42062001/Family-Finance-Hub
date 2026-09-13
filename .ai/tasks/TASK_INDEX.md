@@ -10,11 +10,11 @@ Last refreshed: 2026-09-13
 | FFH-010 | App/Data | ACCEPTED | `8f39e7d6...` | CI #300 SUCCESS; live deployment remains FFH-020 |
 | FFH-011 | App/Data | ACCEPTED | production `c32942f1...`; integration `19bc3040...` | SIMPLE persisted-field contract consumed by closed FFH-015 |
 | FFH-012 | Core / recovery | CLOSED | final frozen target `51c3cd59...` | Final Technical + Policy re-audits both PASS WITH NON-BLOCKING FINDINGS; A/B/C/D closed |
-| FFH-013 | Core Engine | REMEDIATION | PR #23 candidate `0dd0a789...`; prior failed integration `0a8c2f2a...` | A01–A05 preliminarily clear; close Manager HIGH M02 equal-comp owner-local excess edge, then re-review and fresh dual audit |
+| FFH-013 | Core Engine | AUDIT_READY | production `5e3f21ca...`; integration `e811ef1f...` | Manager accepted PR #23; A01–A05 + M02 remediated, M01 preserved; fresh dual re-audit required |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | QUEUED | Not established | Wait for FFH-013 remediation + fresh dual re-audit closure |
+| FFH-017 | Core Engine | QUEUED | Not established | Wait for FFH-013 fresh dual re-audit closure |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness recovery wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -31,26 +31,27 @@ Last refreshed: 2026-09-13
 
 ## Current verified state
 - Workflow V3.1 remains canonical with `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` binding for applicable money-routing work.
-- FFH-013's first frozen audit target `0a8c2f2aff85d5745c28e30ccfde23b89750fab7` failed both independent audits. FFH-013-M01 was independently confirmed CLOSED.
-- PR #23 on `ffh/ffh-013-audit-remediation` remediates A01–A05. Production candidate `0dd0a7891afa3e6e5f3f7da29497d8afb527938c` passed Foundation CI run `34736781542`, job `103669508891`; final documentation head `0fdb57bebb7f77dd6eaaabd0fb9375432a58355c` passed run `34736949928`, job `103669961880`.
-- Manager review preliminarily verified A01 annual shared-cap equal fulfillment, A02 scheduled planning reservations, A03 unequal-compensation post-YTD materiality, A04 unequal-compensation shared-group excess fail-closed behavior, A05 conditional/shared explanation, and protected M01.
-- Manager found one new HIGH blocking boundary, FFH-013-M02: PR #23 incorrectly creates a zero shared MFJ group when equal-compensation spouses have an owner-only excess. Accepted FFH-009 says equal compensation has no spousal enhancement/shared group; the unaffected spouse retains independent room.
-- M02 reproduction: compensation `$10,000/$10,000`, individual limits `$7,500/$7,500`, YTD `$8,000/$0`. Required: excess owner `$0` additional plus warning; unaffected spouse `$7,500` additional; no shared group created solely from the owner-only excess. PR #23 currently zeros both.
-- FFH-013 remains REMEDIATION and PR #23 remains unmerged. Only bounded M02 correction is active; A01–A05 and M01 must be preserved.
-- FFH-017 remains QUEUED behind FFH-013 closure.
+- FFH-013's first frozen audit target `0a8c2f2aff85d5745c28e30ccfde23b89750fab7` failed both independent audits; FFH-013-M01 was independently confirmed CLOSED.
+- Remediation PR #23 merged after Manager verification. A01–A05 were accepted, M01 remained exact, and Manager HIGH M02 was closed by bounded equal-compensation owner-local excess remediation.
+- Exact M02 production/test candidate: `5e3f21cadcaeb4ad26c58448d8e5a6b76af45f63`; Foundation CI run `34737929168`, job `103672520594` — SUCCESS through AI state, dependency audit, calculations, security, Type Check, lint, and build.
+- Final worker/handoff head: `c298ac4bfe0d63f248c2a7ec993f0d8031c7377d`; Foundation CI run `34738110144`, job `103673023089` — SUCCESS through the same gates.
+- PR #23 integration SHA: `e811ef1f1f786196d909391262b19d71fe0f9a71`. Compare from the fully-green final head to the integration SHA contains zero file changes.
+- New frozen audit packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_e811ef1f.md` with packet ID `FFH-013-e811ef1f-2026-09-13`.
+- FFH-013 is AUDIT_READY. Both fresh auditors must independently assess only the exact frozen target `e811ef1f1f786196d909391262b19d71fe0f9a71`, including A01–A05, protected M01, and Manager M02.
+- FFH-017 remains QUEUED until Manager reconciles both fresh FFH-013 audit verdicts and closes FFH-013.
 - FFH-020 remains separately BLOCKED before any live write.
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
 
 ## ACTIVATE NOW
-- Core Financial Engine Engineer — continue PR #23 on `ffh/ffh-013-audit-remediation` in `STANDARD_CHAT`; close only FFH-013-M02, preserve A01–A05/M01, sync current Manager control plane, and return READY_FOR_MANAGER with new exact candidate CI.
+- Technical & Mathematical Auditor — fresh independent FFH-013 re-audit of exact target `e811ef1f1f786196d909391262b19d71fe0f9a71` using `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_e811ef1f.md`.
+- Financial Policy & Scenario Auditor — separate fresh independent FFH-013 re-audit of the same exact target and packet.
 
 ## IDLE / BLOCKED
-- Technical & Mathematical Auditor: IDLE until Manager freezes a new accepted FFH-013 remediation integration target.
-- Financial Policy & Scenario Auditor: IDLE until Manager freezes the same new target.
+- Core Financial Engine Engineer: IDLE after Manager-accepted FFH-013 remediation integration; FFH-017 not yet activated.
 - Work Helper / Super Troubleshooter: IDLE.
 - Financial Policy Analyst: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Phase 5 / PR #5 remains NOT MERGE READY. Current near-term gate is FFH-013-M02, then Manager re-review/integration and a fresh dual re-audit. FFH-017 cannot activate until FFH-013 closes. FFH-020 remains a separate blocked database-recovery track.
+Phase 5 / PR #5 remains NOT MERGE READY. Current near-term gate is the fresh FFH-013 dual re-audit. If both audits clear the frozen target, Manager can close FFH-013 and activate FFH-017. FFH-020 remains a separate blocked database-recovery track.
