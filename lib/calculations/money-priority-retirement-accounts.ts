@@ -50,6 +50,12 @@ export type RetirementAccountOpportunityResult = {
 
 function roundMoney(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
 function parseIsoDate(value: string): Date | null { const date = new Date(`${value}T00:00:00.000Z`); return Number.isNaN(date.getTime()) ? null : date; }
+function remainingContributionMonths(asOfDate: string | null, taxYear: number): number {
+  if (!asOfDate) return 12;
+  const date = parseIsoDate(asOfDate);
+  if (!date || date.getUTCFullYear() !== taxYear) return 12;
+  return 12 - date.getUTCMonth();
+}
 function ageAtYearEnd(snapshot: MoneyPrioritySnapshot, personId: string | null, taxYear: number): number | null {
   if (!personId) return null;
   const person = snapshot.people.find((item) => item.id === personId);
@@ -138,7 +144,7 @@ function traditionalDeductibility(snapshot: MoneyPrioritySnapshot, ownerPersonId
   return { status: "partial", reason: "Estimated modified AGI falls inside the applicable Traditional IRA deduction phaseout range.", missingData: [] };
 }
 
-export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySnapshot, taxPolicy: MoneyPriorityTaxPolicy = MONEY_PRIORITY_TAX_POLICY_2026): RetirementAccountOpportunityResult {
+export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySnapshot, taxPolicy: MoneyPriorityTaxPolicy = MONEY_PRIORITY_TAX_POLICY_2026, asOfDate: string | null = null): RetirementAccountOpportunityResult {
   const opportunities: RetirementAccountOpportunity[] = [];
   const warnings: string[] = [];
   const sharedWorkplaceTypes = new Set(["401k", "403b", "tsp"]);
@@ -169,6 +175,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
   const iraYtdByOwner = new Map<string, number | null>();
   const rothYtdByOwner = new Map<string, number | null>();
   const iraScheduledAnnualByOwner = new Map<string, number>();
+  const planningMonths = remainingContributionMonths(asOfDate, taxPolicy.taxYear);
   for (const account of iraAccounts) {
     if (!account.ownerPersonId) continue;
     const existing = iraYtdByOwner.get(account.ownerPersonId);
@@ -179,7 +186,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
     }
     iraScheduledAnnualByOwner.set(
       account.ownerPersonId,
-      roundMoney((iraScheduledAnnualByOwner.get(account.ownerPersonId) ?? 0) + account.monthlyEmployeeContribution * 12),
+      roundMoney((iraScheduledAnnualByOwner.get(account.ownerPersonId) ?? 0) + account.monthlyEmployeeContribution * planningMonths),
     );
   }
   const profile = taxProfile(snapshot, taxPolicy);
@@ -187,11 +194,11 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
   for (const ownerId of [...iraScheduledAnnualByOwner.keys()].sort()) {
     const accounts = iraAccounts.filter((account) => account.ownerPersonId === ownerId && account.monthlyEmployeeContribution > 0)
       .sort((left, right) => left.id.localeCompare(right.id));
-    const scheduledCents = accounts.map((account) => Math.round(account.monthlyEmployeeContribution * 12 * 100));
+    const scheduledCents = accounts.map((account) => Math.round(account.monthlyEmployeeContribution * planningMonths * 100));
     const totalScheduledCents = scheduledCents.reduce((sum, amount) => sum + amount, 0);
     const ytd = iraYtdByOwner.get(ownerId);
     if (totalScheduledCents <= 0 || ytd === null || ytd === undefined) continue;
-    const targetCents = Math.max(0, totalScheduledCents - Math.round(ytd * 100));
+    const targetCents = totalScheduledCents;
     const allocations = scheduledCents.map((amount) => Math.floor(targetCents * amount / totalScheduledCents));
     let remainder = targetCents - allocations.reduce((sum, amount) => sum + amount, 0);
     for (let index = 0; index < allocations.length && remainder > 0; index += 1) {
@@ -249,16 +256,22 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
           const combinedYtd = roundMoney((iraYtdByOwner.get(first.id) ?? 0)! + (iraYtdByOwner.get(second.id) ?? 0)!);
           const ownerExcesses = marriedPair.filter((person) => (iraYtdByOwner.get(person.id) ?? 0)! > conditionalLimits.get(person.id)!);
           const jointExcess = combinedYtd > jointCompensation;
-          const sharedFeasibleSetExcess = sharedSpousalFeasibleSetApplies && (ownerExcesses.length > 0 || jointExcess);
+          const ownerRemainingTotal = roundMoney(marriedPair.reduce(
+            (sum, person) => sum + Math.max(0, conditionalLimits.get(person.id)! - (iraYtdByOwner.get(person.id) ?? 0)!),
+            0,
+          ));
+          const jointRemainingBeforeFailClose = roundMoney(Math.max(0, jointCompensation - combinedYtd));
+          const sharedConstraintMaterial = sharedSpousalFeasibleSetApplies && jointRemainingBeforeFailClose < ownerRemainingTotal;
+          const sharedFeasibleSetExcess = sharedConstraintMaterial && (ownerExcesses.length > 0 || jointExcess);
           const sharedRemaining = sharedFeasibleSetExcess
             ? 0
-            : roundMoney(Math.max(0, jointCompensation - combinedYtd));
-          if (sharedSpousalFeasibleSetApplies && (preYtdSharedConstraintCanBind || ownerExcesses.length || jointExcess)) {
+            : jointRemainingBeforeFailClose;
+          if (sharedConstraintMaterial) {
             for (const person of marriedPair) iraSharedCapacityByOwner.set(person.id, { group, remaining: sharedRemaining });
           }
           if (jointExcess) warnings.push(`Traditional and Roth IRA contributions YTD exceed supported joint compensation by $${roundMoney(combinedYtd - jointCompensation).toFixed(2)}; additional IRA room is zero and contribution-correction mechanics are not inferred.`);
           for (const person of ownerExcesses) {
-            const excessScope = sharedSpousalFeasibleSetApplies
+            const excessScope = sharedConstraintMaterial
               ? "additional IRA room for the affected shared MFJ group is zero"
               : "additional IRA room for this owner is zero";
             warnings.push(`${person.displayName}'s Traditional and Roth IRA contributions YTD exceed the supported owner compensation ceiling by $${roundMoney((iraYtdByOwner.get(person.id) ?? 0)! - conditionalLimits.get(person.id)!).toFixed(2)}; ${excessScope} and contribution-correction mechanics are not inferred.`);
