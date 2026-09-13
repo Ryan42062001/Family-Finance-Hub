@@ -13,7 +13,7 @@ import {
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
-  consumeRetirementCapacityForEqualOwnerTie,
+  consumeRetirementCapacityForEqualOwnerTieRecurringMonthly,
   createRetirementCapacityLedger,
   remainingRetirementCapacity,
   type RetirementCapacityLedger,
@@ -463,7 +463,27 @@ export function evaluateBuildStage(
       || a.accountId.localeCompare(b.accountId));
   const routableLedger = cloneRetirementCapacityLedger(capacityLedger);
   let routableRetirementMonthlyCapacity = 0;
+  const plannedTieGroups = new Set<string>();
   for (const destination of retirementDestinations) {
+    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
+    if (tieKey && plannedTieGroups.has(tieKey)) continue;
+    if (tieKey) {
+      plannedTieGroups.add(tieKey);
+      const tiedAccountIds = retirementDestinations
+        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
+        .map((item) => item.accountId);
+      const planned = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
+        routableLedger,
+        tiedAccountIds,
+        "build",
+        null,
+      );
+      routableRetirementMonthlyCapacity = roundMoney(
+        routableRetirementMonthlyCapacity + planned.consumedMonthlyAmount,
+      );
+      continue;
+    }
     const room = remainingRetirementCapacity(routableLedger, destination.accountId);
     if (room === null || room <= 0) continue;
     const consumed = consumeRetirementCapacity(
@@ -542,12 +562,21 @@ export function evaluateBuildStage(
       const tiedAccountIds = retirementDestinations
         .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
         .map((item) => item.accountId);
-      const consumptions = consumeRetirementCapacityForEqualOwnerTie(capacityLedger, tiedAccountIds, "build", roundMoney(retirementToRoute * 12));
-      for (const consumption of consumptions) {
-        const allocatedMonthlyAmount = roundMoney(consumption.consumedAnnualAmount / 12);
-        retirementAccountAllocations.push({ accountId: consumption.accountId, opportunityTier: destination.opportunityTier!, allocatedMonthlyAmount, allocatedAnnualAmount: consumption.consumedAnnualAmount });
-        retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
+      const tiedRouting = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
+        capacityLedger,
+        tiedAccountIds,
+        "build",
+        retirementToRoute,
+      );
+      for (const allocation of tiedRouting.allocations) {
+        retirementAccountAllocations.push({
+          accountId: allocation.accountId,
+          opportunityTier: destination.opportunityTier!,
+          allocatedMonthlyAmount: allocation.allocatedMonthlyAmount,
+          allocatedAnnualAmount: allocation.consumedAnnualAmount,
+        });
       }
+      retirementToRoute = roundMoney(Math.max(0, retirementToRoute - tiedRouting.consumedMonthlyAmount));
       continue;
     }
     const annualRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
@@ -569,7 +598,11 @@ export function evaluateBuildStage(
     });
     retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
   }
-  if (retirementToRoute > 0) {
+  const routedRetirementMonthlyAmount = roundMoney(
+    retirementAccountAllocations.reduce((sum, allocation) => sum + allocation.allocatedMonthlyAmount, 0),
+  );
+  const authorizedRetirementMonthlyAmount = retirementRequest?.allocatedMonthlyAmount ?? 0;
+  if (retirementToRoute > 0 || routedRetirementMonthlyAmount !== authorizedRetirementMonthlyAmount) {
     throw new Error("Retirement capacity ledger routing invariant failed.");
   }
   const unresolvedRetirementMonthlyAmount = retirementRequest?.unfundedMonthlyAmount ?? 0;
