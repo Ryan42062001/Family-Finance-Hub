@@ -121,6 +121,6 @@ test("known HSA room and unresolved IRA tax eligibility are both surfaced", () =
 test("engine exposes the tax and planning policy versions used for retirement guidance", () => {
   const result = runMoneyPriorityEngine(baseRaw(), "2026-08-29");
   assert.equal(result.taxYear, 2026);
-  assert.equal(result.taxPolicyVersion, "2026.2");
+  assert.equal(result.taxPolicyVersion, "2026.3");
   assert.equal(result.planningAssumptionsVersion, "2026.1");
 });
