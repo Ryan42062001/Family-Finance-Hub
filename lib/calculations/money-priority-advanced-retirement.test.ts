@@ -28,11 +28,9 @@ function workplace(age: number) {
 
 function simpleRuntimeOpportunity(age: number, higher: boolean) {
   const snapshot = make([{ id: "s", owner_person_id: "p1", name: "SIMPLE", account_type: "simple_ira",
-    employee_contributed_ytd: 1000 }], [person("p1", 2026 - age)]);
-  // This is a Core-formula regression fixture, not a persistence-contract fixture.
-  // FFH-011 deliberately makes raw simple_higher_limit_eligible non-authoritative;
-  // FFH-015 will teach Core to consume the accepted explicit persisted/runtime category.
-  snapshot.retirementAccounts[0]!.simpleHigherLimitEligible = higher;
+    employee_contributed_ytd: 1000,
+    simple_plan_limit_category: higher ? "certain_applicable_higher" : "standard",
+    simple_plan_limit_tax_year: 2026 }], [person("p1", 2026 - age)]);
   return evaluateRetirementAccountOpportunities(snapshot).opportunities[0]!;
 }
 
@@ -97,7 +95,8 @@ test("unknown higher SIMPLE eligibility does not grant the higher limit", () => 
 test("SIMPLE coordinates with another plan while governmental 457 remains separate", () => {
   const result = evaluateRetirementAccountOpportunities(make([
     { id: "k", owner_person_id: "p1", name: "K", account_type: "401k", employee_contributed_ytd: 10000 },
-    { id: "s", owner_person_id: "p1", name: "S", account_type: "simple_ira", employee_contributed_ytd: 14000, simple_higher_limit_eligible: false },
+    { id: "s", owner_person_id: "p1", name: "S", account_type: "simple_ira", employee_contributed_ytd: 14000,
+      simple_plan_limit_category: "standard", simple_plan_limit_tax_year: 2026 },
     { id: "v", owner_person_id: "p1", name: "V", account_type: "457b", employee_contributed_ytd: 10000 },
   ])).opportunities;
   assert.equal(result.find((item) => item.accountId === "k")?.remainingAnnualRoom, 500);
