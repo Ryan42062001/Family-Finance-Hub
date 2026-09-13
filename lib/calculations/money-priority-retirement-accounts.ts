@@ -38,6 +38,7 @@ export type RetirementAccountOpportunity = {
   annualAdditionsLimit?: number | null;
   annualAdditionsYtd?: number | null;
   compensationLimitApplied?: number | null;
+  planningReservationAnnual?: number;
 };
 
 export type RetirementAccountOpportunityResult = {
@@ -167,6 +168,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
   const iraAccounts = snapshot.retirementAccounts.filter((item) => item.type === "traditional_ira" || item.type === "roth_ira");
   const iraYtdByOwner = new Map<string, number | null>();
   const rothYtdByOwner = new Map<string, number | null>();
+  const iraScheduledAnnualByOwner = new Map<string, number>();
   for (const account of iraAccounts) {
     if (!account.ownerPersonId) continue;
     const existing = iraYtdByOwner.get(account.ownerPersonId);
@@ -175,8 +177,29 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       const existingRoth = rothYtdByOwner.get(account.ownerPersonId);
       rothYtdByOwner.set(account.ownerPersonId, existingRoth === null || account.employeeContributedYtd === null ? null : roundMoney((existingRoth ?? 0) + account.employeeContributedYtd));
     }
+    iraScheduledAnnualByOwner.set(
+      account.ownerPersonId,
+      roundMoney((iraScheduledAnnualByOwner.get(account.ownerPersonId) ?? 0) + account.monthlyEmployeeContribution * 12),
+    );
   }
   const profile = taxProfile(snapshot, taxPolicy);
+  const iraPlanningReservationByAccount = new Map<string, number>();
+  for (const ownerId of [...iraScheduledAnnualByOwner.keys()].sort()) {
+    const accounts = iraAccounts.filter((account) => account.ownerPersonId === ownerId && account.monthlyEmployeeContribution > 0)
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const scheduledCents = accounts.map((account) => Math.round(account.monthlyEmployeeContribution * 12 * 100));
+    const totalScheduledCents = scheduledCents.reduce((sum, amount) => sum + amount, 0);
+    const ytd = iraYtdByOwner.get(ownerId);
+    if (totalScheduledCents <= 0 || ytd === null || ytd === undefined) continue;
+    const targetCents = Math.max(0, totalScheduledCents - Math.round(ytd * 100));
+    const allocations = scheduledCents.map((amount) => Math.floor(targetCents * amount / totalScheduledCents));
+    let remainder = targetCents - allocations.reduce((sum, amount) => sum + amount, 0);
+    for (let index = 0; index < allocations.length && remainder > 0; index += 1) {
+      allocations[index] += 1;
+      remainder -= 1;
+    }
+    accounts.forEach((account, index) => iraPlanningReservationByAccount.set(account.id, allocations[index]! / 100));
+  }
   const iraCompensationLimitByOwner = new Map<string, number | null>();
   const iraSharedCapacityByOwner = new Map<string, { group: string; remaining: number }>();
   const iraSharedMissingByOwner = new Map<string, string[]>();
@@ -199,32 +222,41 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       } else {
         const firstCompensation = first.estimatedTaxableCompensationAnnual!;
         const secondCompensation = second.estimatedTaxableCompensationAnnual!;
-        if (firstCompensation === secondCompensation) {
-          for (const person of marriedPair) iraCompensationLimitByOwner.set(person.id, person.estimatedTaxableCompensationAnnual!);
-        } else {
-          const higher = firstCompensation > secondCompensation ? first : second;
-          const lower = higher.id === first.id ? second : first;
-          const jointCompensation = roundMoney(firstCompensation + secondCompensation);
-          const higherLimit = Math.min(iraStatutoryLimit(ageAtYearEnd(snapshot, higher.id, taxPolicy.taxYear), taxPolicy), higher.estimatedTaxableCompensationAnnual!);
-          const lowerLimit = iraStatutoryLimit(ageAtYearEnd(snapshot, lower.id, taxPolicy.taxYear), taxPolicy);
-          iraCompensationLimitByOwner.set(higher.id, higherLimit);
-          iraCompensationLimitByOwner.set(lower.id, lowerLimit);
-          if (jointCompensation < higherLimit + lowerLimit) {
-            const missingYtd = marriedPair.filter((person) => !iraYtdByOwner.has(person.id) || iraYtdByOwner.get(person.id) === null);
-            if (missingYtd.length) {
-              const reasons = missingYtd.map((person) => `${person.displayName}'s authoritative total Traditional and Roth IRA contributions YTD is required; absence of a recorded IRA account does not establish zero.`);
-              for (const person of marriedPair) {
-                iraCompensationLimitByOwner.set(person.id, null);
-                iraSharedMissingByOwner.set(person.id, reasons);
-              }
-            } else {
-              const combinedYtd = roundMoney((iraYtdByOwner.get(first.id) ?? 0)! + (iraYtdByOwner.get(second.id) ?? 0)!);
-              const sharedRemaining = roundMoney(Math.max(0, jointCompensation - combinedYtd));
-              for (const person of marriedPair) iraSharedCapacityByOwner.set(person.id, { group, remaining: sharedRemaining });
-              if (combinedYtd > jointCompensation) warnings.push(`Traditional and Roth IRA contributions YTD exceed supported joint compensation by $${roundMoney(combinedYtd - jointCompensation).toFixed(2)}; additional IRA room is zero and contribution-correction mechanics are not inferred.`);
-              const higherYtd = iraYtdByOwner.get(higher.id) ?? 0;
-              if (higherYtd > higherLimit) warnings.push(`${higher.displayName}'s Traditional and Roth IRA contributions YTD exceed the supported owner compensation ceiling by $${roundMoney(higherYtd - higherLimit).toFixed(2)}; additional IRA room is zero and contribution-correction mechanics are not inferred.`);
-            }
+        const jointCompensation = roundMoney(firstCompensation + secondCompensation);
+        const higher = firstCompensation === secondCompensation ? null : firstCompensation > secondCompensation ? first : second;
+        const conditionalLimits = new Map<string, number>();
+        for (const person of marriedPair) {
+          const statutory = iraStatutoryLimit(ageAtYearEnd(snapshot, person.id, taxPolicy.taxYear), taxPolicy);
+          const conditional = higher === null
+            ? Math.min(statutory, person.estimatedTaxableCompensationAnnual!)
+            : person.id === higher.id
+              ? Math.min(statutory, person.estimatedTaxableCompensationAnnual!)
+              : statutory;
+          conditionalLimits.set(person.id, conditional);
+          iraCompensationLimitByOwner.set(person.id, conditional);
+        }
+        const conditionalTotal = roundMoney([...conditionalLimits.values()].reduce((sum, amount) => sum + amount, 0));
+        const preYtdSharedConstraintCanBind = jointCompensation < conditionalTotal;
+        const missingYtd = marriedPair.filter((person) => !iraYtdByOwner.has(person.id) || iraYtdByOwner.get(person.id) === null);
+        if (missingYtd.length && preYtdSharedConstraintCanBind) {
+          const reasons = missingYtd.map((person) => `${person.displayName}'s authoritative total Traditional and Roth IRA contributions YTD is required; absence of a recorded IRA account does not establish zero.`);
+          for (const person of marriedPair) {
+            iraCompensationLimitByOwner.set(person.id, null);
+            iraSharedMissingByOwner.set(person.id, reasons);
+          }
+        } else if (!missingYtd.length) {
+          const combinedYtd = roundMoney((iraYtdByOwner.get(first.id) ?? 0)! + (iraYtdByOwner.get(second.id) ?? 0)!);
+          const ownerExcesses = marriedPair.filter((person) => (iraYtdByOwner.get(person.id) ?? 0)! > conditionalLimits.get(person.id)!);
+          const jointExcess = combinedYtd > jointCompensation;
+          const sharedRemaining = ownerExcesses.length || jointExcess
+            ? 0
+            : roundMoney(Math.max(0, jointCompensation - combinedYtd));
+          if (preYtdSharedConstraintCanBind || ownerExcesses.length || jointExcess) {
+            for (const person of marriedPair) iraSharedCapacityByOwner.set(person.id, { group, remaining: sharedRemaining });
+          }
+          if (jointExcess) warnings.push(`Traditional and Roth IRA contributions YTD exceed supported joint compensation by $${roundMoney(combinedYtd - jointCompensation).toFixed(2)}; additional IRA room is zero and contribution-correction mechanics are not inferred.`);
+          for (const person of ownerExcesses) {
+            warnings.push(`${person.displayName}'s Traditional and Roth IRA contributions YTD exceed the supported owner compensation ceiling by $${roundMoney((iraYtdByOwner.get(person.id) ?? 0)! - conditionalLimits.get(person.id)!).toFixed(2)}; additional IRA room for the affected shared MFJ group is zero and contribution-correction mechanics are not inferred.`);
           }
         }
       }
@@ -348,23 +380,27 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
       const ownerRemaining = maxContribution === null || totalIraYtd === null ? null : roundMoney(Math.max(0, maxContribution - totalIraYtd));
       const sharedCapacity = account.ownerPersonId ? iraSharedCapacityByOwner.get(account.ownerPersonId) : undefined;
       const combinedRemaining = ownerRemaining === null ? null : roundMoney(Math.min(ownerRemaining, sharedCapacity?.remaining ?? ownerRemaining));
+      const planningReservationAnnual = iraPlanningReservationByAccount.get(account.id) ?? 0;
+      const sharedReason = sharedCapacity
+        ? `This owner's maximum is conditional, not additive: both spouses draw from one shared MFJ compensation pool with $${sharedCapacity.remaining.toFixed(2)} of legal room remaining before current-plan reservations and new allocations.`
+        : null;
       if (account.type === "roth_ira") {
         const range = profile.filingStatus ? rothPhaseoutRange(profile.filingStatus, profile.livedWithSpouse, taxPolicy) : null;
         if (profile.filingStatus === "married_filing_separately" && range === null && !missingData.some((item) => item.includes("spouses lived together"))) missingData.push("Married-filing-separately Roth eligibility requires spouse-living context.");
-        if (missingData.length || maxContribution === null || profile.modifiedAgi === null || range === null) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: ["Traditional and Roth IRAs share one annual contribution limit per person."], missingData: [...new Set(missingData)] }); continue; }
+        if (missingData.length || maxContribution === null || profile.modifiedAgi === null || range === null) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "unknown", taxDeductibility: "not_applicable", reasons: ["Traditional and Roth IRAs share one annual contribution limit per person.", ...(sharedReason ? [sharedReason] : [])], missingData: [...new Set(missingData)], planningReservationAnnual }); continue; }
         const direct = reducedRothLimit(maxContribution, profile.modifiedAgi, range);
         const rothYtd = rothYtdByOwner.get(account.ownerPersonId!) ?? 0;
         const remainingAnnualRoom = roundMoney(Math.min(Math.max(0, direct.limit - rothYtd), combinedRemaining ?? 0));
-        opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: direct.status === "none" ? "not_eligible" : remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit: direct.limit, contributedYtd: roundMoney(rothYtd), remainingAnnualRoom, taxEligibility: direct.status, taxDeductibility: "not_applicable", reasons: [direct.status === "full" ? "Estimated modified AGI is below the direct Roth IRA phaseout range." : direct.status === "partial" ? "Estimated modified AGI falls inside the direct Roth IRA phaseout range, so the IRS reduced-limit worksheet applies." : "Estimated modified AGI is at or above the direct Roth IRA phaseout ceiling.", "Traditional and Roth IRAs share one annual contribution limit per person."], missingData: [] });
+        opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: direct.status === "none" ? "not_eligible" : remainingAnnualRoom > 0 ? "available" : "limit_reached", annualLimit: direct.limit, contributedYtd: roundMoney(rothYtd), remainingAnnualRoom, taxEligibility: direct.status, taxDeductibility: "not_applicable", reasons: [direct.status === "full" ? "Estimated modified AGI is below the direct Roth IRA phaseout range." : direct.status === "partial" ? "Estimated modified AGI falls inside the direct Roth IRA phaseout range, so the IRS reduced-limit worksheet applies." : "Estimated modified AGI is at or above the direct Roth IRA phaseout ceiling.", "Traditional and Roth IRAs share one annual contribution limit per person.", ...(sharedReason ? [sharedReason] : [])], missingData: [], planningReservationAnnual });
         continue;
       }
       const canEvaluateDeduction = Boolean(profile.filingStatus && profile.modifiedAgi !== null && account.ownerPersonId);
       const deduction = canEvaluateDeduction
         ? traditionalDeductibility(snapshot, account.ownerPersonId!, profile.filingStatus!, profile.modifiedAgi!, profile.livedWithSpouse, taxPolicy)
         : { status: "unknown" as RetirementTaxStatus, reason: "", missingData: [] };
-      if (missingData.length || maxContribution === null || totalIraYtd === null || !canEvaluateDeduction) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: maxContribution !== null && maxContribution > 0 ? "full" : "unknown", taxDeductibility: deduction.status, reasons: ["Traditional IRA contribution eligibility and tax deductibility are separate decisions."], missingData: [...new Set([...missingData, ...deduction.missingData])] }); continue; }
-      if (deduction.missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "full", taxDeductibility: "unknown", reasons: ["Traditional IRA contributions may still be allowed even when the deduction is limited."], missingData: deduction.missingData }); continue; }
-      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: (combinedRemaining ?? 0) > 0 ? "available" : "limit_reached", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "full", taxDeductibility: deduction.status, reasons: ["Traditional and Roth IRAs share one annual contribution limit per person.", deduction.reason], missingData: [] });
+      if (missingData.length || maxContribution === null || totalIraYtd === null || !canEvaluateDeduction) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: maxContribution !== null && maxContribution > 0 ? "full" : "unknown", taxDeductibility: deduction.status, reasons: ["Traditional IRA contribution eligibility and tax deductibility are separate decisions.", ...(sharedReason ? [sharedReason] : [])], missingData: [...new Set([...missingData, ...deduction.missingData])], planningReservationAnnual }); continue; }
+      if (deduction.missingData.length) { opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: "more_information_needed", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "full", taxDeductibility: "unknown", reasons: ["Traditional IRA contributions may still be allowed even when the deduction is limited.", ...(sharedReason ? [sharedReason] : [])], missingData: deduction.missingData, planningReservationAnnual }); continue; }
+      opportunities.push({ accountId: account.id, accountName: account.name, accountType: account.type, ownerPersonId: account.ownerPersonId, state: (combinedRemaining ?? 0) > 0 ? "available" : "limit_reached", annualLimit: maxContribution, contributedYtd: totalIraYtd, remainingAnnualRoom: combinedRemaining, taxEligibility: "full", taxDeductibility: deduction.status, reasons: ["Traditional and Roth IRAs share one annual contribution limit per person.", deduction.reason, ...(sharedReason ? [sharedReason] : [])], missingData: [], planningReservationAnnual });
       continue;
     }
     warnings.push(`${account.name}: account-specific annual-limit guidance is not implemented for ${account.type}.`);
