@@ -152,10 +152,11 @@ test("governmental 457(b) participant below age 50 does not require sponsor-wage
   assert.ok(!opportunity.missingData.some((item) => item.includes("Prior-year wages")));
 });
 
-test("ordinary SIMPLE age-50 catch-up remains $4,000 when the higher-limit flag is explicitly false", () => {
+test("ordinary SIMPLE age-50 catch-up remains $4,000 for the verified standard category", () => {
   const opportunity = evaluate({
     account_type: "simple_ira",
-    simple_higher_limit_eligible: false,
+    simple_plan_limit_category: "standard",
+    simple_plan_limit_tax_year: 2026,
   });
 
   assert.equal(opportunity.catchUpAmount, 4000);
@@ -165,7 +166,8 @@ test("ordinary SIMPLE age-50 catch-up remains $4,000 when the higher-limit flag 
 test("ordinary SIMPLE age-60-through-63 catch-up remains $5,250 without stacking", () => {
   const opportunity = evaluate({
     account_type: "simple_ira",
-    simple_higher_limit_eligible: false,
+    simple_plan_limit_category: "standard",
+    simple_plan_limit_tax_year: 2026,
   }, "1965-01-01");
 
   assert.equal(opportunity.catchUpAmount, 5250);
@@ -175,7 +177,8 @@ test("ordinary SIMPLE age-60-through-63 catch-up remains $5,250 without stacking
 test("ordinary SIMPLE age 64+ returns to the general $4,000 catch-up", () => {
   const opportunity = evaluate({
     account_type: "simple_ira",
-    simple_higher_limit_eligible: false,
+    simple_plan_limit_category: "standard",
+    simple_plan_limit_tax_year: 2026,
   }, "1962-01-01");
 
   assert.equal(opportunity.catchUpAmount, 4000);
