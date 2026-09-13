@@ -49,6 +49,8 @@ export type RetirementCapacityConsumption = {
   remainingAnnualRoom: number;
 };
 
+export type RetirementCapacityTieAllocation = RetirementCapacityConsumption;
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -88,6 +90,12 @@ function groupOriginalRoom(groupId: string, entries: RetirementCapacityLedgerEnt
       0,
     ));
   }
+  if (groupId.startsWith("ira:mfj-compensation:")) {
+    return roundMoney(groupEntries.reduce(
+      (largest, entry) => Math.max(largest, entry.sharedCapacityRemainingRoom ?? 0),
+      0,
+    ));
+  }
   return roundMoney(groupEntries.reduce(
     (largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0),
     0,
@@ -105,9 +113,10 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
         accountType: opportunity.accountType,
         ownerPersonId: opportunity.ownerPersonId,
         sharedCapacityGroup: opportunity.sharedCapacityGroup ?? null,
-        ownerCapacityGroup: opportunity.sharedCapacityGroup === "hsa:married-family" && opportunity.ownerPersonId
-          ? `hsa-owner:${opportunity.ownerPersonId}`
-          : null,
+        ownerCapacityGroup: opportunity.ownerCapacityGroup
+          ?? (opportunity.sharedCapacityGroup === "hsa:married-family" && opportunity.ownerPersonId
+            ? `hsa-owner:${opportunity.ownerPersonId}`
+            : null),
         verified,
         informationNeeded: verified ? [] : [...opportunity.missingData],
         originalRemainingAnnualRoom,
@@ -128,7 +137,7 @@ export function createRetirementCapacityLedger(result: RetirementAccountOpportun
     .flatMap((entry) => [entry.sharedCapacityGroup, entry.ownerCapacityGroup])
     .filter((groupId): groupId is string => Boolean(groupId)))].sort();
   const groups = groupIds.map((id): RetirementCapacityLedgerGroup => {
-    const originalRemainingAnnualRoom = id.startsWith("hsa-owner:")
+    const originalRemainingAnnualRoom = id.startsWith("hsa-owner:") || id.startsWith("ira-owner:")
       ? roundMoney(entries
           .filter((entry) => entry.ownerCapacityGroup === id && entry.verified)
           .reduce((largest, entry) => Math.max(largest, entry.originalRemainingAnnualRoom ?? 0), 0))
@@ -244,6 +253,41 @@ export function consumeRetirementCapacity(
     consumedAnnualAmount: consumed,
     remainingAnnualRoom: remainingRetirementCapacity(ledger, accountId) ?? 0,
   };
+}
+
+export function consumeRetirementCapacityForEqualOwnerTie(
+  ledger: RetirementCapacityLedger,
+  accountIds: string[],
+  consumer: RetirementCapacityConsumer,
+  requestedAnnualAmount: number,
+): RetirementCapacityTieAllocation[] {
+  const ownerDestinations = [...accountIds]
+    .sort()
+    .map((accountId) => ({ accountId, entry: ledger.entries.find((item) => item.accountId === accountId) }))
+    .filter((item) => item.entry?.ownerPersonId)
+    .filter((item, index, all) => all.findIndex((candidate) => candidate.entry!.ownerPersonId === item.entry!.ownerPersonId) === index)
+    .map((item) => ({ ...item, available: remainingRetirementCapacity(ledger, item.accountId) ?? 0 }))
+    .filter((item) => item.available > 0);
+  const requestedCents = Math.round(Math.max(0, requestedAnnualAmount) * 100);
+  const totalAvailableCents = ownerDestinations.reduce((sum, item) => sum + Math.round(item.available * 100), 0);
+  const amountCents = Math.min(requestedCents, totalAvailableCents);
+  if (amountCents <= 0 || totalAvailableCents <= 0) return [];
+  const shares = ownerDestinations.map((item) => ({
+    ...item,
+    availableCents: Math.round(item.available * 100),
+    allocatedCents: Math.floor(amountCents * Math.round(item.available * 100) / totalAvailableCents),
+  }));
+  let remainder = amountCents - shares.reduce((sum, item) => sum + item.allocatedCents, 0);
+  for (const share of shares) {
+    if (remainder <= 0) break;
+    if (share.allocatedCents < share.availableCents) {
+      share.allocatedCents += 1;
+      remainder -= 1;
+    }
+  }
+  return shares
+    .filter((share) => share.allocatedCents > 0)
+    .map((share) => consumeRetirementCapacity(ledger, share.accountId, consumer, share.allocatedCents / 100));
 }
 
 export function retirementCapacityInvariantHolds(ledger: RetirementCapacityLedger): boolean {
