@@ -7,14 +7,15 @@ Remediation: FFH-013-M01 — recurring equal-fulfillment cent reconciliation
 Role: Core Financial Engine Engineer
 Worker status: REMEDIATION COMPLETE — READY_FOR_MANAGER RE-REVIEW
 Execution mode: STANDARD_CHAT
-Manager control-plane head verified and synchronized: `8f8c8d449e17d169d608d01a62676d340b9afc4a`
+Assigned Manager control-plane head verified: `8f8c8d449e17d169d608d01a62676d340b9afc4a`
+Final canonical milestone/control-plane head refreshed and synchronized: `79658834bd2e4a4371caa0fe32f62dea863ecfcc` (two later workflow-only commits; no financial-production delta)
 Approved audited production integration base retained from FFH-013: `b5111010ebc1f104709a4b27f8c79daef555f435`
 Current milestone target: `phase-5-money-priority-engine`
 Branch: `ffh/ffh-013-spousal-ira-ledger`
 Pull request: #21 (draft)
 PRODUCTION_SHA: `3a78bb9bb046daff4f63e0bfa6b80e76af5bc457`
 VALIDATED_CI: Foundation CI run `34732621610`, verify job `103658103064` — SUCCESS on exact production/test candidate
-HANDOFF_SHA: recorded in the FFH-013 task checkpoint from the commit containing this remediation handoff
+HANDOFF_SHA: recorded in the FFH-013 task checkpoint from the commit containing this final remediation handoff
 
 ## FFH-013-M01 exact reproduction
 
@@ -70,7 +71,7 @@ Production/test remediation only:
 - `lib/calculations/money-priority-build.ts`
 - `lib/calculations/ffh-013-spousal-ira-ledger.test.ts`
 
-Control-plane synchronization/documentation on the worker branch is separate from the bounded behavioral change.
+Control-plane synchronization/documentation on the worker branch is separate from the bounded behavioral change. The final branch also incorporates the milestone's later workflow-only `.ai/shared/WORKFLOW_V3_1.md` and `.ai/roles/manager.md` updates so PR #21 is not stale against the current canonical milestone.
 
 ## Direct adversarial Build regression
 
@@ -97,7 +98,9 @@ Exact Foundation CI on `PRODUCTION_SHA` `3a78bb9bb046daff4f63e0bfa6b80e76af5bc45
 - build: PASS;
 - workflow conclusion: SUCCESS.
 
-The workflow is configured to run only for pull requests targeting `main`, so PR #21 was temporarily retargeted to `main` solely to obtain exact candidate CI and is restored to `phase-5-money-priority-engine` for Manager review. No merge was performed.
+The workflow is configured to run only for pull requests targeting `main`, so PR #21 was temporarily retargeted to `main` solely to obtain exact candidate CI and was restored to `phase-5-money-priority-engine` for Manager review. No merge was performed.
+
+The final milestone advance from `8f8c8d4...` to `7965883...` changed only workflow/control-plane documentation. It was synchronized after the green production candidate without changing the validated financial behavior.
 
 ## Policy / scope preservation
 
