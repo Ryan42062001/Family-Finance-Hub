@@ -27,9 +27,11 @@ Last refreshed: 2026-09-13
 | FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical |
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
+| FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
 
 ## Current verified state
-- Workflow V3.1 remains canonical.
+- Workflow V3.1 remains canonical and now includes the Financial Engine Reconciliation Gate in `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`.
+- FFH-030 is CLOSED. Manager/Core/Technical Audit role guidance and future task/audit templates now require exact aggregate-to-destination reconciliation for applicable money-routing changes; Foundation CI now targets pull requests to both `main` and `phase-5-money-priority-engine` and supports manual dispatch.
 - FFH-012 remains CLOSED and Findings A/B/C/D remain closed.
 - FFH-029 remains ACCEPTED; CI-001 is CLOSED and no inherited CI debt is currently registered.
 - FFH-015 is CLOSED. Both fresh independent auditors inspected frozen target `01d9c22522d331ca560895e1ad59e6fab9827e8b` and independently closed regulatory Finding R1.
@@ -41,7 +43,7 @@ Last refreshed: 2026-09-13
 - FFH-026 remains QUEUED until Phase 5 and Phase 6 are accepted and a production release candidate exists.
 
 ## ACTIVATE NOW
-- Core Financial Engine Engineer — continue FFH-013 remediation on PR #21 in `WORK_MODE_PREFERRED`; reproduce and close FFH-013-M01 without weakening annual legal-capacity or routing invariants.
+- Core Financial Engine Engineer — continue FFH-013 remediation on PR #21; reproduce and close FFH-013-M01 without weakening annual legal-capacity or routing invariants. The new Financial Engine Reconciliation Gate is binding on Manager review of the remediation.
 
 ## IDLE / BLOCKED
 - Technical & Mathematical Auditor: IDLE pending a Manager-accepted FFH-013 integration checkpoint.
