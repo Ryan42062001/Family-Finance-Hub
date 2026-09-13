@@ -224,6 +224,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
         const secondCompensation = second.estimatedTaxableCompensationAnnual!;
         const jointCompensation = roundMoney(firstCompensation + secondCompensation);
         const higher = firstCompensation === secondCompensation ? null : firstCompensation > secondCompensation ? first : second;
+        const sharedSpousalFeasibleSetApplies = higher !== null;
         const conditionalLimits = new Map<string, number>();
         for (const person of marriedPair) {
           const statutory = iraStatutoryLimit(ageAtYearEnd(snapshot, person.id, taxPolicy.taxYear), taxPolicy);
@@ -236,7 +237,7 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
           iraCompensationLimitByOwner.set(person.id, conditional);
         }
         const conditionalTotal = roundMoney([...conditionalLimits.values()].reduce((sum, amount) => sum + amount, 0));
-        const preYtdSharedConstraintCanBind = jointCompensation < conditionalTotal;
+        const preYtdSharedConstraintCanBind = sharedSpousalFeasibleSetApplies && jointCompensation < conditionalTotal;
         const missingYtd = marriedPair.filter((person) => !iraYtdByOwner.has(person.id) || iraYtdByOwner.get(person.id) === null);
         if (missingYtd.length && preYtdSharedConstraintCanBind) {
           const reasons = missingYtd.map((person) => `${person.displayName}'s authoritative total Traditional and Roth IRA contributions YTD is required; absence of a recorded IRA account does not establish zero.`);
@@ -248,15 +249,19 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
           const combinedYtd = roundMoney((iraYtdByOwner.get(first.id) ?? 0)! + (iraYtdByOwner.get(second.id) ?? 0)!);
           const ownerExcesses = marriedPair.filter((person) => (iraYtdByOwner.get(person.id) ?? 0)! > conditionalLimits.get(person.id)!);
           const jointExcess = combinedYtd > jointCompensation;
-          const sharedRemaining = ownerExcesses.length || jointExcess
+          const sharedFeasibleSetExcess = sharedSpousalFeasibleSetApplies && (ownerExcesses.length > 0 || jointExcess);
+          const sharedRemaining = sharedFeasibleSetExcess
             ? 0
             : roundMoney(Math.max(0, jointCompensation - combinedYtd));
-          if (preYtdSharedConstraintCanBind || ownerExcesses.length || jointExcess) {
+          if (sharedSpousalFeasibleSetApplies && (preYtdSharedConstraintCanBind || ownerExcesses.length || jointExcess)) {
             for (const person of marriedPair) iraSharedCapacityByOwner.set(person.id, { group, remaining: sharedRemaining });
           }
           if (jointExcess) warnings.push(`Traditional and Roth IRA contributions YTD exceed supported joint compensation by $${roundMoney(combinedYtd - jointCompensation).toFixed(2)}; additional IRA room is zero and contribution-correction mechanics are not inferred.`);
           for (const person of ownerExcesses) {
-            warnings.push(`${person.displayName}'s Traditional and Roth IRA contributions YTD exceed the supported owner compensation ceiling by $${roundMoney((iraYtdByOwner.get(person.id) ?? 0)! - conditionalLimits.get(person.id)!).toFixed(2)}; additional IRA room for the affected shared MFJ group is zero and contribution-correction mechanics are not inferred.`);
+            const excessScope = sharedSpousalFeasibleSetApplies
+              ? "additional IRA room for the affected shared MFJ group is zero"
+              : "additional IRA room for this owner is zero";
+            warnings.push(`${person.displayName}'s Traditional and Roth IRA contributions YTD exceed the supported owner compensation ceiling by $${roundMoney((iraYtdByOwner.get(person.id) ?? 0)! - conditionalLimits.get(person.id)!).toFixed(2)}; ${excessScope} and contribution-correction mechanics are not inferred.`);
           }
         }
       }
