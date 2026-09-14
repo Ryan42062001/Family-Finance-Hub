@@ -247,7 +247,7 @@ export type MoneyPriorityEngineOptions = { allowSignedHypotheticalExpenseAdjustm
 export function runMoneyPriorityEngine(raw: MoneyPriorityRawSnapshot, asOfDate: string, policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1, options: MoneyPriorityEngineOptions = {}): MoneyPriorityEngineResult {
   const snapshot = buildMoneyPrioritySnapshot(raw, options);
   const monthlyPlanCapacity = Math.max(0, snapshot.aggregates.monthlyCashFlowBeforeSavings);
-  const retirementOpportunities = evaluateRetirementAccountOpportunities(snapshot);
+  const retirementOpportunities = evaluateRetirementAccountOpportunities(snapshot, undefined, asOfDate);
   const retirementCapacityLedger = createRetirementCapacityLedger(retirementOpportunities);
 
   // Build a provisional recurring plan only to identify eligible one-time cash uses.
