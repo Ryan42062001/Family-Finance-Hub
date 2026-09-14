@@ -1,5 +1,6 @@
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { evaluateHsaLegalCapacity, type HsaLegalCapacityBasis } from "./money-priority-hsa-legal-capacity.ts";
+import { remainingContributionMonths } from "./money-priority-contribution-period.ts";
 import {
   MONEY_PRIORITY_TAX_POLICY_2026,
   type FilingStatus,
@@ -50,12 +51,6 @@ export type RetirementAccountOpportunityResult = {
 
 function roundMoney(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
 function parseIsoDate(value: string): Date | null { const date = new Date(`${value}T00:00:00.000Z`); return Number.isNaN(date.getTime()) ? null : date; }
-function remainingContributionMonths(asOfDate: string | null, taxYear: number): number {
-  if (!asOfDate) return 12;
-  const date = parseIsoDate(asOfDate);
-  if (!date || date.getUTCFullYear() !== taxYear) return 12;
-  return 12 - date.getUTCMonth();
-}
 function ageAtYearEnd(snapshot: MoneyPrioritySnapshot, personId: string | null, taxYear: number): number | null {
   if (!personId) return null;
   const person = snapshot.people.find((item) => item.id === personId);
