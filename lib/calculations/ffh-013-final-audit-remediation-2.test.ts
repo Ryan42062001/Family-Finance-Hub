@@ -233,7 +233,7 @@ test("R02 all materially equivalent current-year contribution-month consumers us
     const source = readFileSync(new URL(name, calculationDirectory), "utf8");
     return /12\s*-\s*[^\n;]*getUTCMonth\(\)/.test(source);
   });
-  assert.deepEqual(directCalendarImplementations, ["money-priority-contribution-period.ts"]);
+  assert.deepEqual(directCalendarImplementations, []);
 
   for (const consumer of [
     "money-priority-retirement-accounts.ts",
