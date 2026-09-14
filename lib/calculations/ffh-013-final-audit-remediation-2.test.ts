@@ -175,12 +175,39 @@ test("R01 resolving the missing spouse aggregate YTD to $8,000 preserves A03-sty
 
 test("R01 reverses spouse roles without changing the missing-material-fact outcome", () => {
   const result = evaluate(5000, 10000, null, 0);
-  assert.deepEqual(ownerRooms(result), { a: null, b: null });
-  assert.deepEqual(ownerStates(result), {
-    a: ["more_information_needed"],
-    b: ["more_information_needed"],
-  });
-  assert.ok(iraOpportunities(result).every((item) => item.missingData.some((reason) => reason.includes("A's authoritative total Traditional and Roth IRA contributions YTD"))));
+  const rooms = ownerRooms(result);
+  const states = ownerStates(result);
+  assert.equal(
+    rooms.a,
+    null,
+    `reversed missing-YTD owner A room must fail closed: ${JSON.stringify(rooms)}`,
+  );
+  assert.equal(
+    rooms.b,
+    null,
+    `reversed spouse B room must fail closed when A YTD is material: ${JSON.stringify(rooms)}`,
+  );
+  assert.deepEqual(
+    states.a,
+    ["more_information_needed"],
+    `reversed missing-YTD owner A state must require information: ${JSON.stringify(states)}`,
+  );
+  assert.deepEqual(
+    states.b,
+    ["more_information_needed"],
+    `reversed spouse B state must require information when A YTD is material: ${JSON.stringify(states)}`,
+  );
+  assert.ok(
+    iraOpportunities(result).every((item) => item.missingData.some((reason) => reason.includes("A's authoritative total Traditional and Roth IRA contributions YTD"))),
+    `reversed opportunities must all carry A's aggregate-YTD missing reason: ${JSON.stringify(
+      iraOpportunities(result).map((item) => ({
+        ownerPersonId: item.ownerPersonId,
+        remainingAnnualRoom: item.remainingAnnualRoom,
+        state: item.state,
+        missingData: item.missingData,
+      })),
+    )}`,
+  );
 });
 
 test("R01 missing-YTD result is invariant to person and account ordering", () => {
