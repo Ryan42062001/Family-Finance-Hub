@@ -1,6 +1,7 @@
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import type { MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import type { MoneyPriorityPlanningAssumptions } from "./money-priority-planning-assumptions.ts";
+import { remainingContributionMonths } from "./money-priority-contribution-period.ts";
 import {
   projectRetirement,
   type RetirementProjectionResult,
@@ -209,12 +210,6 @@ function reserveScheduledContributions(
     result.unsupportedAnnual = roundMoney(result.unsupportedAnnual + requested - supported);
   }
   return result;
-}
-
-function remainingContributionMonths(asOfDate: string, taxYear: number): number {
-  const date = new Date(`${asOfDate}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
-  return 12 - date.getUTCMonth();
 }
 
 function fullYearCapacitySnapshot(snapshot: MoneyPrioritySnapshot): MoneyPrioritySnapshot {
