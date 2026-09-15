@@ -185,6 +185,12 @@ test("missing gross income blocks only retirement benchmarking", () => {
       is_active: true,
     },
   ];
+  // This regression specifically covers benchmark fallback. Keep projection
+  // guidance unavailable so missing gross income remains a material fact.
+  raw.preferences = {
+    ...(raw.preferences ?? {}),
+    desired_retirement_monthly_spending: null,
+  };
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
   assert.ok(result.recommendations.some((item) => item.id === "build-retirement-missing-data"));
   assert.ok(result.recommendations.some((item) => item.id === "secure-debt-high-debt-1"));
