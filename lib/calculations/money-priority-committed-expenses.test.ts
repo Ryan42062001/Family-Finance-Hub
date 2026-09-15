@@ -23,11 +23,14 @@ function baseRaw(): MoneyPriorityRawSnapshot {
     retirementAccounts: [{
       id: "r1", owner_person_id: "p1", name: "401(k)", account_type: "401k", balance: 200000,
       monthly_employee_contribution: 900, monthly_employer_contribution: 225,
+      employee_contributed_ytd: 7200, employer_contributed_ytd: 1800,
+      plan_eligible_compensation_annual: 90000,
       full_match_employee_contribution_monthly: 500, match_status: "fully_captured",
     }],
     goals: [],
     insuranceExposures: [{ id: "insurance", name: "Auto", insurance_type: "auto", deductible_amount: 1000, is_relevant_to_reserve: true }],
-    preferences: { emergency_fund_months_override: 3, debt_vs_investing: "balanced", job_replacement_difficulty: "easy", known_income_disruption: false },
+    preferences: { emergency_fund_months_override: 3, debt_vs_investing: "balanced", job_replacement_difficulty: "easy", known_income_disruption: false,
+      desired_retirement_monthly_spending: 3000, retirement_spending_basis: "today_dollars", planning_social_security_monthly: 2000, planning_pension_monthly: 0 },
   };
 }
 
@@ -223,7 +226,10 @@ test("Your Plan reports funding gap above corrected capacity", () => {
   const plan = engine(raw);
   const allocation = deriveRecommendedPlanAllocations(plan)[0]!;
   const result = evaluateUserPlan(plan, [{ allocationId: allocation.allocationId, monthlyAmount: plan.feasibility.monthlyPlanCapacity + 300 }]);
-  assert.equal(result.yourPlan.fundingGap, 300);
+  const untouchedTotal = deriveRecommendedPlanAllocations(plan)
+    .filter((item) => item.allocationId !== allocation.allocationId)
+    .reduce((sum, item) => sum + item.recommendedMonthlyAmount, 0);
+  assert.equal(result.yourPlan.fundingGap, 300 + untouchedTotal);
 });
 
 test("Your Plan does not squeeze untouched allocations", () => {

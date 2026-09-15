@@ -62,7 +62,11 @@ test("projection shortfall drives the retirement increase instead of the benchma
   assert.equal(result.build.retirement.state, "projection_shortfall");
   assert.ok(result.build.retirement.recommendedMonthlyIncrease > 0);
   const retirementRequest = result.build.allocations.find((item) => item.category === "retirement")?.requestedMonthlyAmount ?? 0;
-  assert.equal(retirementRequest, result.build.competition.additionalRetirementRequestedMonthly);
+  assert.equal(
+    retirementRequest,
+    (result.build.protectedRetirementFloorRequestedMonthly ?? 0)
+      + (result.build.competition.additionalRetirementRequestedMonthly ?? 0),
+  );
   assert.ok(retirementRequest >= result.build.retirement.recommendedMonthlyIncrease);
   const retirementAllocation = result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount ?? 0;
   const routed = result.build.retirementAccountAllocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount, 0);

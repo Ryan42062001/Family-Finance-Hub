@@ -215,6 +215,8 @@ test("removed recommendation is exposed separately", () => {
 
 test("previous overrides are reconciled after the current Recommended Plan and are not mutated", () => {
   const source = raw(); source.goals!.push({ id: "goal", name: "Goal", target_amount: 12000, current_amount: 0, target_date: "2027-08-30", priority: 2, goal_class: "major_life_goal", necessity: "important", deadline_flexibility: "flexible", consequence_level: "moderate" });
+  source.retirementAccounts = [{ id: "r", owner_person_id: "p", name: "401(k)", account_type: "401k", balance: 1000000, monthly_employee_contribution: 1500, monthly_employer_contribution: 0, employee_contributed_ytd: 12000, employer_contributed_ytd: 0, plan_eligible_compensation_annual: 120000, match_status: "fully_captured" }];
+  source.preferences = { ...source.preferences, desired_retirement_monthly_spending: 3000, retirement_spending_basis: "today_dollars", planning_social_security_monthly: 2000, planning_pension_monthly: 0 };
   const current = engine(source);
   const allocation = current.recommendations.flatMap((recommendation) => recommendation.allocations.map((item) => ({ recommendation, item }))).find(({ item }) => item.relatedEntityId === "goal");
   assert.ok(allocation);

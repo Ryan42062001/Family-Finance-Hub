@@ -11,8 +11,8 @@ export function withConfirmedLegacyGoalFacts(raw: MoneyPriorityRawSnapshot): Mon
     goal_intelligence_confirmed: goal.goal_intelligence_confirmed === undefined ? true : goal.goal_intelligence_confirmed,
     core_need_amount: goal.core_need_amount === undefined ? goal.target_amount : goal.core_need_amount,
     planned_monthly_contribution: goal.planned_monthly_contribution === undefined ? 0 : goal.planned_monthly_contribution,
-    underlying_need: goal.underlying_need === undefined ? `${goal.name ?? goal.id} household need` : goal.underlying_need,
-    desired_solution: goal.desired_solution === undefined ? `${goal.name ?? goal.id} solution` : goal.desired_solution,
+    underlying_need: goal.underlying_need === undefined ? `${goal.id} household need` : goal.underlying_need,
+    desired_solution: goal.desired_solution === undefined ? `${goal.id} solution` : goal.desired_solution,
     goal_nature: goal.goal_nature === undefined
       ? (goal.necessity === "optional" ? "improvement" : "preservation")
       : goal.goal_nature,
