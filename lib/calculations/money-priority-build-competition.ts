@@ -310,16 +310,18 @@ export function buildRecurringGoalRetirementCompetition(
 
   const coPriorityGoals = goals.filter((goal) =>
     goal.disposition === "CO_PRIORITY" && (goal.requestedMonthlyAmount ?? 0) > 0);
-  const coItems: EqualFulfillmentItem[] = [
-    ...(retirementRequestCents! > 0
-      ? [{ id: "__retirement__", requestedCents: retirementRequestCents!, stableTieBreaker: "retirement" }]
-      : []),
-    ...coPriorityGoals.map((goal) => ({
-      id: goal.goalId,
-      requestedCents: toCents(goal.requestedMonthlyAmount ?? 0),
-      stableTieBreaker: goal.stableTieBreaker,
-    })),
-  ];
+  const coItems: EqualFulfillmentItem[] = coPriorityGoals.length
+    ? [
+        ...(retirementRequestCents! > 0
+          ? [{ id: "__retirement__", requestedCents: retirementRequestCents!, stableTieBreaker: "retirement" }]
+          : []),
+        ...coPriorityGoals.map((goal) => ({
+          id: goal.goalId,
+          requestedCents: toCents(goal.requestedMonthlyAmount ?? 0),
+          stableTieBreaker: goal.stableTieBreaker,
+        })),
+      ]
+    : [];
   if (coItems.length) {
     const allocations = allocateEqualFulfillmentCents(coItems, remainingCents);
     let consumed = 0;
