@@ -58,6 +58,39 @@ function makeSnapshot(overrides: Partial<MoneyPriorityRawSnapshot> = {}) {
   });
 }
 
+const competitionReadyPerson = {
+  id: "person-1",
+  display_name: "Adult",
+  relationship: "self",
+  birth_date: "1990-01-01",
+  planned_retirement_age: 67,
+  estimated_taxable_compensation_annual: 120000,
+  is_active: true,
+  is_dependent: false,
+};
+
+const competitionReadyPreferences = {
+  desired_retirement_monthly_spending: 1000,
+  retirement_spending_basis: "today_dollars",
+  planning_social_security_monthly: 0,
+  planning_pension_monthly: 0,
+};
+
+function confirmedGoal(overrides: Record<string, unknown>) {
+  return {
+    planned_monthly_contribution: 0,
+    goal_intelligence_confirmed: true,
+    underlying_need: "Maintain a necessary household function",
+    desired_solution: "Fund the recorded goal",
+    goal_nature: "preservation",
+    underfunding_consequence: "Material household disruption",
+    borrowing_likelihood: "unlikely",
+    expected_borrowing_amount: null,
+    expected_borrowing_apr: null,
+    ...overrides,
+  };
+}
+
 test("calculates retirement benchmark gap from complete gross income", () => {
   const result = evaluateBuildStage(makeSnapshot(), "2026-08-29");
 
@@ -69,10 +102,12 @@ test("calculates retirement benchmark gap from complete gross income", () => {
   assert.equal(result.retirement.currentTotalSavingsRate, 0.05);
 });
 
-test("required fixed goal is funded before retirement when capacity is constrained", () => {
+test("required fixed goal outranks only additional retirement after the protected floor", () => {
   const snapshot = makeSnapshot({
+    people: [competitionReadyPerson],
+    preferences: competitionReadyPreferences,
     goals: [
-      {
+      confirmedGoal({
         id: "goal-car",
         name: "Replacement car",
         target_amount: 12000,
@@ -83,32 +118,37 @@ test("required fixed goal is funded before retirement when capacity is constrain
         necessity: "required",
         deadline_flexibility: "fixed",
         consequence_level: "high",
-      },
+        core_need_amount: 12000,
+      }),
     ],
   });
 
   const result = evaluateBuildStage(snapshot, "2026-08-29");
+  const goalAllocation = result.allocations.find((allocation) => allocation.relatedEntityId === "goal-car");
+  const retirementAllocation = result.allocations.find((allocation) => allocation.category === "retirement");
 
   assert.equal(result.monthlyPlanCapacity, 1500);
   assert.equal(result.goals[0]?.requiredMonthlyPace, 1000);
-  assert.equal(result.goals[0]?.protectedMonthlyNeed, 1000);
-  assert.equal(result.protectedMonthlyFundingNeed, 1700);
-  assert.equal(result.feasibility.status, "funding_gap");
-  assert.equal(result.feasibility.planFundingGap, 200);
-
-  assert.equal(result.allocations[0]?.relatedEntityId, "goal-car");
-  assert.equal(result.allocations[0]?.allocatedMonthlyAmount, 1000);
-  assert.equal(result.allocations[1]?.category, "retirement");
-  assert.equal(result.allocations[1]?.allocatedMonthlyAmount, 500);
-  assert.equal(result.allocations[1]?.unfundedMonthlyAmount, 200);
+  assert.equal(result.protectedRetirementFloorRequestedMonthly, 700);
+  assert.equal(result.protectedMonthlyFundingNeed, 700);
+  assert.equal(result.feasibility.status, "feasible");
+  assert.equal(result.feasibility.planFundingGap, 0);
+  assert.equal(result.competition.goals[0]?.disposition, "OUTRANKS");
+  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 700);
+  assert.equal(goalAllocation?.allocatedMonthlyAmount, 800);
+  assert.equal(goalAllocation?.unfundedMonthlyAmount, 200);
+  assert.equal(retirementAllocation?.allocatedMonthlyAmount, 700);
+  assert.equal(result.competition.additionalRetirementAllocatedMonthly, 0);
   assert.equal(result.totalAllocatedMonthly, 1500);
   assert.equal(result.remainingMonthlyCapacity, 0);
 });
 
-test("optional goals only receive residual capacity after stronger Build priorities", () => {
+test("optional goals only receive residual capacity after protected and additional retirement", () => {
   const snapshot = makeSnapshot({
+    people: [competitionReadyPerson],
+    preferences: competitionReadyPreferences,
     goals: [
-      {
+      confirmedGoal({
         id: "goal-trip",
         name: "Vacation",
         target_amount: 6000,
@@ -119,19 +159,25 @@ test("optional goals only receive residual capacity after stronger Build priorit
         necessity: "optional",
         deadline_flexibility: "flexible",
         consequence_level: "low",
-      },
+        core_need_amount: 6000,
+        goal_nature: "improvement",
+        underfunding_consequence: "No material household disruption",
+      }),
     ],
   });
 
   const result = evaluateBuildStage(snapshot, "2026-08-29");
+  const goalAllocation = result.allocations.find((allocation) => allocation.relatedEntityId === "goal-trip");
+  const retirementAllocation = result.allocations.find((allocation) => allocation.category === "retirement");
 
-  assert.equal(result.allocations[0]?.category, "retirement");
-  assert.equal(result.allocations[0]?.allocatedMonthlyAmount, 700);
-  assert.equal(result.allocations[1]?.relatedEntityId, "goal-trip");
-  assert.equal(result.allocations[1]?.requestedMonthlyAmount, 500);
-  assert.equal(result.allocations[1]?.allocatedMonthlyAmount, 500);
-  assert.equal(result.totalAllocatedMonthly, 1200);
-  assert.equal(result.remainingMonthlyCapacity, 300);
+  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 700);
+  assert.equal(result.competition.goals[0]?.disposition, "BELOW");
+  assert.equal(result.competition.additionalRetirementAllocatedMonthly, 800);
+  assert.equal(retirementAllocation?.allocatedMonthlyAmount, 1500);
+  assert.equal(goalAllocation?.requestedMonthlyAmount, 500);
+  assert.equal(goalAllocation?.allocatedMonthlyAmount, 0);
+  assert.equal(result.totalAllocatedMonthly, 1500);
+  assert.equal(result.remainingMonthlyCapacity, 0);
 });
 
 test("never allocates more than available monthly capacity", () => {
