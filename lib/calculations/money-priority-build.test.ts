@@ -83,7 +83,7 @@ function confirmedGoal(overrides: Record<string, unknown>) {
     underlying_need: "Maintain a necessary household function",
     desired_solution: "Fund the recorded goal",
     goal_nature: "preservation",
-    underfunding_consequence: "Material household disruption",
+    underfunding_consequence: "other_material",
     borrowing_likelihood: "unlikely",
     expected_borrowing_amount: null,
     expected_borrowing_apr: null,
@@ -161,7 +161,7 @@ test("optional goals only receive residual capacity after protected and addition
         consequence_level: "low",
         core_need_amount: 6000,
         goal_nature: "improvement",
-        underfunding_consequence: "No material household disruption",
+        underfunding_consequence: "safely_delay",
       }),
     ],
   });
