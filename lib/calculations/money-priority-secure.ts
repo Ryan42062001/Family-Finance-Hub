@@ -1,4 +1,5 @@
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
+import { remainingContributionMonths } from "./money-priority-contribution-period.ts";
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import {
   assessDebtAction,
@@ -77,12 +78,6 @@ function debtBackedReserveFor(snapshot: MoneyPrioritySnapshot, debtId: string): 
     if (account.cashPurpose !== "debt_backed_reserve" || account.relatedDebtId !== debtId) return sum;
     return sum + account.balance;
   }, 0));
-}
-
-function remainingContributionMonths(asOfDate: string, taxYear: number): number {
-  const date = parseIsoDate(asOfDate);
-  if (!date || date.getUTCFullYear() !== taxYear) return 12;
-  return 12 - date.getUTCMonth();
 }
 
 export function evaluateSecureStage(

@@ -238,10 +238,8 @@ export function evaluateRetirementAccountOpportunities(snapshot: MoneyPrioritySn
           conditionalLimits.set(person.id, conditional);
           iraCompensationLimitByOwner.set(person.id, conditional);
         }
-        const conditionalTotal = roundMoney([...conditionalLimits.values()].reduce((sum, amount) => sum + amount, 0));
-        const preYtdSharedConstraintCanBind = sharedSpousalFeasibleSetApplies && jointCompensation < conditionalTotal;
         const missingYtd = marriedPair.filter((person) => !iraYtdByOwner.has(person.id) || iraYtdByOwner.get(person.id) === null);
-        if (missingYtd.length && preYtdSharedConstraintCanBind) {
+        if (missingYtd.length && sharedSpousalFeasibleSetApplies) {
           const reasons = missingYtd.map((person) => `${person.displayName}'s authoritative total Traditional and Roth IRA contributions YTD is required; absence of a recorded IRA account does not establish zero.`);
           for (const person of marriedPair) {
             iraCompensationLimitByOwner.set(person.id, null);
