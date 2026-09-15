@@ -10,6 +10,9 @@ on:
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, ffh-local]
+    defaults:
+      run:
+        shell: cmd
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
