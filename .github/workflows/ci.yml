@@ -28,16 +28,20 @@ jobs:
         run: node --experimental-strip-types --test lib/calculations/money-priority-build-competition.test.ts
       - name: Diagnose FFH-017 Build integration
         run: node --experimental-strip-types --test lib/calculations/ffh-017-goal-retirement-competition.test.ts
-      - name: Diagnose required-goal Build regression
-        run: node --experimental-strip-types --test --test-name-pattern="required fixed goal" lib/calculations/money-priority-build.test.ts
-      - name: Diagnose optional-goal Build regression
-        run: node --experimental-strip-types --test --test-name-pattern="optional goals" lib/calculations/money-priority-build.test.ts
-      - name: Diagnose missing-gross Build regression
-        run: node --experimental-strip-types --test --test-name-pattern="missing gross income" lib/calculations/money-priority-build.test.ts
       - name: Diagnose legacy Build calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-build.test.ts
-      - name: Diagnose engine calculations
-        run: node --experimental-strip-types --test lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine deterministic
+        run: node --experimental-strip-types --test --test-name-pattern="deterministic" lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine secure-before-build
+        run: node --experimental-strip-types --test --test-name-pattern="secure recommendations" lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine Build capacity
+        run: node --experimental-strip-types --test --test-name-pattern="does not allocate more Build" lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine stabilize
+        run: node --experimental-strip-types --test --test-name-pattern="negative cash flow" lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine missing gross
+        run: node --experimental-strip-types --test --test-name-pattern="missing gross income" lib/calculations/money-priority-engine.test.ts
+      - name: Diagnose engine rank stability
+        run: node --experimental-strip-types --test --test-name-pattern="rank values" lib/calculations/money-priority-engine.test.ts
       - name: Diagnose audit calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-audit.test.ts
       - name: Diagnose optimize-engine calculations
