@@ -14,7 +14,11 @@ export type BuildCompetitionDisposition =
   | "BELOW"
   | "MORE_INFORMATION_NEEDED";
 
+export type BuildCompetitionGoalTrancheType = "core" | "desired_excess";
+
 export type BuildCompetitionGoalTranche = {
+  trancheId: string;
+  trancheType: BuildCompetitionGoalTrancheType;
   goalId: string;
   goalName: string;
   disposition: BuildCompetitionDisposition;
@@ -72,57 +76,102 @@ function hasUsableRecurringPace(goal: GoalIntelligenceResult): boolean {
     || (goal.monthsRemaining !== null && goal.monthsRemaining > 0);
 }
 
+function isLegacyUnconfirmedGoal(goal: GoalIntelligenceResult): boolean {
+  return goal.missingData.some((item) => item.includes("legacy defaults are not treated as user evidence"));
+}
+
+function hasKnownCoreRecurringPace(goal: GoalIntelligenceResult): boolean {
+  return goal.remainingCoreNeedAmount !== null && hasUsableRecurringPace(goal);
+}
+
 export function determineGoalRetirementDisposition(
   goal: GoalIntelligenceResult,
   retirementStatus: HybridRetirementStatus,
 ): BuildCompetitionDisposition {
   if (goal.remainingTargetAmount <= 0 || goal.remainingCoreNeedAmount === 0) return "BELOW";
   if (retirementStatus === "more_information_needed") return "MORE_INFORMATION_NEEDED";
-  if (
-    goal.state === "more_information_needed"
-    || goal.necessity === "unknown"
-    || goal.coreNeedAmount === null
-    || goal.remainingCoreNeedAmount === null
-    || !hasUsableRecurringPace(goal)
-  ) {
-    return "MORE_INFORMATION_NEEDED";
-  }
 
+  // Legacy/unconfirmed rows cannot gain a new cross-domain elevation. They are retirement-junior
+  // while any unresolved amount/pacing remains local to that goal.
+  if (isLegacyUnconfirmedGoal(goal)) return "BELOW";
   if (goal.necessity === "optional") return "BELOW";
+  if (goal.necessity === "unknown") return "MORE_INFORMATION_NEEDED";
 
   if (goal.necessity === "essential") {
-    const materialUrgency = goal.deadlineFlexibility === "fixed" || goal.consequenceSeverity === "critical";
-    const materialHarm = isHighOrCritical(goal.consequenceSeverity) || goal.debtExposure === "high";
-    if (materialUrgency && materialHarm) return "OUTRANKS";
+    const urgencyDefinite = goal.deadlineFlexibility === "fixed" || goal.consequenceSeverity === "critical";
+    const urgencyPossible = urgencyDefinite
+      || goal.deadlineFlexibility === "unknown"
+      || goal.consequenceSeverity === "unknown";
+    const harmDefinite = isHighOrCritical(goal.consequenceSeverity) || goal.debtExposure === "high";
+    const harmPossible = harmDefinite
+      || goal.consequenceSeverity === "unknown"
+      || goal.debtExposure === "unknown";
 
-    if (
-      goal.deadlineFlexibility === "limited"
-      || isModerateOrHigherConsequence(goal.consequenceSeverity)
-      || isModerateOrHigherDebt(goal.debtExposure)
-    ) {
-      return "CO_PRIORITY";
+    if (urgencyDefinite && harmDefinite) {
+      return hasKnownCoreRecurringPace(goal) ? "OUTRANKS" : "MORE_INFORMATION_NEEDED";
     }
+    if (urgencyPossible && harmPossible) return "MORE_INFORMATION_NEEDED";
+
+    const coPriorityDefinite = goal.deadlineFlexibility === "limited"
+      || isModerateOrHigherConsequence(goal.consequenceSeverity)
+      || isModerateOrHigherDebt(goal.debtExposure);
+    const coPriorityPossible = coPriorityDefinite
+      || goal.deadlineFlexibility === "unknown"
+      || goal.consequenceSeverity === "unknown"
+      || goal.debtExposure === "unknown";
+    if (coPriorityDefinite) {
+      return hasKnownCoreRecurringPace(goal) ? "CO_PRIORITY" : "MORE_INFORMATION_NEEDED";
+    }
+    if (coPriorityPossible) return "MORE_INFORMATION_NEEDED";
     return "BELOW";
   }
 
   if (goal.necessity === "important") {
     if (retirementStatus === "behind") return "BELOW";
-    const preservationLike = goal.goalNature === "preservation" || goal.goalNature === "mixed";
-    const urgentEnough = goal.deadlineFlexibility === "fixed" || goal.deadlineFlexibility === "limited";
-    if (preservationLike && urgentEnough && isHighOrCritical(goal.consequenceSeverity)) {
-      return "CO_PRIORITY";
+    const definitelyBelow = goal.goalNature === "improvement"
+      || goal.deadlineFlexibility === "flexible"
+      || goal.consequenceSeverity === "moderate"
+      || goal.consequenceSeverity === "low";
+    if (definitelyBelow) return "BELOW";
+
+    const coPriorityDefinite = (goal.goalNature === "preservation" || goal.goalNature === "mixed")
+      && (goal.deadlineFlexibility === "fixed" || goal.deadlineFlexibility === "limited")
+      && isHighOrCritical(goal.consequenceSeverity);
+    if (coPriorityDefinite) {
+      return hasKnownCoreRecurringPace(goal) ? "CO_PRIORITY" : "MORE_INFORMATION_NEEDED";
     }
+    if (
+      goal.goalNature === "unknown"
+      || goal.deadlineFlexibility === "unknown"
+      || goal.consequenceSeverity === "unknown"
+    ) return "MORE_INFORMATION_NEEDED";
     return "BELOW";
   }
 
   return "MORE_INFORMATION_NEEDED";
 }
 
-function goalRequestMonthly(goal: GoalIntelligenceResult): number | null {
-  if (goal.remainingCoreNeedAmount === null) return null;
-  if (goal.remainingCoreNeedAmount <= 0) return 0;
-  if (goal.monthsRemaining === null || goal.monthsRemaining <= 0) return null;
-  return roundMoney(goal.remainingCoreNeedAmount / goal.monthsRemaining);
+type GoalMonthlyPaces = { core: number | null; excess: number | null };
+
+function goalMonthlyPaces(goal: GoalIntelligenceResult): GoalMonthlyPaces {
+  if (goal.remainingTargetAmount <= 0) return { core: 0, excess: 0 };
+  if (goal.remainingCoreNeedAmount === null) return { core: null, excess: null };
+  const remainingExcess = roundMoney(Math.max(0, goal.remainingTargetAmount - goal.remainingCoreNeedAmount));
+  if (goal.monthsRemaining === null || goal.monthsRemaining <= 0) {
+    return {
+      core: goal.remainingCoreNeedAmount <= 0 ? 0 : null,
+      excess: remainingExcess <= 0 ? 0 : null,
+    };
+  }
+  const fullTargetMonthlyCents = toCents(goal.remainingTargetAmount / goal.monthsRemaining);
+  const coreMonthlyCents = Math.min(
+    fullTargetMonthlyCents,
+    toCents(goal.remainingCoreNeedAmount / goal.monthsRemaining),
+  );
+  return {
+    core: fromCents(coreMonthlyCents),
+    excess: fromCents(Math.max(0, fullTargetMonthlyCents - coreMonthlyCents)),
+  };
 }
 
 const DEADLINE_ORDER: Record<GoalDeadlineFlexibility, number> = {
@@ -245,40 +294,76 @@ export function buildRecurringGoalRetirementCompetition(
   const retirementRequestCents = additionalRetirementRequestedMonthly === null
     ? null
     : toCents(additionalRetirementRequestedMonthly);
-
   const byId = new Map(goalIntelligence.map((goal) => [goal.goalId, goal]));
-  const goals: BuildCompetitionGoalTranche[] = goalIntelligence.map((goal) => {
+
+  const coreTranches: BuildCompetitionGoalTranche[] = goalIntelligence.map((goal) => {
     const disposition = determineGoalRetirementDisposition(goal, retirementStatus);
-    const requested = goalRequestMonthly(goal);
-    const excess = roundMoney(Math.max(
-      0,
-      goal.remainingTargetAmount - (goal.remainingCoreNeedAmount ?? 0),
-    ));
-    const missingData = disposition === "MORE_INFORMATION_NEEDED"
-      ? [...goal.missingData, ...(requested === null ? ["A usable recurring core-need pace is required for Phase 5C competition."] : [])]
+    const paces = goalMonthlyPaces(goal);
+    const excess = goal.remainingCoreNeedAmount === null
+      ? 0
+      : roundMoney(Math.max(0, goal.remainingTargetAmount - goal.remainingCoreNeedAmount));
+    const requestUnresolved = paces.core === null
+      && (goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0);
+    const missingData = disposition === "MORE_INFORMATION_NEEDED" || requestUnresolved
+      ? [
+          ...goal.missingData,
+          ...(requestUnresolved ? ["A usable recurring core-need pace is required for this goal tranche."] : []),
+        ]
       : [];
     return {
+      trancheId: `${goal.goalId}:core`,
+      trancheType: "core",
       goalId: goal.goalId,
       goalName: goal.goalName,
       disposition,
+      requestedMonthlyAmount: paces.core,
+      allocatedMonthlyAmount: 0,
+      unfundedMonthlyAmount: paces.core,
+      remainingCoreNeedAmount: goal.remainingCoreNeedAmount,
+      remainingDesiredExcessAmount: excess,
+      missingData: [...new Set(missingData)].sort(),
+      stableTieBreaker: `${goal.stableTieBreaker}:core`,
+    };
+  });
+
+  const excessTranches: BuildCompetitionGoalTranche[] = goalIntelligence.flatMap((goal) => {
+    if (goal.remainingCoreNeedAmount === null) return [];
+    const excess = roundMoney(Math.max(0, goal.remainingTargetAmount - goal.remainingCoreNeedAmount));
+    if (excess <= 0) return [];
+    const requested = goalMonthlyPaces(goal).excess;
+    return [{
+      trancheId: `${goal.goalId}:desired_excess`,
+      trancheType: "desired_excess" as const,
+      goalId: goal.goalId,
+      goalName: goal.goalName,
+      disposition: "BELOW" as const,
       requestedMonthlyAmount: requested,
       allocatedMonthlyAmount: 0,
       unfundedMonthlyAmount: requested,
       remainingCoreNeedAmount: goal.remainingCoreNeedAmount,
       remainingDesiredExcessAmount: excess,
-      missingData,
-      stableTieBreaker: goal.stableTieBreaker,
-    };
+      missingData: requested === null
+        ? ["A usable recurring desired-excess pace is required for this retirement-junior tranche."]
+        : [],
+      stableTieBreaker: `${goal.stableTieBreaker}:desired_excess`,
+    }];
   });
+  const goals = [...coreTranches, ...excessTranches];
 
-  const materialMissingGoals = goals.filter((goal) =>
+  const materialMissingGoals = coreTranches.filter((goal) =>
     goal.disposition === "MORE_INFORMATION_NEEDED"
     && (goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0));
+  const localUnresolvedTranches = goals.filter((goal) =>
+    goal.requestedMonthlyAmount === null
+    && (goal.trancheType === "core"
+      ? goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0
+      : goal.remainingDesiredExcessAmount > 0));
   const retirementMissing = retirementStatus === "more_information_needed" || retirementRequestCents === null;
-  if (retirementMissing || materialMissingGoals.length) {
+  if (retirementMissing) {
     const missingData = [
-      ...(retirementMissing ? ["Material retirement facts are required before allocating contested Phase 5C recurring capacity."] : []),
+      "Material retirement facts are required before allocating contested Phase 5C recurring capacity.",
       ...materialMissingGoals.flatMap((goal) => goal.missingData.map((item) => `${goal.goalName}: ${item}`)),
+      ...localUnresolvedTranches.flatMap((goal) => goal.missingData.map((item) => `${goal.goalName}: ${item}`)),
     ];
     return {
       state: "more_information_needed",
@@ -289,34 +374,72 @@ export function buildRecurringGoalRetirementCompetition(
       goals,
       totalAllocatedMonthly: 0,
       remainingMonthlyCapacity: fromCents(availableCents),
-      missingData,
+      missingData: [...new Set(missingData)].sort(),
     };
   }
 
   let remainingCents = availableCents;
   const allocatedGoalCents = new Map<string, number>();
-  for (const goal of goals) allocatedGoalCents.set(goal.goalId, 0);
+  for (const goal of goals) allocatedGoalCents.set(goal.trancheId, 0);
   let retirementAllocatedCents = 0;
 
-  const outrank = goals
+  const compareTranches = (a: BuildCompetitionGoalTranche, b: BuildCompetitionGoalTranche): number =>
+    compareFinancialGoalOrder(byId.get(a.goalId)!, byId.get(b.goalId)!, userPriorityById)
+    || (a.trancheType === "core" ? 0 : 1) - (b.trancheType === "core" ? 0 : 1)
+    || a.trancheId.localeCompare(b.trancheId);
+
+  const outrank = coreTranches
     .filter((goal) => goal.disposition === "OUTRANKS" && (goal.requestedMonthlyAmount ?? 0) > 0)
-    .sort((a, b) => compareFinancialGoalOrder(byId.get(a.goalId)!, byId.get(b.goalId)!, userPriorityById));
+    .sort(compareTranches);
   for (const goal of outrank) {
     const requested = toCents(goal.requestedMonthlyAmount ?? 0);
     const allocated = Math.min(requested, remainingCents);
-    allocatedGoalCents.set(goal.goalId, allocated);
+    allocatedGoalCents.set(goal.trancheId, allocated);
     remainingCents -= allocated;
   }
 
-  const coPriorityGoals = goals.filter((goal) =>
+  const applyGoalAllocations = () => {
+    for (const goal of goals) {
+      const allocated = allocatedGoalCents.get(goal.trancheId) ?? 0;
+      goal.allocatedMonthlyAmount = fromCents(allocated);
+      goal.unfundedMonthlyAmount = goal.requestedMonthlyAmount === null
+        ? null
+        : fromCents(Math.max(0, toCents(goal.requestedMonthlyAmount) - allocated));
+    }
+  };
+
+  if (materialMissingGoals.length) {
+    applyGoalAllocations();
+    const totalAllocatedCents = [...allocatedGoalCents.values()].reduce((sum, value) => sum + value, 0);
+    if (totalAllocatedCents + remainingCents !== availableCents) {
+      throw new Error("Phase 5C targeted missing-data capacity reconciliation failed.");
+    }
+    const missingData = [
+      ...materialMissingGoals.flatMap((goal) => goal.missingData.map((item) => `${goal.goalName}: ${item}`)),
+      ...localUnresolvedTranches.flatMap((goal) => goal.missingData.map((item) => `${goal.goalName}: ${item}`)),
+    ];
+    return {
+      state: "more_information_needed",
+      availableMonthlyCapacity: fromCents(availableCents),
+      additionalRetirementRequestedMonthly: fromCents(retirementRequestCents),
+      additionalRetirementAllocatedMonthly: 0,
+      additionalRetirementUnfundedMonthly: fromCents(retirementRequestCents),
+      goals,
+      totalAllocatedMonthly: fromCents(totalAllocatedCents),
+      remainingMonthlyCapacity: fromCents(remainingCents),
+      missingData: [...new Set(missingData)].sort(),
+    };
+  }
+
+  const coPriorityGoals = coreTranches.filter((goal) =>
     goal.disposition === "CO_PRIORITY" && (goal.requestedMonthlyAmount ?? 0) > 0);
   const coItems: EqualFulfillmentItem[] = coPriorityGoals.length
     ? [
-        ...(retirementRequestCents! > 0
-          ? [{ id: "__retirement__", requestedCents: retirementRequestCents!, stableTieBreaker: "retirement" }]
+        ...(retirementRequestCents > 0
+          ? [{ id: "__retirement__", requestedCents: retirementRequestCents, stableTieBreaker: "retirement" }]
           : []),
         ...coPriorityGoals.map((goal) => ({
-          id: goal.goalId,
+          id: goal.trancheId,
           requestedCents: toCents(goal.requestedMonthlyAmount ?? 0),
           stableTieBreaker: goal.stableTieBreaker,
         })),
@@ -334,11 +457,11 @@ export function buildRecurringGoalRetirementCompetition(
     remainingCents -= consumed;
   }
 
-  if (!coPriorityGoals.length && retirementRequestCents! > 0) {
-    retirementAllocatedCents = Math.min(retirementRequestCents!, remainingCents);
+  if (!coPriorityGoals.length && retirementRequestCents > 0) {
+    retirementAllocatedCents = Math.min(retirementRequestCents, remainingCents);
     remainingCents -= retirementAllocatedCents;
-  } else if (coPriorityGoals.length && retirementAllocatedCents < retirementRequestCents! && remainingCents > 0) {
-    const retirementStillNeeded = retirementRequestCents! - retirementAllocatedCents;
+  } else if (coPriorityGoals.length && retirementAllocatedCents < retirementRequestCents && remainingCents > 0) {
+    const retirementStillNeeded = retirementRequestCents - retirementAllocatedCents;
     const allocated = Math.min(retirementStillNeeded, remainingCents);
     retirementAllocatedCents += allocated;
     remainingCents -= allocated;
@@ -346,38 +469,33 @@ export function buildRecurringGoalRetirementCompetition(
 
   const below = goals
     .filter((goal) => goal.disposition === "BELOW" && (goal.requestedMonthlyAmount ?? 0) > 0)
-    .sort((a, b) => compareFinancialGoalOrder(byId.get(a.goalId)!, byId.get(b.goalId)!, userPriorityById));
+    .sort(compareTranches);
   for (const goal of below) {
     if (remainingCents <= 0) break;
     const requested = toCents(goal.requestedMonthlyAmount ?? 0);
     const allocated = Math.min(requested, remainingCents);
-    allocatedGoalCents.set(goal.goalId, allocated);
+    allocatedGoalCents.set(goal.trancheId, allocated);
     remainingCents -= allocated;
   }
 
-  for (const goal of goals) {
-    const allocated = allocatedGoalCents.get(goal.goalId) ?? 0;
-    goal.allocatedMonthlyAmount = fromCents(allocated);
-    goal.unfundedMonthlyAmount = goal.requestedMonthlyAmount === null
-      ? null
-      : fromCents(Math.max(0, toCents(goal.requestedMonthlyAmount) - allocated));
-  }
-
+  applyGoalAllocations();
   const totalGoalAllocatedCents = [...allocatedGoalCents.values()].reduce((sum, value) => sum + value, 0);
   const totalAllocatedCents = totalGoalAllocatedCents + retirementAllocatedCents;
   if (totalAllocatedCents + remainingCents !== availableCents) {
     throw new Error("Phase 5C recurring competition capacity reconciliation failed.");
   }
+  const missingData = localUnresolvedTranches.flatMap((goal) =>
+    goal.missingData.map((item) => `${goal.goalName}: ${item}`));
 
   return {
-    state: "calculated",
+    state: localUnresolvedTranches.length ? "more_information_needed" : "calculated",
     availableMonthlyCapacity: fromCents(availableCents),
-    additionalRetirementRequestedMonthly: fromCents(retirementRequestCents!),
+    additionalRetirementRequestedMonthly: fromCents(retirementRequestCents),
     additionalRetirementAllocatedMonthly: fromCents(retirementAllocatedCents),
-    additionalRetirementUnfundedMonthly: fromCents(Math.max(0, retirementRequestCents! - retirementAllocatedCents)),
+    additionalRetirementUnfundedMonthly: fromCents(Math.max(0, retirementRequestCents - retirementAllocatedCents)),
     goals,
     totalAllocatedMonthly: fromCents(totalAllocatedCents),
     remainingMonthlyCapacity: fromCents(remainingCents),
-    missingData: [],
+    missingData: [...new Set(missingData)].sort(),
   };
 }
