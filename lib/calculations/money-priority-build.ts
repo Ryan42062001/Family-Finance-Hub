@@ -546,7 +546,6 @@ export function evaluateBuildStage(
     : roundMoney(Math.min(
         retirementFloor.additionalRetirementOpportunityAnnual / 12,
         routableAfterFloor,
-        competitionCapacity,
       ));
 
   const competition = buildRecurringGoalRetirementCompetition(
@@ -563,16 +562,20 @@ export function evaluateBuildStage(
   if (competition.state === "more_information_needed") warnings.push(...competition.missingData);
 
   const requests: BuildStageAllocation[] = [];
-  const totalRetirementRequestedMonthly = roundMoney(
+  const actionableRetirementRequestedMonthly = roundMoney(
     (protectedRetirementFloorRequestedMonthly ?? 0) + (additionalRetirementRequestedMonthly ?? 0),
   );
+  const totalRetirementRequestedMonthly = roundMoney(Math.max(
+    retirement.recommendedMonthlyIncrease,
+    actionableRetirementRequestedMonthly,
+  ));
   const totalRetirementAllocatedMonthly = roundMoney(
     protectedRetirementFloorAllocatedMonthly + competition.additionalRetirementAllocatedMonthly,
   );
-  const unresolvedRetirementMonthlyAmount = roundMoney(
-    (unresolvedProtectedRetirementFloorMonthly ?? 0)
-      + (competition.additionalRetirementUnfundedMonthly ?? 0),
-  );
+  const unresolvedRetirementMonthlyAmount = roundMoney(Math.max(
+    0,
+    totalRetirementRequestedMonthly - totalRetirementAllocatedMonthly,
+  ));
 
   if (totalRetirementRequestedMonthly > 0 || retirementFloor.state === "more_information_needed") {
     requests.push({
@@ -588,6 +591,7 @@ export function evaluateBuildStage(
       reasons: [
         "The Phase 5A protected retirement floor is funded before ordinary Phase 5C goal competition.",
         "Only verified additional retirement opportunity above that floor participates in FFH-D004 competition.",
+        "Retirement planning need that is not currently legally routable remains descriptive and cannot create phantom allocation.",
       ],
     });
   }
