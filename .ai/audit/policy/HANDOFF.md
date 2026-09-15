@@ -2,53 +2,64 @@
 
 ## Current assignment
 
-FFH-013 — Spousal-IRA Shared Compensation Ledger — fresh independent Financial Policy & Scenario re-audit of the R01/R02/R03 frozen target.
+FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition — fresh independent Financial Policy & Scenario audit.
 
 ## Exact target audited
 
-- Manager control-plane head verified at audit start: `401d7c074ba8bfd1e55771e4ada63f35b7bbaef0`
-- Frozen implementation target: `4b7ed99894e396beadc02a537dad45963f5db1d5`
-- Frozen packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_4b7ed998.md`
-- Report: `.ai/audit/policy/FFH-013_POLICY_SCENARIO_REAUDIT_4b7ed998.md`
-- Report commit: `3e8e87d442b9ff15d6e5ec5c88adb51a4b79cfad`
+- Manager control-plane head verified at audit start: `4912736fbe0d4de28350ac009f23659ff93c5b3a`
+- Frozen implementation target: `9d3a880e02365b4445b8070344c72c928ca34511`
+- Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_9d3a880e.md`
+- Report: `.ai/audit/policy/FFH-017_POLICY_SCENARIO_AUDIT_9d3a880e.md`
+- Report commit: `873d2be6f707821c0d6e68c5eba95ca785cb9753`
 - Technical & Mathematical Auditor conclusions/verdict were not consulted or relied upon.
 
 ## Verdict
 
-**PASS**
+**FAIL — REMEDIATION REQUIRED**
 
-No `CRITICAL`, `HIGH`, `MEDIUM`, or `LOW` Financial Policy & Scenario findings were identified on the exact frozen target.
+## Finding
 
-## Primary remediation status
+**MEDIUM — FFH-017-P01: Phase 5C missing-goal fail-closed handling is broader than the accepted FFH-D004 locality rule.**
 
-- **R01: CLEARS.** Missing aggregate spouse Traditional + Roth IRA YTD fails the affected unequal-compensation MFJ relationship closed for definite new-room exposure; known-zero remains distinct; `$8,000` resolution preserves shared fail-closed behavior; absence of a spouse IRA record is not zero proof; equal compensation remains owner-local; no correction mechanics are invented.
-- **R02: CLEARS.** `remainingContributionMonths(asOfDate, taxYear)` is the neutral contribution-period authority for materially equivalent current-year retirement-account, retirement-floor, Secure, engine, and User Plan uses. Genuine full-year reporting/annualized semantics remain separate.
-- **R03/P03: CLEARS.** Strict calendar validation gives the accepted 12-month fallback for `2026-09-31`, `2026-02-30`, and non-leap `2026-02-29`; valid leap dates and January/September/December inclusive semantics remain correct.
-- **Active-schedule P03: CLEARS.** September `$500/month` with `$7,000` factual YTD reserves exactly the supported `$500` and leaves `$2,500` shared new-recommendation room; December reserves one supported month; later stages cannot reuse reserved capacity.
+The frozen implementation correctly fails closed for genuinely material unknown goal/retirement facts, but `determineGoalRetirementDisposition(...)` checks generic missing core/pacing/state facts before the known-Optional `BELOW` rule. A confirmed Optional goal can legitimately have no recorded core amount under Goal Intelligence, yet the competition helper converts it to `MORE_INFORMATION_NEEDED`; the subsequent global missing-goal branch then zeros additional retirement and every other goal allocation.
 
-## Protected boundary status
+Because FFH-D004 fixes Optional/lifestyle dollars below additional retirement regardless, the missing Optional core amount cannot change that cross-domain ordering. The missing amount should remain unresolved locally without suppressing otherwise definite verified retirement or unrelated known OUTRANK/CO_PRIORITY allocations. FFH-D004 explicitly requires missing evidence to block only the contested tradeoff that depends on it.
 
-- T1: CLEARS
-- A01: CLEARS
-- A02: CLEARS
-- A03: CLEARS
-- A04: CLEARS
-- A05: CLEARS
-- M01: CLEARS
-- M02: CLEARS
+This is conservative rather than an over-contribution defect, but it materially violates accepted Phase 5C uncertainty locality and is blocking for closure.
 
-One-earner/low-compensation, scarce/non-scarce unequal compensation, asymmetric YTD, multiple IRA accounts, missing inventory/YTD, exact exhaustion, one-cent routing, supported excess, reordering, Roth eligibility separation, Traditional deductibility separation, FFH-015 SIMPLE, FFH-012/028 HSA, and unrelated workplace-retirement policy meaning remain preserved.
+## Boundary status
 
-## Reconciliation / provenance
+- recurring Build-only competition: CLEARS
+- protected Phase 5A retirement floor / no goal raid: CLEARS
+- remaining core versus desired/excess separation: CLEARS
+- OUTRANKS with complete material facts: CLEARS
+- BELOW with complete material facts: CLEARS
+- true CO_PRIORITY, sufficient and scarce capacity: CLEARS
+- multiple goals / financially equivalent order reversal: CLEARS
+- genuinely material goal/retirement missing facts: fail closed correctly
+- missing-fact locality: **DOES NOT CLEAR — FFH-017-P01**
+- factual YTD versus future schedules/reservations: CLEARS
+- no scheduled retirement-capacity reuse: CLEARS
+- spouse/shared IRA conservation and multiple-account nonmultiplication: CLEARS
+- Existing Cash -> Secure -> Build -> Windfall conservation: CLEARS
+- Roth eligibility versus Traditional deductibility: CLEARS
+- SIMPLE / HSA / workplace-retirement preservation: CLEARS
+- user preference boundary: CLEARS outside FFH-017-P01; priority acts only after approved financial ordering ties and cannot change co-priority shares
+- recommendations remain recommendations rather than execution: CLEARS
+- FFH-013 M01: CLEARS exactly at `$833.33/month -> $416.67 + $416.66`, `$9,999.96` annual legal consumption, `$0.05` shared remainder
 
-PR #25 is merged. Candidate `8d9cbc62e47c651ad8e6564f325c20ffd67a439b` and final worker head `d5aa88d8b26aac5ca0c857ff949c031aec8a2559` have successful Foundation CI at the supplied runs/jobs. Independent compare of final worker head to frozen integration `4b7ed99894e396beadc02a537dad45963f5db1d5` contains zero changed files.
+## Provenance / validation
 
-From the Policy Auditor perspective, the Financial Engine Reconciliation Gate clears: missing material facts do not originate definite legal room, owner/shared capacity is not additive, schedules reserve once, staged consumers do not recreate capacity, exact cents do not create phantom authority, and stable identity is limited to unavoidable final-cent tie resolution.
-
-Green CI was treated as evidence, not proof.
+- PR #26 merged.
+- Accepted final PR head: `0e7c139b374716ad0e701d0f3c8ae05f9fac1692`.
+- Frozen integration: `9d3a880e02365b4445b8070344c72c928ca34511`.
+- Independent compare accepted PR head -> frozen integration: zero changed files.
+- Foundation CI run `34999388253` on `545d3b12710086b0fefb44be9b7823309f30da0e`: success.
+- Foundation CI run `35000961119` on `c7882907854579488eb82f4d9f18799b51522550`: success.
+- Green CI was evidence, not proof.
 
 ## Manager action
 
-No blocking Financial Policy & Scenario condition remains for FFH-013 closure on this frozen target.
+FFH-017 remains blocked from closure on FFH-017-P01. Remediation should preserve fail-closed behavior for genuinely material unknowns while making uncertainty local to the tranche/tradeoff whose outcome can actually change. Add direct regressions for a confirmed Optional goal with unknown core amount and for an unrelated lower-priority unknown not suppressing known OUTRANK/CO_PRIORITY/retirement allocations.
 
-Do not close FFH-013 or activate FFH-017 from this audit lane. Manager must reconcile this PASS with the separate fresh Technical & Mathematical Auditor verdict and retain sole closure/dependency-transition authority.
+Do not close FFH-017 or activate downstream work from this audit lane. Manager owns remediation routing, new frozen-target creation, reconciliation with the separate Technical & Mathematical audit, and eventual closure.
