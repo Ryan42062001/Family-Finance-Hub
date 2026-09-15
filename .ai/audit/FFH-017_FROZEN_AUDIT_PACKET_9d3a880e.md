@@ -4,13 +4,17 @@ Packet ID: `FFH-017-9d3a880e-2026-09-15`
 
 Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Workflow: V3.1
-Audit target state: FROZEN / AUDIT_READY
+Audit target state: FROZEN / AUDIT_READY — HISTORICAL FAILED AUDIT TARGET
 
 ## Exact frozen implementation target
 
 `9d3a880e02365b4445b8070344c72c928ca34511`
 
 Audit this exact integration SHA only. Later Manager control-plane commits are not part of the financial implementation target.
+
+## Historical packet erratum
+
+Technical finding TMA-017-04 identified that this packet originally recorded the wrong verify-job ID for successful Foundation CI run `34999388253`. Manager re-queried GitHub and verified the run's successful `verify` job is `104483702758`. This metadata correction does not alter the frozen financial target, the run, or any financial behavior.
 
 ## Integration evidence
 
@@ -36,7 +40,7 @@ Pre-handoff fully-green PR head:
 
 Foundation CI:
 - run `34999388253`
-- job `104483637634`
+- job `104483702758`
 - conclusion: SUCCESS
 - runner: repository-scoped `FFH-Windows-Runner`
 
@@ -86,9 +90,7 @@ Do not reopen accepted policy during implementation audit. Escalate only if the 
 
 ## FFH-017 implementation contract to audit
 
-Recurring Build capacity competes only between:
-1. actionable remaining goal-core need; and
-2. additional retirement opportunity above the protected Phase 5A retirement floor.
+Recurring Build capacity competes between approved recurring tranches and additional retirement opportunity above the protected Phase 5A retirement floor. Remaining goal-core need is economically distinct from desired-solution excess; desired/excess is retirement-junior and must not inherit core priority.
 
 Protected retirement floor is outside the competition and ordinary goals may not raid it.
 
@@ -100,9 +102,9 @@ Approved dispositions:
 
 Expected semantics:
 - OUTRANKS goal-core tranches receive contested recurring capacity before additional retirement;
-- BELOW goal tranches do not consume contested capacity ahead of additional retirement;
+- BELOW goal tranches, including desired-solution excess, do not consume contested capacity ahead of additional retirement;
 - true CO_PRIORITY uses deterministic common fulfillment with exact monthly cents;
-- MORE_INFORMATION_NEEDED exposes no unsupported definite contested allocation.
+- MORE_INFORMATION_NEEDED exposes no unsupported definite contested allocation and missing evidence is localized to the tradeoff it can actually change.
 
 Goal desired/excess funding must not be promoted into goal-core need.
 
@@ -118,6 +120,7 @@ Audit exact recurring monthly-cents conservation:
 - no material ID/order priority;
 - stable identity only unavoidable final cent;
 - planner/prepass and actual routing use one authoritative path or exact proven equivalent;
+- annual legal consumption and monthly recurring pace reconcile exactly at applicable conversion boundaries;
 - already-consumed/reserved retirement capacity cannot be reused;
 - protected retirement floor cannot be consumed by ordinary goal competition.
 
@@ -133,7 +136,7 @@ At minimum independently verify:
 7. MORE_INFORMATION_NEEDED for material goal facts;
 8. MORE_INFORMATION_NEEDED for material retirement facts;
 9. protected retirement floor cannot be raided;
-10. goal desired/excess does not compete as goal core;
+10. goal desired/excess does not compete as goal core and remains a separate BELOW tranche when nonzero;
 11. factual YTD and future schedules remain distinct;
 12. existing schedule reservations cannot be reused;
 13. spouse/shared IRA capacity remains conserved;
@@ -166,7 +169,7 @@ Other PR changes are tests/fixtures, worklog/handoff/task state, and CI routing 
 
 ## Audit lanes
 
-Two fresh independent lanes are required:
+Two fresh independent lanes were required:
 1. Technical & Mathematical Auditor
 2. Financial Policy & Scenario Auditor
 
@@ -183,4 +186,6 @@ Classify findings only as:
 - MEDIUM
 - LOW
 
-FFH-017 may close only after Manager reconciles both fresh independent verdicts against this exact frozen target.
+## Historical audit outcome
+
+Both independent lanes returned `FAIL — REMEDIATION REQUIRED` on this target. This packet remains historical custody evidence for the failed target. A later remediation must produce a new exact candidate, Manager acceptance/integration, and a new frozen audit packet; do not silently substitute a remediated SHA into this packet.
