@@ -36,6 +36,8 @@ jobs:
         run: node --experimental-strip-types --test --test-name-pattern="missing gross income" lib/calculations/money-priority-build.test.ts
       - name: Diagnose legacy Build calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-build.test.ts
+      - name: Diagnose engine-facing calculations
+        run: node --experimental-strip-types --test lib/calculations/money-priority-engine.test.ts lib/calculations/money-priority-audit.test.ts lib/calculations/money-priority-optimize-engine.test.ts
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
