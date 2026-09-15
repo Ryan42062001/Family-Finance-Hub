@@ -495,8 +495,7 @@ export function evaluateBuildStage(
   const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
   const userPriorityById = new Map(snapshot.goals.map((goal) => [goal.id, goal.priority]));
 
-  const protectedRetirementFloorRequestedMonthly = retirementFloor.state === "calculated"
-    && retirementFloor.protectedFloorShortfallAnnual !== null
+  const protectedRetirementFloorRequestedMonthly = retirementFloor.protectedFloorShortfallAnnual !== null
     ? roundMoney(retirementFloor.protectedFloorShortfallAnnual / 12)
     : null;
   const protectedMonthlyFundingNeed = protectedRetirementFloorRequestedMonthly ?? 0;
