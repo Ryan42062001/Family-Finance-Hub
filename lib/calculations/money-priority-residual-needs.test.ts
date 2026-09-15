@@ -152,7 +152,7 @@ test("one-time goal funding reduces the corresponding recurring Build need", () 
     underlying_need: "Reliable transportation for required household travel",
     desired_solution: "Required replacement car",
     goal_nature: "preservation",
-    underfunding_consequence: "Loss of reliable required transportation",
+    underfunding_consequence: "inconvenience",
     borrowing_likelihood: "unlikely",
     expected_borrowing_amount: null,
     expected_borrowing_apr: null,
