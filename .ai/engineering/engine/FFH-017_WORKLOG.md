@@ -35,4 +35,14 @@ Temporary CI diagnostic changes and the unrelated FFH-013 lifecycle edit were re
 - `npm run build` after isolating the stale local `.next` cache — PASS.
 - `npm run ai:validate-state` — PASS with legacy-task warnings only.
 
-Candidate `31ed0be86fca58938c6a699ae2fccbc76374552d` triggered Foundation CI run `34992242373`, job attempts `104459541271` and `104459794425`. Both failed before checkout with no steps or downloadable job log. The same exact-head run was retried once and reproduced the runner-start failure. This is CI infrastructure evidence rather than a calculation/build failure; exact-head green validation remains blocked.
+Candidate `31ed0be86fca58938c6a699ae2fccbc76374552d` triggered Foundation CI run `34992242373`, job attempts `104459541271` and `104459794425`. Both failed before checkout with no steps or downloadable job log. The same exact-head run was retried once and reproduced the runner-start failure. This was CI infrastructure evidence rather than a calculation/build failure.
+
+## Self-hosted validation recovery
+
+The repository owner configured repository-scoped runner `FFH-Windows-Runner` with labels `self-hosted`, `Windows`, `X64`, and `ffh-local`. Foundation CI now uses that runner at `$0` GitHub-hosted-runner cost. Run steps use `cmd.exe`, preserving the user's existing Windows PowerShell execution-policy settings.
+
+Pre-handoff head `545d3b12710086b0fefb44be9b7823309f30da0e` passed full Foundation CI run `34999388253`, job `104483637634`.
+
+Final handoff commit `c7882907854579488eb82f4d9f18799b51522550` then passed full Foundation CI run `35000961119`, job `104488944773`, including AI-state, dependency audit, calculations, security, typecheck, lint, and build.
+
+The task and task index were subsequently synchronized to `READY_FOR_MANAGER`. This worklog-only commit exists solely to force one exact final-head Foundation CI check after those lifecycle commits; it changes no financial-engine behavior, tests, policy, or allocation logic.
