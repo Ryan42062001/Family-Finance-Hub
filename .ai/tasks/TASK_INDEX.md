@@ -14,7 +14,7 @@ Last refreshed: 2026-09-15
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | READY_FOR_MANAGER | production `1393ea92...`; PR #26; validated pre-handoff head `545d3b12...` | Self-hosted Foundation CI run `34999388253`, job `104483637634` SUCCESS; final documentation-only head awaits exact CI, then Manager acceptance |
+| FFH-017 | Core Engine | VALIDATING | PR #26; production checkpoint not yet accepted | Self-hosted Windows Foundation CI is active at $0 hosted-runner cost; normalize AI-state records, rerun exact head, then Manager acceptance review |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -36,28 +36,25 @@ Last refreshed: 2026-09-15
 - FFH-013 Financial Policy & Scenario Auditor verdict: **PASS**, no findings. Report commit `3e8e87d442b9ff15d6e5ec5c88adb51a4b79cfad`; handoff commit `acb8fbc8add06bcdacb480098455000fa2267dbd`.
 - FFH-013 R01/R02/R03, T1, A01-A05, M01, M02, valid-date P03, multiple-account nonmultiplication, staged Existing Cash/Secure/Build/Windfall conservation, Roth/Traditional separation, SIMPLE/HSA/workplace preservation, and the Financial Engine Reconciliation Gate all clear.
 - FFH-013 protected M01 pin remains `$833.33/month -> $416.67 + $416.66`, `$9,999.96` annual legal consumption, `$0.05` shared annual remainder.
-- FFH-017 is **READY_FOR_MANAGER** on PR #26.
-- Last production-code change: `1393ea928eb5756f16a6af063a68360892200bd6`.
-- Pre-handoff validated head `545d3b12710086b0fefb44be9b7823309f30da0e` passed Foundation CI run `34999388253`, job `104483637634` on repository-scoped `FFH-Windows-Runner`.
-- The self-hosted runner keeps hosted Actions spend at `$0`; workflow run steps use `cmd.exe` so Windows PowerShell execution policy remains unchanged.
-- Final handoff commit: `c7882907854579488eb82f4d9f18799b51522550`.
-- Core/Work Helper is idle pending Manager acceptance; no production rewrite is authorized without a concrete defect.
+- FFH-017 is **VALIDATING** on PR #26. The prior GitHub-hosted runner gate has been replaced with the repository-scoped self-hosted Windows runner `FFH-Windows-Runner` using label `ffh-local`.
+- Self-hosted proof run acquired the runner successfully, completed checkout, Node 22 setup, and `npm ci`. Its next failure was stale FFH_TASK_V1 checkpoint syntax, not an identified financial-engine defect.
+- Manager is normalizing the task records and rerunning exact Foundation CI before acceptance.
+- Worker rescue reports local PASS: calculations 866/866, security 21/21, typecheck, lint, clean-cache build, and AI-state validation before later control-plane changes.
 - FFH-020 remains separately BLOCKED before any live database write.
 - FFH-016 remains blocked behind FFH-020.
 - FFH-018 and FFH-026 remain QUEUED.
 - Phase 5 / PR #5 remains NOT MERGE READY.
 
 ## ACTIVATE NOW
-- Manager acceptance lane — obtain exact Foundation CI on the final documentation-only PR #26 head, verify no production delta after `1393ea92...`, then ACCEPT/integrate/freeze if clean.
+- Manager / Work Helper validation lane — finish self-hosted exact-head Foundation CI for PR #26, then perform Manager acceptance review if green.
 
 ## IDLE / BLOCKED
-- Core Financial Engine Engineer: IDLE pending Manager review.
-- Work Helper / Super Troubleshooter: IDLE pending Manager review.
-- Technical & Mathematical Auditor: IDLE pending a Manager-frozen FFH-017 target.
-- Financial Policy & Scenario Auditor: IDLE pending a Manager-frozen FFH-017 target.
+- Core Financial Engine Engineer: IDLE while Manager validates the existing PR #26 candidate; do not rewrite production code without a real repository failure.
+- Technical & Mathematical Auditor: IDLE after FFH-013 PASS; wait for a Manager-frozen future target.
+- Financial Policy & Scenario Auditor: IDLE after FFH-013 PASS; wait for a Manager-frozen future target.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is exact final-head self-hosted Foundation CI for PR #26, followed by Manager acceptance, integration, and required independent audit. Phase 5 / PR #5 remains NOT MERGE READY until remaining Phase 5 work is accepted.
+Current near-term gate is exact self-hosted Foundation CI for PR #26, followed by Manager review, integration, and required independent audit. Phase 5 / PR #5 remains NOT MERGE READY until remaining Phase 5 work is accepted.
