@@ -1,0 +1,86 @@
+name: FFH-017 Diagnostic Matrix
+
+on:
+  push:
+    branches:
+      - ffh/ffh-017-goal-retirement-competition
+
+jobs:
+  calculation-file:
+    name: calc — ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - lib/calculations/dashboard-insights.test.ts
+          - lib/calculations/debt-payoff.test.ts
+          - lib/calculations/emergency-fund.test.ts
+          - lib/calculations/ffh-006-retirement-statutory-remediation.test.ts
+          - lib/calculations/ffh-012-hsa-legal-capacity.test.ts
+          - lib/calculations/ffh-013-final-audit-remediation-2.test.ts
+          - lib/calculations/ffh-013-final-audit-remediation.test.ts
+          - lib/calculations/ffh-013-m02-equal-compensation-excess.test.ts
+          - lib/calculations/ffh-013-spousal-ira-ledger.test.ts
+          - lib/calculations/ffh-015-simple-core-remediation.test.ts
+          - lib/calculations/ffh-017-goal-retirement-competition.test.ts
+          - lib/calculations/ffh-025-hsa-compound-authority-materiality.test.ts
+          - lib/calculations/ffh-028-hsa-candidate-pair-cardinality.test.ts
+          - lib/calculations/financial-summary.test.ts
+          - lib/calculations/home-affordability.test.ts
+          - lib/calculations/money-priority-advanced-retirement.test.ts
+          - lib/calculations/money-priority-audit.test.ts
+          - lib/calculations/money-priority-build-competition.test.ts
+          - lib/calculations/money-priority-build.test.ts
+          - lib/calculations/money-priority-committed-expenses.test.ts
+          - lib/calculations/money-priority-contribution-period.test.ts
+          - lib/calculations/money-priority-core.test.ts
+          - lib/calculations/money-priority-engine.test.ts
+          - lib/calculations/money-priority-exceptional-reserve.test.ts
+          - lib/calculations/money-priority-existing-cash-full.test.ts
+          - lib/calculations/money-priority-existing-cash.test.ts
+          - lib/calculations/money-priority-final-audit-remediation.test.ts
+          - lib/calculations/money-priority-final-high-remediation.test.ts
+          - lib/calculations/money-priority-fresh-final-remediation.test.ts
+          - lib/calculations/money-priority-goal-intelligence.test.ts
+          - lib/calculations/money-priority-goal-ranking.test.ts
+          - lib/calculations/money-priority-hardening.test.ts
+          - lib/calculations/money-priority-hsa-contract-hypothetical.test.ts
+          - lib/calculations/money-priority-hsa-household-uncertainty.test.ts
+          - lib/calculations/money-priority-hsa-input-contract.test.ts
+          - lib/calculations/money-priority-hybrid-retirement-floor.test.ts
+          - lib/calculations/money-priority-hypothetical.test.ts
+          - lib/calculations/money-priority-married-hsa-remediation.test.ts
+          - lib/calculations/money-priority-optimize-engine.test.ts
+          - lib/calculations/money-priority-optimize.test.ts
+          - lib/calculations/money-priority-recommendation-refresh-adversarial.test.ts
+          - lib/calculations/money-priority-recommendation-refresh.test.ts
+          - lib/calculations/money-priority-residual-needs.test.ts
+          - lib/calculations/money-priority-retirement-accounts.test.ts
+          - lib/calculations/money-priority-retirement-integration.test.ts
+          - lib/calculations/money-priority-retirement-projection.test.ts
+          - lib/calculations/money-priority-secure.test.ts
+          - lib/calculations/money-priority-simple-plan-contract.test.ts
+          - lib/calculations/money-priority-snapshot.test.ts
+          - lib/calculations/money-priority-student-loans.test.ts
+          - lib/calculations/money-priority-user-plan.test.ts
+          - lib/calculations/money-priority-windfall.test.ts
+          - lib/calculations/mortgage-extra-payment.test.ts
+          - lib/calculations/paycheck-planner.test.ts
+          - lib/calculations/phase-5-closure-cash-matching.test.ts
+          - lib/calculations/phase-5-closure-hsa-capacity.test.ts
+          - lib/calculations/phase-5-closure-spousal-ira.test.ts
+          - lib/calculations/phase-5-closure-workplace-limits.test.ts
+          - lib/calculations/retirement-contribution-pacing.test.ts
+          - lib/calculations/savings-goal.test.ts
+          - lib/calculations/vehicle-affordability.test.ts
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: node --experimental-strip-types --test "${{ matrix.test }}"
