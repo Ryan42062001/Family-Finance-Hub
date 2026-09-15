@@ -37,7 +37,7 @@ function workplaceAccount(id = "work", overrides: Record<string, unknown> = {}) 
   return {
     id,
     account_name: id,
-    account_type: "traditional_401k",
+    account_type: "401k",
     owner_person_id: "p1",
     balance: 100000,
     monthly_employee_contribution: 0,
