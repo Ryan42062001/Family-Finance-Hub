@@ -3,6 +3,7 @@ import test from "node:test";
 import { runMoneyPriorityEngine, type MoneyPriorityEngineResult } from "./money-priority-engine.ts";
 import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 
 const AS_OF = "2026-08-30";
 
@@ -30,7 +31,7 @@ function raw(): MoneyPriorityRawSnapshot {
   };
 }
 
-function engine(source = raw(), date = AS_OF): MoneyPriorityEngineResult { return runMoneyPriorityEngine(source, date); }
+function engine(source = raw(), date = AS_OF): MoneyPriorityEngineResult { return runMoneyPriorityEngine(withConfirmedLegacyGoalFacts(source), date); }
 function cloneResult(value: MoneyPriorityEngineResult): MoneyPriorityEngineResult { return structuredClone(value); }
 
 test("false-positive control: small financially relevant cash change is refresh recommended when action is unchanged", () => {

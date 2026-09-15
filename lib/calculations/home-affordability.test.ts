@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 import {
   compareHomePurchaseScenarios,
   evaluateHomeAffordability,
@@ -62,7 +63,7 @@ function scenario(overrides: Partial<HomePurchaseScenario> = {}): HomePurchaseSc
   return { ...base, ...overrides, mortgage: { ...base.mortgage, ...(overrides.mortgage ?? {}) }, closing: { ...base.closing, ...(overrides.closing ?? {}) }, insurance: { ...base.insurance, ...(overrides.insurance ?? {}) }, mortgageInsurance: { ...base.mortgageInsurance, ...(overrides.mortgageInsurance ?? {}) } };
 }
 
-function engine(raw = baseRaw()) { return runMoneyPriorityEngine(raw, AS_OF); }
+function engine(raw = baseRaw()) { return runMoneyPriorityEngine(withConfirmedLegacyGoalFacts(raw), AS_OF); }
 function sale(proceedsState: HomeSaleProceedsState, overrides: Partial<NonNullable<HomePurchaseScenario["homeSale"]>> = {}): NonNullable<HomePurchaseScenario["homeSale"]> {
   return { proceedsState, expectedNetSaleProceeds: 80000, proceedsAlreadyIncludedInSnapshotCash: false, currentHomeMonthlyCarryingCost: 2000, expectedHousingOverlapMonths: 0, ...overrides };
 }

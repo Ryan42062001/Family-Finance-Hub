@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildMoneyPrioritySnapshot, MoneyPrioritySnapshotValidationError, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 import { evaluateUserPlan, deriveRecommendedPlanAllocations } from "./money-priority-user-plan.ts";
 import { evaluateHomeAffordability, type HomePurchaseScenario } from "./home-affordability.ts";
 import { evaluateVehicleAffordability, type VehiclePurchaseScenario } from "./vehicle-affordability.ts";
@@ -40,7 +41,7 @@ function withCommitted(amount = 800): MoneyPriorityRawSnapshot {
 }
 
 function engine(raw = baseRaw()) {
-  return runMoneyPriorityEngine(raw, AS_OF);
+  return runMoneyPriorityEngine(withConfirmedLegacyGoalFacts(raw), AS_OF);
 }
 
 function homeScenario(): HomePurchaseScenario {

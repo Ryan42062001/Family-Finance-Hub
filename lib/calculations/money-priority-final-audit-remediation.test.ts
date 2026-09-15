@@ -367,7 +367,7 @@ test("cross-module retirement ledger preserves reserve, debt, and required-goal 
   useSharedHsaCapacity(raw, 1200, 125);
   addDeployableCash(raw, 5000);
   raw.debts = [{ id: "card", name: "Card", debt_type: "credit_card", current_balance: 500, minimum_payment: 0, interest_rate: 20 }];
-  raw.goals = [{ id: "required", name: "Required repair", target_amount: 600, current_amount: 0, target_date: "2026-10-01", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" }];
+  raw.goals = [{ id: "required", name: "Required repair", target_amount: 600, current_amount: 0, target_date: "2026-10-01", priority: 1, goal_class: "necessary_protective", necessity: "required", deadline_flexibility: "fixed", consequence_level: "high", goal_intelligence_confirmed: true, core_need_amount: 600, planned_monthly_contribution: 0, underlying_need: "Required home repair", desired_solution: "Complete required repair", goal_nature: "preservation", underfunding_consequence: "other_material", borrowing_likelihood: "unlikely", expected_borrowing_amount: null, expected_borrowing_apr: null }];
   const result = runMoneyPriorityEngine(raw, "2026-09-01");
   const claims = retirementClaims(result);
   assert.ok(claims.total <= 1200);

@@ -8,6 +8,7 @@ import {
 } from "./money-priority-build.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 
 type RawGoal = NonNullable<MoneyPriorityRawSnapshot["goals"]>[number];
 
@@ -28,7 +29,7 @@ function goal(id: string, overrides: Partial<RawGoal> = {}): RawGoal {
 }
 
 function raw(goals: RawGoal[], gross: number | null = null): MoneyPriorityRawSnapshot {
-  return {
+  return withConfirmedLegacyGoalFacts({
     householdId: "h",
     people: [{ id: "p", display_name: "Adult", relationship: "self", estimated_taxable_compensation_annual: 100000, is_active: true, is_dependent: false }],
     income: [{ id: "i", owner_person_id: "p", monthly_amount: 5000, monthly_gross_amount: gross, is_active: true }],
@@ -39,7 +40,7 @@ function raw(goals: RawGoal[], gross: number | null = null): MoneyPriorityRawSna
       plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
     }], goals,
     insuranceExposures: [], preferences: null,
-  };
+  });
 }
 
 function rank(overrides: Partial<RawGoal>) {

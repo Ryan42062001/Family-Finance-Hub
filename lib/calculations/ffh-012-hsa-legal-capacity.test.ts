@@ -217,7 +217,7 @@ test("Build aggregate monthly retirement allocation exactly equals routed accoun
   );
   assert.equal(aggregate, 729.16);
   assert.equal(routed, 729.16);
-  assert.equal(result.build.unresolvedRetirementMonthlyAmount, 470.84);
+  assert.equal(result.build.unresolvedRetirementMonthlyAmount, 770.84);
 });
 
 test("confirmed non-spouse partners are evaluated independently", () => {

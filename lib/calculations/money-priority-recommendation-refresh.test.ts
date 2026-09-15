@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 import { assessRecommendationRefresh } from "./money-priority-recommendation-refresh.ts";
 
 function raw(): MoneyPriorityRawSnapshot {
@@ -16,7 +17,7 @@ function raw(): MoneyPriorityRawSnapshot {
   };
 }
 
-function engine(source = raw(), date = "2026-08-30") { return runMoneyPriorityEngine(source, date); }
+function engine(source = raw(), date = "2026-08-30") { return runMoneyPriorityEngine(withConfirmedLegacyGoalFacts(source), date); }
 
 test("identical authoritative basis is current and deterministic", () => {
   const a = engine(); const first = assessRecommendationRefresh(a, a); const second = assessRecommendationRefresh(a, a);
