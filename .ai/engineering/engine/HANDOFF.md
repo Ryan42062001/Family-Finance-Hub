@@ -2,112 +2,99 @@
 
 HANDOFF
 
-Task ID: FFH-013 — Spousal-IRA Shared Compensation Ledger
-Role: Core Financial Engine Engineer
+Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
+Role: Core Financial Engine Engineer / Work Helper rescue within approved Core scope
 Worker status: READY_FOR_MANAGER
-Task state retained: REMEDIATION
-Execution mode: STANDARD_CHAT
+Task state: READY_FOR_MANAGER
 Approved integration base: `phase-5-money-priority-engine`
-Branch: `ffh/ffh-013-final-audit-remediation-2`
-Pull request: #25 — draft, open, unmerged at worker handoff
-PRODUCTION_SHA: `8d9cbc62e47c651ad8e6564f325c20ffd67a439b`
-PRODUCTION_CI: Foundation CI #546 — run `34911857129`, job `104200881078` — SUCCESS
-HANDOFF_SHA: this documentation-only worker handoff commit; its exact immutable SHA is reported to Manager after the commit exists and therefore is not self-referenced inside this file
+Branch: `ffh/ffh-017-goal-retirement-competition`
+Pull request: #26 — draft, open, unmerged
+PRODUCTION_SHA: `1393ea928eb5756f16a6af063a68360892200bd6`
+VALIDATED_CI: Foundation CI run `34999388253`, job `104483637634` — SUCCESS on repository-scoped self-hosted `FFH-Windows-Runner`
+HANDOFF_SHA: This documentation commit; exact SHA is the commit containing this handoff
+INTEGRATION_SHA: Not yet established
 MANAGER_VERDICT: PENDING
 AUDIT_STATUS: NOT_READY
 
-## Scope completed
+## Implementation architecture
 
-This worker remediated only the three Manager-reconciled blockers from the fresh dual re-audit of frozen target `115f947e28cfae831a550f239c58dd0b59ca5798`: R01, R02, and R03/P03. No new IRA tax policy, correction mechanics, HSA/SIMPLE redesign, Supabase/live-data work, unrelated retirement refactor, merge, acceptance, closure, audit routing, or FFH-017 activation was performed.
+FFH-017 implements the accepted FFH-D004 recurring Build competition between actionable remaining goal-core need and additional retirement opportunity above the protected Phase 5A retirement floor.
 
-## R01 — missing aggregate spouse IRA YTD
+Authoritative competition/allocation logic lives in `lib/calculations/money-priority-build-competition.ts`. `lib/calculations/money-priority-build.ts` consumes that result and the closed FFH-013 retirement-capacity ledger; there is no separately invented planner arithmetic for the same contested capacity.
 
-Root cause: a spouse's missing authoritative aggregate Traditional + Roth IRA YTD could be materially relevant to the MFJ post-YTD shared compensation feasible set. Missing/absent account evidence therefore could not be allowed to behave as a known zero when that uncertainty could alter definite new-room exposure.
+The authoritative routing unit is recurring **monthly cents**.
 
-Remediation:
-- aggregate Traditional + Roth IRA YTD preserves `null` if any authoritative component is unknown;
-- absence of a recorded IRA account is not proof of zero aggregate YTD where shared compensation can bind;
-- when the missing spouse YTD can affect the shared feasible set, both affected owner opportunities are fail-closed for definite new room and receive targeted `more_information_needed` evidence;
-- known-zero remains distinct from unknown;
-- owner-local behavior is preserved when the missing spouse fact cannot affect the other owner's legal room;
-- no correction amount or tax-correction mechanics were invented.
+## Disposition mapping
 
-Direct regressions cover the `$10,000/$5,000` adversary with unknown, known-zero, and `$8,000` spouse YTD; reversed spouse roles; person/account ordering; multiple Traditional/Roth records; absent recorded IRA account; and equal/non-scarce owner-local cases.
+- `OUTRANKS`: qualifying goal-core tranche is funded before additional retirement.
+- `CO_PRIORITY`: goal and additional retirement share scarce recurring capacity by deterministic common fulfillment ratio with exact-cent reconciliation.
+- `BELOW`: additional retirement is routed before the lower-priority goal tranche; `BELOW` does not consume the goal-competition capacity ahead of retirement.
+- `MORE_INFORMATION_NEEDED`: contested allocation remains zero/fail-closed when material facts are missing.
 
-## R02 — one current-year contribution-period authority
+## Reconciliation / deterministic allocation
 
-Root cause: the first R02 remediation centralized the Secure path, but the final source-authority regression exposed two additional materially equivalent current-year remaining-month implementations in `money-priority-engine.ts` and `money-priority-user-plan.ts`.
+- Aggregate recurring allocation equals the sum of concrete destination allocations in monthly cents.
+- Co-priority allocation uses exact integer-cent arithmetic and common fulfillment.
+- Stable identity is used only for an unavoidable final-cent remainder after financial equivalence is established.
+- No epsilon/tolerance reconciliation waiver is used.
+- No hidden positive residual clamp or silent over-route is used.
+- Existing Cash -> Secure -> Build -> Windfall capacity conservation remains intact.
 
-Remediation:
-- neutral authority remains `lib/calculations/money-priority-contribution-period.ts` / `remainingContributionMonths(asOfDate, taxYear)`;
-- `money-priority-secure.ts`, `money-priority-engine.ts`, and `money-priority-user-plan.ts` delegate to that helper where current-year remaining contribution months are required;
-- prior retirement-account/floor consumers remain on the same neutral authority;
-- duplicate local Date/month implementations were removed;
-- the neutral helper has no dependency back into those consumers, so the centralization does not introduce a circular dependency;
-- accepted full-year reporting semantics remain separate and unchanged.
+## Protected semantics
 
-The decisive final R02 failure was the source guard identifying `money-priority-engine.ts` and `money-priority-user-plan.ts`; after both were centralized, the exact production candidate passed the complete Foundation workflow.
+- Protected retirement floor is funded/handled before the FFH-017 competition and ordinary goals cannot raid it.
+- Goal desired/excess funding is not elevated into actionable goal-core need.
+- Factual YTD, future schedules/reservations, statutory/legal room, recommendations, and execution facts remain distinct.
+- Closed FFH-013 retirement-capacity ledgers are reused rather than recreated.
+- Multiple retirement accounts do not multiply owner/shared capacity.
+- Roth eligibility, Traditional deductibility, SIMPLE, HSA, and unrelated workplace-retirement behavior remain preserved.
 
-## R03 / P03 — strict calendar-date validation
+FFH-013 M01 remains exact:
+- shared annual room `$10,000.01`;
+- owner conditional room `$7,500` each;
+- Build authority `$833.33/month`;
+- routes `$416.67 + $416.66`;
+- annual legal consumption `$9,999.96`;
+- shared annual remainder `$0.05`.
 
-Root cause: JavaScript Date normalization can transform impossible ISO-looking dates into a later valid date, producing an incorrect shorter remaining-period horizon.
+## Rescue / final validation history
 
-Remediation:
-- the shared helper parses strict `YYYY-MM-DD` components;
-- validates tax year, month, day, leap-year rules, and month-specific day counts before computing the inclusive remaining-month result;
-- absent, unparsable, calendar-invalid, or wrong-tax-year input returns the accepted 12-month fallback;
-- valid January/September/December and leap-day behavior remains intact.
+The Work rescue corrected stale/incomplete integration-test fixtures and a narrow `BELOW` type/semantic integration issue without broadening accepted policy. Later infrastructure work moved Foundation CI from exhausted GitHub-hosted Linux minutes to the repository-scoped Windows self-hosted runner at `$0` hosted-runner cost.
 
-Direct boundaries include `2026-09-31`, `2026-02-30`, non-leap `2026-02-29`, valid `2024-02-29`, unparsable input, wrong tax year, `2026-09-01 -> 4`, and `2026-12-01 -> 1`.
+The self-hosted workflow uses labels `[self-hosted, Windows, X64, ffh-local]` and `cmd.exe` for run steps so Windows PowerShell execution policy is not weakened.
 
-## Protected behavior / reconciliation proof
+Final exact-head pre-handoff validation at `545d3b12710086b0fefb44be9b7823309f30da0e`:
+- Foundation CI run `34999388253`, job `104483637634` — SUCCESS;
+- dependency install — PASS;
+- `npm run ai:validate-state` — PASS;
+- dependency audit — PASS;
+- calculation tests — PASS;
+- security policy contract — PASS;
+- typecheck — PASS;
+- lint — PASS;
+- build — PASS.
 
-The complete green calculation suite preserves the previously cleared FFH-013 behavior, including:
-- T1 non-scarce `$100,000/$50,000`, YTD `$8,000/$0` => owner room `$0/$7,500`, owner-local warning, no false zero MFJ group;
-- A01 tied annual `$15,000` demand against `$10,000.01` shared room => `$5,000.01 + $5,000.00`;
-- A02 reservation-vs-YTD separation and staged legal-capacity reuse prevention;
-- A03 no phantom spouse capacity for `$10,000/$5,000`, YTD `$8,000/$0`;
-- A04 `$4,000/$2,000`, YTD `$5,000/$0` remains fail-closed for the affected shared group without invented correction mechanics;
-- A05 spouse conditional maxima remain explicitly non-additive;
-- M01 shared room `$10,000.01`, owner conditional room `$7,500` each, Build authority `$833.33/month`, routing `$416.67 + $416.66`, annual legal consumption `$9,999.96`, shared remainder `$0.05`, with no epsilon/tolerance or hidden positive-residual clamp;
-- M02 equal compensation `$10,000/$10,000`, YTD `$8,000/$0` => `$0/$7,500`, owner-local warning, no shared group solely from owner excess;
-- P03 supported September/December scheduling and one-time reservation consumption;
-- multiple-account nonmultiplication; Roth eligibility vs Traditional deductibility separation; SIMPLE, HSA, workplace retirement, Existing Cash, Secure, Build, and Windfall conservation.
+Local rescue validation also recorded:
+- calculations: 866/866 PASS;
+- security: 21/21 PASS;
+- typecheck PASS;
+- lint PASS with zero errors;
+- clean-cache build PASS.
 
-The Financial Engine Reconciliation Gate is re-established for the worker candidate: no definite allocatable legal room is initialized from missing material facts; annual/monthly cents reconcile; reservations are consumed once; owner/shared capacity is conserved; and no epsilon/tolerance waiver was introduced.
+## Production checkpoint boundary
 
-## Changed implementation/test surfaces
+`1393ea928eb5756f16a6af063a68360892200bd6` is the last FFH-017 production-code change. The later commits through green head `545d3b12710086b0fefb44be9b7823309f30da0e` change tests/fixtures, workflow infrastructure, and AI control-plane/handoff records only; they do not alter production financial-engine files.
 
-The bounded remediation touches these financial-engine surfaces:
-1. `lib/calculations/money-priority-contribution-period.ts`
-2. `lib/calculations/money-priority-secure.ts`
-3. `lib/calculations/money-priority-retirement-accounts.ts`
-4. `lib/calculations/money-priority-engine.ts`
-5. `lib/calculations/money-priority-user-plan.ts`
-6. `lib/calculations/ffh-013-final-audit-remediation-2.test.ts`
+## Scope / changed production files
 
-Task/handoff metadata are documentation-only after `PRODUCTION_SHA`.
+Production FFH-017 scope is bounded to:
+- `lib/calculations/money-priority-build-competition.ts`
+- `lib/calculations/money-priority-build.ts`
 
-## Exact production validation
+The remainder of PR #26 is direct/regression tests, fixture compatibility, AI workflow/handoff/task metadata, and the self-hosted CI routing change.
 
-Foundation CI #546 on `PRODUCTION_SHA` `8d9cbc62e47c651ad8e6564f325c20ffd67a439b`:
-- run `34911857129`
-- job `104200881078`
-- AI state validation — PASS
-- dependency audit — PASS
-- full calculation suite — PASS
-- security contract — PASS
-- typecheck — PASS
-- lint — PASS
-- build — PASS
-- overall job conclusion — SUCCESS
+## Remaining blocker
 
-No test-count claim is made here because the connector did not expose a reliable raw count; the authoritative workflow job shows every required step green.
+NONE for worker completion. Manager retains acceptance, merge/integration, frozen audit target creation, independent auditor activation, and task closure.
 
-## Worker blockers
-
-None. Production remediation is complete and fully green. The remaining lifecycle actions belong to Manager and the required independent auditors.
-
-## Manager next action
-
-Manager should independently verify PR #25, the exact `PRODUCTION_SHA`/`HANDOFF_SHA` boundary, confirm changes after `PRODUCTION_SHA` are documentation-only, verify final-head Foundation CI, and then decide acceptance/integration. Only after a Manager-accepted integration target exists should Manager freeze that exact SHA and route fresh independent Technical & Mathematical and Financial Policy & Scenario re-audits. FFH-017 remains blocked until Manager closes FFH-013.
+READY_FOR_MANAGER

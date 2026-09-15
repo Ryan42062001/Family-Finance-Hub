@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import type { MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 import {
   buildPlanAllocationId,
   deriveRecommendedPlanAllocations,
@@ -62,7 +63,7 @@ function baseRaw(): MoneyPriorityRawSnapshot {
 }
 
 function engine(raw = baseRaw()) {
-  return runMoneyPriorityEngine(raw, AS_OF);
+  return runMoneyPriorityEngine(withConfirmedLegacyGoalFacts(raw), AS_OF);
 }
 
 function findAllocation(

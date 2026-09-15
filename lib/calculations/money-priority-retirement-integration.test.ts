@@ -44,7 +44,8 @@ test("complete projection becomes primary even when the generic 12% benchmark is
   assert.equal(result.build.retirement.state, "projection_on_track");
   assert.ok(result.build.retirement.healthyBenchmarkMonthlyGap > 0);
   assert.equal(result.build.retirement.recommendedMonthlyIncrease, 0);
-  assert.equal(result.build.allocations.some((item) => item.category === "retirement"), false);
+  assert.ok((result.build.competition.additionalRetirementRequestedMonthly ?? 0) > 0);
+  assert.ok((result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount ?? 0) > 0);
   assert.ok(result.recommendations.some((item) => item.id === "build-retirement-projection"));
 });
 
@@ -60,10 +61,13 @@ test("projection shortfall drives the retirement increase instead of the benchma
   assert.equal(result.build.retirement.guidanceMode, "projection");
   assert.equal(result.build.retirement.state, "projection_shortfall");
   assert.ok(result.build.retirement.recommendedMonthlyIncrease > 0);
+  const retirementRequest = result.build.allocations.find((item) => item.category === "retirement")?.requestedMonthlyAmount ?? 0;
   assert.equal(
-    result.build.allocations.find((item) => item.category === "retirement")?.requestedMonthlyAmount,
-    result.build.retirement.recommendedMonthlyIncrease,
+    retirementRequest,
+    (result.build.protectedRetirementFloorRequestedMonthly ?? 0)
+      + (result.build.competition.additionalRetirementRequestedMonthly ?? 0),
   );
+  assert.ok(retirementRequest >= result.build.retirement.recommendedMonthlyIncrease);
   const retirementAllocation = result.build.allocations.find((item) => item.category === "retirement")?.allocatedMonthlyAmount ?? 0;
   const routed = result.build.retirementAccountAllocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount, 0);
   assert.equal(Math.round(routed * 100), Math.round(retirementAllocation * 100));

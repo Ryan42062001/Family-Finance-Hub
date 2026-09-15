@@ -101,6 +101,7 @@ test("employer match remains a recurring payroll need after one-time cash planni
 
 test("one-time goal funding reduces the corresponding recurring Build need", () => {
   const raw = baseRaw();
+  raw.people![0]!.estimated_taxable_compensation_annual = 84000;
   raw.income = [{
     id: "i1",
     owner_person_id: "p1",
@@ -114,6 +115,26 @@ test("one-time goal funding reduces the corresponding recurring Build need", () 
     { id: "cash", name: "Extra cash", account_type: "savings", balance: 10000, cash_purpose: "unallocated" },
     { id: "ef", name: "Emergency", account_type: "savings", balance: 7500, cash_purpose: "protected_reserve" },
   ];
+  raw.retirementAccounts = [{
+    id: "r1",
+    owner_person_id: "p1",
+    name: "401(k)",
+    account_type: "401k",
+    balance: 2000000,
+    monthly_employee_contribution: 840,
+    monthly_employer_contribution: 0,
+    employee_contributed_ytd: 24500,
+    employer_contributed_ytd: 0,
+    plan_eligible_compensation_annual: 84000,
+    match_status: "fully_captured",
+  }];
+  raw.preferences = {
+    ...raw.preferences,
+    desired_retirement_monthly_spending: 1000,
+    retirement_spending_basis: "today_dollars",
+    planning_social_security_monthly: 0,
+    planning_pension_monthly: 0,
+  };
   raw.goals = [{
     id: "car",
     name: "Required Car",
@@ -125,6 +146,16 @@ test("one-time goal funding reduces the corresponding recurring Build need", () 
     necessity: "required",
     deadline_flexibility: "fixed",
     consequence_level: "high",
+    planned_monthly_contribution: 0,
+    core_need_amount: 12000,
+    goal_intelligence_confirmed: true,
+    underlying_need: "Reliable transportation for required household travel",
+    desired_solution: "Required replacement car",
+    goal_nature: "preservation",
+    underfunding_consequence: "inconvenience",
+    borrowing_likelihood: "unlikely",
+    expected_borrowing_amount: null,
+    expected_borrowing_apr: null,
   }];
 
   const result = runMoneyPriorityEngine(raw, "2026-08-29");

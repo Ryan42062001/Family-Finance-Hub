@@ -8,6 +8,7 @@ import {
 } from "./money-priority-build.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { buildMoneyPrioritySnapshot, type MoneyPriorityRawSnapshot } from "./money-priority-snapshot.ts";
+import { withConfirmedLegacyGoalFacts } from "./legacy-goal-test-fixtures.ts";
 
 type RawGoal = NonNullable<MoneyPriorityRawSnapshot["goals"]>[number];
 
@@ -28,18 +29,18 @@ function goal(id: string, overrides: Partial<RawGoal> = {}): RawGoal {
 }
 
 function raw(goals: RawGoal[], gross: number | null = null): MoneyPriorityRawSnapshot {
-  return {
+  return withConfirmedLegacyGoalFacts({
     householdId: "h",
-    people: [{ id: "p", display_name: "Adult", relationship: "self", estimated_taxable_compensation_annual: 100000, is_active: true, is_dependent: false }],
-    income: [{ id: "i", owner_person_id: "p", monthly_amount: 5000, monthly_gross_amount: gross, is_active: true }],
+    people: [{ id: "p", display_name: "Adult", relationship: "self", birth_date: "1990-01-01", planned_retirement_age: 65, estimated_taxable_compensation_annual: 100000, is_active: true, is_dependent: false }],
+    income: [{ id: "i", owner_person_id: "p", monthly_amount: 5000, monthly_gross_amount: gross ?? 5000, is_active: true }],
     expenses: [], accounts: [], debts: [], retirementAccounts: [{
-      id: "retirement", owner_person_id: "p", name: "401(k)", account_type: "401k", balance: 0,
-      monthly_employee_contribution: 0, monthly_employer_contribution: 0,
-      employee_contributed_ytd: 0, employer_contributed_ytd: 0,
+      id: "retirement", owner_person_id: "p", name: "401(k)", account_type: "401k", balance: 1000000,
+      monthly_employee_contribution: (gross ?? 5000) * 0.15, monthly_employer_contribution: 0,
+      employee_contributed_ytd: gross === null ? 21500 : 0, employer_contributed_ytd: 0,
       plan_eligible_compensation_annual: 100000, match_status: "fully_captured",
     }], goals,
-    insuranceExposures: [], preferences: null,
-  };
+    insuranceExposures: [], preferences: { desired_retirement_monthly_spending: 1000, retirement_spending_basis: "today_dollars", planning_social_security_monthly: 1000, planning_pension_monthly: 0 },
+  });
 }
 
 function rank(overrides: Partial<RawGoal>) {
@@ -118,10 +119,10 @@ test("protected pass covers multiple qualifying goals before any top-up", () => 
   ]));
   const result = evaluateBuildStage(snapshot, "2026-08-30", undefined, 700);
   const byId = new Map(result.allocations.map((item) => [item.relatedEntityId, item]));
-  assert.equal(byId.get("a")?.allocatedMonthlyAmount, 450);
-  assert.equal(byId.get("b")?.allocatedMonthlyAmount, 250);
-  assert.equal(byId.get("a")?.protectedAllocatedMonthlyAmount, 450);
-  assert.equal(byId.get("b")?.protectedAllocatedMonthlyAmount, 250);
+  assert.equal(byId.get("a")?.allocatedMonthlyAmount, 600);
+  assert.equal(byId.get("b")?.allocatedMonthlyAmount, 100);
+  assert.equal(byId.get("a")?.competitionDisposition, "CO_PRIORITY");
+  assert.equal(byId.get("b")?.competitionDisposition, "BELOW");
 });
 
 test("insufficient protected capacity follows rank order without pro-rata allocation", () => {
@@ -131,13 +132,13 @@ test("insufficient protected capacity follows rank order without pro-rata alloca
   ]));
   const result = evaluateBuildStage(snapshot, "2026-08-30", undefined, 500);
   const byId = new Map(result.allocations.map((item) => [item.relatedEntityId, item]));
-  assert.equal(byId.get("a")?.allocatedMonthlyAmount, 450);
-  assert.equal(byId.get("b")?.allocatedMonthlyAmount, 50);
+  assert.equal(byId.get("a")?.allocatedMonthlyAmount, 500);
+  assert.equal(byId.get("b")?.allocatedMonthlyAmount, 0);
 });
 
 test("required goal reaches full legitimate pace before additional retirement", () => {
   const snapshot = buildMoneyPrioritySnapshot(raw([
-    goal("required", { target_amount: 7200, necessity: "required", deadline_flexibility: "flexible" }),
+    goal("required", { target_amount: 7200, necessity: "required", deadline_flexibility: "fixed", consequence_level: "high" }),
   ], 10000));
   const result = evaluateBuildStage(snapshot, "2026-08-30", undefined, 700);
   const required = result.allocations.find((item) => item.relatedEntityId === "required");
@@ -153,9 +154,9 @@ test("protected important funding precedes retirement, while retirement precedes
   const result = evaluateBuildStage(snapshot, "2026-08-30", undefined, 700);
   const important = result.allocations.find((item) => item.relatedEntityId === "important");
   const retirement = result.allocations.find((item) => item.category === "retirement");
-  assert.equal(important?.protectedAllocatedMonthlyAmount, 250);
-  assert.equal(important?.allocatedMonthlyAmount, 250);
-  assert.equal(retirement?.allocatedMonthlyAmount, 450);
+  assert.equal(important?.competitionDisposition, "BELOW");
+  assert.equal(important?.allocatedMonthlyAmount, 0);
+  assert.equal(retirement?.allocatedMonthlyAmount, 700);
 });
 
 test("additional retirement beats ordinary optional goal funding", () => {
@@ -167,7 +168,7 @@ test("additional retirement beats ordinary optional goal funding", () => {
   assert.equal(result.allocations.find((item) => item.relatedEntityId === "optional")?.allocatedMonthlyAmount, 0);
 });
 
-test("missing and invalid dates invent no pace and do not block valid goals", () => {
+test("missing and invalid dates invent no pace and fail closed for shared recurring competition", () => {
   const result = evaluateBuildStage(buildMoneyPrioritySnapshot(raw([
     goal("missing", { target_date: null }),
     goal("invalid", { target_date: "2027-02-30" }),
@@ -175,7 +176,9 @@ test("missing and invalid dates invent no pace and do not block valid goals", ()
   ])), "2026-08-30", undefined, 100);
   assert.equal(result.goals.find((item) => item.goalId === "missing")?.requiredMonthlyPace, null);
   assert.equal(result.goals.find((item) => item.goalId === "invalid")?.requiredMonthlyPace, null);
-  assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 100);
+  assert.equal(result.competition.state, "more_information_needed");
+  assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 0);
+  assert.equal(result.remainingMonthlyCapacity, 100);
 });
 
 test("fully funded goals consume no recurring capacity", () => {
