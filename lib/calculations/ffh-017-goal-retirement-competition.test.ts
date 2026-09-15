@@ -56,14 +56,21 @@ function raw(goals: Record<string, unknown>[], overrides: Partial<MoneyPriorityR
   return {
     householdId: "h",
     people: [{
-      id: "p1", display_name: "Person", is_active: true, is_dependent: false,
+      id: "p1", display_name: "Person", relationship: "self", is_active: true, is_dependent: false,
       birth_date: "1990-01-01", annual_compensation: 120000,
+      estimated_taxable_compensation_annual: 120000,
       planned_retirement_age: 67,
     }],
     income: [{ id: "income", name: "Income", monthly_amount: 9000, monthly_gross_amount: 10000, is_variable: false, is_active: true }],
     expenses: [{ id: "expense", name: "Required", category: "housing", monthly_amount: 6500, is_essential: true, cash_flow_treatment: "required" }],
     accounts: [], debts: [], retirementAccounts: [workplaceAccount()], goals,
-    insuranceExposures: [], preferences: {},
+    insuranceExposures: [],
+    preferences: {
+      desired_retirement_monthly_spending: 1000,
+      retirement_spending_basis: "today_dollars",
+      planning_social_security_monthly: 0,
+      planning_pension_monthly: 0,
+    },
     ...overrides,
   };
 }
@@ -112,6 +119,18 @@ test("FFH-017 missing goal facts do not manufacture a definite allocation", () =
   const goal = result.competition.goals.find((item) => item.goalId === "unknown")!;
   assert.equal(goal.disposition, "MORE_INFORMATION_NEEDED");
   assert.equal(goal.allocatedMonthlyAmount, 0);
+});
+
+test("FFH-017 missing retirement facts do not manufacture a definite contested allocation", () => {
+  const result = build([confirmedGoal("known-goal", {
+    necessity: "required",
+    deadline_flexibility: "fixed",
+    consequence_level: "high",
+  })], { preferences: {} }, 1000);
+  assert.equal(result.competition.state, "more_information_needed");
+  assert.equal(result.competition.additionalRetirementAllocatedMonthly, 0);
+  assert.equal(result.competition.goals[0]?.allocatedMonthlyAmount, 0);
+  assert.equal(result.totalAllocatedMonthly, result.protectedRetirementFloorAllocatedMonthly);
 });
 
 test("FFH-017 goal input order does not change Build allocations", () => {
