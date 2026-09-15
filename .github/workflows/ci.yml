@@ -30,6 +30,18 @@ jobs:
         run: node --experimental-strip-types --test lib/calculations/ffh-017-goal-retirement-competition.test.ts
       - name: Diagnose legacy Build calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-build.test.ts
+      - name: Diagnose residual retirement catch-up
+        run: node --experimental-strip-types --test --test-name-pattern="retirement catch-up" lib/calculations/money-priority-residual-needs.test.ts
+      - name: Diagnose residual goal funding
+        run: node --experimental-strip-types --test --test-name-pattern="goal funding" lib/calculations/money-priority-residual-needs.test.ts
+      - name: Diagnose residual reserve deployment
+        run: node --experimental-strip-types --test --test-name-pattern="reserve deployment" lib/calculations/money-priority-residual-needs.test.ts
+      - name: Diagnose residual employer match
+        run: node --experimental-strip-types --test --test-name-pattern="employer match" lib/calculations/money-priority-residual-needs.test.ts
+      - name: Diagnose residual debt payoff
+        run: node --experimental-strip-types --test --test-name-pattern="debt payoff" lib/calculations/money-priority-residual-needs.test.ts
+      - name: Diagnose residual capacity invariant
+        run: node --experimental-strip-types --test --test-name-pattern="cross-stage monthly-capacity invariant" lib/calculations/money-priority-residual-needs.test.ts
       - name: Diagnose FFH-017 residual-needs regression
         run: node --experimental-strip-types --test lib/calculations/money-priority-residual-needs.test.ts
       - name: Diagnose engine deterministic
