@@ -180,7 +180,7 @@ test("never allocates more than available monthly capacity", () => {
   assert.ok(result.allocations.every((allocation) => allocation.allocatedMonthlyAmount === 0));
 });
 
-test("missing gross income blocks only the retirement benchmark calculation", () => {
+test("missing gross income fails closed when retirement facts are material to recurring competition", () => {
   const snapshot = makeSnapshot({
     income: [
       {
@@ -208,12 +208,14 @@ test("missing gross income blocks only the retirement benchmark calculation", ()
   });
 
   const result = evaluateBuildStage(snapshot, "2026-08-29");
+  const goalAllocation = result.allocations.find((allocation) => allocation.relatedEntityId === "goal-car");
 
   assert.equal(result.retirement.state, "more_information_needed");
   assert.equal(result.retirement.healthyBenchmarkMonthlyGap, 0);
   assert.equal(result.goals[0]?.requiredMonthlyPace, 500);
-  assert.equal(result.allocations[0]?.relatedEntityId, "goal-car");
-  assert.equal(result.allocations[0]?.allocatedMonthlyAmount, 500);
+  assert.equal(result.competition.state, "more_information_needed");
+  assert.equal(goalAllocation?.allocatedMonthlyAmount, 0);
+  assert.equal(result.totalAllocatedMonthly, 0);
   assert.ok(result.warnings.some((warning) => warning.includes("gross-income")));
 });
 
