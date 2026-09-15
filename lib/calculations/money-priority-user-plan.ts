@@ -1,6 +1,7 @@
 import type { MoneyPriorityEngineResult, MoneyPriorityRecommendation } from "./money-priority-engine.ts";
 import type { MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { projectRetirement, type RetirementProjectionResult } from "./money-priority-retirement-projection.ts";
+import { remainingContributionMonths } from "./money-priority-contribution-period.ts";
 import {
   consumeRetirementCapacity,
   createRetirementCapacityLedger,
@@ -284,12 +285,6 @@ type RetirementRoomAnalysis = {
   capacityKnown: boolean;
   missingData: string[];
 };
-
-function remainingContributionMonths(asOfDate: string, taxYear: number): number {
-  const date = new Date(`${asOfDate}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
-  return 12 - date.getUTCMonth();
-}
 
 function retirementRoomAnalysis(
   engine: MoneyPriorityEngineResult,
