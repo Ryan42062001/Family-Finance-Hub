@@ -35,5 +35,4 @@ Temporary CI diagnostic changes and the unrelated FFH-013 lifecycle edit were re
 - `npm run build` after isolating the stale local `.next` cache — PASS.
 - `npm run ai:validate-state` — PASS with legacy-task warnings only.
 
-Exact candidate CI is pending publication of the rescue commit.
-
+Candidate `31ed0be86fca58938c6a699ae2fccbc76374552d` triggered Foundation CI run `34992242373`, job attempts `104459541271` and `104459794425`. Both failed before checkout with no steps or downloadable job log. The same exact-head run was retried once and reproduced the runner-start failure. This is CI infrastructure evidence rather than a calculation/build failure; exact-head green validation remains blocked.
