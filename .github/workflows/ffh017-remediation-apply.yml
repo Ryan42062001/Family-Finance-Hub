@@ -34,6 +34,7 @@ jobs:
         run: npm run typecheck
       - name: Commit bounded remediation
         run: |
+          git config --global --add safe.directory "%GITHUB_WORKSPACE%"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
