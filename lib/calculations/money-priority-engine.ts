@@ -8,6 +8,7 @@ import { buildResidualNeedsSnapshot, deriveResidualNeedsContext, type ResidualNe
 import { MONEY_PRIORITY_POLICY_V1, type MoneyPriorityPolicy } from "./money-priority-policy.ts";
 import { MONEY_PRIORITY_PLANNING_ASSUMPTIONS_V1 } from "./money-priority-planning-assumptions.ts";
 import { evaluateRetirementAccountOpportunities } from "./money-priority-retirement-accounts.ts";
+import { remainingContributionMonths } from "./money-priority-contribution-period.ts";
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
@@ -87,12 +88,6 @@ type SecureAllocationPlan = {
   protectedMonthlyNeed: number;
   hasUnfundedPriority: boolean;
 };
-
-function remainingContributionMonths(asOfDate: string, taxYear: number): number {
-  const date = new Date(`${asOfDate}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() !== taxYear) return 12;
-  return 12 - date.getUTCMonth();
-}
 
 function allocateSecureRecommendations(
   secure: SecureStageResult,
