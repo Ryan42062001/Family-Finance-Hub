@@ -30,6 +30,8 @@ jobs:
         run: node --experimental-strip-types --test lib/calculations/ffh-017-goal-retirement-competition.test.ts
       - name: Diagnose legacy Build calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-build.test.ts
+      - name: Diagnose FFH-017 residual-needs regression
+        run: node --experimental-strip-types --test lib/calculations/money-priority-residual-needs.test.ts
       - name: Diagnose engine deterministic
         run: node --experimental-strip-types --test --test-name-pattern="deterministic" lib/calculations/money-priority-engine.test.ts
       - name: Diagnose engine secure-before-build
