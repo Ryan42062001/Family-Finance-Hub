@@ -7,7 +7,16 @@ function baseRaw(): MoneyPriorityRawSnapshot {
   return {
     householdId: "household-1",
     people: [
-      { id: "person-1", display_name: "Alex", relationship: "self", is_active: true, is_dependent: false },
+      {
+        id: "person-1",
+        display_name: "Alex",
+        relationship: "self",
+        birth_date: "1990-01-01",
+        planned_retirement_age: 67,
+        estimated_taxable_compensation_annual: 90000,
+        is_active: true,
+        is_dependent: false,
+      },
     ],
     income: [
       {
@@ -47,6 +56,13 @@ function baseRaw(): MoneyPriorityRawSnapshot {
         balance: 10000,
         monthly_employee_contribution: 300,
         monthly_employer_contribution: 150,
+        employee_contributed_ytd: 0,
+        employer_contributed_ytd: 0,
+        plan_eligible_compensation_annual: 90000,
+        annual_employee_limit: 24500,
+        annual_combined_limit: 73500,
+        plan_limit_confirmed: true,
+        workplace_plan_access: true,
         match_status: "fully_captured",
       },
     ],
@@ -62,6 +78,16 @@ function baseRaw(): MoneyPriorityRawSnapshot {
         necessity: "required",
         deadline_flexibility: "fixed",
         consequence_level: "high",
+        planned_monthly_contribution: 0,
+        core_need_amount: 12000,
+        goal_intelligence_confirmed: true,
+        underlying_need: "Maintain reliable transportation",
+        desired_solution: "Replace the vehicle",
+        goal_nature: "preservation",
+        underfunding_consequence: "employment_disruption",
+        borrowing_likelihood: "unlikely",
+        expected_borrowing_amount: null,
+        expected_borrowing_apr: null,
       },
     ],
     insuranceExposures: [
@@ -81,7 +107,10 @@ function baseRaw(): MoneyPriorityRawSnapshot {
       retirement_priority: "normal",
       job_replacement_difficulty: "easy",
       known_income_disruption: false,
+      desired_retirement_monthly_spending: 1000,
       retirement_spending_basis: "today_dollars",
+      planning_social_security_monthly: 0,
+      planning_pension_monthly: 0,
     },
   };
 }
@@ -117,6 +146,16 @@ test("engine does not allocate more Build dollars than monthly capacity", () => 
       necessity: "required",
       deadline_flexibility: "fixed",
       consequence_level: "high",
+      planned_monthly_contribution: 0,
+      core_need_amount: 100000,
+      goal_intelligence_confirmed: true,
+      underlying_need: "Maintain another required household function",
+      desired_solution: "Fund the required goal",
+      goal_nature: "preservation",
+      underfunding_consequence: "other_material",
+      borrowing_likelihood: "unlikely",
+      expected_borrowing_amount: null,
+      expected_borrowing_apr: null,
     },
   ];
   const result = runMoneyPriorityEngine(raw, "2026-08-29");
