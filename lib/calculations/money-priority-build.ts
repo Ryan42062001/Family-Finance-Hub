@@ -30,6 +30,11 @@ import {
   evaluateGoalIntelligence,
   type GoalIntelligenceResult,
 } from "./money-priority-goal-intelligence.ts";
+import {
+  buildRecurringGoalRetirementCompetition,
+  type BuildCompetitionDisposition,
+  type BuildCompetitionPlan,
+} from "./money-priority-build-competition.ts";
 
 export type BuildAllocationCategory = "retirement" | "goal";
 
@@ -56,6 +61,7 @@ export type BuildStageAllocation = {
   rankingFactors: GoalRankingFactors | null;
   protectedAllocatedMonthlyAmount: number;
   allocationPhase: "required_goal" | "retirement" | "important_goal" | "optional_goal";
+  competitionDisposition?: BuildCompetitionDisposition;
   reasons: string[];
 };
 
@@ -91,9 +97,13 @@ export type BuildStageResult = {
   monthlyPlanCapacity: number;
   allocationMonthlyCapacity: number;
   protectedMonthlyFundingNeed: number;
+  protectedRetirementFloorRequestedMonthly: number | null;
+  protectedRetirementFloorAllocatedMonthly: number;
+  unresolvedProtectedRetirementFloorMonthly: number | null;
   feasibility: PlanFeasibility;
   retirement: RetirementBuildAssessment;
   retirementFloor: HybridRetirementFloorResult;
+  competition: BuildCompetitionPlan;
   retirementAccounts: RetirementAccountOpportunityResult;
   retirementCapacityLedger: RetirementCapacityLedger;
   retirementAccountAllocations: Array<{
@@ -342,6 +352,116 @@ export function assessGoalFunding(
   }).sort((a, b) => compareGoalRankingFactors(a.rankingFactors, b.rankingFactors));
 }
 
+function retirementDestinations(retirementAccounts: RetirementAccountOpportunityResult) {
+  const tierOrder = new Map([
+    ["strong_tax_advantaged", 1], ["diversification_opportunity", 2], ["secondary_tax_advantaged", 3],
+  ]);
+  return retirementAccounts.opportunities
+    .filter((item) => item.state === "available" && item.contributionSource !== "employer"
+      && item.opportunityTier !== "unavailable_or_unknown")
+    .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99)
+      - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
+      || a.accountId.localeCompare(b.accountId));
+}
+
+function routableRetirementMonthlyCapacity(
+  ledger: RetirementCapacityLedger,
+  destinations: ReturnType<typeof retirementDestinations>,
+): number {
+  const clone = cloneRetirementCapacityLedger(ledger);
+  let monthly = 0;
+  const plannedTieGroups = new Set<string>();
+  for (const destination of destinations) {
+    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
+    if (tieKey && plannedTieGroups.has(tieKey)) continue;
+    if (tieKey) {
+      plannedTieGroups.add(tieKey);
+      const tiedAccountIds = destinations
+        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup
+          && item.opportunityTier === destination.opportunityTier)
+        .map((item) => item.accountId);
+      const planned = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
+        clone,
+        tiedAccountIds,
+        "build",
+        null,
+      );
+      monthly = roundMoney(monthly + planned.consumedMonthlyAmount);
+      continue;
+    }
+    const room = remainingRetirementCapacity(clone, destination.accountId);
+    if (room === null || room <= 0) continue;
+    const consumed = consumeRetirementCapacity(clone, destination.accountId, "build", room);
+    monthly = roundMoney(monthly + roundMoney(consumed.consumedAnnualAmount / 12));
+  }
+  return monthly;
+}
+
+function routeRetirementMonthlyAmount(
+  ledger: RetirementCapacityLedger,
+  destinations: ReturnType<typeof retirementDestinations>,
+  requestedMonthlyAmount: number,
+): BuildStageResult["retirementAccountAllocations"] {
+  const allocations: BuildStageResult["retirementAccountAllocations"] = [];
+  let remainingMonthly = roundMoney(requestedMonthlyAmount);
+  const routedTieGroups = new Set<string>();
+  for (const destination of destinations) {
+    if (remainingMonthly <= 0) break;
+    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
+    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
+    if (tieKey && routedTieGroups.has(tieKey)) continue;
+    if (tieKey) {
+      routedTieGroups.add(tieKey);
+      const tiedAccountIds = destinations
+        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup
+          && item.opportunityTier === destination.opportunityTier)
+        .map((item) => item.accountId);
+      const tied = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
+        ledger,
+        tiedAccountIds,
+        "build",
+        remainingMonthly,
+      );
+      for (const allocation of tied.allocations) {
+        allocations.push({
+          accountId: allocation.accountId,
+          opportunityTier: destination.opportunityTier!,
+          allocatedMonthlyAmount: allocation.allocatedMonthlyAmount,
+          allocatedAnnualAmount: allocation.consumedAnnualAmount,
+        });
+      }
+      remainingMonthly = roundMoney(remainingMonthly - tied.consumedMonthlyAmount);
+      continue;
+    }
+
+    const annualRoom = remainingRetirementCapacity(ledger, destination.accountId);
+    if (annualRoom === null || annualRoom <= 0) continue;
+    const requestedAnnual = roundMoney(Math.min(remainingMonthly * 12, annualRoom));
+    const consumed = consumeRetirementCapacity(
+      ledger,
+      destination.accountId,
+      "build",
+      requestedAnnual,
+    );
+    const allocatedMonthly = roundMoney(consumed.consumedAnnualAmount / 12);
+    if (allocatedMonthly <= 0) continue;
+    allocations.push({
+      accountId: destination.accountId,
+      opportunityTier: destination.opportunityTier!,
+      allocatedMonthlyAmount: allocatedMonthly,
+      allocatedAnnualAmount: consumed.consumedAnnualAmount,
+    });
+    remainingMonthly = roundMoney(remainingMonthly - allocatedMonthly);
+  }
+
+  const routed = roundMoney(allocations.reduce((sum, item) => sum + item.allocatedMonthlyAmount, 0));
+  if (remainingMonthly !== 0 || routed !== roundMoney(requestedMonthlyAmount)) {
+    throw new Error("Retirement capacity ledger routing invariant failed.");
+  }
+  return allocations;
+}
+
 export function evaluateBuildStage(
   snapshot: MoneyPrioritySnapshot,
   asOfDate: string,
@@ -373,10 +493,13 @@ export function evaluateBuildStage(
   const goalIntelligence = evaluateGoalIntelligence(snapshot, asOfDate);
   const goalById = new Map(goals.map((goal) => [goal.goalId, goal]));
   const sourceGoalById = new Map(snapshot.goals.map((goal) => [goal.id, goal]));
+  const userPriorityById = new Map(snapshot.goals.map((goal) => [goal.id, goal.priority]));
 
-  const protectedGoalNeed = roundMoney(goals.reduce((sum, goal) => sum + goal.protectedMonthlyNeed, 0));
-  const protectedRetirementNeed = retirement.recommendedMonthlyIncrease;
-  const protectedMonthlyFundingNeed = roundMoney(protectedGoalNeed + protectedRetirementNeed);
+  const protectedRetirementFloorRequestedMonthly = retirementFloor.state === "calculated"
+    && retirementFloor.protectedFloorShortfallAnnual !== null
+    ? roundMoney(retirementFloor.protectedFloorShortfallAnnual / 12)
+    : null;
+  const protectedMonthlyFundingNeed = protectedRetirementFloorRequestedMonthly ?? 0;
   const feasibility = calculatePlanFeasibility(snapshot, protectedMonthlyFundingNeed);
   const monthlyPlanCapacity = roundMoney(Math.max(0, feasibility.monthlyPlanCapacity));
   const allocationMonthlyCapacity = roundMoney(Math.max(
@@ -384,154 +507,124 @@ export function evaluateBuildStage(
     Math.min(monthlyPlanCapacity, allocationMonthlyCapacityOverride ?? monthlyPlanCapacity),
   ));
 
-  const requests: BuildStageAllocation[] = [];
-
-  if (retirement.recommendedMonthlyIncrease > 0) {
-    const usingProjection = retirement.guidanceMode === "projection";
-    requests.push({
-      category: "retirement",
-      relatedEntityId: null,
-      title: usingProjection
-        ? "Increase retirement contributions toward the projection-based target"
-        : "Increase retirement contributions toward the healthy benchmark",
-      requestedMonthlyAmount: retirement.recommendedMonthlyIncrease,
-      allocatedMonthlyAmount: 0,
-      unfundedMonthlyAmount: retirement.recommendedMonthlyIncrease,
-      rankingFactors: null,
-      protectedAllocatedMonthlyAmount: 0,
-      allocationPhase: "retirement",
-      reasons: usingProjection
-        ? [
-            "Projection-based guidance is available and is primary over the generic savings-rate benchmark.",
-            `The modeled shortfall requires approximately $${retirement.recommendedMonthlyIncrease.toFixed(2)} of additional monthly retirement funding under the current planning assumptions.`,
-          ]
-        : ["Projection inputs are incomplete, so the engine is using the policy healthy-lower retirement benchmark as a fallback."],
-    });
-  }
-
-  if (retirement.guidanceMode === "unavailable") {
-    warnings.push(...retirement.missingData);
-  } else if (retirement.guidanceMode === "benchmark" && retirement.missingData.length) {
+  if (retirement.guidanceMode === "unavailable") warnings.push(...retirement.missingData);
+  else if (retirement.guidanceMode === "benchmark" && retirement.missingData.length) {
     warnings.push(`Projection-based retirement guidance is unavailable: ${retirement.missingData.join(" ")}`);
   }
   warnings.push(...retirementAccounts.warnings);
 
-  for (const assessment of goals) {
-    const goal = sourceGoalById.get(assessment.goalId)!;
-    if (assessment.isFunded) continue;
-    if (assessment.requiredMonthlyPace === null) {
-      warnings.push(`${goal.name}: ${assessment.missingData.join(" ")}`);
-      continue;
-    }
+  const destinations = retirementDestinations(retirementAccounts);
+  const totalRoutableRetirementMonthly = routableRetirementMonthlyCapacity(capacityLedger, destinations);
+  const protectedRetirementFloorAllocatedMonthly = protectedRetirementFloorRequestedMonthly === null
+    ? 0
+    : roundMoney(Math.min(
+        protectedRetirementFloorRequestedMonthly,
+        allocationMonthlyCapacity,
+        totalRoutableRetirementMonthly,
+      ));
+  const unresolvedProtectedRetirementFloorMonthly = protectedRetirementFloorRequestedMonthly === null
+    ? null
+    : roundMoney(Math.max(0, protectedRetirementFloorRequestedMonthly - protectedRetirementFloorAllocatedMonthly));
 
+  let competitionCapacity = roundMoney(Math.max(
+    0,
+    allocationMonthlyCapacity - protectedRetirementFloorAllocatedMonthly,
+  ));
+  const routableAfterFloor = roundMoney(Math.max(
+    0,
+    totalRoutableRetirementMonthly - protectedRetirementFloorAllocatedMonthly,
+  ));
+
+  if ((unresolvedProtectedRetirementFloorMonthly ?? 0) > 0) {
+    warnings.push(
+      `The protected retirement floor still needs $${unresolvedProtectedRetirementFloorMonthly!.toFixed(2)} per month. Ordinary goals cannot consume capacity that would raid this floor.`,
+    );
+    competitionCapacity = 0;
+  }
+
+  const additionalRetirementRequestedMonthly = retirementFloor.state === "more_information_needed"
+    ? null
+    : roundMoney(Math.min(
+        retirementFloor.additionalRetirementOpportunityAnnual / 12,
+        routableAfterFloor,
+        competitionCapacity,
+      ));
+
+  const competition = buildRecurringGoalRetirementCompetition(
+    goalIntelligence,
+    retirementFloor.status,
+    additionalRetirementRequestedMonthly,
+    competitionCapacity,
+    { goalUserPriorityById: userPriorityById },
+  );
+
+  if (retirementFloor.state === "more_information_needed") {
+    warnings.push(...retirementFloor.missingData);
+  }
+  if (competition.state === "more_information_needed") warnings.push(...competition.missingData);
+
+  const requests: BuildStageAllocation[] = [];
+  const totalRetirementRequestedMonthly = roundMoney(
+    (protectedRetirementFloorRequestedMonthly ?? 0) + (additionalRetirementRequestedMonthly ?? 0),
+  );
+  const totalRetirementAllocatedMonthly = roundMoney(
+    protectedRetirementFloorAllocatedMonthly + competition.additionalRetirementAllocatedMonthly,
+  );
+  const unresolvedRetirementMonthlyAmount = roundMoney(
+    (unresolvedProtectedRetirementFloorMonthly ?? 0)
+      + (competition.additionalRetirementUnfundedMonthly ?? 0),
+  );
+
+  if (totalRetirementRequestedMonthly > 0 || retirementFloor.state === "more_information_needed") {
     requests.push({
-      category: "goal",
-      relatedEntityId: goal.id,
-      title: `Fund ${goal.name}`,
-      requestedMonthlyAmount: assessment.requiredMonthlyPace,
-      allocatedMonthlyAmount: 0,
-      unfundedMonthlyAmount: assessment.requiredMonthlyPace,
-      rankingFactors: assessment.rankingFactors,
-      protectedAllocatedMonthlyAmount: 0,
-      allocationPhase: assessment.rankingFactors.economicTier === "required_protective"
-        ? "required_goal"
-        : assessment.rankingFactors.economicTier === "important"
-          ? "important_goal"
-          : "optional_goal",
+      category: "retirement",
+      relatedEntityId: null,
+      title: "Fund the protected retirement floor, then additional retirement opportunity",
+      requestedMonthlyAmount: totalRetirementRequestedMonthly,
+      allocatedMonthlyAmount: totalRetirementAllocatedMonthly,
+      unfundedMonthlyAmount: unresolvedRetirementMonthlyAmount,
+      rankingFactors: null,
+      protectedAllocatedMonthlyAmount: protectedRetirementFloorAllocatedMonthly,
+      allocationPhase: "retirement",
       reasons: [
-        `Required pace is $${assessment.requiredMonthlyPace.toFixed(2)} per month.`,
-        goal.necessity === "required"
-          ? "This is marked as a required goal."
-          : goal.necessity === "important"
-            ? "This is marked as an important goal."
-            : "This is marked as an optional goal.",
+        "The Phase 5A protected retirement floor is funded before ordinary Phase 5C goal competition.",
+        "Only verified additional retirement opportunity above that floor participates in FFH-D004 competition.",
       ],
     });
   }
 
-  let remainingMonthlyCapacity = allocationMonthlyCapacity;
-  const goalRequests = requests.filter((request) => request.category === "goal");
-  const retirementRequest = requests.find((request) => request.category === "retirement");
-  const tierOrder = new Map([
-    ["strong_tax_advantaged", 1], ["diversification_opportunity", 2], ["secondary_tax_advantaged", 3],
-  ]);
-  const retirementDestinations = retirementAccounts.opportunities
-    .filter((item) => item.state === "available" && item.contributionSource !== "employer"
-      && item.opportunityTier !== "unavailable_or_unknown")
-    .sort((a, b) => (tierOrder.get(a.opportunityTier ?? "") ?? 99)
-      - (tierOrder.get(b.opportunityTier ?? "") ?? 99)
-      || a.accountId.localeCompare(b.accountId));
-  const routableLedger = cloneRetirementCapacityLedger(capacityLedger);
-  let routableRetirementMonthlyCapacity = 0;
-  const plannedTieGroups = new Set<string>();
-  for (const destination of retirementDestinations) {
-    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
-    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
-    if (tieKey && plannedTieGroups.has(tieKey)) continue;
-    if (tieKey) {
-      plannedTieGroups.add(tieKey);
-      const tiedAccountIds = retirementDestinations
-        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
-        .map((item) => item.accountId);
-      const planned = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
-        routableLedger,
-        tiedAccountIds,
-        "build",
-        null,
-      );
-      routableRetirementMonthlyCapacity = roundMoney(
-        routableRetirementMonthlyCapacity + planned.consumedMonthlyAmount,
-      );
-      continue;
-    }
-    const room = remainingRetirementCapacity(routableLedger, destination.accountId);
-    if (room === null || room <= 0) continue;
-    const consumed = consumeRetirementCapacity(
-      routableLedger,
-      destination.accountId,
-      "build",
-      room,
-    );
-    routableRetirementMonthlyCapacity = roundMoney(
-      routableRetirementMonthlyCapacity + roundMoney(consumed.consumedAnnualAmount / 12),
-    );
-  }
-  const allocate = (request: BuildStageAllocation, maximum: number, isProtected = false) => {
-    const stillNeeded = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
-    const allocated = roundMoney(Math.min(stillNeeded, maximum, remainingMonthlyCapacity));
-    request.allocatedMonthlyAmount = roundMoney(request.allocatedMonthlyAmount + allocated);
-    if (isProtected) request.protectedAllocatedMonthlyAmount = roundMoney(
-      request.protectedAllocatedMonthlyAmount + allocated,
-    );
-    request.unfundedMonthlyAmount = roundMoney(Math.max(0, request.requestedMonthlyAmount - request.allocatedMonthlyAmount));
-    remainingMonthlyCapacity = roundMoney(Math.max(0, remainingMonthlyCapacity - allocated));
-  };
+  for (const tranche of competition.goals) {
+    const assessment = goalById.get(tranche.goalId);
+    const sourceGoal = sourceGoalById.get(tranche.goalId);
+    if (!assessment || !sourceGoal) continue;
+    if ((tranche.requestedMonthlyAmount ?? 0) <= 0 && tranche.disposition !== "MORE_INFORMATION_NEEDED") continue;
 
-  // Pass 1 protects every qualifying goal before any goal is topped up.
-  for (const request of goalRequests) {
-    const assessment = goalById.get(request.relatedEntityId!)!;
-    if (assessment.protectedMonthlyNeed <= 0) continue;
-    allocate(request, assessment.protectedMonthlyNeed, true);
-  }
-
-  // Required/protective goals retain their legitimate pace before additional retirement.
-  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "required_protective")) {
-    request.allocationPhase = "required_goal";
-    allocate(request, request.requestedMonthlyAmount);
-  }
-
-  if (retirementRequest) allocate(
-    retirementRequest,
-    Math.min(retirementRequest.requestedMonthlyAmount, routableRetirementMonthlyCapacity),
-  );
-
-  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "important")) {
-    request.allocationPhase = "important_goal";
-    allocate(request, request.requestedMonthlyAmount);
-  }
-  for (const request of goalRequests.filter((item) => item.rankingFactors?.economicTier === "optional_lifestyle")) {
-    request.allocationPhase = "optional_goal";
-    allocate(request, request.requestedMonthlyAmount);
+    const phase: BuildStageAllocation["allocationPhase"] = tranche.disposition === "OUTRANKS"
+      ? "required_goal"
+      : tranche.disposition === "BELOW"
+        ? (assessment.rankingFactors.economicTier === "optional_lifestyle" ? "optional_goal" : "important_goal")
+        : "important_goal";
+    requests.push({
+      category: "goal",
+      relatedEntityId: tranche.goalId,
+      title: `Fund ${tranche.goalName} core need`,
+      requestedMonthlyAmount: tranche.requestedMonthlyAmount ?? 0,
+      allocatedMonthlyAmount: tranche.allocatedMonthlyAmount,
+      unfundedMonthlyAmount: tranche.unfundedMonthlyAmount ?? 0,
+      rankingFactors: assessment.rankingFactors,
+      protectedAllocatedMonthlyAmount: 0,
+      allocationPhase: phase,
+      competitionDisposition: tranche.disposition,
+      reasons: [
+        `FFH-D004 disposition: ${tranche.disposition}.`,
+        tranche.requestedMonthlyAmount === null
+          ? "A usable recurring core-need pace cannot be established from current authoritative facts."
+          : `Actionable remaining goal-core pace is $${tranche.requestedMonthlyAmount.toFixed(2)} per month.`,
+        tranche.remainingDesiredExcessAmount > 0
+          ? `$${tranche.remainingDesiredExcessAmount.toFixed(2)} of remaining desired/excess principal is excluded from the elevated goal-core competition tranche.`
+          : "No remaining desired/excess principal is being elevated into the core tranche.",
+      ],
+    });
   }
 
   const phaseOrder: Record<BuildStageAllocation["allocationPhase"], number> = {
@@ -545,71 +638,35 @@ export function evaluateBuildStage(
       ? compareGoalRankingFactors(a.rankingFactors, b.rankingFactors)
       : a.category === "retirement" ? -1 : 1));
 
-  const totalAllocatedMonthly = roundMoney(
-    requests.reduce((sum, request) => sum + request.allocatedMonthlyAmount, 0),
-  );
-
-  const retirementAccountAllocations: BuildStageResult["retirementAccountAllocations"] = [];
-  let retirementToRoute = retirementRequest?.allocatedMonthlyAmount ?? 0;
-  const routedTieGroups = new Set<string>();
-  for (const destination of retirementDestinations) {
-    if (retirementToRoute <= 0) break;
-    const isMfjTie = destination.sharedCapacityGroup?.startsWith("ira:mfj-compensation:") === true;
-    const tieKey = isMfjTie ? `${destination.sharedCapacityGroup}:${destination.opportunityTier}` : null;
-    if (tieKey && routedTieGroups.has(tieKey)) continue;
-    if (tieKey) {
-      routedTieGroups.add(tieKey);
-      const tiedAccountIds = retirementDestinations
-        .filter((item) => item.sharedCapacityGroup === destination.sharedCapacityGroup && item.opportunityTier === destination.opportunityTier)
-        .map((item) => item.accountId);
-      const tiedRouting = consumeRetirementCapacityForEqualOwnerTieRecurringMonthly(
-        capacityLedger,
-        tiedAccountIds,
-        "build",
-        retirementToRoute,
-      );
-      for (const allocation of tiedRouting.allocations) {
-        retirementAccountAllocations.push({
-          accountId: allocation.accountId,
-          opportunityTier: destination.opportunityTier!,
-          allocatedMonthlyAmount: allocation.allocatedMonthlyAmount,
-          allocatedAnnualAmount: allocation.consumedAnnualAmount,
-        });
-      }
-      retirementToRoute = roundMoney(Math.max(0, retirementToRoute - tiedRouting.consumedMonthlyAmount));
-      continue;
-    }
-    const annualRoom = remainingRetirementCapacity(capacityLedger, destination.accountId);
-    if (annualRoom === null || annualRoom <= 0) continue;
-    const requestedAnnualAmount = roundMoney(Math.min(retirementToRoute * 12, annualRoom));
-    const consumption = consumeRetirementCapacity(
-      capacityLedger,
-      destination.accountId,
-      "build",
-      requestedAnnualAmount,
-    );
-    const allocatedMonthlyAmount = roundMoney(consumption.consumedAnnualAmount / 12);
-    if (allocatedMonthlyAmount <= 0) continue;
-    retirementAccountAllocations.push({
-      accountId: destination.accountId,
-      opportunityTier: destination.opportunityTier!,
-      allocatedMonthlyAmount,
-      allocatedAnnualAmount: consumption.consumedAnnualAmount,
-    });
-    retirementToRoute = roundMoney(Math.max(0, retirementToRoute - allocatedMonthlyAmount));
-  }
+  const retirementAccountAllocations = totalRetirementAllocatedMonthly > 0
+    ? routeRetirementMonthlyAmount(capacityLedger, destinations, totalRetirementAllocatedMonthly)
+    : [];
   const routedRetirementMonthlyAmount = roundMoney(
     retirementAccountAllocations.reduce((sum, allocation) => sum + allocation.allocatedMonthlyAmount, 0),
   );
-  const authorizedRetirementMonthlyAmount = retirementRequest?.allocatedMonthlyAmount ?? 0;
-  if (retirementToRoute > 0 || routedRetirementMonthlyAmount !== authorizedRetirementMonthlyAmount) {
+  if (routedRetirementMonthlyAmount !== totalRetirementAllocatedMonthly) {
     throw new Error("Retirement capacity ledger routing invariant failed.");
   }
-  const unresolvedRetirementMonthlyAmount = retirementRequest?.unfundedMonthlyAmount ?? 0;
-  if (unresolvedRetirementMonthlyAmount > 0 && (retirementRequest?.requestedMonthlyAmount ?? 0) > 0) {
-    warnings.push(`$${unresolvedRetirementMonthlyAmount.toFixed(2)} of monthly retirement planning need exceeds the verified current-year legal account capacity. The shortfall remains descriptive and is not included in actionable allocations.`);
+
+  const totalAllocatedMonthly = roundMoney(
+    requests.reduce((sum, request) => sum + request.allocatedMonthlyAmount, 0),
+  );
+  const expectedAllocatedMonthly = roundMoney(
+    protectedRetirementFloorAllocatedMonthly + competition.totalAllocatedMonthly,
+  );
+  if (totalAllocatedMonthly !== expectedAllocatedMonthly) {
+    throw new Error("Phase 5C Build allocation reconciliation failed.");
+  }
+  const remainingMonthlyCapacity = roundMoney(
+    allocationMonthlyCapacity - totalAllocatedMonthly,
+  );
+  if (remainingMonthlyCapacity < 0) {
+    throw new Error("Phase 5C Build over-routed recurring capacity.");
   }
 
+  if (unresolvedRetirementMonthlyAmount > 0) {
+    warnings.push(`$${unresolvedRetirementMonthlyAmount.toFixed(2)} of monthly retirement need/opportunity remains unresolved after verified Build routing.`);
+  }
   if (requests.some((request) => request.unfundedMonthlyAmount > 0)) {
     warnings.push("Available monthly capacity is not enough to fully fund every Build-stage request.");
   }
@@ -622,9 +679,13 @@ export function evaluateBuildStage(
     monthlyPlanCapacity,
     allocationMonthlyCapacity,
     protectedMonthlyFundingNeed,
+    protectedRetirementFloorRequestedMonthly,
+    protectedRetirementFloorAllocatedMonthly,
+    unresolvedProtectedRetirementFloorMonthly,
     feasibility,
     retirement,
     retirementFloor,
+    competition,
     retirementAccounts,
     retirementCapacityLedger: cloneRetirementCapacityLedger(capacityLedger),
     retirementAccountAllocations,
