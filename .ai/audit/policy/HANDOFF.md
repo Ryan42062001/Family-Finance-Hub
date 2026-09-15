@@ -2,44 +2,53 @@
 
 ## Current assignment
 
-FFH-013 — Spousal-IRA Shared Compensation Ledger — FINAL fresh independent policy/scenario re-audit.
+FFH-013 — Spousal-IRA Shared Compensation Ledger — fresh independent Financial Policy & Scenario re-audit of the R01/R02/R03 frozen target.
 
 ## Exact target audited
 
-- Manager control-plane head verified at audit start: `96d9d35328feb1b2e5f2d0501f0d3d28a63c7746`
-- Frozen implementation target: `115f947e28cfae831a550f239c58dd0b59ca5798`
-- Frozen packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_115f947e.md`
-- Report: `.ai/audit/policy/FFH-013_POLICY_SCENARIO_REAUDIT_115f947e.md`
+- Manager control-plane head verified at audit start: `401d7c074ba8bfd1e55771e4ada63f35b7bbaef0`
+- Frozen implementation target: `4b7ed99894e396beadc02a537dad45963f5db1d5`
+- Frozen packet: `.ai/audit/FFH-013_FROZEN_AUDIT_PACKET_4b7ed998.md`
+- Report: `.ai/audit/policy/FFH-013_POLICY_SCENARIO_REAUDIT_4b7ed998.md`
+- Report commit: `3e8e87d442b9ff15d6e5ec5c88adb51a4b79cfad`
 - Technical & Mathematical Auditor conclusions/verdict were not consulted or relied upon.
 
 ## Verdict
 
-**FAIL — REMEDIATION REQUIRED**
+**PASS**
 
-## Finding
+No `CRITICAL`, `HIGH`, `MEDIUM`, or `LOW` Financial Policy & Scenario findings were identified on the exact frozen target.
 
-**MEDIUM — P03 invalid-date fallback is incomplete.** `remainingContributionMonths(asOfDate, taxYear)` relies on JavaScript `Date` normalization plus `NaN`/year checks. Calendar-invalid ISO-looking dates can normalize into the current tax year instead of taking the required 12-month fallback. Example: `2026-09-31` normalizes to October 1 and returns 3 months. With a `$500/month` active IRA schedule this can reserve `$1,500` instead of the required invalid-date fallback `$6,000`, exposing phantom new recommendation capacity.
+## Primary remediation status
 
-The valid-date P03 remediation is otherwise correct, including September 4-month and December 1-month behavior, YTD/reservation separation, legal-room capping, and downstream ledger reservation.
+- **R01: CLEARS.** Missing aggregate spouse Traditional + Roth IRA YTD fails the affected unequal-compensation MFJ relationship closed for definite new-room exposure; known-zero remains distinct; `$8,000` resolution preserves shared fail-closed behavior; absence of a spouse IRA record is not zero proof; equal compensation remains owner-local; no correction mechanics are invented.
+- **R02: CLEARS.** `remainingContributionMonths(asOfDate, taxYear)` is the neutral contribution-period authority for materially equivalent current-year retirement-account, retirement-floor, Secure, engine, and User Plan uses. Genuine full-year reporting/annualized semantics remain separate.
+- **R03/P03: CLEARS.** Strict calendar validation gives the accepted 12-month fallback for `2026-09-31`, `2026-02-30`, and non-leap `2026-02-29`; valid leap dates and January/September/December inclusive semantics remain correct.
+- **Active-schedule P03: CLEARS.** September `$500/month` with `$7,000` factual YTD reserves exactly the supported `$500` and leaves `$2,500` shared new-recommendation room; December reserves one supported month; later stages cannot reuse reserved capacity.
 
-## Boundary status
+## Protected boundary status
 
 - T1: CLEARS
-- P03: DOES NOT CLEAR — blocking malformed-date fallback defect
 - A01: CLEARS
-- A02: CLEARS as the reservation-vs-YTD architecture boundary; P03 horizon defect remains separate
+- A02: CLEARS
 - A03: CLEARS
 - A04: CLEARS
 - A05: CLEARS
 - M01: CLEARS
 - M02: CLEARS
 
-## Preservation status
+One-earner/low-compensation, scarce/non-scarce unequal compensation, asymmetric YTD, multiple IRA accounts, missing inventory/YTD, exact exhaustion, one-cent routing, supported excess, reordering, Roth eligibility separation, Traditional deductibility separation, FFH-015 SIMPLE, FFH-012/028 HSA, and unrelated workplace-retirement policy meaning remain preserved.
 
-One-earner, low/zero spouse compensation, asymmetric YTD, scarce/non-scarce unequal compensation, both-spouse schedules, multiple Traditional/Roth accounts, missing material spouse/YTD facts, exact exhaustion, one-cent routing, supported owner/joint excess, reordering symmetry, Roth eligibility separation, Traditional deductibility separation, FFH-015 SIMPLE, FFH-012/028 HSA, and unrelated workplace-retirement behavior show no additional policy/scenario regression on the frozen target.
+## Reconciliation / provenance
 
-Final worker head `23c1caa75cd4d66021161f0b540e2b00ec12e074` and frozen integration `115f947e28cfae831a550f239c58dd0b59ca5798` were independently confirmed to have zero file differences and the same tree. Candidate and final-head Foundation CI runs are green, but were treated as evidence rather than proof.
+PR #25 is merged. Candidate `8d9cbc62e47c651ad8e6564f325c20ffd67a439b` and final worker head `d5aa88d8b26aac5ca0c857ff949c031aec8a2559` have successful Foundation CI at the supplied runs/jobs. Independent compare of final worker head to frozen integration `4b7ed99894e396beadc02a537dad45963f5db1d5` contains zero changed files.
+
+From the Policy Auditor perspective, the Financial Engine Reconciliation Gate clears: missing material facts do not originate definite legal room, owner/shared capacity is not additive, schedules reserve once, staged consumers do not recreate capacity, exact cents do not create phantom authority, and stable identity is limited to unavoidable final-cent tie resolution.
+
+Green CI was treated as evidence, not proof.
 
 ## Manager action
 
-FFH-013 remains blocked from closure on the MEDIUM P03 finding. Do not activate FFH-017. Remediation must make calendar-invalid dates take the accepted 12-month contribution-period fallback and add a regression boundary for ISO-looking impossible dates; then Manager should freeze a new exact implementation target and route fresh independent audit.
+No blocking Financial Policy & Scenario condition remains for FFH-013 closure on this frozen target.
+
+Do not close FFH-013 or activate FFH-017 from this audit lane. Manager must reconcile this PASS with the separate fresh Technical & Mathematical Auditor verdict and retain sole closure/dependency-transition authority.
