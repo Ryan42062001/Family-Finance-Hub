@@ -5,6 +5,7 @@ const replacements = [
   ['`monthly room ${expected.room}`', '"monthly room " + expected.room'],
   ['`annual room ${expected.room}`', '"annual room " + expected.room'],
   ['`remainder ${expected.room}`', '"remainder " + expected.room'],
+  ["function read(path) { return fs.readFileSync(path, 'utf8'); }", "function read(path) { return fs.readFileSync(path, 'utf8').replace(/\\r\\n/g, '\\n'); }"],
 ];
 for (const [oldValue, newValue] of replacements) {
   const count = text.split(oldValue).length - 1;
@@ -13,4 +14,4 @@ for (const [oldValue, newValue] of replacements) {
 }
 fs.writeFileSync(path, text);
 fs.rmSync('.github/ffh017-remediation-fix.cjs');
-console.log('Apply harness quoting repaired.');
+console.log('Apply harness quoting and line endings repaired.');
