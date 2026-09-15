@@ -285,9 +285,12 @@ test("goal without a target date does not fabricate a funding pace", () => {
 
   const result = evaluateBuildStage(snapshot, "2026-08-29");
   const goal = result.goals[0];
+  const allocation = result.allocations.find((item) => item.relatedEntityId === "goal-home");
 
   assert.equal(goal?.requiredMonthlyPace, null);
   assert.equal(goal?.protectedMonthlyNeed, 0);
   assert.ok(result.warnings.some((warning) => warning.includes("target date")));
-  assert.ok(!result.allocations.some((allocation) => allocation.relatedEntityId === "goal-home"));
+  assert.equal(result.competition.state, "more_information_needed");
+  assert.equal(allocation?.competitionDisposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(allocation?.allocatedMonthlyAmount, 0);
 });
