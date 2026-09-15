@@ -14,7 +14,7 @@ Last refreshed: 2026-09-15
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | VALIDATING | PR #26; production checkpoint not yet accepted | Self-hosted Windows Foundation CI is active at $0 hosted-runner cost; normalize AI-state records, rerun exact head, then Manager acceptance review |
+| FFH-017 | Core Engine | AUDIT_READY | production `1393ea92...`; integration/frozen target `9d3a880e...` | PR #26 accepted/merged; Technical + Policy auditors ACTIVE on exact frozen target |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -31,30 +31,34 @@ Last refreshed: 2026-09-15
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
-- FFH-013 is **CLOSED** after the required final fresh dual audit of exact frozen target `4b7ed99894e396beadc02a537dad45963f5db1d5`.
-- FFH-013 Technical & Mathematical Auditor verdict: **PASS**, no findings. Report commit `195990332858e2a666b031779491c36207fa600e`; handoff commit `b80b7d253c4350fd980b72131283030a0dddbf96`.
-- FFH-013 Financial Policy & Scenario Auditor verdict: **PASS**, no findings. Report commit `3e8e87d442b9ff15d6e5ec5c88adb51a4b79cfad`; handoff commit `acb8fbc8add06bcdacb480098455000fa2267dbd`.
-- FFH-013 R01/R02/R03, T1, A01-A05, M01, M02, valid-date P03, multiple-account nonmultiplication, staged Existing Cash/Secure/Build/Windfall conservation, Roth/Traditional separation, SIMPLE/HSA/workplace preservation, and the Financial Engine Reconciliation Gate all clear.
-- FFH-013 protected M01 pin remains `$833.33/month -> $416.67 + $416.66`, `$9,999.96` annual legal consumption, `$0.05` shared annual remainder.
-- FFH-017 is **VALIDATING** on PR #26. The prior GitHub-hosted runner gate has been replaced with the repository-scoped self-hosted Windows runner `FFH-Windows-Runner` using label `ffh-local`.
-- Self-hosted proof run acquired the runner successfully, completed checkout, Node 22 setup, and `npm ci`. Its next failure was stale FFH_TASK_V1 checkpoint syntax, not an identified financial-engine defect.
-- Manager is normalizing the task records and rerunning exact Foundation CI before acceptance.
-- Worker rescue reports local PASS: calculations 866/866, security 21/21, typecheck, lint, clean-cache build, and AI-state validation before later control-plane changes.
+- FFH-013 remains CLOSED on final frozen target `4b7ed99894e396beadc02a537dad45963f5db1d5` after clean dual PASS.
+- FFH-017 is **AUDIT_READY** after Manager acceptance and PR #26 integration.
+- FFH-017 production checkpoint: `1393ea928eb5756f16a6af063a68360892200bd6`.
+- FFH-017 validated pre-handoff head `545d3b12710086b0fefb44be9b7823309f30da0e` passed Foundation CI run `34999388253`, job `104483637634`.
+- FFH-017 handoff commit `c7882907854579488eb82f4d9f18799b51522550` passed Foundation CI run `35000961119`, job `104488944773`.
+- Accepted final PR head: `0e7c139b374716ad0e701d0f3c8ae05f9fac1692`.
+- Integration/frozen target: `9d3a880e02365b4445b8070344c72c928ca34511`.
+- Manager verified accepted PR head -> integration has zero changed files.
+- Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_9d3a880e.md`.
+- Repository-scoped self-hosted Windows runner `FFH-Windows-Runner` keeps hosted Actions spend at `$0`; no Windows PowerShell execution-policy weakening was used.
+- Core Financial Engine Engineer and Work Helper are IDLE pending audit results.
+- Technical & Mathematical Auditor: ACTIVE on exact FFH-017 frozen target `9d3a880e...`.
+- Financial Policy & Scenario Auditor: ACTIVE independently on the same exact frozen target.
 - FFH-020 remains separately BLOCKED before any live database write.
 - FFH-016 remains blocked behind FFH-020.
 - FFH-018 and FFH-026 remain QUEUED.
-- Phase 5 / PR #5 remains NOT MERGE READY.
+- Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 audit closure and remaining Phase 5 gates are satisfied.
 
 ## ACTIVATE NOW
-- Manager / Work Helper validation lane — finish self-hosted exact-head Foundation CI for PR #26, then perform Manager acceptance review if green.
+- Technical & Mathematical Auditor — fresh independent FFH-017 audit of exact frozen target `9d3a880e02365b4445b8070344c72c928ca34511`.
+- Financial Policy & Scenario Auditor — separate fresh independent FFH-017 policy/scenario audit of the same exact frozen target.
 
 ## IDLE / BLOCKED
-- Core Financial Engine Engineer: IDLE while Manager validates the existing PR #26 candidate; do not rewrite production code without a real repository failure.
-- Technical & Mathematical Auditor: IDLE after FFH-013 PASS; wait for a Manager-frozen future target.
-- Financial Policy & Scenario Auditor: IDLE after FFH-013 PASS; wait for a Manager-frozen future target.
+- Core Financial Engine Engineer: IDLE pending audit results.
+- Work Helper / Super Troubleshooter: IDLE pending audit results.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is exact self-hosted Foundation CI for PR #26, followed by Manager review, integration, and required independent audit. Phase 5 / PR #5 remains NOT MERGE READY until remaining Phase 5 work is accepted.
+Current near-term gate is dual independent FFH-017 audit reconciliation. FFH-017 remains open until both audit lanes clear or Manager routes bounded remediation.
