@@ -3,66 +3,98 @@
 HANDOFF
 
 Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
-Role: Work Helper / Super Troubleshooter acting within Core Financial Engine scope
-Worker status: BLOCKED
-Task state retained: ACTIVE
-Approved integration base: `phase-5-money-priority-engine` at `ecb05a6795c047365817164409739a2d0bdc7f76`
+Role: Core Financial Engine Engineer / Work Helper rescue within approved Core scope
+Worker status: READY_FOR_MANAGER
+Task state: READY_FOR_MANAGER
+Approved integration base: `phase-5-money-priority-engine`
 Branch: `ffh/ffh-017-goal-retirement-competition`
-Pull request: #26 — open, unmerged
-PRODUCTION_SHA: No rescue production change; authoritative FFH-017 production remains the implementation already on PR #26
-VALIDATED_CI: BLOCKED — run `34992242373`, job attempts `104459541271` and `104459794425` failed before checkout with no steps/logs
-HANDOFF_SHA: This documentation commit; exact SHA reported after creation
+Pull request: #26 — draft, open, unmerged
+PRODUCTION_SHA: `1393ea928eb5756f16a6af063a68360892200bd6`
+VALIDATED_CI: Foundation CI run `34999388253`, job `104483637634` — SUCCESS on repository-scoped self-hosted `FFH-Windows-Runner`
+HANDOFF_SHA: This documentation commit; exact SHA is the commit containing this handoff
+INTEGRATION_SHA: Not yet established
 MANAGER_VERDICT: PENDING
 AUDIT_STATUS: NOT_READY
 
-## Outcome
+## Implementation architecture
 
-The FFH-017 implementation and its focused policy/reconciliation coverage are locally green. The rescue corrected 15 stale/incomplete integration-test failures and removed temporary diagnostic workflow scope. No production financial behavior was changed.
+FFH-017 implements the accepted FFH-D004 recurring Build competition between actionable remaining goal-core need and additional retirement opportunity above the protected Phase 5A retirement floor.
 
-## Failure evidence
+Authoritative competition/allocation logic lives in `lib/calculations/money-priority-build-competition.ts`. `lib/calculations/money-priority-build.ts` consumes that result and the closed FFH-013 retirement-capacity ledger; there is no separately invented planner arithmetic for the same contested capacity.
 
-Foundation CI run `34989685355`, job `104450794218`, at PR head `d70cef6849e6940cb44b79f702765d178cead694` exposed:
-- committed expenses: 3 failures;
-- Existing Cash: 2 failures;
-- legacy goal ranking: 7 failures;
-- Recommendation Refresh: 2 failures;
-- retirement integration: 1 failure.
+The authoritative routing unit is recurring **monthly cents**.
 
-The previously reported Build error at `money-priority-build.ts:344` was not reproducible from the authoritative head. That line is a goal-name field at this SHA. Both TypeScript and a clean-cache Next build pass locally.
+## Disposition mapping
 
-## Contract preservation
+- `OUTRANKS`: qualifying goal-core tranche is funded before additional retirement.
+- `CO_PRIORITY`: goal and additional retirement share scarce recurring capacity by deterministic common fulfillment ratio with exact-cent reconciliation.
+- `BELOW`: additional retirement is routed before the lower-priority goal tranche; `BELOW` does not consume the goal-competition capacity ahead of retirement.
+- `MORE_INFORMATION_NEEDED`: contested allocation remains zero/fail-closed when material facts are missing.
 
-- OUTRANKS, CO_PRIORITY, BELOW, and MORE_INFORMATION_NEEDED remain distinct.
-- BELOW goals remain after additional retirement; they were not deleted, cast, or widened away.
-- Protected retirement floor remains outside recurring competition.
-- Missing material shared-competition facts remain fail-closed.
-- Equal-fulfillment and exact-cent routing code is unchanged.
-- FFH-013 M01 and full IRA/HSA/SIMPLE/workplace suites pass inside the 866-test calculation run.
-- Existing Cash, Secure, Build, Recommendation Refresh, Your Plan, affordability, and Windfall regressions pass.
-- No schema, UI, migration, live Supabase, or policy change occurred.
+## Reconciliation / deterministic allocation
 
-## Changed rescue scope
+- Aggregate recurring allocation equals the sum of concrete destination allocations in monthly cents.
+- Co-priority allocation uses exact integer-cent arithmetic and common fulfillment.
+- Stable identity is used only for an unavoidable final-cent remainder after financial equivalence is established.
+- No epsilon/tolerance reconciliation waiver is used.
+- No hidden positive residual clamp or silent over-route is used.
+- Existing Cash -> Secure -> Build -> Windfall capacity conservation remains intact.
 
-- `lib/calculations/legacy-goal-test-fixtures.ts`
-- `lib/calculations/money-priority-committed-expenses.test.ts`
-- `lib/calculations/money-priority-existing-cash-full.test.ts`
-- `lib/calculations/money-priority-goal-ranking.test.ts`
-- `lib/calculations/money-priority-recommendation-refresh-adversarial.test.ts`
-- `lib/calculations/money-priority-retirement-integration.test.ts`
-- `.github/workflows/ci.yml` restored to the milestone Foundation CI
-- `.github/workflows/ffh017-diagnostic-matrix.yml` removed
-- unrelated FFH-013 lifecycle delta removed
-- this worklog and handoff
+## Protected semantics
 
-## Validation
+- Protected retirement floor is funded/handled before the FFH-017 competition and ordinary goals cannot raid it.
+- Goal desired/excess funding is not elevated into actionable goal-core need.
+- Factual YTD, future schedules/reservations, statutory/legal room, recommendations, and execution facts remain distinct.
+- Closed FFH-013 retirement-capacity ledgers are reused rather than recreated.
+- Multiple retirement accounts do not multiply owner/shared capacity.
+- Roth eligibility, Traditional deductibility, SIMPLE, HSA, and unrelated workplace-retirement behavior remain preserved.
 
-- `npm test` — PASS, 866/866.
-- `npm run test:security` — PASS, 21/21.
-- `npm run typecheck` — PASS.
-- `npm run lint` — PASS, zero errors; one unrelated existing warning.
-- `npm run build` — PASS after isolating a corrupt local Turbopack cache.
-- `npm run ai:validate-state` — PASS; only registered legacy task-file warnings.
+FFH-013 M01 remains exact:
+- shared annual room `$10,000.01`;
+- owner conditional room `$7,500` each;
+- Build authority `$833.33/month`;
+- routes `$416.67 + $416.66`;
+- annual legal consumption `$9,999.96`;
+- shared annual remainder `$0.05`.
 
-## Remaining action
+## Rescue / final validation history
 
-Exact-head Foundation CI must become runnable and pass before READY_FOR_MANAGER. Run `34992242373` failed twice before checkout without steps or logs, while all equivalent local gates pass. Manager retains acceptance, integration, audit routing, and closure.
+The Work rescue corrected stale/incomplete integration-test fixtures and a narrow `BELOW` type/semantic integration issue without broadening accepted policy. Later infrastructure work moved Foundation CI from exhausted GitHub-hosted Linux minutes to the repository-scoped Windows self-hosted runner at `$0` hosted-runner cost.
+
+The self-hosted workflow uses labels `[self-hosted, Windows, X64, ffh-local]` and `cmd.exe` for run steps so Windows PowerShell execution policy is not weakened.
+
+Final exact-head pre-handoff validation at `545d3b12710086b0fefb44be9b7823309f30da0e`:
+- Foundation CI run `34999388253`, job `104483637634` — SUCCESS;
+- dependency install — PASS;
+- `npm run ai:validate-state` — PASS;
+- dependency audit — PASS;
+- calculation tests — PASS;
+- security policy contract — PASS;
+- typecheck — PASS;
+- lint — PASS;
+- build — PASS.
+
+Local rescue validation also recorded:
+- calculations: 866/866 PASS;
+- security: 21/21 PASS;
+- typecheck PASS;
+- lint PASS with zero errors;
+- clean-cache build PASS.
+
+## Production checkpoint boundary
+
+`1393ea928eb5756f16a6af063a68360892200bd6` is the last FFH-017 production-code change. The later commits through green head `545d3b12710086b0fefb44be9b7823309f30da0e` change tests/fixtures, workflow infrastructure, and AI control-plane/handoff records only; they do not alter production financial-engine files.
+
+## Scope / changed production files
+
+Production FFH-017 scope is bounded to:
+- `lib/calculations/money-priority-build-competition.ts`
+- `lib/calculations/money-priority-build.ts`
+
+The remainder of PR #26 is direct/regression tests, fixture compatibility, AI workflow/handoff/task metadata, and the self-hosted CI routing change.
+
+## Remaining blocker
+
+NONE for worker completion. Manager retains acceptance, merge/integration, frozen audit target creation, independent auditor activation, and task closure.
+
+READY_FOR_MANAGER
