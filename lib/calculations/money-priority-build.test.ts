@@ -129,15 +129,15 @@ test("required fixed goal outranks only additional retirement after the protecte
 
   assert.equal(result.monthlyPlanCapacity, 1500);
   assert.equal(result.goals[0]?.requiredMonthlyPace, 1000);
-  assert.equal(result.protectedRetirementFloorRequestedMonthly, 700);
-  assert.equal(result.protectedMonthlyFundingNeed, 700);
+  assert.equal(result.protectedRetirementFloorRequestedMonthly, 1000);
+  assert.equal(result.protectedMonthlyFundingNeed, 1000);
   assert.equal(result.feasibility.status, "feasible");
   assert.equal(result.feasibility.planFundingGap, 0);
   assert.equal(result.competition.goals[0]?.disposition, "OUTRANKS");
-  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 700);
-  assert.equal(goalAllocation?.allocatedMonthlyAmount, 800);
-  assert.equal(goalAllocation?.unfundedMonthlyAmount, 200);
-  assert.equal(retirementAllocation?.allocatedMonthlyAmount, 700);
+  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 1000);
+  assert.equal(goalAllocation?.allocatedMonthlyAmount, 500);
+  assert.equal(goalAllocation?.unfundedMonthlyAmount, 500);
+  assert.equal(retirementAllocation?.allocatedMonthlyAmount, 1000);
   assert.equal(result.competition.additionalRetirementAllocatedMonthly, 0);
   assert.equal(result.totalAllocatedMonthly, 1500);
   assert.equal(result.remainingMonthlyCapacity, 0);
@@ -170,9 +170,9 @@ test("optional goals only receive residual capacity after protected and addition
   const goalAllocation = result.allocations.find((allocation) => allocation.relatedEntityId === "goal-trip");
   const retirementAllocation = result.allocations.find((allocation) => allocation.category === "retirement");
 
-  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 700);
+  assert.equal(result.protectedRetirementFloorAllocatedMonthly, 1000);
   assert.equal(result.competition.goals[0]?.disposition, "BELOW");
-  assert.equal(result.competition.additionalRetirementAllocatedMonthly, 800);
+  assert.equal(result.competition.additionalRetirementAllocatedMonthly, 500);
   assert.equal(retirementAllocation?.allocatedMonthlyAmount, 1500);
   assert.equal(goalAllocation?.requestedMonthlyAmount, 500);
   assert.equal(goalAllocation?.allocatedMonthlyAmount, 0);
