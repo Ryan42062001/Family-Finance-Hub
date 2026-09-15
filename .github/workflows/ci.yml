@@ -24,9 +24,11 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - name: Diagnose FFH-017 direct calculations
-        run: node --experimental-strip-types --test lib/calculations/money-priority-build-competition.test.ts lib/calculations/ffh-017-goal-retirement-competition.test.ts
-      - name: Diagnose Build integration calculations
+      - name: Diagnose FFH-017 pure allocator
+        run: node --experimental-strip-types --test lib/calculations/money-priority-build-competition.test.ts
+      - name: Diagnose FFH-017 Build integration
+        run: node --experimental-strip-types --test lib/calculations/ffh-017-goal-retirement-competition.test.ts
+      - name: Diagnose legacy Build calculations
         run: node --experimental-strip-types --test lib/calculations/money-priority-build.test.ts
       - name: Test calculations
         run: npm test
