@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test \"lib/calculations/*.test.ts\"",
+    "test": "node --experimental-strip-types --test --test-concurrency=2 \"lib/calculations/*.test.ts\"",
     "test:security": "node --experimental-strip-types --test tests/security/*.test.ts",
     "typecheck": "tsc --noEmit",
     "ai:validate-state": "node scripts/validate-ai-state.mjs",
