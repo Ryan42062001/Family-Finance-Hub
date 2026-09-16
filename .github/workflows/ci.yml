@@ -27,6 +27,31 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Diagnostic capture repeated calculation runs
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $final = 0
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+            $path = "ffh017-test-output-$attempt.txt"
+            npm test *> $path
+            $code = $LASTEXITCODE
+            "ATTEMPT=$attempt EXIT=$code" | Tee-Object -FilePath "ffh017-test-summary.txt" -Append
+            if ($code -ne 0) {
+              $final = $code
+              break
+            }
+          }
+          exit $final
+      - name: Upload FFH-017 calculation diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffh017-calculation-diagnostic
+          path: |
+            ffh017-test-output-*.txt
+            ffh017-test-summary.txt
+          if-no-files-found: error
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
