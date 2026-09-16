@@ -10,8 +10,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test lib/calculations/*.test.ts",
-    "test:security": "node --experimental-strip-types --test tests/security/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-reporter=spec lib/calculations/*.test.ts",
+    "test:focused": "node --experimental-strip-types --test --test-reporter=spec",
+    "test:security": "node --experimental-strip-types --test --test-reporter=spec tests/security/*.test.ts",
+    "test:security:focused": "node --experimental-strip-types --test --test-reporter=spec",
     "typecheck": "tsc --noEmit",
     "ai:validate-state": "node scripts/validate-ai-state.mjs",
     "verify": "npm run ai:validate-state && npm test && npm run test:security && npm run typecheck && npm run lint && npm run build"
