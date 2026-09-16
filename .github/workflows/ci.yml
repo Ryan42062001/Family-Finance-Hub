@@ -45,6 +45,7 @@ jobs:
           exit $final
       - name: Upload FFH-017 calculation diagnostic
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ffh017-calculation-diagnostic
