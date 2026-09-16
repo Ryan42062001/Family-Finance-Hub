@@ -32,7 +32,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Capture calculation test output
         run: |
-          npm test > ffh017-ci-diagnostic.txt 2>&1
+          call npm test > ffh017-ci-diagnostic.txt 2>&1
           echo %ERRORLEVEL%> ffh017-ci-diagnostic.exit
           exit /b 0
       - name: Persist calculation diagnostic
