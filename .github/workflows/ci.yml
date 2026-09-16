@@ -27,6 +27,27 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Diagnose calculation concurrency ladder
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $levels = @(2, 4, 8, 0)
+          foreach ($level in $levels) {
+            $label = if ($level -eq 0) { "default" } else { "$level" }
+            $log = "aggregate-$label.log"
+            Write-Host "=== CONCURRENCY=$label ==="
+            if ($level -eq 0) {
+              & node --experimental-strip-types --test lib/calculations/*.test.ts *> $log
+            } else {
+              & node --experimental-strip-types --test --test-concurrency=$level lib/calculations/*.test.ts *> $log
+            }
+            $code = $LASTEXITCODE
+            Write-Host "CONCURRENCY_$($label)_EXIT=$code"
+            if ($code -ne 0) {
+              Get-Content $log | Select-String -Pattern 'not ok|failureType|error:|code:|ERR_|AssertionError|testCodeFailure|cancelledByParent|SIG|spawn|timeout|expected|actual' -Context 4,12
+            }
+          }
+          exit 0
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
