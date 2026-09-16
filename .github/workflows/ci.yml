@@ -27,6 +27,23 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Diagnose calculation suites individually
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $failed = @()
+          Get-ChildItem lib/calculations/*.test.ts | Sort-Object Name | ForEach-Object {
+            Write-Host "=== DIAG_SUITE=$($_.Name) ==="
+            node --experimental-strip-types --test $_.FullName
+            if ($LASTEXITCODE -ne 0) {
+              $failed += $_.Name
+              Write-Host "FAILED_SUITE=$($_.Name)"
+            }
+          }
+          if ($failed.Count -gt 0) {
+            Write-Host "FAILED_SUITES=$($failed -join ',')"
+            exit 1
+          }
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
