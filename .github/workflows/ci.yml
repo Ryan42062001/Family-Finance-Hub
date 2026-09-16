@@ -27,26 +27,24 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - name: Diagnose calculation suites individually
+      - name: Diagnose aggregate calculations default concurrency
         shell: pwsh
         continue-on-error: true
         run: |
-          $failed = @()
-          Get-ChildItem lib/calculations/*.test.ts | Sort-Object Name | ForEach-Object {
-            Write-Host "=== DIAG_SUITE=$($_.Name) ==="
-            node --experimental-strip-types --test $_.FullName
-            if ($LASTEXITCODE -ne 0) {
-              $failed += $_.Name
-              Write-Host "FAILED_SUITE=$($_.Name)"
-            }
+          & node --experimental-strip-types --test lib/calculations/*.test.ts *> aggregate-default.log
+          $code = $LASTEXITCODE
+          Write-Host "AGGREGATE_DEFAULT_EXIT=$code"
+          if ($code -ne 0) {
+            Get-Content aggregate-default.log | Select-String -Pattern 'not ok|failureType|error:|code:|ERR_|AssertionError|testCodeFailure|cancelledByParent|SIG|spawn|timeout' -Context 4,10
           }
-          if ($failed.Count -gt 0) {
-            Write-Host "FAILED_SUITES=$($failed -join ',')"
-            exit 1
-          }
-      - name: Diagnose aggregate calculations serially
-        continue-on-error: true
-        run: node --experimental-strip-types --test --test-concurrency=1 lib/calculations/*.test.ts
+          exit $code
+      - name: Upload aggregate diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffh017-aggregate-default-log
+          path: aggregate-default.log
+          if-no-files-found: error
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
