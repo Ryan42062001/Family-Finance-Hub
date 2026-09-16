@@ -44,6 +44,9 @@ jobs:
             Write-Host "FAILED_SUITES=$($failed -join ',')"
             exit 1
           }
+      - name: Diagnose aggregate calculations serially
+        continue-on-error: true
+        run: node --experimental-strip-types --test --test-concurrency=1 lib/calculations/*.test.ts
       - name: Test calculations
         run: npm test
       - name: Test security policy contract
