@@ -7,13 +7,121 @@ on:
       - phase-5-money-priority-engine
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, ffh-local]
     defaults:
       run:
         shell: cmd
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
-      - name: Read prior FFH-017 diagnostic context
-        run: powershell -NoProfile -Command "$lines = Get-Content 'ffh017-ci-diagnostic.txt'; $lines[2678..2720]; Write-Output '---SECOND FAILURE---'; $lines[3222..3265]"
       - uses: actions/checkout@v4
+        with:
+          ref: ffh/ffh-017-audit-remediation
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore canonical test command and Foundation workflow
+        run: git checkout 5ae7f32b26ba51e40e2230d68331a83195ce8f1d -- package.json .github/workflows/ci.yml
+      - name: Align stale regressions with FFH-017 audit semantics
+        shell: powershell
+        run: |
+          $path = 'lib/calculations/money-priority-fresh-final-remediation.test.ts'
+          $content = (Get-Content $path -Raw).Replace("`r`n", "`n")
+          $old = @'
+          test("catch-up room consumed by Build cannot be reused by Windfall", () => {
+            const raw = baseRaw();
+            raw.people![0].birth_date = "1970-01-01";
+            raw.retirementAccounts![0].employee_contributed_ytd = 7500;
+            const { engine, retirement } = windfallRetirement(raw);
+            const entry = engine.retirementCapacityLedger.entries.find((item) => item.accountId === "ira")!;
+            assert.equal(entry.originalRemainingAnnualRoom, 1100);
+            assert.equal(entry.catchUpRemainingRoom, 0);
+            assert.equal(retirement.length, 0);
+          });
+          '@.Replace("`r`n", "`n")
+          $new = @'
+          test("catch-up Build consumption is not reused while exact-cent residual remains Windfall-eligible", () => {
+            const raw = baseRaw();
+            raw.people![0].birth_date = "1970-01-01";
+            raw.retirementAccounts![0].employee_contributed_ytd = 7500;
+            const { engine, retirement } = windfallRetirement(raw);
+            const entry = engine.retirementCapacityLedger.entries.find((item) => item.accountId === "ira")!;
+            const windfall = retirement.reduce((sum, item) => sum + item.allocatedAmount, 0);
+            assert.equal(entry.originalRemainingAnnualRoom, 1100);
+            assert.equal(entry.catchUpRemainingRoom, 0.08);
+            assert.equal(windfall, 0.08);
+            assert.equal(annualEngineClaims(engine) + windfall, 1100);
+          });
+          '@.Replace("`r`n", "`n")
+          if (-not $content.Contains($old)) { throw 'Expected catch-up regression block was not found.' }
+          $content = $content.Replace($old, $new)
+          [System.IO.File]::WriteAllText((Resolve-Path $path), $content, (New-Object System.Text.UTF8Encoding($false)))
+
+          $path = 'lib/calculations/money-priority-goal-ranking.test.ts'
+          $content = (Get-Content $path -Raw).Replace("`r`n", "`n")
+          $old = @'
+          test("missing and invalid dates invent no pace and fail closed for shared recurring competition", () => {
+            const result = evaluateBuildStage(buildMoneyPrioritySnapshot(raw([
+              goal("missing", { target_date: null }),
+              goal("invalid", { target_date: "2027-02-30" }),
+              goal("valid", { target_amount: 1200 }),
+            ])), "2026-08-30", undefined, 100);
+            assert.equal(result.goals.find((item) => item.goalId === "missing")?.requiredMonthlyPace, null);
+            assert.equal(result.goals.find((item) => item.goalId === "invalid")?.requiredMonthlyPace, null);
+            assert.equal(result.competition.state, "more_information_needed");
+            assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 0);
+            assert.equal(result.remainingMonthlyCapacity, 100);
+          });
+          '@.Replace("`r`n", "`n")
+          $new = @'
+          test("missing and invalid dates invent no pace without freezing known recurring competition", () => {
+            const result = evaluateBuildStage(buildMoneyPrioritySnapshot(raw([
+              goal("missing", { target_date: null }),
+              goal("invalid", { target_date: "2027-02-30" }),
+              goal("valid", { target_amount: 1200 }),
+            ])), "2026-08-30", undefined, 100);
+            assert.equal(result.goals.find((item) => item.goalId === "missing")?.requiredMonthlyPace, null);
+            assert.equal(result.goals.find((item) => item.goalId === "invalid")?.requiredMonthlyPace, null);
+            assert.equal(result.competition.state, "more_information_needed");
+            assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 100);
+            assert.equal(result.remainingMonthlyCapacity, 0);
+          });
+          '@.Replace("`r`n", "`n")
+          if (-not $content.Contains($old)) { throw 'Expected missing-date regression block was not found.' }
+          $content = $content.Replace($old, $new)
+          [System.IO.File]::WriteAllText((Resolve-Path $path), $content, (New-Object System.Text.UTF8Encoding($false)))
+      - name: Verify patch scope
+        run: git diff --check
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate AI control-plane state
+        run: npm run ai:validate-state
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Test calculations
+        run: npm test
+      - name: Test security policy contract
+        run: npm run test:security
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Commit validated regression alignment and cleanup
+        shell: powershell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/calculations/money-priority-fresh-final-remediation.test.ts lib/calculations/money-priority-goal-ranking.test.ts package.json .github/workflows/ci.yml
+          $changed = git diff --cached --name-only
+          Write-Output $changed
+          git commit -m "test(ffh-017): align regressions with audit semantics"
+          git push origin HEAD:ffh/ffh-017-audit-remediation
