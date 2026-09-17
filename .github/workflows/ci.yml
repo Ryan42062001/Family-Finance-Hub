@@ -7,9 +7,6 @@ on:
       - phase-5-money-priority-engine
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, ffh-local]
@@ -30,15 +27,9 @@ jobs:
         run: npm run ai:validate-state
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - name: Capture calculation test output
+      - name: Diagnose calculation test output
         run: |
           call npm test > ffh017-ci-diagnostic.txt 2>&1
-          echo %ERRORLEVEL%> ffh017-ci-diagnostic.exit
+          echo TEST_EXIT=%ERRORLEVEL%
+          findstr /N /C:"not ok" /C:"AssertionError" /C:"ERR_" /C:"error:" /C:"Error:" /C:"failed" /C:"cancelled" ffh017-ci-diagnostic.txt
           exit /b 0
-      - name: Persist calculation diagnostic
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ffh017-ci-diagnostic.txt ffh017-ci-diagnostic.exit
-          git commit -m "ci(ffh-017): capture calculation failure [skip ci]"
-          git push origin HEAD:ffh/ffh-017-audit-remediation
