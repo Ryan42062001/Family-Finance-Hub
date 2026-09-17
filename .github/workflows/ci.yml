@@ -7,9 +7,6 @@ on:
       - phase-5-money-priority-engine
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, ffh-local]
@@ -21,20 +18,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ffh/ffh-017-audit-remediation
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore canonical test command and Foundation workflow
-        run: git checkout 5ae7f32b26ba51e40e2230d68331a83195ce8f1d -- package.json .github/workflows/ci.yml
-      - name: Align stale regressions with FFH-017 audit semantics
-        run: |
-          node -e "const fs=require('fs');let p='lib/calculations/money-priority-fresh-final-remediation.test.ts';let s=fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n');for(const x of ['catch-up room consumed by Build cannot be reused by Windfall','assert.equal(entry.catchUpRemainingRoom, 0);','assert.equal(retirement.length, 0);'])if(!s.includes(x))throw new Error('missing first regression marker: '+x);s=s.replace('catch-up room consumed by Build cannot be reused by Windfall','catch-up Build consumption is not reused while exact-cent residual remains Windfall-eligible');s=s.replace('  assert.equal(entry.originalRemainingAnnualRoom, 1100);\n  assert.equal(entry.catchUpRemainingRoom, 0);\n  assert.equal(retirement.length, 0);','  const windfall = retirement.reduce((sum, item) => sum + item.allocatedAmount, 0);\n  assert.equal(entry.originalRemainingAnnualRoom, 1100);\n  assert.equal(entry.catchUpRemainingRoom, 0.08);\n  assert.equal(windfall, 0.08);\n  assert.equal(Number((annualEngineClaims(engine) + windfall).toFixed(2)), 1100);');fs.writeFileSync(p,s,'utf8');"
-          node -e "const fs=require('fs');let p='lib/calculations/money-priority-goal-ranking.test.ts';let s=fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n');const title='missing and invalid dates invent no pace and fail closed for shared recurring competition';if(!s.includes(title))throw new Error('missing second regression title');s=s.replace(title,'missing and invalid dates invent no pace without freezing known recurring competition');const lines=s.split('\n');let changedA=0,changedB=0;for(let i=0;i<lines.length;i++){if(lines[i].includes('relatedEntityId ===')&&lines[i].includes('valid')&&lines[i].includes('allocatedMonthlyAmount, 0')){lines[i]=lines[i].replace('allocatedMonthlyAmount, 0','allocatedMonthlyAmount, 100');changedA++;}if(i>0&&lines[i].includes('result.remainingMonthlyCapacity, 100')&&lines.slice(Math.max(0,i-12),i).some(x=>x.includes('missing and invalid dates invent no pace without freezing known recurring competition'))){lines[i]=lines[i].replace('result.remainingMonthlyCapacity, 100','result.remainingMonthlyCapacity, 0');changedB++;}}if(changedA!==1||changedB!==1)throw new Error('unexpected second regression replacement counts '+changedA+'/'+changedB);fs.writeFileSync(p,lines.join('\n'),'utf8');"
-      - name: Verify patch scope
-        run: git diff --check
       - name: Install dependencies
         run: npm ci
       - name: Validate AI control-plane state
@@ -51,11 +37,3 @@ jobs:
         run: npm run lint
       - name: Build
         run: npm run build
-      - name: Commit validated regression alignment and cleanup
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/calculations/money-priority-fresh-final-remediation.test.ts lib/calculations/money-priority-goal-ranking.test.ts package.json .github/workflows/ci.yml
-          git diff --cached --name-only
-          git commit -m "test(ffh-017): align regressions with audit semantics"
-          git push origin HEAD:ffh/ffh-017-audit-remediation

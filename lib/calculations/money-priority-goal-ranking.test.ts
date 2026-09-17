@@ -168,7 +168,7 @@ test("additional retirement beats ordinary optional goal funding", () => {
   assert.equal(result.allocations.find((item) => item.relatedEntityId === "optional")?.allocatedMonthlyAmount, 0);
 });
 
-test("missing and invalid dates invent no pace and fail closed for shared recurring competition", () => {
+test("missing and invalid dates invent no pace without freezing known recurring competition", () => {
   const result = evaluateBuildStage(buildMoneyPrioritySnapshot(raw([
     goal("missing", { target_date: null }),
     goal("invalid", { target_date: "2027-02-30" }),
@@ -177,8 +177,8 @@ test("missing and invalid dates invent no pace and fail closed for shared recurr
   assert.equal(result.goals.find((item) => item.goalId === "missing")?.requiredMonthlyPace, null);
   assert.equal(result.goals.find((item) => item.goalId === "invalid")?.requiredMonthlyPace, null);
   assert.equal(result.competition.state, "more_information_needed");
-  assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 0);
-  assert.equal(result.remainingMonthlyCapacity, 100);
+  assert.equal(result.allocations.find((item) => item.relatedEntityId === "valid")?.allocatedMonthlyAmount, 100);
+  assert.equal(result.remainingMonthlyCapacity, 0);
 });
 
 test("fully funded goals consume no recurring capacity", () => {
