@@ -1,48 +1,79 @@
 # FFH-017 — Core Engine Worklog
 
-Task: Phase 5C Recurring Goal-versus-Retirement Competition
-Branch: `ffh/ffh-017-goal-retirement-competition`
-PR: #26
-Approved base: `phase-5-money-priority-engine` at `ecb05a6795c047365817164409739a2d0bdc7f76`
+Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
+Role: Core Financial Engine Engineer
+State: VALIDATING
+Branch: `ffh/ffh-017-audit-remediation`
+PR: #28 — draft / open / unmerged
+Approved base: `phase-5-money-priority-engine`
+Historical failed frozen target: `9d3a880e02365b4445b8070344c72c928ca34511`
+Remediation production checkpoint: `0a421f00e42ee1699d51dea7abdb37118bed631f`
 
-## Rescue findings
+## Fresh-state verification
 
-The refreshed PR head was `d70cef6849e6940cb44b79f702765d178cead694`. Contrary to the prior packet, Foundation CI run `34989685355`, job `104450794218` did not run the standard calculation/typecheck/lint/build chain to completion. A temporary diagnostic workflow skipped those standard gates and exposed 15 exact calculation failures in committed-expense, Existing Cash, goal-ranking, Recommendation Refresh, and retirement-integration tests.
+A fresh repository/GitHub refresh verified the current Manager/task routing from `.ai/tasks/FFH-017.md` and `.ai/tasks/TASK_INDEX.md`. Older `.ai/manager/ACTIVE_ASSIGNMENTS.md`, `.ai/shared/PROJECT_STATE.md`, and the pre-remediation Core handoff are stale for FFH-017 and are not used as current routing authority.
 
-The reported `money-priority-build.ts:344` BELOW-union Build error was not present at the authoritative PR head: local `npm run typecheck` and a clean-cache `npm run build` both passed. FFH-D004 nevertheless remains explicit in production: BELOW is retained as a first-class disposition and is allocated only after additional retirement.
+The historical frozen target `9d3a880e...` remains immutable failed-audit evidence. The accepted remediation scope is only:
 
-## Root cause and remediation
+- R01 = `TMA-017-01` + `FFH-017-P01` targeted missing-fact locality;
+- R02 = `TMA-017-02` exact non-tied annual/monthly retirement reconciliation;
+- R03 = `TMA-017-03` desired/excess recurring BELOW tranche;
+- `TMA-017-04` is already closed at the Manager/control-plane level and requires no production change.
 
-The 15 failures were stale or incomplete pre-Phase-5C test contracts, not a defect in the authoritative FFH-D004 allocator:
+## Remediation review
 
-- legacy goal fixtures confirmed Goal Intelligence but left material retirement facts unresolved, correctly producing targeted `MORE_INFORMATION_NEEDED`;
-- older allocation assertions expected pre-Phase-5C protected-goal multipliers instead of OUTRANKS / CO_PRIORITY / BELOW behavior;
-- the retirement integration assertion compared the total retirement request to only the above-floor tranche and omitted the separately protected floor;
-- Recommendation Refresh's test-only legacy adapter derived normalized economic facts from the mutable display name, causing a false fingerprint change;
-- Your Plan's funding-gap assertion omitted untouched allocations;
-- Existing Cash tests left retirement authority incomplete or unintentionally left above-floor retirement room, contaminating scenarios intended to isolate goal funding.
+### R01 — targeted missing-fact locality
 
-The correction is test-only: provide explicit retirement facts where the scenario requires actionable recurring competition, align assertions with FFH-D004 tranche semantics, make the legacy adapter derive stable placeholder facts from goal ID rather than display name, and preserve separate protected-floor plus additional-retirement accounting.
+`money-priority-build-competition.ts` now resolves known cross-domain relationships before treating unrelated missing evidence as globally material:
 
-Temporary CI diagnostic changes and the unrelated FFH-013 lifecycle edit were removed from PR scope. No production, schema, UI, HSA, SIMPLE, IRA, Secure, Windfall, or Supabase behavior was changed by the rescue.
+- confirmed Optional/lifestyle core is `BELOW` even when an immaterial amount/detail is unresolved;
+- unconfirmed legacy goals receive no new elevation and do not freeze unrelated verified allocations;
+- known OUTRANK/CO_PRIORITY tranches can allocate before an unrelated lower-priority unresolved tranche;
+- genuinely material Essential/Important uncertainty still fails closed for the capacity whose retirement tradeoff could change;
+- null requests remain locally unresolved and receive no invented allocation.
 
-## Local validation
+Direct regressions in `ffh-017-audit-remediation.test.ts` cover Optional unknown core, Optional irrelevant borrowing detail, legacy isolation, known OUTRANK and CO_PRIORITY with unrelated lower-priority unknowns, and material Essential/Important fail-closed cases.
 
-- `npm test` — PASS, 866/866.
-- `npm run test:security` — PASS, 21/21.
-- `npm run typecheck` — PASS.
-- `npm run lint` — PASS with one pre-existing React hook warning and zero errors.
-- `npm run build` after isolating the stale local `.next` cache — PASS.
-- `npm run ai:validate-state` — PASS with legacy-task warnings only.
+### R02 — exact recurring retirement reconciliation
 
-Candidate `31ed0be86fca58938c6a699ae2fccbc76374552d` triggered Foundation CI run `34992242373`, job attempts `104459541271` and `104459794425`. Both failed before checkout with no steps or downloadable job log. The same exact-head run was retried once and reproduced the runner-start failure. This was CI infrastructure evidence rather than a calculation/build failure.
+`money-priority-retirement-capacity.ts` now exposes `consumeRetirementCapacityRecurringMonthly(...)` as the authoritative non-tied recurring conversion. It derives monthly authority from verified annual cents, consumes exactly `monthly_cents * 12`, and throws if the annual ledger consumption does not exactly reconcile.
 
-## Self-hosted validation recovery
+Both the Build retirement prepass (`routableRetirementMonthlyCapacity`) and actual destination router (`routeRetirementMonthlyAmount`) use the same helper. This removes the former round-half-up path where `$0.06` annual room could be presented as `$0.01/month`.
 
-The repository owner configured repository-scoped runner `FFH-Windows-Runner` with labels `self-hosted`, `Windows`, `X64`, and `ffh-local`. Foundation CI now uses that runner at `$0` GitHub-hosted-runner cost. Run steps use `cmd.exe`, preserving the user's existing Windows PowerShell execution-policy settings.
+Direct boundary regressions cover `$0.06`, `$0.11`, `$0.12`, `$0.13`, `$0.23`, `$0.24`, and `$0.25` annual room. Residual annual cents remain available to later one-time stages rather than being hidden or falsely converted into recurring monthly authority.
 
-Pre-handoff head `545d3b12710086b0fefb44be9b7823309f30da0e` passed full Foundation CI run `34999388253`, job `104483637634`.
+### R03 — desired/excess recurring tranche
 
-Final handoff commit `c7882907854579488eb82f4d9f18799b51522550` then passed full Foundation CI run `35000961119`, job `104488944773`, including AI-state, dependency audit, calculations, security, typecheck, lint, and build.
+`money-priority-build-competition.ts` now emits distinct `core` and `desired_excess` tranches. Desired/excess always carries `BELOW`, never inherits an OUTRANK/CO_PRIORITY core disposition, and may consume residual Build capacity only after additional retirement and higher-ranked competing tranches.
 
-The task and task index were subsequently synchronized to `READY_FOR_MANAGER`. This worklog-only commit exists solely to force one exact final-head Foundation CI check after those lifecycle commits; it changes no financial-engine behavior, tests, policy, or allocation logic.
+`money-priority-build.ts` preserves that tranche identity through Build allocations, and `money-priority-engine.ts` gives desired-excess recommendations a distinct ID so core/excess recommendations cannot collide.
+
+Direct regressions cover the Manager-required Scenario-8 shape (core already satisfied, excess remains) and a mixed `$600` core + `$400` additional retirement + `$600` excess case that conserves all `$1,600` exactly.
+
+## Financial Engine Reconciliation Gate review
+
+- Authoritative recurring routing unit: integer monthly cents.
+- R02 prepass and actual non-tied router share the same recurring capacity-consumption helper.
+- Co-priority equal-fulfillment remains integer-cent based; stable identity remains only the unavoidable final-cent tie breaker.
+- Aggregate competition allocation is checked against capacity exactly; no epsilon/tolerance is used.
+- No positive monetary residual is hidden by a reconciliation clamp.
+- Desired-excess is a separate retirement-junior request, not promoted into remaining CORE need.
+- Existing Cash -> Secure -> Build -> Windfall ledger custody is preserved. A recurring Build conversion may leave annual residual cents that a later one-time Windfall consumer can legally use, but previously consumed annual cents cannot be reused.
+- Protected FFH-013 tied-spouse reconciliation path is unchanged by R02.
+
+## Regression-alignment review
+
+Two existing assertions were intentionally updated after the production remediation:
+
+1. Missing/invalid-date goals still invent no recurring pace, but they no longer freeze an unrelated fully known goal allocation. This is the required R01 locality behavior, not a weakened fail-closed invariant.
+2. A recurring Build allocation that cannot consume a sub-month annual residual leaves that exact residual on the authoritative retirement ledger. Windfall may consume the residual once as one-time capacity; the combined staged claims are still pinned to the original annual room exactly. This is the required R02 annual/monthly distinction, not double spending.
+
+`0a421f00e42ee1699d51dea7abdb37118bed631f` is the last production-file change. The current post-production delta is test/control-plane only.
+
+## CI evidence
+
+Supporting branch evidence: Foundation CI run `35167923979` succeeded on `32054d26ae2c460e29a64b7dfd1fa8490f461b06`, but that checkpoint still carried temporary test/CI presentation differences and is not the final validation checkpoint.
+
+The former exact head `17e2adec51a098c09720e31108aca46489008a3b` restored the canonical workflow/package state and contained the final regression alignment, but pull-request run `35168077989` returned `action_required` before any job was created because that head was authored by `github-actions[bot]`. It is infrastructure/authorization evidence only and does not count as validation.
+
+This documentation-only checkpoint intentionally leaves production and tests unchanged and is used to obtain a normal exact-head Foundation CI run on the canonical workflow. Final CI evidence will be recorded in the worker handoff once available.
