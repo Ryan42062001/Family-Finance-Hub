@@ -31,7 +31,7 @@ Last refreshed: 2026-09-18
 | FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
 | FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; compact table superseded by FFH-033 full-workforce view |
 | FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
-| FFH-034 | Product R&D / Engineering | BLOCKED | integration `da467f94...`; FULL #711 + DOCS_ONLY #712 SUCCESS | User-admin required `verify` ruleset activation -> Manager verification -> fresh Technical/Workflow audit |
+| FFH-034 | Product R&D / Engineering | REMEDIATION | R01 synchronize-delta locality active after live #713 finding | Preserve predecessor success continuity; re-prove long-running-PR DOCS_ONLY behavior before ruleset/audit |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.

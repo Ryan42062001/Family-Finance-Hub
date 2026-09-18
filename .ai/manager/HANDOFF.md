@@ -624,3 +624,30 @@ All financial, Supabase, live-data, FFH-020/FFH-016, PR #5, and Phase-6 gates re
 | 9 | Technical & Mathematical Auditor | WAIT | Activate only after required-`verify` ruleset is live and Manager freezes the exact FFH-034 workflow target. |
 | 10 | Financial Policy & Scenario Auditor | WAIT | No FFH-034 policy audit; final integrated Phase-5 policy audit remains downstream of FFH-020/FFH-016. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-034-R01 Manager finding — synchronize-delta efficiency locality
+
+Live Foundation CI #713 on Manager checkpoint `06486c60557427cefa86de16da9e966560663994` exposed a blocking efficiency defect before ruleset activation.
+
+The checkpoint changed only allowed Markdown control-plane files, but PR #5 still classified FULL because the current classifier compares `main` -> complete Phase-5 PR head. The older non-doc Phase-5 changes therefore force every later docs-only follow-up to FULL.
+
+Manager classification:
+- correctness/security weakening in current code: NO;
+- FFH-018/FFH-034 efficiency objective satisfied on long-running implementation PRs: NO;
+- severity: MEDIUM / BLOCKING before ruleset/audit;
+- ruleset activation: DEFERRED.
+
+R01 architecture:
+- opened/reopened: cumulative base/head classification;
+- synchronize: exact prior-head -> new-head event delta;
+- synchronize SHA mismatch/missing/ambiguity: FULL;
+- docs-only synchronize: require a successful previous `.github/workflows/ci.yml` run on the immediate predecessor SHA for the same PR before current `verify` may succeed;
+- previous-success lookup uses read-only GitHub Actions API permission;
+- missing/red/error predecessor fails current verify cheaply and does not run expensive stages;
+- successful docs-only runs form a transitive chain back to previously successful validation;
+- all non-doc/mixed synchronize deltas remain FULL;
+- durable evidence records action/scope/delta/predecessor run.
+
+Only after R01 integration and a docs-only follow-up on the existing non-doc-bearing PR #5 succeeds may the required-`verify` ruleset be activated.
+
+All financial, Supabase, live-data, FFH-020/FFH-016, PR #5 merge-readiness, and Phase-6 gates remain unchanged.
