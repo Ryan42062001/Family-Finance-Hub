@@ -475,21 +475,32 @@ export function buildRecurringGoalRetirementCompetition(
     const source = byId.get(tranche.goalId);
     return source !== undefined && !isLegacyUnconfirmedGoal(source);
   });
-  const bucketLocalityUnresolvedGoals = [
-    ...materialMissingGoals,
-    ...definitiveBelowRequestUnresolvedGoals,
+  const materialGoalAnalyses = [
+    ...materialMissingGoals.flatMap((tranche) => {
+      const source = byId.get(tranche.goalId);
+      if (!source) return [];
+      const resolution = analyzeMaterialGoalResolutions(source, retirementStatus, userPriorityById);
+      return [{
+        tranche,
+        source,
+        resolution,
+        maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+      }];
+    }),
+    ...definitiveBelowRequestUnresolvedGoals.flatMap((tranche) => {
+      const source = byId.get(tranche.goalId);
+      if (!source) return [];
+      return [{
+        tranche,
+        source,
+        resolution: {
+          possibleDispositions: new Set<BuildCompetitionDisposition>(["BELOW"]),
+          strongestBelowOrdering: source,
+        },
+        maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+      }];
+    }),
   ];
-  const materialGoalAnalyses = bucketLocalityUnresolvedGoals.flatMap((tranche) => {
-    const source = byId.get(tranche.goalId);
-    if (!source) return [];
-    const resolution = analyzeMaterialGoalResolutions(source, retirementStatus, userPriorityById);
-    return [{
-      tranche,
-      source,
-      resolution,
-      maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
-    }];
-  });
   const potentialOutrankPeers = materialMissingGoals.flatMap((tranche) => {
     const source = byId.get(tranche.goalId);
     if (!source || !canResolveToOutrank(source)) return [];
