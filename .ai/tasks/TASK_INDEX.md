@@ -62,4 +62,4 @@ Last refreshed: 2026-09-17
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is FFH-017 Manager verification/acceptance of PR #28 -> integration -> new frozen packet -> fresh dual re-audit. Historical target `9d3a880e...` must not be reused as the remediation audit target.
+Current near-term gate is fresh independent FFH-017 Technical + Policy re-audit of frozen target `90a31c755ea88310e58bb9e06ade60af73e182f5` -> Manager reconciliation -> closure or bounded remediation. Historical failed target `9d3a880e...` must not be reused.
