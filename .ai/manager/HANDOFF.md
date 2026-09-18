@@ -2,16 +2,15 @@
 
 HANDOFF
 
-Task event: fresh Manager control-plane refresh after FFH-031 independent audit closure and FFH-017 final re-audit reconciliation
+Task event: FFH-017 R04 Manager acceptance, integration, and fresh closure-audit activation
 Role: Manager / Architect / Control-Plane Owner
-Status: ROUTED — FFH-017 R04 REMEDIATION ACTIVE
+Status: FFH-017 AUDIT_READY — DUAL INDEPENDENT CLOSURE AUDITS ACTIVE
 Date: 2026-09-17
 
-## Repository checkpoints
+## Repository / workflow
 
 Repository: `Ryan42062001/Family-Finance-Hub`
-Milestone branch: `phase-5-money-priority-engine`
-Pre-handoff refresh milestone/control-plane checkpoint: `e19fecd772860e75ec9170a9bda485fc20bb01dc`
+Milestone: `phase-5-money-priority-engine`
 
 Canonical workflow:
 - `.ai/shared/WORKFLOW_V3_1.md`
@@ -19,154 +18,105 @@ Canonical workflow:
 - `.ai/shared/WORKFLOW.md`
 - `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`
 
-Execution routing:
-- default `STANDARD_CHAT_HIGH`
-- `WORK_MODE_PREFERRED` only when autonomous execution materially reduces interaction/execution overhead and the execution burden is substantial
+Default execution mode remains `STANDARD_CHAT_HIGH`. Work mode is reserved for substantial autonomous execution leverage.
 
-## FFH-031 — closed control-plane upgrade
+## FFH-017 exact frozen target
 
-FFH-031 — Work-Mode Credit-Efficient Routing is `CLOSED`.
+Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 
-Exact integrated/audited target:
-`5c83a5040cdfc032606feaf96746e6d6131ea15a`
+State: `AUDIT_READY`
 
-PR #30 final accepted head:
-`d46b6ef9e5e6c29f9d820e58926ffe494bceb9b6`
+R04 production checkpoint:
+`23fb87ae8b352e2a3d06aa1836ca2081fbb37544`
 
-Independent workflow/control-plane audit:
-- verdict: PASS
-- findings: none
-- report: `.ai/audit/technical/FFH-031_WORKFLOW_CONTROL_PLANE_AUDIT_5c83a504.md`
-- report commit: `a834cd0a36dd36bae8f7b72ee0af9387a78db0ed`
-- audit handoff: `9f29c1b1fdb3b862f7f4489c75f2c0ca7c7f184d`
+Manager-accepted PR #31 head:
+`381413b76799bd56caa2a9ce31717d9c9efca637`
 
-Do not reopen FFH-031 absent contradictory repository evidence.
+Integration / exact frozen financial target:
+`c009a8c22d92715696018c7089eb5ad1a79a3cf1`
 
-## FFH-017 — active R04 remediation
+Accepted head -> integration comparison:
+zero changed files.
 
-Task:
-FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
+Exact integration CI:
+- Foundation run `35303342028`
+- job `105470402709`
+- run #658
+- SUCCESS
+- 909/909 calculation tests
+- 21/21 security tests
+- state validator PASS
+- dependency audit 0 vulnerabilities
+- typecheck/lint/build PASS
 
-State:
-`REMEDIATION`
+Frozen packet:
+`.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c009a8c2.md`
 
-Owner:
-Core Financial Engine Engineer
-
-Execution mode:
-`STANDARD_CHAT_HIGH`
-
-Assigned branch:
-`ffh/ffh-017-r01-outrank-peer-remediation`
-
-Branch checkpoint observed during this refresh:
-`4e75037ae5f53418af3f50c7a9af9f17fd09f0dd`
-
-That checkpoint is the Manager R04 routing commit. No later implementation commit or new FFH-017 remediation PR was present at refresh time.
-
-Historical failed frozen targets remain immutable:
+Historical failed targets remain immutable:
 - `9d3a880e02365b4445b8070344c72c928ca34511`
 - `90a31c755ea88310e58bb9e06ade60af73e182f5`
 
-PR #28 is historical merged remediation evidence only; it must not be reused as the new R04 candidate.
+## Active audit lanes
 
-### R04 blocking defect
+Technical & Mathematical Auditor:
+- branch `audit/ffh-017-technical-c009a8c2`
+- mode `STANDARD_CHAT_HIGH`
+- independently verify R04, exact monetary/reconciliation behavior, R02/R03/M01 preservation, and the frozen target.
 
-Both final independent auditors found the same remaining HIGH defect:
+Financial Policy & Scenario Auditor:
+- branch `audit/ffh-017-policy-c009a8c2`
+- mode `STANDARD_CHAT_HIGH`
+- independently verify R04 locality/scarcity semantics, scenario behavior, and R02/R03/M01 preservation.
 
-A known OUTRANK goal must not receive contested scarce Bucket-1 capacity while an unresolved material Essential peer can still validly resolve into OUTRANK and change financial ordering or scarce-capacity ownership.
+Neither auditor may use the other auditor's verdict before submitting their own.
 
-Required behavior:
-- if an unresolved material core tranche can become OUTRANK and alter Bucket-1 entitlement/order, keep only the contested capacity unresolved;
-- do not invent unknown amount or recurring pace;
-- permit any allocation proven independent of the missing fact;
-- preserve locality for Optional/lifestyle unknowns, legacy-unconfirmed goals, Important goals that cannot OUTRANK in V1, and unrelated lower-priority uncertainty;
-- do not restore the historical global freeze.
+## R04 closure boundary
 
-Preserve cleared areas:
-- R02 exact annual/monthly retirement reconciliation;
-- R03 desired/excess BELOW-retirement routing;
-- Financial Engine Reconciliation mechanics;
-- protected FFH-013 M01.
+The one blocking root defect from the prior dual re-audit was:
+a materially unresolved Essential peer could still become a stronger OUTRANK goal, so a weaker known OUTRANK allocation could consume contested Bucket-1 capacity too early.
 
-### Required engineer return
+Manager accepted the bounded fix only after independent review and adversarial hand-check.
 
-Engineer returns `READY_FOR_MANAGER` unmerged with:
-- exact PRODUCTION_SHA;
-- exact final validation SHA if different;
-- PR number;
-- changed production/test files;
-- direct R04 regressions;
-- R02/R03 preservation proof;
-- exact M01 proof;
-- Financial Engine Reconciliation Gate proof;
-- full calculations/security/typecheck/lint/build/dependency-audit/state-validator evidence;
-- Foundation CI on the exact validated candidate;
-- HANDOFF_SHA;
-- blockers/known debt.
+Do not reopen cleared R02/R03/FFH-013 M01 absent regression evidence.
 
-Manager then independently reviews, adversarially hand-checks R04, verifies scope and exact CI, and either accepts or returns remediation. Only after acceptance may Manager integrate, record INTEGRATION_SHA, create a new frozen target and packet, and activate fresh independent closure audit lanes.
+## Other task state
 
-## Latest relevant CI
+FFH-031: CLOSED after independent control-plane PASS, zero findings.
 
-Foundation CI run `35300313982`, verify job `105461378778`, completed SUCCESS on checkpoint `4e75037ae5f53418af3f50c7a9af9f17fd09f0dd`.
+FFH-020: BLOCKED on secure Supabase CLI/auth/protected-backup execution capability.
 
-This validates the current routed checkpoint only. It is not R04 implementation evidence.
+FFH-016: BLOCKED behind Manager-accepted FFH-020 recovery/deployment.
 
-## Supabase / App-Data
+FFH-018: QUEUED; PR #29 remains historical/draft evidence and should not be resumed automatically during the FFH-017 closure audit.
 
-FFH-020:
-- State: `BLOCKED`
-- Execution mode when executable: `WORK_MODE_PREFERRED`
-- Blocker: secure Supabase CLI/auth/link plus protected pre-change backup capability is unavailable in the current execution environment.
-- No history repair, db push, live DDL, manual SQL replay, or direct migration-table write is authorized outside the accepted staged recovery sequence.
-
-FFH-016:
-- State: `BLOCKED`
-- Blocked behind Manager-accepted FFH-020 recovery/deployment evidence.
-
-## Other queued work
-
-FFH-018:
-- State: `QUEUED`
-- Owner class: Product R&D / Engineering
-- Execution mode: `STANDARD_CHAT_HIGH`
-- CI hardening/test-output observability remains deferred until the current correctness wave is stable.
-- Historical/draft PR #29 must be re-verified before any resume/supersede/rebase/close decision.
-
-FFH-026:
-- State: `QUEUED`
-- Execution mode when activated: `WORK_MODE_PREFERRED`
-- Remains blocked by Phase 5 + Phase 6 acceptance and production release-readiness dependencies.
+FFH-026: QUEUED pending Phase 5 + Phase 6/release dependencies.
 
 ## Current workforce
 
 ACTIVE:
-- Core Financial Engine Engineer — FFH-017 R04 remediation.
+- Technical & Mathematical Auditor — FFH-017 closure audit.
+- Financial Policy & Scenario Auditor — FFH-017 closure audit.
 
 IDLE:
-- Technical & Mathematical Auditor — waiting for a new Manager-frozen FFH-017 target.
-- Financial Policy & Scenario Auditor — waiting for a new Manager-frozen FFH-017 target.
-- Work Helper / Super Troubleshooter — idle unless bounded remediation becomes execution-heavy or stuck.
-- Financial Policy specialist roles — idle.
-- Product R&D — idle while FFH-018 remains queued.
+- Core Financial Engine Engineer after accepted/integrated R04.
+- Work Helper.
+- Financial Policy specialist roles.
+- Product R&D.
 
 BLOCKED:
-- Application, Data & Integration Engineer — FFH-020.
-- FFH-016 live parity path behind FFH-020.
+- App/Data on FFH-020.
+- FFH-016 behind FFH-020.
 
-QUEUED:
-- FFH-018.
-- FFH-026.
+Manager is event-driven pending both fresh independent FFH-017 verdicts.
 
-## Exact next events
+## Exact next Manager gate
 
-1. Core Financial Engine Engineer implements only FFH-017 R04 and returns `READY_FOR_MANAGER` unmerged.
-2. Manager independently reviews the candidate, changed scope, required direct regressions, reconciliation proof, adversarial boundary, and exact CI.
-3. If accepted, Manager integrates and records the exact INTEGRATION_SHA.
-4. Manager creates a NEW frozen FFH-017 target and frozen audit packet.
-5. Manager activates fresh independent Technical/Mathematical and Financial Policy/Scenario closure audits as required.
-6. Manager reconciles the verdicts and closes FFH-017 only if every required gate clears.
-7. Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 clears its fresh closure audit gate.
+Wait for BOTH independent FFH-017 audit reports/handoffs.
 
-Repository/task/runtime/CI evidence outranks this handoff if later state differs.
+Then Manager:
+1. verifies each report was produced against exact target `c009a8c22d92715696018c7089eb5ad1a79a3cf1`;
+2. reconciles findings without allowing either auditor to substitute the other's reasoning;
+3. if both required gates clear, records closure and advances Phase 5;
+4. if either returns a blocking finding, moves FFH-017 to `REMEDIATION` and routes only the bounded defect.
+
+Repository/task/CI evidence outranks this handoff if later state differs.

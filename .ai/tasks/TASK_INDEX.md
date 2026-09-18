@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | ACCEPTED | R04 production `23fb87ae...`; accepted PR head `f58d96f...`; failed frozen target `90a31c75...` | Foundation CI `35302990436` SUCCESS; Manager integration + new frozen audit target next |
+| FFH-017 | Core Engine | AUDIT_READY | R04 production `23fb87ae...`; integration/frozen target `c009a8c2...` | Integration CI `35303342028` SUCCESS; fresh Technical + Policy closure audits active |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -54,7 +54,7 @@ Last refreshed: 2026-09-17
 - Direct R04 tests cover higher-ranked unresolved OUTRANK scarcity, provably non-OUTRANK Essential uncertainty, Important locality, lower-ranked potential OUTRANK locality, and bounded independent capacity.
 - Exact candidate Foundation CI run `35302462197`, job `105467760539` — SUCCESS; 909/909 calculations and 21/21 security tests passed.
 - R04 branch was synchronized with latest milestone/control-plane head; refreshed validation head `b2c5d46f4f7abe58f6f1530e31107379ea6c037e` passed Foundation CI run `35302662526`, job `105468356418` — SUCCESS.
-- FFH-017 R04 is Manager-ACCEPTED on PR #31 head `f58d96f145e96db62a4df85743e2d240a25e5ace`; exact-head Foundation CI run `35302990436`, job `105469345639` — SUCCESS. PR #31 remains unmerged pending Manager integration.
+- FFH-017 R04 PR #31 was Manager-accepted and integrated at `c009a8c22d92715696018c7089eb5ad1a79a3cf1`; accepted PR head -> integration has zero changed files. Exact integration Foundation CI run `35303342028`, job `105470402709` — SUCCESS with 909/909 calculations and 21/21 security tests.
 - Repository-scoped self-hosted Windows runner `FFH-Windows-Runner` runs Foundation CI at `$0` hosted-runner cost as a Windows service.
 - FFH-020 remains separately BLOCKED before any live database write.
 - FFH-016 remains blocked behind FFH-020.
@@ -62,15 +62,16 @@ Last refreshed: 2026-09-17
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Manager / Architect — integrate accepted FFH-017 PR #31, record exact `INTEGRATION_SHA`, verify integration, create a new frozen target/packet, then activate fresh independent closure audits.
+- Technical & Mathematical Auditor — fresh independent FFH-017 closure audit of exact frozen target `c009a8c22d92715696018c7089eb5ad1a79a3cf1` on `audit/ffh-017-technical-c009a8c2`.
+- Financial Policy & Scenario Auditor — fresh independent FFH-017 closure audit of the same exact frozen target on `audit/ffh-017-policy-c009a8c2`.
 
-## IDLE / BLOCKED
-- Technical & Mathematical Auditor: IDLE pending a new Manager-frozen remediation target.
-- Financial Policy & Scenario Auditor: IDLE pending a new Manager-frozen remediation target.
+## ACTIVE / IDLE / BLOCKED
+- Technical & Mathematical Auditor: ACTIVE on the new frozen R04 target.
+- Financial Policy & Scenario Auditor: ACTIVE on the new frozen R04 target.
 - Work Helper: IDLE; escalate only if the bounded Core remediation becomes execution-heavy or technically stuck.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is FFH-017 Manager integration of accepted PR #31 -> new frozen target -> required fresh closure audit. Failed targets `9d3a880e...` and `90a31c75...` must not be reused.
+Current near-term gate is independent FFH-017 Technical + Policy closure audit of `c009a8c2...` -> Manager verdict reconciliation -> close or route remediation. Failed targets `9d3a880e...` and `90a31c75...` must not be reused.
