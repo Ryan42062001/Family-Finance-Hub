@@ -135,3 +135,16 @@ FFH-017 remains independently active in bounded R07 remediation.
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---|---|---|---|
 | 1 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as the Core Financial Engine Engineer. Execute FFH-017 R07 — Bucket-3 BELOW-only locality completion — under STANDARD_CHAT_HIGH with Fast Refresh on `ffh/ffh-017-r07-below-locality-remediation`. Treat live repository/GitHub state as authoritative. Read canonical workflow, FFH-017 task, core-engine charter/handoff, and both fresh `5c96b993` closure-audit reports. Fix only R07-A and R07-B, preserve R02-R06/M01/reconciliation/retirement-floor behavior, and return READY_FOR_MANAGER unmerged with exact SHAs, PR, direct regression proof, CI, and handoff. |
+
+## FFH-033 — full-workforce activation dashboard
+
+User-authorized control-plane follow-up to FFH-032.
+
+Every employee handoff will now display the entire 11-role Family Finance Hub workforce, including roles that are ACTIVE, WAIT, BLOCKED, or IDLE.
+
+The change preserves Manager-only `ACTIVATE NOW` authority and does not modify FFH-017 financial behavior.
+
+Branch:
+`manager/ffh-033-full-workforce-activation-table`
+
+Because this changes workflow semantics, one fresh independent workflow/control-plane audit is required before closure.

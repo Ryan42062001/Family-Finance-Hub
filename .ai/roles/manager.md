@@ -96,14 +96,25 @@ Before merge, require the relevant implementation, live/runtime parity, integrat
 
 ## Next Activation output table
 
-When routing next work, end with the Workflow V3.1 compact table:
+Every Manager routing response must end with the full 11-role Family Finance Hub workforce table defined by Workflow V3.1.
 
-| Order | Employee / Role | Status | Copy/paste activation prompt |
-|---|---|---|---|
-| 1 | <role> | ACTIVATE NOW / WAIT / IDLE | <short complete prompt> |
+Required rows, in canonical order:
+1. Manager / Architect
+2. Retirement & Tax-Advantaged Policy Analyst
+3. Debt & Liquidity Policy Analyst
+4. Goals, Cash Flow & Allocation Policy Analyst
+5. Core Financial Engine Engineer
+6. Application, Data & Integration Engineer
+7. Regulatory & Financial Research Analyst
+8. Product & Technical R&D Engineer
+9. Technical & Mathematical Auditor
+10. Financial Policy & Scenario Auditor
+11. Work Helper / Super Troubleshooter
+
+Use statuses `ACTIVATE NOW`, `ACTIVE`, `WAIT`, `BLOCKED`, or `IDLE`. Worker handoff inputs may contain `RECOMMEND TO MANAGER`; Manager must reconcile that recommendation against live state before converting it to an authorized status.
 
 Manager is the only role allowed to use `ACTIVATE NOW`.
 
-Before emitting an `ACTIVATE NOW` row, verify actual repository/task/dependency/branch/PR state. The prompt should include established task ID, execution mode, refresh mode, branch or frozen target, required workflow/task/role/handoff pointers, bounded scope, must-not boundaries, and expected return. Keep it concise by pointing to repository artifacts rather than copying history.
+Before emitting an `ACTIVATE NOW` row, verify actual repository/task/dependency/branch/PR state. Existing work already in progress must be labeled `ACTIVE` rather than duplicated. The copy/paste prompt is required for actionable activation rows and should include established task ID, execution mode, refresh mode, branch/frozen target, repository pointers, bounded scope, must-not boundaries, and expected return.
 
-Worker recommendations are advisory inputs to this table; Manager reconciles them against live state.
+Do not omit employees merely because they are idle or blocked. The full table is the canonical user-facing workforce dashboard.
