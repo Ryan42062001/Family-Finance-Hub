@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | READY_FOR_MANAGER | R05/R06 production `23b6001f...`; failed frozen target `c009a8c2...` | PR #32 Foundation CI `35304758354` SUCCESS; Manager acceptance/integration next |
+| FFH-017 | Core Engine | ACCEPTED | R05/R06 production `23b6001f...`; accepted PR head `bbf47aab...`; failed frozen target `c009a8c2...` | exact-head Foundation CI `35304988906` SUCCESS; Manager integration + new frozen target next |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -64,11 +64,11 @@ Last refreshed: 2026-09-17
 - Direct R05 tests cover confirmed necessity-unknown Fixed/Critical potential OUTRANK and a provably non-OUTRANK necessity-unknown negative control.
 - Direct R06 tests cover the $500/$200/$100 invariant-retirement shape, the no-OUTRANK $600/$500/$100 shape, and a scarce possible-CO_PRIORITY fail-closed shape.
 - Exact candidate Foundation CI run `35304758354`, job `105474563283` — SUCCESS; 914/914 calculations and 21/21 security tests passed; state validation, dependency audit, typecheck, lint, and build all passed.
-- Core Financial Engine worker lane is `READY_FOR_MANAGER` on draft PR #32; PR #32 remains open/unmerged.
+- FFH-017 R05/R06 is Manager-ACCEPTED on PR #32; production/test SHA `23b6001f62eab6473c4ae812e015fd259c0f9c40`; reviewed PR head `bbf47aab27a1c01f986ca6807ca5218a7e8d2c1b`; exact-head Foundation CI run `35304988906`, job `105475235450` — SUCCESS. PR remains unmerged pending Manager integration.
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Manager / Architect — independently verify completed FFH-017 R05/R06 remediation on draft PR #32, exact CI, changed scope, R05/R06 adversarial behavior, and preserved R02/R03/R04/M01/reconciliation evidence. Do not activate auditors until Manager acceptance/integration creates a new frozen target.
+- Manager / Architect — integrate accepted FFH-017 PR #32, verify exact integration CI, create the new frozen target/packet, then activate fresh independent closure audits.
 
 ## ACTIVE / IDLE / BLOCKED
 - Technical & Mathematical Auditor: IDLE after completed closure audit; next activation requires a new Manager-frozen target.
@@ -79,4 +79,4 @@ Last refreshed: 2026-09-17
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is FFH-017 Manager verification/acceptance of PR #32 -> integration -> new frozen target -> fresh closure audit. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
+Current near-term gate is Manager integration of accepted FFH-017 PR #32 -> new frozen target -> fresh closure audit. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
