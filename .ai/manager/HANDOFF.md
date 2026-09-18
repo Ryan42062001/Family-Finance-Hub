@@ -540,3 +540,29 @@ FFH-034 does not change FFH-020/FFH-016 gates, does not make PR #5 merge-ready, 
 | 9 | Technical & Mathematical Auditor | WAIT | FFH-034 requires a fresh independent Technical/Workflow audit only after Manager integration + live docs-only proof; final Phase-5 audit also remains downstream of FFH-020/016. |
 | 10 | Financial Policy & Scenario Auditor | WAIT | No FFH-034 policy audit required; final integrated Phase-5 policy audit remains downstream of FFH-020/016 and stable workflow baseline. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-034 public-repository capability refresh — 2026-09-18
+
+The user changed `Ryan42062001/Family-Finance-Hub` to **PUBLIC** after the original FFH-034 authorization.
+
+Live GitHub refresh:
+- repository: `private=false`, `visibility=public`;
+- rulesets endpoint: accessible and currently returns `[]`;
+- `main`: unprotected; required checks OFF; zero contexts/checks;
+- `phase-5-money-priority-engine`: unprotected; required checks OFF; zero contexts/checks;
+- detailed classic protection endpoints remain 403 through the connected GitHub integration because it does not expose Administration-read branch-protection access.
+
+Manager decision:
+- FFH-034 remains ACTIVE and the implementation architecture is unchanged.
+- Public visibility removes the prior GitHub-plan blocker for repository rulesets.
+- The worker does **not** change rulesets.
+- After accepted FFH-034 integration and the live DOCS_ONLY proof, Manager must activate a minimal required-check ruleset covering `main` and `phase-5-money-priority-engine`.
+- Required check name for ruleset purposes is `verify` (the GitHub Actions job name); the UI may render `Foundation CI / verify`.
+- Use loose required-check semantics for this task: do not require branches to be up to date. Exact integration CI remains separately mandatory in the Family Finance Hub workflow.
+- Prefer GitHub Actions as the expected check source if selectable.
+- Do not add unrelated review-count, commit-signing, linear-history, deployment, or file-path restrictions under FFH-034.
+- FFH-034 closure now requires ruleset activation + readable ruleset verification + fresh independent Technical/Workflow audit.
+
+The implementation branch had no worker commits at refresh time and remained identical to the prior Manager authorization base, so it is safe to fast-forward it to this amended Manager checkpoint.
+
+All financial, Supabase, live-data, FFH-020/FFH-016, PR #5, and Phase-6 gates remain unchanged.
