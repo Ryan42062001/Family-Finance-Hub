@@ -30,7 +30,7 @@ Last refreshed: 2026-09-17
 | FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
 | FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
 | FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; compact table superseded by FFH-033 full-workforce view |
-| FFH-033 | Manager | AUDIT_READY | corrected frozen target `b4765818...` | CI #679 SUCCESS; fresh independent closure re-audit ACTIVE for FFH-033-WF-01 |
+| FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -67,15 +67,10 @@ Last refreshed: 2026-09-17
 - Direct R06 tests cover the $500/$200/$100 invariant-retirement shape, the no-OUTRANK $600/$500/$100 shape, and a scarce possible-CO_PRIORITY fail-closed shape.
 - Exact candidate Foundation CI run `35304758354`, job `105474563283` — SUCCESS; 914/914 calculations and 21/21 security tests passed; state validation, dependency audit, typecheck, lint, and build all passed.
 - FFH-017 R05/R06 PR #32 is Manager-accepted and integrated at `5c96b99373c7c2593fbbb5766b109347f1588fcd`; final PR head `be34ce35b64d0a0512b8913e2d65fa779d013db7` -> integration has zero changed files. Exact integration Foundation CI run `35305470058`, job `105476660670` — SUCCESS with 914/914 calculations and 21/21 security tests.
-- R07 final production/test checkpoint `33bfa79fc1b3d7a6471b35cecc44dfb72d246906` changes only `money-priority-build-competition.ts` and `ffh-017-audit-remediation.test.ts`.
-- Direct R07 tests cover request-null definitive-BELOW reserve locality, the $250/$100/$100 -> $50 partial-independent case, and the zero-independent-capacity control.
-- Exact corrected R07 Foundation CI run `35346849145`, job `105605334966` — SUCCESS; 917/917 calculations and 21/21 security tests passed; AI-state validation, dependency audit, typecheck, lint, and build all passed.
-- Rejected candidate `59b67db6...` exposed and was corrected for an over-freezing missing-date regression; the validated checkpoint restores that locality test.
-- FFH-017 R07 worker lane is READY_FOR_MANAGER on draft PR #34; PR remains open/unmerged.
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- No worker-authorized activation. Core Financial Engine Engineer recommends Manager / Architect review of completed FFH-017 R07 on PR #34. Manager must verify live state before downstream activation.
+- Core Financial Engine Engineer — bounded FFH-017 R07 Bucket-3 BELOW-only locality remediation on `ffh/ffh-017-r07-below-locality-remediation`; execution mode `STANDARD_CHAT_HIGH`; preserve R02/R03/R04/R05/R06/M01.
 
 ## ACTIVE / IDLE / BLOCKED
 - Technical & Mathematical Auditor: IDLE after completed `5c96b993...` closure audit; reactivate only after a new Manager-frozen target.

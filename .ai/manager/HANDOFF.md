@@ -176,18 +176,33 @@ Fresh branch:
 
 FFH-033 remains AUDIT_READY until the fresh closure re-audit returns.
 
+## FFH-033 final closure
+
+Exact corrected workflow target:
+`b47658187147d17e1bc932728e66786b87baecd5`
+
+Fresh independent closure re-audit:
+- verdict: **PASS**
+- findings: **zero**
+- historical `FFH-033-WF-01`: **CLOSED**
+- canonical report: `.ai/audit/technical/FFH-033_WORKFLOW_CLOSURE_REAUDIT_b4765818.md`
+- report commit: `a25b1b9130c908c3c8d6d75132a8c19a4c06cc46`
+- audit handoff commit: `d001c122b8ee156bbbfe9a8a71ecb1ea8a0018f0`
+
+FFH-033 is CLOSED. Every meaningful Family Finance Hub handoff must now end with the complete 11-role workforce dashboard.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | WAIT | — |
+| 1 | Manager / Architect | ACTIVE | — |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as Core Financial Engine Engineer. On `ffh/ffh-017-r07-below-locality-remediation`, make only the final FFH-017 R07 `READY_FOR_MANAGER` task/index/worklog/handoff control-plane commit. Production is already validated at `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`, CI `35346849145` / job `105605334966` SUCCESS, PR #34 remains unmerged. Do not change financial implementation unless new evidence requires it. Return exact `HANDOFF_SHA` and recommend Manager review. |
+| 5 | Core Financial Engine Engineer | WAIT | — |
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
-| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor acting as Independent Workflow / Control-Plane Auditor. Perform the fresh FFH-033 closure re-audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-033-workflow-b4765818`; exact target `b47658187147d17e1bc932728e66786b87baecd5`; packet `.ai/audit/FFH-033_WORKFLOW_REAUDIT_PACKET_b4765818.md`. Independently verify FFH-033-WF-01 is closed, the canonical Manager handoff physically ends with all 11 canonical rows, governance remains intact, and no production behavior changed. Publish canonical report/handoff and recommend Manager reconciliation. |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
 | 10 | Financial Policy & Scenario Auditor | IDLE | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
