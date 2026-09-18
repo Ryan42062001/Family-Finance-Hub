@@ -191,6 +191,29 @@ Fresh independent closure re-audit:
 
 FFH-033 is CLOSED. Every meaningful Family Finance Hub handoff must now end with the complete 11-role workforce dashboard.
 
+## FFH-017 R07 Manager acceptance
+
+PR #34 R07 remediation is Manager-ACCEPTED.
+
+Validated production/test SHA:
+`33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
+
+Worker handoff:
+`da58e8f7b16c5b67ff35c36e2dad1710da086372`
+
+Synchronized accepted PR head before this acceptance commit:
+`215a8650094a52a542ddf0a35ef605929b382e69`
+
+Exact synchronized-head CI:
+- run #683 / `35371312529`
+- job `105685681390`
+- SUCCESS
+
+Manager independently verified R07-A request-null BELOW reserve behavior, R07-B positive safe partial allocation, zero-independent-capacity control, protected R02-R06/M01 behavior, and exact reconciliation.
+
+Next gate:
+Manager integration -> exact integration CI -> new frozen FFH-017 target -> fresh independent Technical + Policy closure audits.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
@@ -204,5 +227,5 @@ FFH-033 is CLOSED. Every meaningful Family Finance Hub handoff must now end with
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
 | 9 | Technical & Mathematical Auditor | WAIT | — |
-| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
