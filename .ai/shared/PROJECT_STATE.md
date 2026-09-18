@@ -78,14 +78,14 @@ Remaining real blockers, in order:
 6. perform final merge review;
 7. if clean, merge PR #5, verify post-merge CI, and reconcile canonical state.
 
-FFH-018 discovery/design may proceed safely in parallel and is not itself a Phase-5 merge blocker. Any CI workflow/required-check implementation remains separately Manager-gated and must be validated before it can affect the final audit baseline.
+FFH-018 discovery is closed. FFH-034 implementation may proceed safely in parallel and is not a financial/product correctness blocker. If integrated, FFH-034 must complete its live docs-only proof and independent Technical/Workflow audit before the workflow can be treated as a stable final-audit baseline.
 
 Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation engine and is not authorized for production activation.
 
 ## Current workforce routing
 
 - Manager / Architect: event-driven / waiting for FFH-018 result or FFH-020 environment availability.
-- Product & Technical R&D Engineer: **Manager-authorized for FFH-018 discovery/design now**.
+- Product & Technical R&D Engineer: **Manager-authorized for FFH-034 bounded CI implementation now**.
 - Application, Data & Integration Engineer: BLOCKED on FFH-020 secure environment; FFH-016 blocked behind it.
 - Core Financial Engine Engineer: IDLE; FFH-017 closed.
 - Technical & Mathematical Auditor: WAIT for final integrated Phase-5 audit gate after FFH-016.

@@ -15,7 +15,7 @@ Last refreshed: 2026-09-18
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
 | FFH-017 | Core Engine | CLOSED | final frozen target `c563d011...` | Technical PASS + Policy PASS; zero findings; TMA-017-08/P05 closed; R02-R07/M01/reconciliation/floor/no-reuse preserved |
-| FFH-018 | Product R&D / Engineering | ACTIVE | discovery/design only | Manager-authorized CI hardening/test-output observability discovery; workflow implementation remains separately gated |
+| FFH-018 | Product R&D / Engineering | CLOSED | discovery/design accepted | Manager accepted fail-closed always-running verify design; implementation split to FFH-034 |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
 | FFH-021 | Manager | CLOSED | control-plane | Work Helper / Super Troubleshooter role adopted |
@@ -31,6 +31,7 @@ Last refreshed: 2026-09-18
 | FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
 | FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; compact table superseded by FFH-033 full-workforce view |
 | FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
+| FFH-034 | Product R&D / Engineering | ACTIVE | bounded CI/control-plane implementation | Always-running verify + fail-closed docs fast path + durable evidence; independent workflow audit required after integration |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
