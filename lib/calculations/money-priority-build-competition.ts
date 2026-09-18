@@ -230,7 +230,10 @@ function compareFinancialGoalOrder(
 }
 
 function canResolveToOutrank(goal: GoalIntelligenceResult): boolean {
-  if (isLegacyUnconfirmedGoal(goal) || goal.necessity !== "essential") return false;
+  if (
+    isLegacyUnconfirmedGoal(goal)
+    || (goal.necessity !== "essential" && goal.necessity !== "unknown")
+  ) return false;
   if (goal.remainingTargetAmount <= 0 || goal.remainingCoreNeedAmount === 0) return false;
 
   const urgencyPossible = goal.deadlineFlexibility === "fixed"
@@ -247,6 +250,7 @@ function canResolveToOutrank(goal: GoalIntelligenceResult): boolean {
 function strongestPotentialOutrankOrdering(goal: GoalIntelligenceResult): GoalIntelligenceResult {
   return {
     ...goal,
+    necessity: goal.necessity === "unknown" ? "essential" : goal.necessity,
     deadlineFlexibility: goal.deadlineFlexibility === "unknown" ? "fixed" : goal.deadlineFlexibility,
     consequenceSeverity: goal.consequenceSeverity === "unknown" ? "critical" : goal.consequenceSeverity,
     debtExposure: goal.debtExposure === "unknown" ? "high" : goal.debtExposure,
@@ -262,6 +266,80 @@ function maximumPotentialCoreMonthlyCents(goal: GoalIntelligenceResult): number 
     : Math.min(goal.remainingCoreNeedAmount, goal.remainingTargetAmount);
   const months = goal.monthsRemaining !== null && goal.monthsRemaining > 0 ? goal.monthsRemaining : 1;
   return toCents(maximumRemainingCore / months);
+}
+
+type MaterialGoalResolution = {
+  possibleDispositions: ReadonlySet<BuildCompetitionDisposition>;
+  strongestBelowOrdering: GoalIntelligenceResult | null;
+};
+
+function analyzeMaterialGoalResolutions(
+  goal: GoalIntelligenceResult,
+  retirementStatus: HybridRetirementStatus,
+  userPriorityById: ReadonlyMap<string, number>,
+): MaterialGoalResolution {
+  if (isLegacyUnconfirmedGoal(goal)) {
+    return { possibleDispositions: new Set(["BELOW"]), strongestBelowOrdering: goal };
+  }
+
+  const necessities: GoalNecessity[] = goal.necessity === "unknown"
+    ? ["essential", "important", "optional"]
+    : [goal.necessity];
+  const natures: GoalNature[] = goal.goalNature === "unknown"
+    ? ["preservation", "mixed", "improvement"]
+    : [goal.goalNature];
+  const deadlines: GoalDeadlineFlexibility[] = goal.deadlineFlexibility === "unknown"
+    ? ["fixed", "limited", "flexible"]
+    : [goal.deadlineFlexibility];
+  const consequences: GoalConsequenceSeverity[] = goal.consequenceSeverity === "unknown"
+    ? ["critical", "high", "moderate", "low"]
+    : [goal.consequenceSeverity];
+  const debts: GoalDebtExposure[] = goal.debtExposure === "unknown"
+    ? ["high", "moderate", "low", "none"]
+    : [goal.debtExposure];
+
+  const possibleDispositions = new Set<BuildCompetitionDisposition>();
+  let strongestBelowOrdering: GoalIntelligenceResult | null = null;
+  const boundedCore = goal.remainingCoreNeedAmount === null
+    ? Math.max(0.01, goal.remainingTargetAmount)
+    : goal.remainingCoreNeedAmount;
+  const boundedMonths = goal.monthsRemaining !== null && goal.monthsRemaining > 0
+    ? goal.monthsRemaining
+    : 1;
+
+  for (const necessity of necessities) {
+    for (const goalNature of natures) {
+      for (const deadlineFlexibility of deadlines) {
+        for (const consequenceSeverity of consequences) {
+          for (const debtExposure of debts) {
+            const resolved: GoalIntelligenceResult = {
+              ...goal,
+              necessity,
+              goalNature,
+              deadlineFlexibility,
+              consequenceSeverity,
+              debtExposure,
+              remainingCoreNeedAmount: boundedCore,
+              monthsRemaining: boundedMonths,
+            };
+            const disposition = determineGoalRetirementDisposition(resolved, retirementStatus);
+            possibleDispositions.add(disposition);
+            if (
+              disposition === "BELOW"
+              && (
+                strongestBelowOrdering === null
+                || compareFinancialGoalOrder(resolved, strongestBelowOrdering, userPriorityById) < 0
+              )
+            ) {
+              strongestBelowOrdering = resolved;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { possibleDispositions, strongestBelowOrdering };
 }
 
 type EqualFulfillmentItem = {
@@ -388,6 +466,17 @@ export function buildRecurringGoalRetirementCompetition(
   const materialMissingGoals = coreTranches.filter((goal) =>
     goal.disposition === "MORE_INFORMATION_NEEDED"
     && (goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0));
+  const materialGoalAnalyses = materialMissingGoals.flatMap((tranche) => {
+    const source = byId.get(tranche.goalId);
+    if (!source) return [];
+    const resolution = analyzeMaterialGoalResolutions(source, retirementStatus, userPriorityById);
+    return [{
+      tranche,
+      source,
+      resolution,
+      maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+    }];
+  });
   const potentialOutrankPeers = materialMissingGoals.flatMap((tranche) => {
     const source = byId.get(tranche.goalId);
     if (!source || !canResolveToOutrank(source)) return [];
@@ -467,8 +556,131 @@ export function buildRecurringGoalRetirementCompetition(
   };
 
   if (materialMissingGoals.length) {
+    const unresolvedOutrankReserveCents = Math.min(
+      remainingCents,
+      materialGoalAnalyses
+        .filter((item) => item.resolution.possibleDispositions.has("OUTRANKS"))
+        .reduce((sum, item) => sum + item.maximumRequestedCents, 0),
+    );
+    const lowerBucketCapacityCents = Math.max(0, remainingCents - unresolvedOutrankReserveCents);
+    const knownCoPriorityGoals = coreTranches.filter((goal) =>
+      goal.disposition === "CO_PRIORITY" && (goal.requestedMonthlyAmount ?? 0) > 0);
+    const potentialCoPriorityGoals = materialGoalAnalyses.filter((item) =>
+      !item.resolution.possibleDispositions.has("OUTRANKS")
+      && item.resolution.possibleDispositions.has("CO_PRIORITY"));
+    const potentialCoPriorityRequestCents = potentialCoPriorityGoals
+      .reduce((sum, item) => sum + item.maximumRequestedCents, 0);
+    const knownCoPriorityRequestCents = knownCoPriorityGoals
+      .reduce((sum, goal) => sum + toCents(goal.requestedMonthlyAmount ?? 0), 0);
+    const allSeniorLowerRequestsFit = retirementRequestCents
+      + knownCoPriorityRequestCents
+      + potentialCoPriorityRequestCents <= lowerBucketCapacityCents;
+
+    let stableBelowCapacityCents = 0;
+    const lowerBucketCanVary = unresolvedOutrankReserveCents > 0 || potentialCoPriorityGoals.length > 0;
+
+    if (lowerBucketCanVary) {
+      if (allSeniorLowerRequestsFit) {
+        retirementAllocatedCents = retirementRequestCents;
+        remainingCents -= retirementAllocatedCents;
+        for (const goal of knownCoPriorityGoals) {
+          const requested = toCents(goal.requestedMonthlyAmount ?? 0);
+          allocatedGoalCents.set(goal.trancheId, requested);
+          remainingCents -= requested;
+        }
+        stableBelowCapacityCents = lowerBucketCapacityCents
+          - retirementRequestCents
+          - knownCoPriorityRequestCents
+          - potentialCoPriorityRequestCents;
+      }
+      // If the senior lower-bucket requests do not all fit at their supported maxima,
+      // the retirement/co-priority dollar shares can change with the missing fact.
+      // Those dollars therefore remain unresolved rather than exposing a partial floor.
+    } else {
+      const coItems: EqualFulfillmentItem[] = knownCoPriorityGoals.length
+        ? [
+            ...(retirementRequestCents > 0
+              ? [{ id: "__retirement__", requestedCents: retirementRequestCents, stableTieBreaker: "retirement" }]
+              : []),
+            ...knownCoPriorityGoals.map((goal) => ({
+              id: goal.trancheId,
+              requestedCents: toCents(goal.requestedMonthlyAmount ?? 0),
+              stableTieBreaker: goal.stableTieBreaker,
+            })),
+          ]
+        : [];
+      if (coItems.length) {
+        const allocations = allocateEqualFulfillmentCents(coItems, lowerBucketCapacityCents);
+        for (const item of coItems) {
+          const allocated = allocations.get(item.id) ?? 0;
+          if (item.id === "__retirement__") retirementAllocatedCents = allocated;
+          else allocatedGoalCents.set(item.id, allocated);
+          remainingCents -= allocated;
+        }
+      }
+      if (!knownCoPriorityGoals.length && retirementRequestCents > 0) {
+        retirementAllocatedCents = Math.min(retirementRequestCents, lowerBucketCapacityCents);
+        remainingCents -= retirementAllocatedCents;
+      } else if (
+        knownCoPriorityGoals.length
+        && retirementAllocatedCents < retirementRequestCents
+        && remainingCents > unresolvedOutrankReserveCents
+      ) {
+        const retirementStillNeeded = retirementRequestCents - retirementAllocatedCents;
+        const independentCapacity = Math.max(0, remainingCents - unresolvedOutrankReserveCents);
+        const allocated = Math.min(retirementStillNeeded, independentCapacity);
+        retirementAllocatedCents += allocated;
+        remainingCents -= allocated;
+      }
+      stableBelowCapacityCents = Math.max(
+        0,
+        lowerBucketCapacityCents
+          - knownCoPriorityGoals.reduce(
+            (sum, goal) => sum + (allocatedGoalCents.get(goal.trancheId) ?? 0),
+            0,
+          )
+          - retirementAllocatedCents,
+      );
+    }
+
+    const potentialBelowOnlyGoals = materialGoalAnalyses.filter((item) =>
+      !item.resolution.possibleDispositions.has("OUTRANKS")
+      && !item.resolution.possibleDispositions.has("CO_PRIORITY")
+      && item.resolution.possibleDispositions.has("BELOW"));
+    const knownBelowGoals = goals
+      .filter((goal) => goal.disposition === "BELOW" && (goal.requestedMonthlyAmount ?? 0) > 0)
+      .sort(compareTranches);
+
+    for (const goal of knownBelowGoals) {
+      if (stableBelowCapacityCents <= 0) break;
+      const requested = toCents(goal.requestedMonthlyAmount ?? 0);
+      const source = byId.get(goal.goalId)!;
+      const reservedForHigherPotentialBelow = potentialBelowOnlyGoals
+        .filter((peer) => {
+          const strongest = peer.resolution.strongestBelowOrdering;
+          if (!strongest) return false;
+          const order = compareFinancialGoalOrder(strongest, source, userPriorityById);
+          return order < 0 || (order === 0 && peer.source.goalId === goal.goalId);
+        })
+        .reduce((sum, peer) => sum + peer.maximumRequestedCents, 0);
+
+      if (reservedForHigherPotentialBelow > 0) {
+        const independentCapacity = Math.max(
+          0,
+          stableBelowCapacityCents - Math.min(stableBelowCapacityCents, reservedForHigherPotentialBelow),
+        );
+        if (independentCapacity < requested) break;
+      }
+
+      const allocated = Math.min(requested, stableBelowCapacityCents);
+      allocatedGoalCents.set(goal.trancheId, allocated);
+      stableBelowCapacityCents -= allocated;
+      remainingCents -= allocated;
+    }
+
     applyGoalAllocations();
-    const totalAllocatedCents = [...allocatedGoalCents.values()].reduce((sum, value) => sum + value, 0);
+    const totalGoalAllocatedCents = [...allocatedGoalCents.values()].reduce((sum, value) => sum + value, 0);
+    const totalAllocatedCents = totalGoalAllocatedCents + retirementAllocatedCents;
     if (totalAllocatedCents + remainingCents !== availableCents) {
       throw new Error("Phase 5C targeted missing-data capacity reconciliation failed.");
     }
@@ -480,8 +692,10 @@ export function buildRecurringGoalRetirementCompetition(
       state: "more_information_needed",
       availableMonthlyCapacity: fromCents(availableCents),
       additionalRetirementRequestedMonthly: fromCents(retirementRequestCents),
-      additionalRetirementAllocatedMonthly: 0,
-      additionalRetirementUnfundedMonthly: fromCents(retirementRequestCents),
+      additionalRetirementAllocatedMonthly: fromCents(retirementAllocatedCents),
+      additionalRetirementUnfundedMonthly: fromCents(
+        Math.max(0, retirementRequestCents - retirementAllocatedCents),
+      ),
       goals,
       totalAllocatedMonthly: fromCents(totalAllocatedCents),
       remainingMonthlyCapacity: fromCents(remainingCents),
