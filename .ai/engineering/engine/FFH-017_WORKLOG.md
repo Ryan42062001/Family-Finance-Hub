@@ -98,7 +98,7 @@ The milestone later advanced to `272607a3667496e81df324524ea890f0a6dbac4b` throu
 The branch was synchronized with that milestone state in merge checkpoint:
 `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`
 
-PR #31 remains a two-file implementation diff relative to the current milestone base.
+PR #31's production/test diff remains exactly two files relative to the current milestone base. The final worker-return commits additionally change only FFH-017 task/index/worklog/handoff documentation.
 
 Refreshed exact-head Foundation CI:
 - run `35302662526`

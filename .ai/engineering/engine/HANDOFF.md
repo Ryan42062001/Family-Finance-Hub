@@ -73,7 +73,7 @@ The branch was then synchronized with three non-overlapping Manager/control-plan
 Exact refreshed validation head `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`:
 - Foundation run `35302662526`, job `105468356418` — SUCCESS through every standard gate.
 
-PR #31 remains exactly a two-file R04 implementation/test diff against the current milestone base.
+PR #31's production/test surface remains exactly two R04 files against the current milestone base. The final worker return additionally changes only four `.ai` task/index/worklog/handoff documentation files.
 
 ## Preserved cleared behavior
 
