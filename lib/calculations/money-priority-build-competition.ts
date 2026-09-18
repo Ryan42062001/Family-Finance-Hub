@@ -466,17 +466,41 @@ export function buildRecurringGoalRetirementCompetition(
   const materialMissingGoals = coreTranches.filter((goal) =>
     goal.disposition === "MORE_INFORMATION_NEEDED"
     && (goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0));
-  const materialGoalAnalyses = materialMissingGoals.flatMap((tranche) => {
+  const definitiveBelowRequestUnresolvedGoals = coreTranches.filter((tranche) => {
+    if (
+      tranche.disposition !== "BELOW"
+      || tranche.requestedMonthlyAmount !== null
+      || !(tranche.remainingCoreNeedAmount === null || tranche.remainingCoreNeedAmount > 0)
+    ) return false;
     const source = byId.get(tranche.goalId);
-    if (!source) return [];
-    const resolution = analyzeMaterialGoalResolutions(source, retirementStatus, userPriorityById);
-    return [{
-      tranche,
-      source,
-      resolution,
-      maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
-    }];
+    return source !== undefined && !isLegacyUnconfirmedGoal(source);
   });
+  const materialGoalAnalyses = [
+    ...materialMissingGoals.flatMap((tranche) => {
+      const source = byId.get(tranche.goalId);
+      if (!source) return [];
+      const resolution = analyzeMaterialGoalResolutions(source, retirementStatus, userPriorityById);
+      return [{
+        tranche,
+        source,
+        resolution,
+        maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+      }];
+    }),
+    ...definitiveBelowRequestUnresolvedGoals.flatMap((tranche) => {
+      const source = byId.get(tranche.goalId);
+      if (!source) return [];
+      return [{
+        tranche,
+        source,
+        resolution: {
+          possibleDispositions: new Set<BuildCompetitionDisposition>(["BELOW"]),
+          strongestBelowOrdering: source,
+        },
+        maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+      }];
+    }),
+  ];
   const potentialOutrankPeers = materialMissingGoals.flatMap((tranche) => {
     const source = byId.get(tranche.goalId);
     if (!source || !canResolveToOutrank(source)) return [];
@@ -555,7 +579,7 @@ export function buildRecurringGoalRetirementCompetition(
     }
   };
 
-  if (materialMissingGoals.length) {
+  if (materialGoalAnalyses.length) {
     const unresolvedOutrankReserveCents = Math.min(
       remainingCents,
       materialGoalAnalyses
@@ -664,18 +688,24 @@ export function buildRecurringGoalRetirementCompetition(
         })
         .reduce((sum, peer) => sum + peer.maximumRequestedCents, 0);
 
-      if (reservedForHigherPotentialBelow > 0) {
-        const independentCapacity = Math.max(
-          0,
-          stableBelowCapacityCents - Math.min(stableBelowCapacityCents, reservedForHigherPotentialBelow),
-        );
-        if (independentCapacity < requested) break;
-      }
+      const independentCapacity = reservedForHigherPotentialBelow > 0
+        ? Math.max(
+            0,
+            stableBelowCapacityCents
+              - Math.min(stableBelowCapacityCents, reservedForHigherPotentialBelow),
+          )
+        : stableBelowCapacityCents;
+      const allocated = Math.min(requested, independentCapacity);
+      if (allocated <= 0) break;
 
-      const allocated = Math.min(requested, stableBelowCapacityCents);
       allocatedGoalCents.set(goal.trancheId, allocated);
       stableBelowCapacityCents -= allocated;
       remainingCents -= allocated;
+
+      // A partially funded known BELOW tranche consumes all Bucket-3 capacity
+      // proven independent of stronger unresolved claimants. Its remaining request,
+      // and all weaker known BELOW requests, stay behind the unresolved reserve.
+      if (allocated < requested) break;
     }
 
     applyGoalAllocations();
