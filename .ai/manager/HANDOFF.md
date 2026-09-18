@@ -160,6 +160,22 @@ Bounded remediation:
 - preserve Manager-only `ACTIVATE NOW` authority;
 - refreeze the corrected workflow target and require fresh independent closure audit.
 
+## FFH-033 corrected freeze / fresh closure re-audit
+
+Exact corrected workflow target:
+`b47658187147d17e1bc932728e66786b87baecd5`
+
+Foundation CI #679:
+**SUCCESS**
+
+Fresh packet:
+`.ai/audit/FFH-033_WORKFLOW_REAUDIT_PACKET_b4765818.md`
+
+Fresh branch:
+`audit/ffh-033-workflow-b4765818`
+
+FFH-033 remains AUDIT_READY until the fresh closure re-audit returns.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
@@ -172,6 +188,6 @@ Bounded remediation:
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
-| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor acting as Independent Workflow / Control-Plane Auditor. Perform the fresh FFH-033 closure re-audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-033-workflow-b4765818`; exact target `b47658187147d17e1bc932728e66786b87baecd5`; packet `.ai/audit/FFH-033_WORKFLOW_REAUDIT_PACKET_b4765818.md`. Independently verify FFH-033-WF-01 is closed, the canonical Manager handoff physically ends with all 11 canonical rows, governance remains intact, and no production behavior changed. Publish canonical report/handoff and recommend Manager reconciliation. |
 | 10 | Financial Policy & Scenario Auditor | IDLE | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
