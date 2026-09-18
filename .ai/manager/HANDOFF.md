@@ -90,3 +90,21 @@ Core Engineer returns `READY_FOR_MANAGER` unmerged with exact production/validat
 Manager then independently reviews and, if accepted, integrates and creates a new frozen FFH-017 target for fresh closure audit.
 
 Phase 5 / PR #5 remains NOT MERGE READY.
+
+## FFH-032 — compact Next Activation table
+
+Status:
+AUDIT_READY — fresh independent workflow/control-plane audit ACTIVE.
+
+Exact integrated workflow target:
+`30592f8cf130293c5e875b8fd391d3bc8ded92e0`
+
+Frozen packet:
+`.ai/audit/FFH-032_WORKFLOW_AUDIT_PACKET_30592f8c.md`
+
+Audit branch:
+`audit/ffh-032-workflow-30592f8c`
+
+The integrated rule requires every employee handoff to end with a short table identifying the next employee/role and a copy/paste-ready activation prompt. Workers recommend; only Manager may authorize `ACTIVATE NOW`.
+
+FFH-032 is independent of FFH-017 R07 financial remediation.

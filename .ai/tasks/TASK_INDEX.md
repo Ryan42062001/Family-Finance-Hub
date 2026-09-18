@@ -29,7 +29,7 @@ Last refreshed: 2026-09-17
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
 | FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
 | FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
-| FFH-032 | Manager | ACCEPTED | control-plane candidate on `manager/ffh-032-next-activation-table` | exact-head CI -> integration -> fresh independent workflow audit |
+| FFH-032 | Manager | AUDIT_READY | integration/audit target `30592f8c...` | integration CI `35308143791` SUCCESS; fresh independent workflow audit ACTIVE |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -81,3 +81,5 @@ Last refreshed: 2026-09-17
 - FFH-026 deployment: QUEUED.
 
 Current near-term gate is bounded FFH-017 R07 Core remediation -> Manager acceptance/integration -> new frozen target -> fresh closure audit. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
+
+- FFH-032 compact Next Activation table is integrated at `30592f8cf130293c5e875b8fd391d3bc8ded92e0`; one fresh independent workflow/control-plane audit is active on `audit/ffh-032-workflow-30592f8c` before closure.
