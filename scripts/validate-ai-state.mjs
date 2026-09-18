@@ -17,6 +17,21 @@ const canonicalStates = new Set([
   'REMEDIATION',
 ]);
 
+const canonicalExecutionModes = new Set([
+  'STANDARD_CHAT_HIGH',
+  'WORK_MODE_PREFERRED',
+]);
+
+const legacyExecutionModes = new Set([
+  'STANDARD_CHAT',
+  'WORK_MODE_HIGH_VALUE',
+]);
+
+const terminalLegacyModeStates = new Set([
+  'ACCEPTED',
+  'CLOSED',
+]);
+
 const v1RequiredFields = [
   'Owner',
   'State',
@@ -94,8 +109,12 @@ for (const file of taskFiles) {
     }
 
     const executionMode = fieldValue(content, 'Execution mode');
-    if (!['STANDARD_CHAT', 'WORK_MODE_PREFERRED', 'WORK_MODE_HIGH_VALUE'].includes(executionMode)) {
-      errors.push(`${taskId}: invalid Execution mode '${executionMode}'`);
+    if (canonicalExecutionModes.has(executionMode)) {
+      // Current canonical mode.
+    } else if (legacyExecutionModes.has(executionMode) && terminalLegacyModeStates.has(state)) {
+      warnings.push(`${taskId}: terminal historical task retains legacy Execution mode '${executionMode}'`);
+    } else {
+      errors.push(`${taskId}: invalid current Execution mode '${executionMode}'; use STANDARD_CHAT_HIGH or WORK_MODE_PREFERRED`);
     }
 
     const managerVerdict = fieldValue(content, 'MANAGER_VERDICT');
