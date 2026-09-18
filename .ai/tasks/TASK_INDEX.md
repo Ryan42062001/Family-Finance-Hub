@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | READY_FOR_MANAGER | remediation production `0a421f00...`; historical failed frozen target `9d3a880e...` | PR #28 validation head `a6a8087d...`; Foundation CI `35171621516` SUCCESS; Manager acceptance/integration next |
+| FFH-017 | Core Engine | AUDIT_READY | remediation production `0a421f00...`; integration/frozen target `90a31c75...` | PR #28 accepted/merged; integration CI `35297206526` / `105452111495` SUCCESS; fresh Technical + Policy re-audits ACTIVE |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -43,8 +43,8 @@ Last refreshed: 2026-09-17
 - R03 stands despite the Policy auditor's narrower core/excess-separation clear: FFH-D004 requires tranche-based competition, desired excess BELOW retirement, and one disposition per nonzero recurring tranche; frozen production stores excess but does not emit/rout a separate excess pace.
 - Remediation branch: `ffh/ffh-017-audit-remediation`.
 - Remediation production checkpoint: `0a421f00e42ee1699d51dea7abdb37118bed631f`; exact production/test validation head `a6a8087db007d3012db8fe426e63a2988a0f95a8`; Foundation CI run `35171621516`, job `105044311457` — SUCCESS.
-- Core Financial Engine worker lane is `READY_FOR_MANAGER` on draft PR #28; Manager owns independent acceptance/integration.
-- Technical & Mathematical Auditor and Financial Policy & Scenario Auditor are IDLE until Manager freezes a new remediation target.
+- FFH-017 remediation PR #28 final head `401204a34ec8ddf2305e073a1938f3cfb27a8900` was Manager-accepted and merged; integration/frozen target is `90a31c755ea88310e58bb9e06ade60af73e182f5`.
+- Integration Foundation CI run `35297206526`, job `105452111495` is SUCCESS on exact frozen target `90a31c755ea88310e58bb9e06ade60af73e182f5`; final PR head -> integration has zero changed files.
 - Repository-scoped self-hosted Windows runner `FFH-Windows-Runner` runs Foundation CI at `$0` hosted-runner cost as a Windows service.
 - FFH-020 remains separately BLOCKED before any live database write.
 - FFH-016 remains blocked behind FFH-020.
@@ -52,11 +52,11 @@ Last refreshed: 2026-09-17
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Manager / Architect — independently verify the completed FFH-017 worker handoff and draft PR #28. Worker remediation is complete; do not activate auditors until Manager acceptance/integration creates a new frozen target.
+- Technical & Mathematical Auditor — fresh independent FFH-017 re-audit of exact frozen target `90a31c755ea88310e58bb9e06ade60af73e182f5`.
+- Financial Policy & Scenario Auditor — fresh independent FFH-017 re-audit of the same exact frozen target; do not rely on the Technical auditor's verdict.
 
 ## IDLE / BLOCKED
-- Technical & Mathematical Auditor: IDLE until a new Manager-frozen FFH-017 remediation target exists.
-- Financial Policy & Scenario Auditor: IDLE until a new Manager-frozen FFH-017 remediation target exists.
+- Core Financial Engine Engineer / Work Helper: IDLE pending dual re-audit outcome.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
