@@ -108,3 +108,30 @@ Audit branch:
 The integrated rule requires every employee handoff to end with a short table identifying the next employee/role and a copy/paste-ready activation prompt. Workers recommend; only Manager may authorize `ACTIVATE NOW`.
 
 FFH-032 is independent of FFH-017 R07 financial remediation.
+
+## FFH-032 closure — Next Activation table canonical
+
+Exact workflow target:
+`30592f8cf130293c5e875b8fd391d3bc8ded92e0`
+
+Independent workflow/control-plane audit:
+- verdict: **PASS**
+- findings: **zero**
+- canonical report: `.ai/audit/technical/FFH-032_WORKFLOW_CONTROL_PLANE_AUDIT_30592f8c.md`
+- report commit: `a5ef98bc7a89b2d9370c003e3e4f3bec9ff4cc25`
+- audit handoff commit: `501f4c58f53e591a5c3953eae030b68c240b70a7`
+
+FFH-032 is CLOSED.
+
+The compact `Next Activation` table is now canonical for Family Finance Hub employee handoffs:
+- workers recommend with `RECOMMEND TO MANAGER`, `WAIT`, or `IDLE`;
+- only Manager may use `ACTIVATE NOW` after live-state verification;
+- prompts remain paste-ready but point to repository evidence rather than duplicating history.
+
+FFH-017 remains independently active in bounded R07 remediation.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as the Core Financial Engine Engineer. Execute FFH-017 R07 — Bucket-3 BELOW-only locality completion — under STANDARD_CHAT_HIGH with Fast Refresh on `ffh/ffh-017-r07-below-locality-remediation`. Treat live repository/GitHub state as authoritative. Read canonical workflow, FFH-017 task, core-engine charter/handoff, and both fresh `5c96b993` closure-audit reports. Fix only R07-A and R07-B, preserve R02-R06/M01/reconciliation/retirement-floor behavior, and return READY_FOR_MANAGER unmerged with exact SHAs, PR, direct regression proof, CI, and handoff. |

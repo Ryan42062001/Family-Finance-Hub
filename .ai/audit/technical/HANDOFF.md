@@ -1,70 +1,70 @@
 # Technical Audit Handoff
 
-## Current handoff — FFH-017 fresh Technical & Mathematical closure audit
+## Current handoff — FFH-032 Independent Workflow / Control-Plane Audit
 
-Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition  
-Role: Technical & Mathematical Auditor  
+Task ID: FFH-032 — Compact Next-Activation Handoff Table  
+Role: Technical & Mathematical Auditor acting as Independent Workflow / Control-Plane Auditor  
 Execution mode: STANDARD_CHAT_HIGH  
-Status: AUDIT COMPLETE — BLOCKING REMEDIATION REQUIRED  
-Verdict: **FAIL — REMEDIATION REQUIRED**
+Refresh mode: Fast Refresh  
+Status: AUDIT COMPLETE  
+Verdict: **PASS**
 
-Exact frozen implementation audited: `5c96b99373c7c2593fbbb5766b109347f1588fcd`  
-Manager/control-plane audit base verified: `84a5ce450618b25a1a90bc798361e7a87c3b8d49`  
-Assigned audit branch: `audit/ffh-017-technical-5c96b993`  
-Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_5c96b993.md`  
-Canonical report: `.ai/audit/technical/FFH-017_TECHNICAL_CLOSURE_AUDIT_5c96b993.md`  
-Report commit: `ad7a6e15f70325a8eb2d573893af103904df2e1a`
+Exact frozen workflow target audited: `30592f8cf130293c5e875b8fd391d3bc8ded92e0`  
+Manager/control-plane base verified: `d0724ec9e990c4b2b743cfc66a285fa296d7bd1b`  
+Assigned audit branch: `audit/ffh-032-workflow-30592f8c`  
+Frozen packet: `.ai/audit/FFH-032_WORKFLOW_AUDIT_PACKET_30592f8c.md`  
+Canonical report: `.ai/audit/technical/FFH-032_WORKFLOW_CONTROL_PLANE_AUDIT_30592f8c.md`  
+Report commit: `a5ef98bc7a89b2d9370c003e3e4f3bec9ff4cc25`
 
 ### Independent result
 
-- **MEDIUM — TMA-017-07 — OPEN / BLOCKING:** R06 below-only locality excludes unresolved tranches whose cross-domain disposition is already `BELOW` but whose recurring pace/request remains unknown. Those tranches are not in `materialMissingGoals`, so they never enter `potentialBelowOnlyGoals`. A weaker known BELOW goal can therefore consume scarce Bucket-3 dollars that can later belong to the stronger unresolved BELOW claimant after its missing pace fact resolves.
-- **R05 / prior TMA-017-06:** CLEARS. Confirmed non-legacy `necessity = unknown` is now handled as potential Essential/OUTRANK when supported by known urgency/harm facts.
-- **R04:** CLEARS / preserved.
-- **R06 retirement / possible-CO_PRIORITY invariance:** CLEARS for the required retirement examples; only the separate below-only path remains defective.
-- **R02:** CLEARS / preserved.
-- **R03:** CLEARS / preserved.
-- **Protected FFH-013 M01:** CLEARS EXACTLY.
-- **Financial Engine Reconciliation exact-cent mechanics:** CLEAR. The blocker is allocation ownership, not arithmetic reconciliation.
+**PASS — zero findings.**
 
-### TMA-017-07 adversary
+Verified independently:
 
-Residual recurring capacity: $100.  
-Additional retirement request: $0.
-
-Stronger Goal A:
-- confirmed Optional;
-- Fixed / Critical;
-- known positive core principal;
-- usable target date missing, so recurring request is null;
-- disposition is already BELOW.
-
-Weaker Goal B:
-- confirmed Optional;
-- Flexible / Low;
-- known $100/month request;
-- disposition BELOW.
-
-Frozen code excludes A from `materialMissingGoals` because A is BELOW rather than MORE_INFORMATION_NEEDED, then the normal BELOW loop omits A because its request is null and gives B the full $100.
-
-When A's missing usable deadline resolves positively, A remains BELOW but orders ahead of B and can claim the same $100. Therefore B's allocation was not independent of the missing fact.
+- every employee family inherits the mandatory compact `Next Activation` table through Workflow V3.1 and the role-family bootstrap contract;
+- workers may use `RECOMMEND TO MANAGER`, `WAIT`, or `IDLE`, but cannot self-authorize downstream work;
+- `ACTIVATE NOW` is Manager-only and requires live repository/task/dependency/branch/PR verification;
+- workers are expressly prohibited from inventing tasks, branches, SHAs, or speculative downstream work;
+- activation prompts remain compact while preserving established repository/project, role, task, execution mode, refresh mode, branch/frozen target, repository pointers, bounded scope, must-not boundaries, and expected return;
+- WAIT and IDLE remain valid;
+- multiple Manager activations retain dependency/overlap safety;
+- task lifecycle, Manager acceptance, checkpoint vocabulary, branch/SHA custody, independent audit, CI attribution, financial reconciliation, merge/release gates, and repository authority remain unchanged;
+- the Next Activation table is explicitly a user-facing routing aid and does not replace canonical task/activation/acceptance/audit state;
+- no production financial, application runtime, Supabase/live-data, migration, or deployment behavior changed.
 
 ### Custody / validation
 
-- PR #32 final head: `be34ce35b64d0a0512b8913e2d65fa779d013db7`.
-- Frozen integration: `5c96b99373c7c2593fbbb5766b109347f1588fcd`.
-- Independent final-head -> integration comparison: zero changed files.
-- Exact integration Foundation CI: run `35305470058`, job `105476660670` — SUCCESS.
+- Candidate: `6a702a6b819df15f83393f3120c9ff1a49a9f780`.
+- Integration/frozen target: `30592f8cf130293c5e875b8fd391d3bc8ded92e0`.
+- Candidate -> integration comparison: zero changed files.
+- Exact integration Foundation CI: run `35308143791`, job `105484465816` — SUCCESS.
 - Calculations: 914/914 PASS.
 - Security: 21/21 PASS.
-- Dependency audit: 0 vulnerabilities.
-- Green CI was corroborating evidence only.
+- Production dependency audit: 0 vulnerabilities.
+- AI-state validation, typecheck, lint, and build: PASS.
 
-### Exact next action
+### Findings
 
-Manager should route one bounded R06 follow-up so unresolved tranches whose disposition is definitively BELOW but whose request remains unknown are included in lower-bucket independence analysis.
+- CRITICAL: 0
+- HIGH: 0
+- MEDIUM: 0
+- LOW: 0
 
-Do not invent their missing pace. Reserve only the supported bound necessary to prevent a weaker known BELOW claimant from consuming contested capacity, while allowing unrelated residual capacity to continue.
+### Boundary confirmation
 
-Then establish a new frozen FFH-017 target and require the canonical fresh closure audit gate.
+This audit did not:
+- merge or close FFH-032;
+- modify FFH-017;
+- activate any employee or downstream task;
+- modify production financial/application behavior;
+- perform Supabase/live-data work;
+- alter Manager-owned task/index state.
 
-This audit did not modify production financial behavior or accepted policy, merge or accept anything, close FFH-017, activate downstream work, alter Manager-owned task/index state, or perform Supabase/live-database work.
+Manager retains final reconciliation and closure authority.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Repository: Ryan42062001/Family-Finance-Hub. Process FFH-032 under STANDARD_CHAT_HIGH with Fast Refresh. Verify live state, exact workflow target `30592f8cf130293c5e875b8fd391d3bc8ded92e0`, audit branch `audit/ffh-032-workflow-30592f8c`, frozen packet, canonical Technical report, and handoff. Reconcile the independent PASS with zero findings and close FFH-032 only if no new blocker exists. Do not modify FFH-017 or activate unrelated work. Return exact closure/control-plane evidence and the next canonical activation table. |
