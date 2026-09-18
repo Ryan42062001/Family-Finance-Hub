@@ -4,95 +4,124 @@ HANDOFF
 
 Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Role: Core Financial Engine Engineer
-Worker status: READY_FOR_MANAGER
-Task state: READY_FOR_MANAGER
-Approved integration base / milestone branch: `phase-5-money-priority-engine` @ `5ae7f32b26ba51e40e2230d68331a83195ce8f1d`
-Branch: `ffh/ffh-017-audit-remediation`
-Pull request: #28 — draft, open, unmerged
-Historical failed frozen target: `9d3a880e02365b4445b8070344c72c928ca34511`
-PRODUCTION_SHA: `0a421f00e42ee1699d51dea7abdb37118bed631f`
-FINAL_VALIDATION_SHA: `a6a8087db007d3012db8fe426e63a2988a0f95a8`
-VALIDATED_CI: Foundation CI run `35171621516`, job `105044311457` — SUCCESS on `a6a8087db007d3012db8fe426e63a2988a0f95a8`
+Status: READY_FOR_MANAGER
+Execution mode: STANDARD_CHAT_HIGH
+Branch: `ffh/ffh-017-r01-outrank-peer-remediation`
+Pull request: #31 — draft / open / unmerged
+Approved milestone branch: `phase-5-money-priority-engine`
+Current synchronized milestone checkpoint: `272607a3667496e81df324524ea890f0a6dbac4b`
+
+Historical failed frozen targets:
+- `9d3a880e02365b4445b8070344c72c928ca34511`
+- `90a31c755ea88310e58bb9e06ade60af73e182f5`
+
+PRODUCTION_SHA: `23fb87ae8b352e2a3d06aa1836ca2081fbb37544`
+FINAL_VALIDATION_SHA: `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`
+VALIDATED_CI: Foundation CI run `35302662526`, job `105468356418` — SUCCESS on `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`
+SUPPORTING_PRODUCTION_CI: Foundation CI run `35302462197`, job `105467760539` — SUCCESS on `23fb87ae8b352e2a3d06aa1836ca2081fbb37544`
 HANDOFF_SHA: This documentation/control-plane commit; exact SHA is the commit containing this handoff
-INTEGRATION_SHA: Not yet established
+INTEGRATION_SHA: Not yet established for R04
 MANAGER_VERDICT: PENDING
-AUDIT_STATUS: REQUIRED — new Manager-frozen target + fresh dual re-audit after acceptance/integration
+AUDIT_STATUS: REQUIRED — new Manager-frozen target + fresh independent closure audit after acceptance/integration
 
-## Fresh authoritative refresh
+## Assigned objective
 
-- Live PR #28 is draft/open/unmerged and targets `phase-5-money-priority-engine`.
-- The exact pre-handoff validation head is `a6a8087db007d3012db8fe426e63a2988a0f95a8`.
-- Foundation CI run `35171621516`, job `105044311457`, is SUCCESS on that exact head.
-- The job actually executed checkout, Node setup, `npm ci`, `npm run ai:validate-state`, production dependency audit, calculation tests, security tests, typecheck, lint, and build; every step passed.
-- The live compare `0a421f00e42ee1699d51dea7abdb37118bed631f..a6a8087db007d3012db8fe426e63a2988a0f95a8` contains only `.ai/engineering/engine/FFH-017_WORKLOG.md`, `lib/calculations/money-priority-fresh-final-remediation.test.ts`, and `lib/calculations/money-priority-goal-ranking.test.ts`. No production file changed after `PRODUCTION_SHA`.
-- The latest Manager PR #28 instruction independently confirms the same CI/scope evidence and identifies the stale Core handoff as the remaining worker gate.
-- Historical target `9d3a880e02365b4445b8070344c72c928ca34511` remains immutable failed-audit evidence.
+Close only R04: the shared HIGH `TMA-017-05` / `FFH-017-P02` defect where a known OUTRANK goal could receive scarce Bucket-1 capacity before a materially unresolved Essential peer was known well enough to determine whether it should enter OUTRANK and rank ahead.
 
-## R01 — targeted missing-fact locality
+Preserve all already-cleared R02, R03, reconciliation, retirement-capacity, and FFH-013 M01 behavior.
 
-The remediated competition resolves known cross-domain ordering before allowing unrelated missing facts to freeze allocations.
+## Work completed
 
-- Optional/lifestyle core remains `BELOW` additional retirement even when its own amount/detail is unresolved; a null request stays local and receives no invented allocation.
-- An unconfirmed legacy goal receives no new elevation and does not freeze unrelated verified retirement or goal allocations.
-- An unrelated lower-priority unknown does not suppress a fully known `OUTRANKS` tranche.
-- An unrelated lower-priority unknown does not suppress a fully known `CO_PRIORITY` tranche.
-- Genuinely material Essential/Important uncertainty still returns `MORE_INFORMATION_NEEDED` and fails closed for contested capacity whose outcome can change.
-- Direct remediation regressions pin all five boundaries above.
+Production change is bounded to:
+- `lib/calculations/money-priority-build-competition.ts`
 
-## R02 — exact non-tied annual/monthly retirement reconciliation
+Test change is bounded to:
+- `lib/calculations/ffh-017-audit-remediation.test.ts`
 
-The authoritative non-tied recurring path is `consumeRetirementCapacityRecurringMonthly(...)`.
+The allocator now identifies material unresolved Essential peers that can still resolve into OUTRANK. Before funding each known OUTRANK tranche, it reserves the bounded maximum recurring capacity required by any higher-ranked unresolved potential-OUTRANK peer. The known tranche receives only capacity demonstrably independent of those unresolved peers.
 
-- Verified annual room is converted to recurring monthly authority by integer annual cents with floor division by 12.
-- The exact annual amount consumed is `monthly_cents * 12`; the helper throws if annual ledger consumption does not reconcile exactly.
-- Build prepass `routableRetirementMonthlyCapacity` and actual router `routeRetirementMonthlyAmount` both call the same recurring-capacity helper for ordinary destinations. MFJ tied-spouse routes keep the accepted FFH-013 recurring tie helper.
-- The audited `$0.06` annual-room boundary now exposes `$0.00/month`, consumes `$0.00`, and preserves the full `$0.06` annual residual.
-- Nearby direct boundaries are pinned at `$0.11`, `$0.12`, `$0.13`, `$0.23`, `$0.24`, and `$0.25`.
-- Annual residual cents remain explicit for later lawful one-time consumers; no residual is silently clamped away.
-- No epsilon/tolerance is used as a reconciliation safety valve; reconciliation is exact integer-cent equality.
+If the known tranche cannot be fully funded independently, lower-ranked known OUTRANK tranches do not claim the same contested Bucket-1 capacity.
 
-## R03 — desired/excess recurring tranche completeness
+No unknown core amount or recurring pace is assigned to the unresolved goal. The upper bound is used only to prove which current cents are independent.
 
-- Goal `core` and `desired_excess` are distinct economic tranche identities.
-- Every nonzero desired/excess tranche is emitted separately with disposition `BELOW`; it never inherits `OUTRANKS` or `CO_PRIORITY` from core.
-- Ordering remains core according to its approved disposition -> additional retirement as applicable -> desired/excess and other BELOW tranches.
-- Scenario-8 shape is pinned: core already satisfied, additional retirement routes first, and desired excess can consume residual Build capacity.
-- Manager-required exact case is pinned and green: `$600` core + `$400` additional retirement + `$600` desired excess = `$1,600` allocated with `$0` residual.
+## R04 proof
+
+Direct green regressions prove:
+
+1. Essential/Fixed/High known OUTRANK + unresolved Essential/Fixed/Critical peer under scarce capacity: known High receives no definite contested allocation.
+2. Unresolved Essential peer whose known facts make OUTRANK impossible: independent known OUTRANK proceeds.
+3. Unresolved Important peer: cannot block independent OUTRANK because Important never OUTRANKS in V1; its dependent downstream tradeoff remains unresolved.
+4. Known Critical OUTRANK ahead of a lower-ranked unresolved High potential-OUTRANK: senior known allocation proceeds.
+5. Higher-ranked unresolved peer with a bounded maximum request: only that maximum is reserved; independently safe residual capacity may fund the known OUTRANK.
+6. Existing Optional and legacy-unconfirmed locality tests remain green.
+7. No unknown core amount or recurring pace is fabricated.
+
+## Validation evidence
+
+Exact production/test candidate `23fb87ae8b352e2a3d06aa1836ca2081fbb37544`:
+- Foundation run `35302462197`, job `105467760539` — SUCCESS;
+- calculations: 909/909 PASS;
+- security: 21/21 PASS;
+- AI state validation PASS;
+- production dependency audit: 0 vulnerabilities;
+- typecheck PASS;
+- lint PASS;
+- build PASS.
+
+The branch was then synchronized with three non-overlapping Manager/control-plane commits from the current milestone. They changed FFH-031/workflow/audit/task metadata only and did not overlap either R04 file.
+
+Exact refreshed validation head `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`:
+- Foundation run `35302662526`, job `105468356418` — SUCCESS through every standard gate.
+
+PR #31's production/test surface remains exactly two R04 files against the current milestone base. The final worker return additionally changes only four `.ai` task/index/worklog/handoff documentation files.
+
+## Preserved cleared behavior
+
+R02 — CLEARED behavior preserved:
+- R02 production code unchanged;
+- exact annual-cent -> monthly-cent authority tests PASS;
+- audited `$0.06` annual-room boundary PASS: no false `$0.01/month` recurring authority.
+
+R03 — CLEARED behavior preserved:
+- R03 production code unchanged;
+- Scenario-8 core-satisfied desired-excess test PASS;
+- `$600 core + $400 retirement + $600 desired excess = $1,600` exact conservation test PASS.
+
+Protected FFH-013 M01 — preserved exactly:
+- shared annual room `$10,000.01`;
+- owner conditional room `$7,500` each;
+- Build authority `$833.33/month`;
+- routes `$416.67 + $416.66`;
+- annual legal consumption `$9,999.96`;
+- shared annual remainder `$0.05`.
 
 ## Financial Engine Reconciliation Gate
 
-- Authoritative recurring routing unit: integer monthly cents.
-- Aggregate Phase 5C allocation equals concrete Build destination totals exactly.
-- Concrete retirement-account monthly allocations sum exactly to the aggregate retirement allocation or routing throws.
-- Annual/monthly retirement conversion consumes exactly the annual cents represented by the monthly recurring pace.
-- Odd-cent/final-cent behavior remains deterministic; stable identity is used only after approved financial equivalence is established.
-- No over-route is permitted; negative remaining capacity throws.
-- No under-route is hidden by epsilon/tolerance or positive-residual clamp.
-- Planner/prepass and actual ordinary retirement router share the same authoritative recurring helper; tied-spouse planner/router share the accepted tied helper.
-- Existing Cash -> Secure -> Build -> Windfall use the same retirement-capacity ledger lineage so consumed/reserved capacity cannot be reused.
-- Recurring conversion may leave sub-month annual residual cents available to a later one-time stage exactly once; it does not fabricate recurring pace.
+R04 changes only which scarce OUTRANK cents are authorized before missing facts resolve.
 
-## Protected FFH-013 M01 — preserved exactly
+Unchanged and green:
+- authoritative recurring unit is integer monthly cents;
+- aggregate allocation plus residual equals available capacity exactly;
+- concrete retirement destination totals equal the authoritative retirement aggregate;
+- annual/monthly retirement consumption reconciles exactly;
+- no epsilon/tolerance or positive-residual clamp;
+- deterministic ordering/final-cent rules remain;
+- existing shared/owner/scheduled/staged capacity cannot be reused.
 
-- shared annual room: `$10,000.01`
-- owner conditional room: `$7,500` each
-- Build authority: `$833.33/month`
-- routes: `$416.67 + $416.66`
-- annual legal consumption: `$9,999.96`
-- shared annual remainder: `$0.05`
+## Branch / scope safety
 
-The direct M01 regression also pins account-order invariance and the retirement-capacity invariant.
+The branch originally started at Manager R04 routing checkpoint `4e75037ae5f53418af3f50c7a9af9f17fd09f0dd`.
 
-## Documentation-only handoff rule
+Milestone advancement to `272607a3667496e81df324524ea890f0a6dbac4b` was independently compared and consisted only of non-overlapping control-plane changes. Those commits are incorporated in `b2c5d46...`.
 
-Canonical `.ai/shared/WORKFLOW.md` and `.ai/tasks/README.md` explicitly separate `PRODUCTION_SHA`, `VALIDATED_CI`, and `HANDOFF_SHA`, and state that documentation-only commits after a validated production checkpoint do not invalidate the earlier green production evidence.
+No schema, UI, Supabase/live-data, HSA, SIMPLE, workplace-retirement, FFH-D004, FFH-013 policy, R02, R03, or Phase 6 production behavior was changed.
 
-Therefore this final worker return changes only control-plane documentation; it does not alter production/tests merely to manufacture another financial validation checkpoint. The already-green exact production/test validation head remains `a6a8087db007d3012db8fe426e63a2988a0f95a8` with run `35171621516` / job `105044311457`.
-
-## Remaining blocker / next action
+## Remaining blocker / exact next action
 
 Worker blocker: NONE.
 
-Manager retains acceptance, PR merge/integration, `INTEGRATION_SHA`, creation of the new exact frozen target and frozen packet, fresh Technical & Mathematical Auditor activation, fresh Financial Policy & Scenario Auditor activation, and final closure.
+Manager / Architect should independently review PR #31, R04 adversarial behavior, exact changed scope, and CI. If accepted, Manager owns integration/merge, exact `INTEGRATION_SHA`, a new frozen FFH-017 target/packet, activation of the required fresh independent closure audit lanes, and eventual task closure.
+
+Do not reuse either failed target as the new audit target.
 
 READY_FOR_MANAGER
