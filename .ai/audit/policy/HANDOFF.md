@@ -2,18 +2,20 @@
 
 ## Current assignment
 
-FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition — FINAL fresh independent Financial Policy & Scenario re-audit of the remediation target.
+FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition — fresh independent Financial Policy & Scenario closure audit of the R04 frozen target.
 
 ## Exact target audited
 
-- Manager control-plane head verified at audit start and before audit write: `f0e9825f17144b9f24fafbbe1a97816051dec8b9`
-- Assigned audit branch: `audit/ffh-017-policy-90a31c75`
-- Frozen implementation target: `90a31c755ea88310e58bb9e06ade60af73e182f5`
-- Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_90a31c75.md`
-- Historical target `9d3a880e02365b4445b8070344c72c928ca34511` was used only as historical finding evidence.
-- Report: `.ai/audit/policy/FFH-017_POLICY_SCENARIO_REAUDIT_90a31c75.md`
-- Report commit: `b7ef832eadb143e66f85e3669eaf63e14330dbf6`
-- The Technical & Mathematical Auditor's new re-audit conclusions/verdict were not requested, inspected, consulted, copied, or relied upon.
+- Manager control-plane head verified at audit start and before audit write: `0cee62f328c179906669e830e307348952261011`
+- Assigned audit branch: `audit/ffh-017-policy-c009a8c2`
+- Frozen implementation target: `c009a8c22d92715696018c7089eb5ad1a79a3cf1`
+- Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c009a8c2.md`
+- Historical failed targets were used only as closure-history evidence:
+  - `9d3a880e02365b4445b8070344c72c928ca34511`
+  - `90a31c755ea88310e58bb9e06ade60af73e182f5`
+- Report: `.ai/audit/policy/FFH-017_POLICY_SCENARIO_CLOSURE_AUDIT_c009a8c2.md`
+- Report commit: `4ce805671fb859b73d27880929f910dd42a773be`
+- The Technical & Mathematical Auditor's current closure-audit conclusions/verdict were not requested, inspected, consulted, copied, or relied upon.
 
 ## Verdict
 
@@ -21,63 +23,65 @@ FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition — FINAL fres
 
 ## Finding
 
-**HIGH — FFH-017-P02: R01 missing-information locality can overcorrect into unsupported certainty inside the scarce OUTRANK bucket.**
+**MEDIUM — FFH-017-P03: post-Bucket-1 material missing-goal handling still freezes otherwise invariant retirement/lower-bucket allocations.**
 
-The remediation correctly fixes the historical global-freeze cases for Optional, legacy-unconfirmed, and other provably lower-priority unknowns. It also correctly fails closed when a material Essential/Important unknown is the only contested tradeoff.
+R04 successfully closes the previous HIGH P02 scarce-OUTRANK defect. A higher-ranked unresolved Essential potential-OUTRANK peer now reserves only its bounded possible Bucket-1 demand; known OUTRANK allocations proceed only from capacity demonstrably independent of that peer.
 
-However, `buildRecurringGoalRetirementCompetition(...)` allocates all known OUTRANK core tranches before checking `materialMissingGoals`. That is unsafe when a materially unresolved Essential tranche could itself resolve to OUTRANK and rank ahead of a known OUTRANK tranche under the accepted financial ordering.
+The remaining defect is after the OUTRANK loop. If any `materialMissingGoals` remain, the allocator returns before co-priority/retirement processing and sets additional retirement to $0 regardless of whether the missing fact can change the retirement dollar result.
 
-Adversarial example:
+Direct frozen-test shape:
 
-- recurring capacity: $400/month;
-- verified additional retirement request: $100/month;
-- Goal A: confirmed Essential, Fixed, High consequence, known $400/month core pace -> OUTRANK;
-- Goal B: confirmed Essential, Fixed, Critical consequence, unknown core amount/pace -> MORE_INFORMATION_NEEDED.
+- capacity: $500/month
+- known Essential/Fixed/High OUTRANK: $200/month
+- additional retirement: $100/month
+- unresolved Important goal: known $100/month core pace, Fixed, High consequence, only goal nature unknown
 
-If Goal B later resolves to a positive $400/month core pace, it becomes OUTRANK and ranks ahead of Goal A; if its core resolves to zero, Goal A may receive the $400. Therefore Goal A's $400 is not independent of the missing Goal B fact.
+After the known OUTRANK, $300 remains.
 
-The frozen implementation allocates Goal A's $400 first, then detects Goal B's material uncertainty and returns `more_information_needed` with no capacity left. That violates FFH-D004's rule that capacity whose outcome can change must remain unresolved.
+If the Important goal resolves Preservation/Mixed, it becomes CO_PRIORITY and $100 retirement + $100 goal both fit.
 
-This finding is blocking because it can create an actionable recurring recommendation for a weaker known goal while a stronger Critical Essential need may claim the same scarce Bucket-1 capacity once authoritative core facts are supplied.
+If it resolves Improvement, retirement gets $100 first and the $100 goal still fits BELOW.
 
-## Historical P01 status
+Therefore verified retirement is $100 in every supported resolution. The frozen implementation/test instead leaves retirement at $0 and the full $300 unresolved.
 
-The original FFH-017-P01 global-freeze examples are materially remediated:
+That violates FFH-D004 rule 14 and the accepted Goals missing-data rule that only financially contested capacity is blocked.
 
-- Optional unknown core remains BELOW and does not freeze verified retirement;
-- Optional irrelevant missing borrowing detail remains local;
-- legacy-unconfirmed goal gains no elevation and does not freeze unrelated known allocations;
-- lower-priority unknown does not suppress known OUTRANK;
-- lower-priority unknown does not suppress known CO_PRIORITY;
-- standalone genuinely material Essential/Important uncertainty remains fail-closed.
+This is conservative, so severity is MEDIUM rather than HIGH, but it is blocking because missing-information locality is an explicit approved Phase 5C rule.
 
-Historical P01 nevertheless cannot be treated as fully closed because FFH-017-P02 is the opposite locality failure within mixed scarce OUTRANK competition.
+## R04 / P02 status
+
+**CLEARS.**
+
+- higher-ranked unresolved Critical Essential peer blocks contested weaker known OUTRANK capacity;
+- provably non-OUTRANK Essential uncertainty does not suppress an independent OUTRANK;
+- Important uncertainty cannot suppress an independent OUTRANK merely because Important is unresolved;
+- lower-ranked unresolved potential-OUTRANK peer does not suppress a senior known OUTRANK;
+- bounded higher-ranked unresolved peer reserves only its maximum supported possible request;
+- partial-independent Bucket-1 capacity is preserved;
+- no unknown core amount or recurring pace is assigned as actual funding.
 
 ## Other boundary status
 
 - R02 exact non-tied annual/monthly retirement reconciliation: CLEARS
-- R03 separate desired/excess recurring tranche: CLEARS
-- Essential OUTRANK with complete facts: CLEARS
-- Essential CO_PRIORITY: CLEARS
-- Important BEHIND -> BELOW retirement: CLEARS
-- Important ON_TRACK/AHEAD narrow co-priority: CLEARS
-- Optional/lifestyle BELOW: CLEARS
-- sufficient/scarce co-priority common fulfillment: CLEARS
-- odd-cent/one-cent exactness: CLEARS
+- R03 distinct desired/excess recurring tranche: CLEARS
+- protected Phase 5A retirement floor / no goal raid: CLEARS
+- complete-fact OUTRANK / CO_PRIORITY / BELOW: CLEARS
+- co-priority sufficient/scarce equal fulfillment: CLEARS
+- odd-cent / one-cent determinism: CLEARS
 - financially equivalent input reversal: CLEARS
-- protected Phase 5A floor / no ordinary-goal raid: CLEARS
-- desired/excess remains retirement-junior: CLEARS
-- core-satisfied excess scenario: CLEARS
-- $600 core + $400 retirement + $600 excess with $1,600 capacity: CLEARS exactly
-- factual YTD vs future schedules: CLEARS
+- core versus desired excess: CLEARS
+- desired excess remains retirement-junior: CLEARS
+- $600 core + $400 retirement + $600 excess = $1,600 exact: CLEARS
+- factual YTD versus future schedules: CLEARS
 - scheduled-capacity no-reuse: CLEARS
-- multiple retirement accounts: CLEARS
+- multiple retirement accounts / shared owner room: CLEARS
 - spouse/shared IRA: CLEARS
 - Existing Cash -> Secure -> Build -> Windfall custody: CLEARS
 - Roth eligibility / Traditional deductibility: CLEARS
 - SIMPLE / HSA / workplace retirement: CLEARS
-- user preference cannot override legal/policy boundaries: CLEARS
+- user preferences cannot override legal/policy boundaries: CLEARS
 - recommendations/plans remain distinct from execution: CLEARS
+- Financial Engine arithmetic/reconciliation mechanics: CLEARS
 
 ## Protected FFH-013 M01
 
@@ -92,17 +96,18 @@ Historical P01 nevertheless cannot be treated as fully closed because FFH-017-P0
 
 ## Provenance / validation
 
-- PR #28 final head: `401204a34ec8ddf2305e073a1938f3cfb27a8900`
-- frozen integration: `90a31c755ea88310e58bb9e06ade60af73e182f5`
-- independent compare final PR head -> frozen integration: zero changed files
-- Foundation CI run `35297206526`, job `105452111495`: SUCCESS on exact frozen target
-- install, AI-state validation, dependency audit, calculations, security contract, typecheck, lint, and build all completed successfully
+- Manager-accepted PR #31 head: `381413b76799bd56caa2a9ce31717d9c9efca637`
+- frozen integration: `c009a8c22d92715696018c7089eb5ad1a79a3cf1`
+- independent accepted-head -> integration compare: zero changed files
+- exact integration Foundation CI run `35303342028`, job `105470402709`: SUCCESS
+- 909/909 calculations and 21/21 security tests per frozen packet
+- AI-state validation, dependency audit, typecheck, lint, and build all passed
 - green CI was supporting evidence, not proof
 
 ## Manager action
 
-FFH-017 remains blocked from closure on FFH-017-P02.
+FFH-017 remains blocked from closure on FFH-017-P03.
 
-Remediation must preserve the successful targeted-locality fixes while preventing a known OUTRANK allocation from becoming definite when a materially unresolved Essential tranche can still alter that same scarce OUTRANK ordering/capacity entitlement.
+Remediation should preserve the now-correct R04 Bucket-1 bounded-independence behavior while allowing post-Bucket-1 retirement/co-priority dollars whose allocation is invariant under every supported resolution of the missing goal fact.
 
 Do not close FFH-017 or activate downstream work from this audit lane. Manager owns remediation routing, new frozen-target creation, reconciliation with the separate Technical & Mathematical audit, acceptance, and eventual closure.
