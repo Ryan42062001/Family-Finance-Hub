@@ -64,7 +64,7 @@ Replacement chats reconstruct state from repository evidence. Do not require the
 
 A fresh worker should normally receive only a compact instruction such as:
 
-`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Execute only the assigned task under the canonical workflow. If no task is assigned, remain IDLE.`
+`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3_1.md, .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Execute only the assigned task under the canonical workflow. If no task is assigned, remain IDLE.`
 
 Repository/task/runtime/CI evidence outranks chat memory.
 
@@ -86,49 +86,55 @@ Broader roadmap/history review is appropriate for Manager roadmap/architecture d
 
 ## Work-mode acceleration
 
-For every newly created meaningful task, Manager should assess whether **ChatGPT Work mode** would materially accelerate execution.
+`STANDARD_CHAT_HIGH` is the default execution environment. `WORK_MODE_PREFERRED` is reserved for tasks where autonomous computer/tool execution provides substantial practical benefit over a High-reasoning normal chat.
 
-Classify the task as one of:
+Manager applies one routing test:
 
-### `STANDARD_CHAT`
-Normal chat + repository/web/tooling is sufficient. Work mode is unlikely to save meaningful time.
+> Does autonomous computer/tool execution materially reduce user interaction or execution overhead compared with Standard Chat High?
 
-Typical examples:
-- focused financial-policy analysis;
-- narrow regulatory verification;
-- scoped code review;
-- small isolated implementation;
-- audit of a well-bounded checkpoint.
+Use `STANDARD_CHAT_HIGH` when the answer is no, marginal, or uncertain. Use `WORK_MODE_PREFERRED` only when the answer is yes and the execution burden is substantial.
 
-### `WORK_MODE_PREFERRED`
-Work mode would likely save meaningful time because the task benefits from sustained multi-step repository navigation, repeated edits/tests, browser/runtime interaction, evidence gathering, or broad cross-file inspection.
+Reasoning difficulty, task importance, code involvement, several files, broad repository scope, GitHub dependence, or High reasoning effort do not independently justify Work mode.
 
-Typical examples:
-- multi-file implementation;
-- substantial refactor/test cycles;
-- live Supabase/runtime parity verification;
-- complex integration investigation;
-- broad repository audit/reconciliation;
-- large evidence-gathering tasks.
+Typical `STANDARD_CHAT_HIGH` work:
+- management/control-plane routing;
+- architecture, strategy, financial policy, requirements, and research interpretation;
+- repository/GitHub inspection and PR/CI review;
+- independent audits of bounded checkpoints;
+- bounded implementation and straightforward remediation;
+- test design and diagnosis from existing logs/evidence.
 
-### `WORK_MODE_HIGH_VALUE`
-Work mode is expected to provide major acceleration because the task is long-running, highly interactive, browser/database heavy, or requires many sequential tool steps.
+Typical `WORK_MODE_PREFERRED` work:
+- sustained multi-file edit/test/debug loops;
+- extensive terminal, browser, application, environment, database, or deployment interaction;
+- complicated CI/toolchain recovery requiring repeated experiments;
+- large mechanical edits or long autonomous execution sequences;
+- tasks that would otherwise require substantial user back-and-forth to perform execution steps.
 
-This classification is a recommendation, **not a dependency**.
+### Role defaults
 
-## Work-credit fallback
+Manager, Policy, Research, Audit, and Engineering roles all default to `STANDARD_CHAT_HIGH`. Work Helper also defaults to `STANDARD_CHAT_HIGH`, but its recovery scope more often produces justified Work escalations.
 
-Any `WORK_MODE_PREFERRED` or `WORK_MODE_HIGH_VALUE` task must include a normal-chat fallback whenever the underlying work can still be completed without Work mode.
+R&D moves to Work only for hands-on experimentation/environment interaction. Auditors move to Work only when reproducing/validating the target requires substantial active environment/browser/application execution. Builders move to Work only when implementation is execution-heavy enough to justify autonomy.
 
-If Work credits are exhausted or Work mode is unavailable:
-- do not mark the project blocked merely because the accelerator is unavailable;
-- continue through normal ChatGPT execution, exact patches/commands, repository tools, web research, or user-returned runtime evidence as appropriate;
-- split work into smaller sequential steps if needed;
-- block only the exact step that truly requires an unavailable capability.
+### Prepare, escalate, and de-escalate
+
+Resolve decisions in Standard Chat High before Work whenever practical. A Work assignment should already contain exact scope, acceptance criteria, approved architecture/policy, branch/base, tests, forbidden scope, known blockers, and completion criteria.
+
+A Standard Chat worker that discovers materially heavier execution may return `WORK_MODE_ESCALATION_RECOMMENDED` with task/branch/SHA, completed work, remaining work, justification, failures, tests, required validation, and exact next action.
+
+A Work worker whose remaining work is primarily reasoning/review/audit/policy should return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED` with enough evidence to continue without repeating execution.
+
+### Work-credit fallback
+
+Work mode is an accelerator, not a dependency unless the task identifies a capability that truly cannot be reproduced through normal tools. If Work is unavailable, continue in `STANDARD_CHAT_HIGH` as far as reasonably possible and block only the exact unavailable capability.
 
 Manager activation should surface:
-- `EXECUTION MODE: STANDARD_CHAT | WORK_MODE_PREFERRED | WORK_MODE_HIGH_VALUE`
-- `FALLBACK: ...` when Work mode is preferred/high-value.
+- `EXECUTION MODE: STANDARD_CHAT_HIGH | WORK_MODE_PREFERRED`;
+- a one-sentence Work-mode justification when preferred;
+- a Standard Chat High fallback when meaningful.
+
+Historical terminal task files may retain legacy execution labels as history; new/current routing uses only the two modes above.
 
 ## Workforce activation
 
@@ -143,7 +149,7 @@ Manager should activate only the smallest set of specialists needed for the curr
 - FFH task ID;
 - execution mode;
 - short paste-ready activation message;
-- fallback when Work mode is preferred/high-value.
+- fallback when Work mode is preferred.
 
 IDLE specialists may be summarized compactly by department rather than individually when no action is required.
 
