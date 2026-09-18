@@ -7,6 +7,10 @@ on:
       - phase-5-money-priority-engine
   workflow_dispatch:
 
+concurrency:
+  group: foundation-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, ffh-local]
@@ -21,8 +25,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --fund=false
       - name: Validate AI control-plane state
         run: npm run ai:validate-state
       - name: Audit production dependencies
