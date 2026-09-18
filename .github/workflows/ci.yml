@@ -21,7 +21,12 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
       CI_EVIDENCE_DIR: ci-evidence
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Initialize CI evidence
+        if: always()
         shell: pwsh
         env:
           CI_PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -42,10 +47,6 @@ jobs:
             "job=verify"
             "runner=windows-latest"
           ) | Set-Content -Path ci-evidence\run-context.txt -Encoding utf8
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -159,16 +160,16 @@ jobs:
           $reason = if ([string]::IsNullOrWhiteSpace($env:CI_REASON)) { "classification-unavailable-job-failed-closed" } else { $env:CI_REASON }
 
           $rows = @(
-            @("Classifier tests", $env:CLASSIFIER_TESTS)
-            @("Change classification", $env:CLASSIFY)
-            @("Install dependencies", $env:INSTALL)
-            @("AI state validation", $env:AI_STATE)
-            @("Dependency audit", $env:DEPENDENCY_AUDIT)
-            @("Calculation tests", $env:CALCULATIONS)
-            @("Security tests", $env:SECURITY)
-            @("Typecheck", $env:TYPECHECK)
-            @("Lint", $env:LINT)
-            @("Build", $env:BUILD)
+            [pscustomobject]@{ Stage = "Classifier tests"; Outcome = $env:CLASSIFIER_TESTS }
+            [pscustomobject]@{ Stage = "Change classification"; Outcome = $env:CLASSIFY }
+            [pscustomobject]@{ Stage = "Install dependencies"; Outcome = $env:INSTALL }
+            [pscustomobject]@{ Stage = "AI state validation"; Outcome = $env:AI_STATE }
+            [pscustomobject]@{ Stage = "Dependency audit"; Outcome = $env:DEPENDENCY_AUDIT }
+            [pscustomobject]@{ Stage = "Calculation tests"; Outcome = $env:CALCULATIONS }
+            [pscustomobject]@{ Stage = "Security tests"; Outcome = $env:SECURITY }
+            [pscustomobject]@{ Stage = "Typecheck"; Outcome = $env:TYPECHECK }
+            [pscustomobject]@{ Stage = "Lint"; Outcome = $env:LINT }
+            [pscustomobject]@{ Stage = "Build"; Outcome = $env:BUILD }
           )
 
           @(
@@ -179,7 +180,7 @@ jobs:
           ) | Set-Content -Path ci-evidence\stage-outcomes.tsv -Encoding utf8
 
           foreach ($row in $rows) {
-            "$($row[0])`t$($row[1])" | Add-Content -Path ci-evidence\stage-outcomes.tsv -Encoding utf8
+            "$($row.Stage)`t$($row.Outcome)" | Add-Content -Path ci-evidence\stage-outcomes.tsv -Encoding utf8
           }
 
           @(
@@ -195,7 +196,7 @@ jobs:
           ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
           foreach ($row in $rows) {
-            "| $($row[0]) | $($row[1]) |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+            "| $($row.Stage) | $($row.Outcome) |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
           }
 
       - name: Upload Foundation CI evidence
