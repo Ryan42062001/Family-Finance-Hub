@@ -423,3 +423,9 @@ Phase 6 Scenario Lab remains downstream of accepted Phase 5 and is not activated
 | 9 | Technical & Mathematical Auditor | WAIT | Final integrated Phase-5 audit waits for FFH-020/FFH-016 runtime gate completion and a stable post-runtime baseline. |
 | 10 | Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 audit waits for FFH-020/FFH-016 runtime gate completion and a stable post-runtime baseline. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## Final closure checkpoint finalization — 2026-09-18
+
+After the initial FFH-017 closure write, Manager normalized the stale current-state sections in `.ai/shared/PROJECT_STATE.md` and clarified the authoritative reconciliation boundary in `.ai/shared/ROADMAP.md`. Those follow-up changes are control-plane/state-hygiene only and do not alter the frozen financial target, audit verdicts, or closure reasoning.
+
+This commit is the final Manager closure checkpoint for FFH-017 and the refreshed Phase-5 routing state. FFH-017 remains CLOSED; FFH-018 discovery/design remains ACTIVE; FFH-020 and FFH-016 remain the named live-environment/runtime blockers before final integrated Phase-5 audit/review and PR #5 merge review.
