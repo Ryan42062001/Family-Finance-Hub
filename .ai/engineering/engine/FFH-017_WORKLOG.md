@@ -2,7 +2,7 @@
 
 Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Role: Core Financial Engine Engineer
-State: VALIDATING
+State: READY_FOR_MANAGER
 Branch: `ffh/ffh-017-audit-remediation`
 PR: #28 — draft / open / unmerged
 Approved base: `phase-5-money-priority-engine`
@@ -76,4 +76,6 @@ Supporting branch evidence: Foundation CI run `35167923979` succeeded on `32054d
 
 The former exact head `17e2adec51a098c09720e31108aca46489008a3b` restored the canonical workflow/package state and contained the final regression alignment, but pull-request run `35168077989` returned `action_required` before any job was created because that head was authored by `github-actions[bot]`. It is infrastructure/authorization evidence only and does not count as validation.
 
-This documentation-only checkpoint intentionally leaves production and tests unchanged and is used to obtain a normal exact-head Foundation CI run on the canonical workflow. Final CI evidence will be recorded in the worker handoff once available.
+Final production/test validation head `a6a8087db007d3012db8fe426e63a2988a0f95a8` passed full Foundation CI run `35171621516`, job `105044311457` — SUCCESS. GitHub confirms checkout, Node setup, dependency install, AI-state validation, production dependency audit, calculation tests, security tests, typecheck, lint, and build all executed successfully.
+
+The latest Manager PR #28 instruction independently confirmed that exact head and the post-production changed-file scope, and identified the stale Core Engineer handoff as the only remaining worker gate. This READY_FOR_MANAGER update changes only control-plane documentation. Canonical checkpoint semantics state that documentation-only commits after a validated production checkpoint do not invalidate the earlier green production evidence; no production/test behavior is changed merely to force another validation cycle.

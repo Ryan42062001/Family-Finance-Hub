@@ -2,7 +2,7 @@
 
 Manager-maintained execution dashboard. Individual `.ai/tasks/FFH-###.md` files are authoritative.
 
-Last refreshed: 2026-09-15
+Last refreshed: 2026-09-17
 
 | Task | Owner | State | Production / integration checkpoint | Validation / next gate |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Last refreshed: 2026-09-15
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | REMEDIATION | historical failed frozen target `9d3a880e...`; new candidate not established | Fresh Technical + Policy audits both FAIL; remediate R01 locality, R02 non-tied annual/monthly reconciliation, R03 desired/excess BELOW tranche |
+| FFH-017 | Core Engine | READY_FOR_MANAGER | remediation production `0a421f00...`; historical failed frozen target `9d3a880e...` | PR #28 validation head `a6a8087d...`; Foundation CI `35171621516` SUCCESS; Manager acceptance/integration next |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -41,8 +41,9 @@ Last refreshed: 2026-09-15
 - Manager reconciled TMA-017-01 + FFH-017-P01 as one R01 locality root defect and accepted TMA-017-02 as R02 and TMA-017-03 as R03.
 - TMA-017-04 is closed at the control-plane level: GitHub confirms run `34999388253` verify job `104483702758`; the historical packet/task/index metadata is corrected without changing the frozen financial target.
 - R03 stands despite the Policy auditor's narrower core/excess-separation clear: FFH-D004 requires tranche-based competition, desired excess BELOW retirement, and one disposition per nonzero recurring tranche; frozen production stores excess but does not emit/rout a separate excess pace.
-- Remediation branch: `ffh/ffh-017-audit-remediation` (Manager activation base follows this index commit).
-- Core Financial Engine Engineer / Work Helper are ACTIVE for bounded R01/R02/R03 remediation only.
+- Remediation branch: `ffh/ffh-017-audit-remediation`.
+- Remediation production checkpoint: `0a421f00e42ee1699d51dea7abdb37118bed631f`; exact production/test validation head `a6a8087db007d3012db8fe426e63a2988a0f95a8`; Foundation CI run `35171621516`, job `105044311457` — SUCCESS.
+- Core Financial Engine worker lane is `READY_FOR_MANAGER` on draft PR #28; Manager owns independent acceptance/integration.
 - Technical & Mathematical Auditor and Financial Policy & Scenario Auditor are IDLE until Manager freezes a new remediation target.
 - Repository-scoped self-hosted Windows runner `FFH-Windows-Runner` runs Foundation CI at `$0` hosted-runner cost as a Windows service.
 - FFH-020 remains separately BLOCKED before any live database write.
@@ -51,7 +52,7 @@ Last refreshed: 2026-09-15
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Core Financial Engine Engineer / Work Helper — bounded FFH-017 R01/R02/R03 remediation on `ffh/ffh-017-audit-remediation`; preserve accepted policy and closed FFH-013 behavior; obtain exact self-hosted Foundation CI; return `READY_FOR_MANAGER` unmerged.
+- Manager / Architect — independently verify the completed FFH-017 worker handoff and draft PR #28. Worker remediation is complete; do not activate auditors until Manager acceptance/integration creates a new frozen target.
 
 ## IDLE / BLOCKED
 - Technical & Mathematical Auditor: IDLE until a new Manager-frozen FFH-017 remediation target exists.
@@ -61,4 +62,4 @@ Last refreshed: 2026-09-15
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is FFH-017 bounded R01/R02/R03 remediation -> exact CI -> Manager acceptance/integration -> new frozen packet -> fresh dual re-audit. Historical target `9d3a880e...` must not be reused as the remediation audit target.
+Current near-term gate is FFH-017 Manager verification/acceptance of PR #28 -> integration -> new frozen packet -> fresh dual re-audit. Historical target `9d3a880e...` must not be reused as the remediation audit target.
