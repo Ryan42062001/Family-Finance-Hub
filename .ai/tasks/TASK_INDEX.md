@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | ACCEPTED | R07 production/validation `33bfa79f...`; accepted synchronized PR head pending integration | PR #34 exact-head CI #683 SUCCESS; Manager integration + new frozen target next |
+| FFH-017 | Core Engine | AUDIT_READY | R07 integration/frozen target `b236239f...` | Integration CI #685 SUCCESS; fresh Technical + Policy closure audits ACTIVE |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -81,6 +81,6 @@ Last refreshed: 2026-09-17
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is FFH-017 integration of accepted R07 PR #34 -> exact integration CI -> new frozen target -> fresh dual closure audit. Failed targets `9d3a880e...`, `90a31c75...`, `c009a8c2...`, and `5c96b993...` must not be reused.
+Current near-term gate is fresh independent FFH-017 Technical + Policy closure audit of `b236239f...` -> Manager verdict reconciliation -> close or route remediation. Failed targets `9d3a880e...`, `90a31c75...`, `c009a8c2...`, and `5c96b993...` must not be reused.
 
 - FFH-032 compact Next Activation table is CLOSED on exact integration/audit target `30592f8cf130293c5e875b8fd391d3bc8ded92e0` after fresh independent workflow/control-plane audit PASS with zero findings. The table is now canonical.
