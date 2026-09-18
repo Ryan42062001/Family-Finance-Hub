@@ -28,11 +28,11 @@ Last refreshed: 2026-09-17
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
 | FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
-| FFH-031 | Manager | AUDIT_READY | integration/audit target `5c83a504...` | Retroactive independent workflow/control-plane audit ACTIVE |
+| FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
-- FFH-031 is AUDIT_READY on exact integration target `5c83a5040cdfc032606feaf96746e6d6131ea15a`; one retroactive independent workflow/control-plane audit is ACTIVE. The routing upgrade remains in force unless audit finds a blocking defect. FFH-017 frozen target/audit lanes are unchanged.
+- FFH-031 is CLOSED on exact integration target `5c83a5040cdfc032606feaf96746e6d6131ea15a` after an independent workflow/control-plane audit PASS with zero findings. The Standard Chat High default / evidence-based Work escalation upgrade remains canonical. FFH-017 remediation remains separate.
 - FFH-013 remains CLOSED on final frozen target `4b7ed99894e396beadc02a537dad45963f5db1d5` after clean dual PASS.
 - FFH-017 historical accepted/integrated target `9d3a880e02365b4445b8070344c72c928ca34511` failed both required fresh independent audits and is now historical failed-audit evidence.
 - Historical FFH-017 production checkpoint: `1393ea928eb5756f16a6af063a68360892200bd6`.
