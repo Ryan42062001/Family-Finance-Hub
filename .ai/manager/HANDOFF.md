@@ -2,10 +2,10 @@
 
 HANDOFF
 
-Task event: FFH-017 c009a8c2 dual closure-audit reconciliation and R05/R06 remediation routing
+Task event: FFH-017 R05/R06 integration freeze and fresh dual closure-audit activation
 Role: Manager / Architect / Control-Plane Owner
-Status: ROUTED — FFH-017 R05/R06 REMEDIATION ACTIVE
-Date: 2026-09-17
+Status: FFH-017 AUDIT_READY — DUAL INDEPENDENT CLOSURE AUDITS ACTIVE
+Date: 2026-09-18
 
 ## Repository / workflow
 
@@ -18,97 +18,93 @@ Canonical workflow:
 - `.ai/shared/WORKFLOW.md`
 - `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md`
 
-Execution mode for this remediation: `STANDARD_CHAT_HIGH`.
+Both audit lanes use `STANDARD_CHAT_HIGH`.
 
-## Failed frozen target
+## Exact frozen financial target
 
-Exact audited target:
-`c009a8c22d92715696018c7089eb5ad1a79a3cf1`
+`5c96b99373c7c2593fbbb5766b109347f1588fcd`
 
 Frozen packet:
-`.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c009a8c2.md`
+`.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_5c96b993.md`
 
-Integration CI remained green:
-- Foundation run `35303342028`
-- job `105470402709`
-- 909/909 calculations
-- 21/21 security
-- state validator / dependency audit / typecheck / lint / build PASS
+Later Manager/control-plane commits are not part of the financial implementation target.
 
-Green CI did not cover the two newly identified locality adversaries.
+## R05/R06 integration evidence
 
-## Fresh Technical closure audit
+PR #32 — merged.
 
-Verdict:
-**FAIL — REMEDIATION REQUIRED**
+Production/test checkpoint:
+`23b6001f62eab6473c4ae812e015fd259c0f9c40`
 
-Finding:
-`TMA-017-06` — **HIGH / BLOCKING**
+Reviewed green PR head:
+`bbf47aab27a1c01f986ca6807ca5218a7e8d2c1b`
 
-Report:
-`.ai/audit/technical/FFH-017_TECHNICAL_CLOSURE_AUDIT_c009a8c2.md`
+Manager acceptance:
+`22edf52663102469c9b2cf2baa6b2ba7dde76ed4`
 
-Report commit:
-`985b33beca7e7df607cef6886ef73adaf3050728`
+Final PR head:
+`be34ce35b64d0a0512b8913e2d65fa779d013db7`
 
-Handoff commit:
-`0f95ef09cf656c321e2a3672b64a86565553044a`
+Integration:
+`5c96b99373c7c2593fbbb5766b109347f1588fcd`
 
-Manager confirms the finding: confirmed/non-legacy `necessity = unknown` can later resolve Essential and become a stronger OUTRANK claimant, but frozen R04 excludes it from potential-OUTRANK reservation.
+Final PR head -> integration:
+**zero changed files**
 
-## Fresh Policy closure audit
+Exact integration Foundation CI:
+- run `35305470058`
+- run #665
+- job `105476660670`
+- SUCCESS
+- AI-state validation PASS
+- production dependency audit 0 vulnerabilities
+- calculations 914/914 PASS
+- security 21/21 PASS
+- typecheck/lint/build PASS
 
-Verdict:
-**FAIL — REMEDIATION REQUIRED**
+## Closure requirements
 
-Finding:
-`FFH-017-P03` — **MEDIUM / BLOCKING**
+Fresh Technical must independently close or re-find:
+- `TMA-017-06` HIGH — unresolved necessity can become a senior OUTRANK claimant.
 
-Report:
-`.ai/audit/policy/FFH-017_POLICY_SCENARIO_CLOSURE_AUDIT_c009a8c2.md`
+Fresh Policy must independently close or re-find:
+- `FFH-017-P03` MEDIUM — post-Bucket-1 blanket freeze suppresses invariant lower-bucket dollars.
 
-Report commit:
-`4ce805671fb859b73d27880929f910dd42a773be`
+Both lanes must also independently verify preservation of:
+- R02;
+- R03;
+- R04;
+- protected FFH-013 M01;
+- Financial Engine exact-cent reconciliation;
+- protected Phase 5A floor and staged-capacity non-reuse.
 
-Handoff commit:
-`e0418117440c5af87ebe9c70d4505e6af203e3a3`
+## Fresh audit branches
 
-Manager confirms the finding: the post-Bucket-1 blanket `materialMissingGoals` return can freeze retirement/lower-bucket dollars whose monetary result is invariant under every supported resolution.
+Technical:
+`audit/ffh-017-technical-5c96b993`
 
-## Manager routing
+Policy:
+`audit/ffh-017-policy-5c96b993`
 
-These findings remain separate:
-- R05 = necessity-unknown potential OUTRANK.
-- R06 = invariant post-Bucket-1 lower-bucket locality.
+Both branches must start from the same Manager packet/control-plane checkpoint created with this handoff.
 
-Assigned owner:
-Core Financial Engine Engineer
+## Historical failed targets
 
-Assigned branch:
-`ffh/ffh-017-r05-r06-locality-remediation`
-
-Mode:
-`STANDARD_CHAT_HIGH`
-
-Refresh:
-Fast Refresh.
-
-Required scope:
-- smallest coherent `money-priority-build-competition` / direct-test remediation;
-- no policy redesign;
-- no schema/UI/Supabase;
-- preserve R02, R03, M01, R04 and reconciliation behavior.
+Do not reuse:
+- `9d3a880e02365b4445b8070344c72c928ca34511`
+- `90a31c755ea88310e58bb9e06ade60af73e182f5`
+- `c009a8c22d92715696018c7089eb5ad1a79a3cf1`
 
 ## Current workforce
 
 ACTIVE:
-- Core Financial Engine Engineer — FFH-017 R05/R06.
+- Technical & Mathematical Auditor — FFH-017 fresh closure audit.
+- Financial Policy & Scenario Auditor — FFH-017 fresh closure audit.
 
 IDLE:
-- Technical & Mathematical Auditor.
-- Financial Policy & Scenario Auditor.
+- Core Financial Engine Engineer.
 - Work Helper.
-- Policy specialists.
+- Financial Policy Analyst roles.
 - Product R&D.
 
 BLOCKED:
@@ -121,8 +117,10 @@ QUEUED:
 
 ## Exact next Manager gate
 
-Core Engineer returns `READY_FOR_MANAGER` unmerged with exact production/validation SHAs, PR, changed scope, direct R05/R06 proof, preserved R02/R03/M01/R04 evidence, reconciliation proof, full CI, and handoff SHA.
+Wait for both fresh independent audit reports.
 
-Manager then independently reviews and, if accepted, integrates and creates a new frozen FFH-017 target for fresh closure audit.
+If both closure gates clear, independently reconcile evidence and close FFH-017.
 
-Phase 5 / PR #5 remains NOT MERGE READY.
+If either returns a blocking finding, reconcile the root(s), preserve already-cleared behavior, and route the smallest bounded remediation.
+
+Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 closure.

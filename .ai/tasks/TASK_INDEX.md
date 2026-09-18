@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | ACCEPTED | R05/R06 production `23b6001f...`; accepted PR head `bbf47aab...`; failed frozen target `c009a8c2...` | exact-head Foundation CI `35304988906` SUCCESS; Manager integration + new frozen target next |
+| FFH-017 | Core Engine | AUDIT_READY | R05/R06 integration/frozen target `5c96b993...` | Integration CI `35305470058` SUCCESS; fresh Technical + Policy closure audits ACTIVE |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -64,19 +64,19 @@ Last refreshed: 2026-09-17
 - Direct R05 tests cover confirmed necessity-unknown Fixed/Critical potential OUTRANK and a provably non-OUTRANK necessity-unknown negative control.
 - Direct R06 tests cover the $500/$200/$100 invariant-retirement shape, the no-OUTRANK $600/$500/$100 shape, and a scarce possible-CO_PRIORITY fail-closed shape.
 - Exact candidate Foundation CI run `35304758354`, job `105474563283` — SUCCESS; 914/914 calculations and 21/21 security tests passed; state validation, dependency audit, typecheck, lint, and build all passed.
-- FFH-017 R05/R06 is Manager-ACCEPTED on PR #32; production/test SHA `23b6001f62eab6473c4ae812e015fd259c0f9c40`; reviewed PR head `bbf47aab27a1c01f986ca6807ca5218a7e8d2c1b`; exact-head Foundation CI run `35304988906`, job `105475235450` — SUCCESS. PR remains unmerged pending Manager integration.
+- FFH-017 R05/R06 PR #32 is Manager-accepted and integrated at `5c96b99373c7c2593fbbb5766b109347f1588fcd`; final PR head `be34ce35b64d0a0512b8913e2d65fa779d013db7` -> integration has zero changed files. Exact integration Foundation CI run `35305470058`, job `105476660670` — SUCCESS with 914/914 calculations and 21/21 security tests.
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Manager / Architect — integrate accepted FFH-017 PR #32, verify exact integration CI, create the new frozen target/packet, then activate fresh independent closure audits.
+- Technical & Mathematical Auditor — fresh independent FFH-017 closure audit of exact frozen target `5c96b99373c7c2593fbbb5766b109347f1588fcd` on `audit/ffh-017-technical-5c96b993`.
 
 ## ACTIVE / IDLE / BLOCKED
-- Technical & Mathematical Auditor: IDLE after completed closure audit; next activation requires a new Manager-frozen target.
-- Financial Policy & Scenario Auditor: IDLE after completed closure audit; next activation requires a new Manager-frozen target.
+- Financial Policy & Scenario Auditor — fresh independent FFH-017 closure audit of the same exact frozen target on `audit/ffh-017-policy-5c96b993`.
+- Core Financial Engine Engineer: IDLE after accepted/integrated R05/R06 remediation.
 - Work Helper: IDLE; escalate only if the bounded Core remediation becomes execution-heavy or technically stuck.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is Manager integration of accepted FFH-017 PR #32 -> new frozen target -> fresh closure audit. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
+Current near-term gate is fresh independent FFH-017 Technical + Policy closure audit of `5c96b993...` -> Manager verdict reconciliation -> close or route remediation. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
