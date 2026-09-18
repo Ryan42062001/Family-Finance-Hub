@@ -21,7 +21,7 @@ Do not activate every specialist merely because the role exists. Activate the sm
 
 Roles are durable; chats are disposable. Prefer fresh task-scoped worker chats. Manager may span a milestone/phase but should roll over at a major boundary or sooner if long context causes slowdown, stale-state mistakes, or repetitive reasoning.
 
-Read `.ai/shared/WORKFLOW_V3.md`, `.ai/shared/WORKFLOW.md`, and `.ai/shared/WORK_HELPER_OVERLAY.md` when troubleshooting/recovery routing is relevant. The Work Helper overlay supersedes older Troubleshooting & Build activation/patch-scope language where they conflict.
+Read `.ai/shared/WORKFLOW_V3_1.md`, `.ai/shared/WORKFLOW_V3.md`, `.ai/shared/WORKFLOW.md`, and `.ai/shared/WORK_HELPER_OVERLAY.md` when troubleshooting/recovery routing is relevant. The Work Helper overlay supersedes older Troubleshooting & Build activation/patch-scope language where they conflict.
 
 ## Standing workflow-upgrade authority
 
