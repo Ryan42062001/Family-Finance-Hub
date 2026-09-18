@@ -355,3 +355,71 @@ Phase 5 / PR #5 remains NOT MERGE READY pending FFH-017 closure.
 | 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-technical-c563d011`; exact frozen target `c563d011d0ebf71183200a574f3455f4fc940ab7`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c563d011.md`. Independently verify R08 senior request-null desired-excess reservation, junior-control locality, closure of TMA-017-08, preservation of R02-R07/M01, and exact Financial Engine reconciliation. Do not rely on Manager acceptance or the Policy auditor. Publish the canonical Technical report/handoff and return exact verdict/commits. |
 | 10 | Financial Policy & Scenario Auditor | ACTIVATE NOW | Continue Family Finance Hub as Financial Policy & Scenario Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-policy-c563d011`; exact frozen target `c563d011d0ebf71183200a574f3455f4fc940ab7`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c563d011.md`. Independently verify R08 policy/scenario correctness, closure of FFH-017-P05, preservation of R02-R07/M01, desired excess below retirement, core-before-excess semantics, and missing-information locality. Do not rely on Manager acceptance or the Technical auditor. Publish the canonical Policy report/handoff and return exact verdict/commits. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-017 final Manager closure — c563d011
+
+Status: **CLOSED**
+
+Manager independently reconciled exact frozen target `c563d011d0ebf71183200a574f3455f4fc940ab7` rather than closing from auditor labels alone.
+
+Live custody:
+- current Manager/control-plane head before closure: `2626e26f3e2bd7748675070196aa90ba259c9d2a`;
+- PR #36 merged: YES;
+- PR #36 accepted head: `37b5428fc539278c7bbf79701c2920852b4c0cc9`;
+- accepted head -> integration: zero changed files;
+- exact integration/frozen target: `c563d011d0ebf71183200a574f3455f4fc940ab7`;
+- exact integration Foundation CI: run `35395102951` / #691 / job `105762024059` — SUCCESS;
+- 919/919 calculations PASS; 21/21 security PASS; AI-state validation, dependency audit, typecheck, lint, build PASS.
+
+Fresh independent audits:
+- Technical: PASS — zero findings; report commit `0bcd1115110570d51e8fcbb6cf5c5e93b8188667`; handoff head `0dae041dcf06f7ce522e1ffa5b8338d9c7925e04`; `TMA-017-08` CLOSED.
+- Policy: PASS — zero findings; report commit `0a8dc04fc1b03af13420671c7142503282d493b6`; handoff head `236252ce88079464ee49359f114b2a95d27de051`; `FFH-017-P05` CLOSED.
+- Independence: Technical explicitly did not inspect/use the Policy verdict/handoff; Policy explicitly did not inspect/use the Technical report/verdict.
+
+Manager reconciliation confirms:
+- R08 senior request-null desired-excess reserve behavior clears;
+- financially-junior locality control clears;
+- R07-B partial-independent behavior remains active;
+- R02-R07 remain preserved;
+- protected FFH-013 M01 remains exact;
+- Financial Engine Reconciliation Gate clears exactly;
+- Phase 5A protected retirement floor remains protected;
+- desired excess remains retirement-junior / BELOW;
+- core-before-excess semantics remain intact;
+- missing period/pace is not invented;
+- shared/owner/scheduled/staged capacity is not reused;
+- no new blocking or non-blocking finding exists.
+
+Canonical audit reports and latest audit handoffs are preserved on the milestone branch.
+
+## Phase-5 merge-readiness after FFH-017 closure
+
+PR #5 remains open, mergeable, unmerged, and **NOT MERGE READY**.
+
+Remaining real blockers:
+1. **FFH-020 — BLOCKED:** secure Supabase CLI/auth/protected-backup execution environment is required before migration-history or DDL write. No live mutation has occurred.
+2. **FFH-016 — BLOCKED:** verification-only pre-merge gate behind Manager-accepted FFH-020 deployment; must verify live Supabase/PostgREST/RLS/persistence/reload/runtime/browser parity.
+3. **Final integrated Phase-5 audit/review:** after the runtime gate stabilizes, run the roadmap-required final Technical + Financial Policy review against the stable integrated baseline.
+4. **PR #5 final review:** refresh stale description/status against canonical task state, then perform final merge review and post-merge CI if all prior gates clear.
+
+FFH-020 is an execution-environment/live-deployment blocker, not a financial-engine correctness blocker.
+
+FFH-018 is now Manager-authorized for discovery/design only under STANDARD_CHAT_HIGH. That work may proceed safely in parallel because the financial correctness wave is stable. It is **not** a Phase-5 merge blocker. Any CI workflow/required-check implementation remains separately Manager-gated so it cannot obscure current correctness evidence.
+
+Phase 6 Scenario Lab remains downstream of accepted Phase 5 and is not activated.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | WAIT | — |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | FFH-020 remains blocked until a secure Supabase CLI/auth/protected-backup execution environment is available; FFH-016 remains blocked behind Manager-accepted FFH-020 deployment. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | ACTIVATE NOW | Continue Family Finance Hub as Product & Technical R&D Engineer for FFH-018 under STANDARD_CHAT_HIGH with Fast Refresh on the current `phase-5-money-priority-engine` baseline. Read canonical workflow, FFH-018, current task index/roadmap/project state, and relevant Foundation CI/branch-rules evidence. Perform discovery/design only for path-aware documentation-only CI efficiency and durable test-output observability. Do not change Foundation CI, required-check semantics, production financial behavior, Supabase, or live data. Return the recommended design, branch/ruleset constraints, exact bounded implementation proposal, validation plan, handoff evidence, and full 11-role dashboard. |
+| 9 | Technical & Mathematical Auditor | WAIT | Final integrated Phase-5 audit waits for FFH-020/FFH-016 runtime gate completion and a stable post-runtime baseline. |
+| 10 | Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 audit waits for FFH-020/FFH-016 runtime gate completion and a stable post-runtime baseline. |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
