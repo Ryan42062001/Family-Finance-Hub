@@ -64,7 +64,7 @@ Replacement chats reconstruct state from repository evidence. Do not require the
 
 A fresh worker should normally receive only a compact instruction such as:
 
-`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Execute only the assigned task under the canonical workflow. If no task is assigned, remain IDLE.`
+`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3_1.md, .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Execute only the assigned task under the canonical workflow. If no task is assigned, remain IDLE.`
 
 Repository/task/runtime/CI evidence outranks chat memory.
 
