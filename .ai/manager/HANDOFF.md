@@ -242,6 +242,48 @@ Both auditors must independently audit only exact target `b236239f...`.
 
 Phase 5 / PR #5 remains NOT MERGE READY pending FFH-017 closure.
 
+## FFH-017 `b236239f` dual closure-audit reconciliation
+
+Exact failed frozen target:
+`b236239f2b364cd1e643d01af07d4b8d788ffdf9`
+
+Technical:
+- verdict: **FAIL — REMEDIATION REQUIRED**
+- `TMA-017-07`: CLOSED
+- `TMA-017-08`: MEDIUM / BLOCKING
+- report commit: `72cbc9e9473c54569ef14a440dabf138b81510a1`
+
+Policy:
+- verdict: **FAIL — REMEDIATION REQUIRED**
+- `FFH-017-P04`: CLOSED
+- `FFH-017-P05`: MEDIUM / BLOCKING
+- report commit: `74f774a663d3c2881216b1ebe93ca172b88d79fe`
+- handoff: `5175f1f5900d75ecf4d0320010341733b0f8b844`
+
+Manager independently confirms both findings describe one bounded gap: request-null desired-excess BELOW tranches remain outside Bucket-3 reserve analysis.
+
+### R08 routing
+
+Owner:
+Core Financial Engine Engineer
+
+Branch:
+`ffh/ffh-017-r08-desired-excess-locality-remediation`
+
+Mode:
+`STANDARD_CHAT_HIGH`
+
+Refresh:
+Fast Refresh
+
+Bounded objective:
+extend R07's BELOW-only uncertainty reservation to positive request-null desired-excess tranches when their known financial order can precede a known BELOW claimant.
+
+Preserve:
+R02-R07, FFH-013 M01, exact reconciliation, retirement floor, desired excess below retirement, core-before-excess semantics, staged no-reuse.
+
+Phase 5 / PR #5 remains NOT MERGE READY.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
@@ -250,10 +292,10 @@ Phase 5 / PR #5 remains NOT MERGE READY pending FFH-017 closure.
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | WAIT | — |
+| 5 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as Core Financial Engine Engineer. Execute FFH-017 R08 — desired-excess request-null Bucket-3 locality completion — under STANDARD_CHAT_HIGH with Fast Refresh on `ffh/ffh-017-r08-desired-excess-locality-remediation`. Read canonical workflow, FFH-017 task, Core charter/handoff, frozen packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_b236239f.md`, and both fresh `b236239f` closure reports. Fix only the bounded desired-excess reserve gap: request-null positive desired-excess BELOW tranches must reserve contested Bucket-3 capacity when their known financial order outranks a known BELOW claimant, while remaining unfunded and below retirement; do not invent missing pace/date. Preserve R02-R07, M01, exact reconciliation, core-before-excess, retirement floor, and staged no-reuse. Return READY_FOR_MANAGER unmerged with exact SHAs, PR, direct R08 adversary + junior-control proof, preservation evidence, CI, reconciliation proof, handoff SHA, and the full 11-role dashboard. |
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
-| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-technical-b236239f`; exact frozen target `b236239f2b364cd1e643d01af07d4b8d788ffdf9`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_b236239f.md`. Independently verify R07-A/R07-B, closure of TMA-017-07, protected R02-R06/M01 behavior, and exact Financial Engine reconciliation. Do not rely on Manager acceptance or the Policy auditor. Publish the canonical Technical report/handoff and return the exact verdict/commits. |
-| 10 | Financial Policy & Scenario Auditor | ACTIVATE NOW | Continue Family Finance Hub as Financial Policy & Scenario Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-policy-b236239f`; exact frozen target `b236239f2b364cd1e643d01af07d4b8d788ffdf9`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_b236239f.md`. Independently verify R07-A/R07-B policy/scenario correctness, closure of FFH-017-P04, and preservation of protected R02-R06/M01 and approved retirement/goal semantics. Do not rely on Manager acceptance or the Technical auditor. Publish the canonical Policy report/handoff and return the exact verdict/commits. |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
