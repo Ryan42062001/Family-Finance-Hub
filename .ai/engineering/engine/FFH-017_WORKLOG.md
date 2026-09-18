@@ -4,143 +4,127 @@ Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Role: Core Financial Engine Engineer
 State: READY_FOR_MANAGER
 Execution mode: STANDARD_CHAT_HIGH
-Branch: `ffh/ffh-017-r01-outrank-peer-remediation`
-PR: #31 — draft / open / unmerged
+Branch: `ffh/ffh-017-r05-r06-locality-remediation`
+PR: #32 — draft / open / unmerged
 Approved integration base: `phase-5-money-priority-engine`
+Base / Manager routing checkpoint: `ee8310a714d52a0ff0fae305dcbbb6e5c41f9463`
+Production / validation checkpoint: `23b6001f62eab6473c4ae812e015fd259c0f9c40`
+
 Historical failed frozen targets:
 - `9d3a880e02365b4445b8070344c72c928ca34511`
 - `90a31c755ea88310e58bb9e06ade60af73e182f5`
-R04 production checkpoint: `23fb87ae8b352e2a3d06aa1836ca2081fbb37544`
-Refreshed validation checkpoint: `b2c5d46f4f7abe58f6f1530e31107379ea6c037e`
+- `c009a8c22d92715696018c7089eb5ad1a79a3cf1`
 
-## Fresh-state / audit reconciliation
+## Fresh audit reconciliation
 
-Both final independent re-audits of `90a31c75...` found the same remaining HIGH R01 boundary:
-- `TMA-017-05`
-- `FFH-017-P02`
+The fresh closure audits of `c009a8c2...` found two distinct remaining locality defects:
 
-The shared defect was not R02, R03, or monetary reconciliation. A known OUTRANK tranche could consume scarce Bucket-1 capacity before a materially unresolved Essential peer was known well enough to determine whether that peer should itself enter OUTRANK and rank ahead.
+- R05 / `TMA-017-06` HIGH: confirmed non-legacy `necessity = unknown` can later resolve Essential and become a senior OUTRANK claimant, but frozen R04 excluded it from potential-OUTRANK reservation.
+- R06 / `FFH-017-P03` MEDIUM: after Bucket-1 handling, the frozen implementation returned immediately for any material missing goal, freezing retirement/lower-bucket dollars even when those dollar results were invariant across supported resolutions.
 
-R02, R03, the Financial Engine Reconciliation mechanics, and protected FFH-013 M01 were explicitly cleared by both re-audits and are preserved.
+R02, R03, R04, exact reconciliation, and FFH-013 M01 were explicitly preserved/cleared and remain regression gates.
 
-## R04 production change
+## R05 implementation
 
-Only `money-priority-build-competition.ts` changed in production.
+`canResolveToOutrank()` now accepts both:
+- currently Essential; and
+- confirmed/non-legacy necessity-unknown
 
-The allocator now distinguishes unresolved material core tranches that can still validly resolve into OUTRANK.
+when the remaining authoritative urgency/harm facts permit an Essential OUTRANK resolution.
 
-For each known OUTRANK tranche, it computes:
-1. which unresolved Essential peers could still become OUTRANK;
-2. the strongest valid ordering each unresolved peer could attain using only unresolved classification dimensions;
-3. a bounded maximum monthly core request derived from authoritative remaining target/core bounds and months;
-4. how much current Bucket-1 capacity must be reserved for higher-ranked unresolved peers;
-5. how many cents are therefore provably independent and safe to allocate to the known OUTRANK tranche.
+`strongestPotentialOutrankOrdering()` resolves unknown necessity to Essential only inside conservative ordering analysis. The output tranche remains `MORE_INFORMATION_NEEDED`; no unknown necessity is asserted as fact.
 
-A known OUTRANK gets no more than that independently provable amount. If it cannot be fully funded independently, lower-ranked known OUTRANK tranches stop because they cannot have independent entitlement to the same contested scarce capacity.
+Direct regressions:
+- necessity Unknown + Fixed/Critical + known $200 core pace correctly reserves scarce $200 ahead of known Essential/Fixed/High;
+- necessity Unknown + Flexible/Low/none cannot become OUTRANK and does not suppress the independent known OUTRANK.
 
-This does not invent the unresolved peer's actual core amount or recurring pace. The peer itself remains `MORE_INFORMATION_NEEDED` with a null request; the bounded value is only an upper bound used to avoid assigning capacity whose ownership could change.
+## R06 implementation
 
-## Locality preservation
+The blanket post-Bucket-1 material-missing return is replaced with bounded supported-resolution analysis.
 
-R04 does not restore the historical global freeze.
+For each unresolved material goal, the engine enumerates only valid resolved categorical states for:
+- necessity;
+- goal nature;
+- deadline flexibility;
+- consequence severity;
+- debt exposure.
 
-Direct cases prove:
-- higher-ranked unresolved Essential/Fixed/Critical peer can keep scarce Bucket-1 capacity unresolved ahead of known Essential/Fixed/High;
-- Essential uncertainty whose facts already make OUTRANK impossible does not block an independent known OUTRANK;
-- Important uncertainty does not block an independent OUTRANK because Important never OUTRANKS in FFH-D004 V1;
-- a known senior Critical OUTRANK can proceed ahead of a lower-ranked unresolved High potential-OUTRANK peer;
-- when the higher-ranked unresolved peer's maximum possible request is bounded below total capacity, the known OUTRANK may receive only the residual capacity proven independent;
-- existing Optional/lifestyle and legacy-unconfirmed locality regressions remain green.
+This analysis does not mutate or expose a fabricated classification. It is internal evidence used to determine whether a bucket can change.
 
-## Test change
+Layered locality:
+1. reserve maximum supported demand for unresolved peers that can reach OUTRANK;
+2. identify non-OUTRANK peers that can reach CO_PRIORITY;
+3. allocate verified retirement / known CO_PRIORITY only if all senior requests fit at supported maxima, making the dollars invariant;
+4. if a possible CO_PRIORITY state can change the retirement/share under scarcity, keep those dollars unresolved;
+5. known BELOW allocations may proceed only from capacity proven independent of unresolved senior buckets and stronger below-only peers.
 
-Only `ffh-017-audit-remediation.test.ts` changed in the test surface.
+Direct R06 regressions:
+- $500 total / known OUTRANK $200 / retirement $100 / unresolved Important $100 nature-unknown => retirement $100 proceeds;
+- $600 total / retirement $500 / unresolved Important $100 nature-unknown => retirement $500 proceeds;
+- $500 total / retirement $500 / unresolved Important $100 possible CO_PRIORITY => retirement remains $0 because the share changes across resolutions.
 
-Five direct R04 regressions were added:
-- higher-ranked unresolved Essential OUTRANK peer / scarce Bucket-1 fail-close;
-- Essential uncertainty provably unable to OUTRANK;
-- unresolved Important locality;
-- senior known OUTRANK ahead of lower-ranked unresolved potential OUTRANK;
-- bounded higher-ranked unresolved peer reserves only its maximum potential request.
+The unresolved goal itself remains `MORE_INFORMATION_NEEDED` and receives no fabricated classification allocation.
+
+## Changed scope
+
+Production:
+- `lib/calculations/money-priority-build-competition.ts`
+
+Tests:
+- `lib/calculations/ffh-017-audit-remediation.test.ts`
+
+No retirement-capacity ledger code, policy, schema/UI/Supabase, HSA/SIMPLE/workplace-retirement implementation, or Phase 6 surface changed.
 
 ## Validation
 
-Initial exact production/test candidate:
-`23fb87ae8b352e2a3d06aa1836ca2081fbb37544`
+Exact production/test candidate:
+`23b6001f62eab6473c4ae812e015fd259c0f9c40`
 
 Foundation CI:
-- run `35302462197`
-- job `105467760539`
+- run `35304758354`
+- job `105474563283`
 - conclusion: SUCCESS
 
-Observed evidence:
-- AI state validation: PASS — 21 task files index-consistent;
+Evidence:
+- AI-state validation PASS — 21 task files index-consistent;
 - production dependency audit: 0 vulnerabilities;
-- calculations: 909/909 PASS;
+- calculations: 914/914 PASS;
 - security: 21/21 PASS;
-- typecheck: PASS;
-- lint: PASS;
-- build: PASS.
+- typecheck PASS;
+- lint PASS;
+- build PASS.
 
-Direct CI test evidence:
-- FFH-013 M01: PASS;
-- R04 direct regressions: PASS;
-- R01 material Essential/Important fail-close: PASS;
-- R02 exact annual/monthly conversion and `$0.06` boundary: PASS;
-- R03 Scenario-8 desired-excess and `$600/$400/$600` mixed case: PASS.
-
-## Branch freshness
-
-The R04 branch was cut at Manager routing checkpoint `4e75037ae5f53418af3f50c7a9af9f17fd09f0dd`.
-
-The milestone later advanced to `272607a3667496e81df324524ea890f0a6dbac4b` through three Manager/control-plane commits affecting only FFH-031/workflow/audit/task metadata. No R04 production or test file overlapped.
-
-The branch was synchronized with that milestone state in merge checkpoint:
-`b2c5d46f4f7abe58f6f1530e31107379ea6c037e`
-
-PR #31's production/test diff remains exactly two files relative to the current milestone base. The final worker-return commits additionally change only FFH-017 task/index/worklog/handoff documentation.
-
-Refreshed exact-head Foundation CI:
-- run `35302662526`
-- job `105468356418`
-- conclusion: SUCCESS through dependency install, AI-state validation, dependency audit, calculations, security, typecheck, lint, and build.
-
-## R02 / R03 / M01 preservation
-
-R02 production code was not changed. Existing direct tests remain green:
-- annual cents are floored to exact full-year monthly authority;
-- `$0.06` annual room cannot present `$0.01/month`.
-
-R03 production code was not changed. Existing direct tests remain green:
-- core-satisfied Scenario-8 desired excess remains a separate `BELOW` tranche;
-- `$600` core + `$400` retirement + `$600` desired excess conserves exactly `$1,600`.
-
-Protected FFH-013 M01 remains exact:
-- shared annual room `$10,000.01`;
-- conditional owner room `$7,500` each;
-- Build `$833.33/month`;
-- routes `$416.67 + $416.66`;
-- annual legal consumption `$9,999.96`;
-- shared annual remainder `$0.05`.
+Direct log evidence confirms PASS for:
+- retained R04 adversaries;
+- R05 necessity-unknown potential OUTRANK;
+- R05 non-OUTRANK necessity-unknown negative control;
+- R06 invariant retirement after known OUTRANK;
+- R06 no-OUTRANK invariant retirement;
+- R06 scarce possible CO_PRIORITY fail-close;
+- R02 exact recurring-cent boundaries, including $0.06;
+- R03 Scenario-8 and $600/$400/$600 exact case;
+- FFH-013 M01 exact shared-pool boundary.
 
 ## Financial Engine Reconciliation Gate
 
-R04 changes allocation authority before the existing reconciliation path; it does not change the monetary unit or ledger arithmetic.
+R05/R06 changes allocation authority only.
 
 Preserved:
-- authoritative recurring unit = integer monthly cents;
-- aggregate allocation + residual = capacity exactly;
-- concrete retirement destinations = authoritative aggregate retirement allocation;
-- exact annual/monthly retirement reconciliation;
-- no epsilon/tolerance financial waiver;
-- no positive residual clamp;
-- deterministic final-cent handling;
-- no scheduled/YTD or staged-capacity reuse.
+- authoritative recurring unit: integer monthly cents;
+- allocated + residual = available capacity exactly;
+- aggregate retirement allocation = concrete retirement destinations;
+- exact annual/monthly retirement consumption;
+- R02 shared planner/router path;
+- no epsilon/tolerance waiver;
+- no hidden positive residual clamp;
+- deterministic order/final-cent behavior;
+- shared/owner/scheduled/staged capacity no-reuse;
+- protected Phase 5A floor remains outside ordinary competition.
 
 ## Worker result
 
 Worker blocker: NONE.
 
-Return to Manager for independent acceptance/integration. Do not merge, self-accept, self-audit, create the frozen target, or activate auditors from this worker lane.
+Return to Manager for independent acceptance/integration. Do not merge, self-accept, self-audit, freeze a target, or activate auditors from this worker lane.
 
 READY_FOR_MANAGER
