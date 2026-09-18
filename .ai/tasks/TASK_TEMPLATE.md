@@ -8,7 +8,8 @@ Use this template for new meaningful tasks created after FFH-027. Historical tas
 Schema: FFH_TASK_V1
 Owner: <role>
 State: QUEUED
-Execution mode: STANDARD_CHAT | WORK_MODE_PREFERRED | WORK_MODE_HIGH_VALUE
+Execution mode: STANDARD_CHAT_HIGH | WORK_MODE_PREFERRED
+Work-mode justification: N/A — STANDARD_CHAT_HIGH default | <why autonomous execution materially reduces execution overhead>
 Dependency classification: INDEPENDENT | SOFT DEPENDENCY | HARD DEPENDENCY
 Approved integration base: <branch/SHA or N/A>
 Branch: <branch or N/A>
@@ -61,6 +62,9 @@ Required adversarial money boundaries: <odd-cent/order/shared-group/unit-convers
 - `Blocked by` contains only real dependencies. Use `NONE` rather than inventing a dependency.
 - `Next owner` identifies the role expected to act after the current gate; it does not transfer authority automatically.
 - `Execution mode` is selected by the Manager when the task is created and may be overridden when circumstances change.
+- `STANDARD_CHAT_HIGH` is the default. `WORK_MODE_PREFERRED` requires a concrete autonomous-execution benefit, not merely task importance, difficulty, code scope, multi-file scope, or GitHub dependence.
+- When Work is preferred, `Work-mode justification` should name the execution burden that autonomy materially reduces.
+- Standard workers may return `WORK_MODE_ESCALATION_RECOMMENDED`; Work workers may return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED`. These are routing recommendations, not lifecycle states.
 - `MANAGER_VERDICT` remains `PENDING` until the Manager independently accepts or rejects the worker result.
 - A merged PR does not itself set `MANAGER_VERDICT`, `AUDIT_STATUS`, or `State`.
 - `AUDIT_STATUS` may be `NOT_READY`, `REQUIRED`, `IN_PROGRESS`, `PASS`, `PASS_WITH_NON_BLOCKING_FINDINGS`, `FAIL_REMEDIATION_REQUIRED`, or `NOT_REQUIRED — <reason>`.
