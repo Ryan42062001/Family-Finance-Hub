@@ -93,3 +93,17 @@ If the worker's planning/prepass path and actual router use different logic, req
 Manager alone may move tasks to `ACCEPTED`, `AUDIT_READY`, or `CLOSED`. For isolated production branches, independently verify `PRODUCTION_SHA` + `VALIDATED_CI`, integrate accepted work into the milestone branch, record `INTEGRATION_SHA`, and verify integration CI.
 
 Before merge, require the relevant implementation, live/runtime parity, integration validation, and independent audit gates. Never treat green CI as an audit verdict.
+
+## Next Activation output table
+
+When routing next work, end with the Workflow V3.1 compact table:
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | <role> | ACTIVATE NOW / WAIT / IDLE | <short complete prompt> |
+
+Manager is the only role allowed to use `ACTIVATE NOW`.
+
+Before emitting an `ACTIVATE NOW` row, verify actual repository/task/dependency/branch/PR state. The prompt should include established task ID, execution mode, refresh mode, branch or frozen target, required workflow/task/role/handoff pointers, bounded scope, must-not boundaries, and expected return. Keep it concise by pointing to repository artifacts rather than copying history.
+
+Worker recommendations are advisory inputs to this table; Manager reconciles them against live state.
