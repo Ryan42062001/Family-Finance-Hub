@@ -148,3 +148,19 @@ Branch:
 `manager/ffh-033-full-workforce-activation-table`
 
 Because this changes workflow semantics, one fresh independent workflow/control-plane audit is required before closure.
+
+## FFH-033 audit activation
+
+Status:
+AUDIT_READY
+
+Exact integrated workflow target:
+`75fad74160f6ed412051adb4d4f2f33c091a0517`
+
+Frozen packet:
+`.ai/audit/FFH-033_WORKFLOW_AUDIT_PACKET_75fad741.md`
+
+Audit branch:
+`audit/ffh-033-workflow-75fad741`
+
+FFH-033 requires all 11 Family Finance Hub roles in every meaningful Next Activation table. Manager-only activation authority remains unchanged.
