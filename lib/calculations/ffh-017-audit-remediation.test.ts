@@ -77,6 +77,100 @@ test("R01 lower-priority unknown cannot suppress known CO_PRIORITY", () => {
   assert.equal(plan.remainingMonthlyCapacity, 0);
 });
 
+test("R04 higher-ranked unresolved Essential OUTRANK peer keeps scarce Bucket-1 capacity unresolved", () => {
+  const known = goal("known-high", {
+    targetAmount: 2400, coreNeedAmount: 2400, remainingTargetAmount: 2400,
+    remainingCoreNeedAmount: 2400, requiredMonthlyFunding: 200, consequenceSeverity: "high",
+  });
+  const unresolved = goal("unresolved-critical", {
+    coreNeedAmount: null, remainingCoreNeedAmount: null, consequenceSeverity: "critical",
+    state: "more_information_needed", missingData: ["Confirm the remaining core amount."],
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 200);
+  assert.equal(plan.state, "more_information_needed");
+  assert.equal(core(plan, "known-high").disposition, "OUTRANKS");
+  assert.equal(core(plan, "known-high").allocatedMonthlyAmount, 0);
+  assert.equal(core(plan, "unresolved-critical").disposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(core(plan, "unresolved-critical").requestedMonthlyAmount, null);
+  assert.equal(core(plan, "unresolved-critical").allocatedMonthlyAmount, 0);
+  assert.equal(plan.additionalRetirementAllocatedMonthly, 0);
+  assert.equal(plan.totalAllocatedMonthly, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 200);
+});
+
+test("R04 Essential uncertainty provably unable to become OUTRANK does not block independent OUTRANK", () => {
+  const known = goal("known", {
+    targetAmount: 2400, coreNeedAmount: 2400, remainingTargetAmount: 2400,
+    remainingCoreNeedAmount: 2400, requiredMonthlyFunding: 200,
+  });
+  const unresolved = goal("co-only", {
+    deadlineFlexibility: "limited", consequenceSeverity: "moderate", debtExposure: "none",
+    coreNeedAmount: null, remainingCoreNeedAmount: null, state: "more_information_needed",
+    missingData: ["Confirm the remaining core amount."],
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 400);
+  assert.equal(core(plan, "known").allocatedMonthlyAmount, 200);
+  assert.equal(core(plan, "co-only").disposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(core(plan, "co-only").requestedMonthlyAmount, null);
+  assert.equal(core(plan, "co-only").allocatedMonthlyAmount, 0);
+  assert.equal(plan.additionalRetirementAllocatedMonthly, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 200);
+});
+
+test("R04 unresolved Important goal cannot block an independent OUTRANK allocation", () => {
+  const known = goal("known", {
+    targetAmount: 2400, coreNeedAmount: 2400, remainingTargetAmount: 2400,
+    remainingCoreNeedAmount: 2400, requiredMonthlyFunding: 200,
+  });
+  const unresolved = goal("important", {
+    necessity: "important", goalNature: "unknown", deadlineFlexibility: "fixed",
+    consequenceSeverity: "high", targetAmount: 1200, coreNeedAmount: 1200,
+    remainingTargetAmount: 1200, remainingCoreNeedAmount: 1200, requiredMonthlyFunding: 100,
+    state: "more_information_needed",
+    missingData: ["Specify whether the goal preserves a function, improves it, or contains both."],
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 500);
+  assert.equal(core(plan, "known").allocatedMonthlyAmount, 200);
+  assert.equal(core(plan, "important").disposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(core(plan, "important").allocatedMonthlyAmount, 0);
+  assert.equal(plan.additionalRetirementAllocatedMonthly, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 300);
+});
+
+test("R04 senior known OUTRANK remains actionable ahead of a lower-ranked unresolved OUTRANK peer", () => {
+  const known = goal("known-critical", {
+    targetAmount: 2400, coreNeedAmount: 2400, remainingTargetAmount: 2400,
+    remainingCoreNeedAmount: 2400, requiredMonthlyFunding: 200, consequenceSeverity: "critical",
+  });
+  const unresolved = goal("unresolved-high", {
+    coreNeedAmount: null, remainingCoreNeedAmount: null, consequenceSeverity: "high",
+    state: "more_information_needed", missingData: ["Confirm the remaining core amount."],
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 200);
+  assert.equal(core(plan, "known-critical").allocatedMonthlyAmount, 200);
+  assert.equal(core(plan, "unresolved-high").disposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(core(plan, "unresolved-high").allocatedMonthlyAmount, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 0);
+});
+
+test("R04 higher-ranked unresolved peer reserves only its bounded maximum before known OUTRANK allocation", () => {
+  const known = goal("known-high", {
+    targetAmount: 2400, coreNeedAmount: 2400, remainingTargetAmount: 2400,
+    remainingCoreNeedAmount: 2400, requiredMonthlyFunding: 200, consequenceSeverity: "high",
+  });
+  const unresolved = goal("bounded-critical", {
+    targetAmount: 1000, coreNeedAmount: null, remainingTargetAmount: 1000,
+    remainingCoreNeedAmount: null, monthsRemaining: 10, requiredMonthlyFunding: 100,
+    consequenceSeverity: "critical", state: "more_information_needed",
+    missingData: ["Confirm the remaining core amount."],
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 300);
+  assert.equal(core(plan, "known-high").allocatedMonthlyAmount, 200);
+  assert.equal(core(plan, "bounded-critical").requestedMonthlyAmount, null);
+  assert.equal(core(plan, "bounded-critical").allocatedMonthlyAmount, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 100);
+});
+
 test("R01 genuinely material Essential unknown remains fail-closed for contested capacity", () => {
   const material = goal("material", { coreNeedAmount: null, remainingCoreNeedAmount: null });
   const plan = buildRecurringGoalRetirementCompetition([material], "on_track", 500, 1000);

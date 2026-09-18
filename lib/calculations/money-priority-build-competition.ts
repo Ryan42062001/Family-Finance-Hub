@@ -229,6 +229,41 @@ function compareFinancialGoalOrder(
   return userPriority || a.stableTieBreaker.localeCompare(b.stableTieBreaker);
 }
 
+function canResolveToOutrank(goal: GoalIntelligenceResult): boolean {
+  if (isLegacyUnconfirmedGoal(goal) || goal.necessity !== "essential") return false;
+  if (goal.remainingTargetAmount <= 0 || goal.remainingCoreNeedAmount === 0) return false;
+
+  const urgencyPossible = goal.deadlineFlexibility === "fixed"
+    || goal.consequenceSeverity === "critical"
+    || goal.deadlineFlexibility === "unknown"
+    || goal.consequenceSeverity === "unknown";
+  const harmPossible = isHighOrCritical(goal.consequenceSeverity)
+    || goal.debtExposure === "high"
+    || goal.consequenceSeverity === "unknown"
+    || goal.debtExposure === "unknown";
+  return urgencyPossible && harmPossible;
+}
+
+function strongestPotentialOutrankOrdering(goal: GoalIntelligenceResult): GoalIntelligenceResult {
+  return {
+    ...goal,
+    deadlineFlexibility: goal.deadlineFlexibility === "unknown" ? "fixed" : goal.deadlineFlexibility,
+    consequenceSeverity: goal.consequenceSeverity === "unknown" ? "critical" : goal.consequenceSeverity,
+    debtExposure: goal.debtExposure === "unknown" ? "high" : goal.debtExposure,
+    goalNature: goal.goalNature === "unknown" ? "preservation" : goal.goalNature,
+    monthsRemaining: goal.monthsRemaining !== null && goal.monthsRemaining > 0 ? goal.monthsRemaining : 1,
+  };
+}
+
+function maximumPotentialCoreMonthlyCents(goal: GoalIntelligenceResult): number {
+  if (goal.remainingTargetAmount <= 0 || goal.remainingCoreNeedAmount === 0) return 0;
+  const maximumRemainingCore = goal.remainingCoreNeedAmount === null
+    ? goal.remainingTargetAmount
+    : Math.min(goal.remainingCoreNeedAmount, goal.remainingTargetAmount);
+  const months = goal.monthsRemaining !== null && goal.monthsRemaining > 0 ? goal.monthsRemaining : 1;
+  return toCents(maximumRemainingCore / months);
+}
+
 type EqualFulfillmentItem = {
   id: string;
   requestedCents: number;
@@ -353,6 +388,15 @@ export function buildRecurringGoalRetirementCompetition(
   const materialMissingGoals = coreTranches.filter((goal) =>
     goal.disposition === "MORE_INFORMATION_NEEDED"
     && (goal.remainingCoreNeedAmount === null || goal.remainingCoreNeedAmount > 0));
+  const potentialOutrankPeers = materialMissingGoals.flatMap((tranche) => {
+    const source = byId.get(tranche.goalId);
+    if (!source || !canResolveToOutrank(source)) return [];
+    return [{
+      source,
+      strongestOrdering: strongestPotentialOutrankOrdering(source),
+      maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+    }];
+  });
   const localUnresolvedTranches = goals.filter((goal) =>
     goal.requestedMonthlyAmount === null
     && (goal.trancheType === "core"
@@ -393,9 +437,23 @@ export function buildRecurringGoalRetirementCompetition(
     .sort(compareTranches);
   for (const goal of outrank) {
     const requested = toCents(goal.requestedMonthlyAmount ?? 0);
-    const allocated = Math.min(requested, remainingCents);
+    const source = byId.get(goal.goalId)!;
+    const reservedForHigherPotentialPeers = potentialOutrankPeers
+      .filter((peer) =>
+        compareFinancialGoalOrder(peer.strongestOrdering, source, userPriorityById) < 0)
+      .reduce((sum, peer) => sum + peer.maximumRequestedCents, 0);
+    const guaranteedIndependentCents = Math.max(
+      0,
+      remainingCents - Math.min(remainingCents, reservedForHigherPotentialPeers),
+    );
+    const allocated = Math.min(requested, guaranteedIndependentCents);
     allocatedGoalCents.set(goal.trancheId, allocated);
     remainingCents -= allocated;
+
+    // Once a known OUTRANK tranche cannot be fully funded independently of a higher
+    // unresolved peer, lower-ranked known OUTRANK tranches cannot have independent
+    // entitlement to the same scarce Bucket-1 capacity.
+    if (allocated < requested) break;
   }
 
   const applyGoalAllocations = () => {
