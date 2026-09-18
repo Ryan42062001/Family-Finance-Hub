@@ -44,6 +44,28 @@ Each task file should include as applicable:
 
 Use `Not yet established` rather than inventing checkpoint values.
 
+## Execution-mode routing and handoff
+
+Current/future task routing uses only:
+- `STANDARD_CHAT_HIGH` — default;
+- `WORK_MODE_PREFERRED` — execution-heavy exception.
+
+The routing test is whether autonomous computer/tool execution materially reduces user interaction or execution overhead compared with Standard Chat High. Importance, difficulty, code involvement, multi-file scope, GitHub dependence, or High reasoning effort alone are insufficient.
+
+A Standard Chat worker that discovers substantial execution overhead may stop at a clean checkpoint and return:
+
+`WORK_MODE_ESCALATION_RECOMMENDED`
+
+The handoff must include task ID, branch, exact SHA when relevant, completed work, remaining work, why Work materially helps, files/components, known failures, tests run, required validation, and exact next action.
+
+A Work worker whose remaining scope is primarily reasoning, policy, architecture, research interpretation, audit analysis, review, or documentation should return:
+
+`STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED`
+
+That handoff must preserve branch/SHA, completed execution, remaining work, evidence/tests, blockers, and exact next action so Standard Chat can continue without repeating investigation.
+
+Execution-mode changes are routing changes, not task lifecycle states. Manager verifies the re-route and updates task metadata when appropriate. A successor worker continues from the existing checkpoint rather than restarting completed work.
+
 ## Checkpoint vocabulary
 
 - `PRODUCTION_SHA`: commit containing task production/test changes that were validated.
