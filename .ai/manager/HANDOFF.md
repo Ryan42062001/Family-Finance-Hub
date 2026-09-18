@@ -435,3 +435,108 @@ This commit is the final Manager closure checkpoint for FFH-017 and the refreshe
 The repository validator requires terminal `CLOSED` FFH_TASK_V1 tasks to retain the exact machine field `MANAGER_VERDICT: ACCEPTED`. FFH-017 therefore keeps `State: CLOSED` and terminal `AUDIT_STATUS: COMPLETE`, while its Manager-verdict field remains the canonical accepted value. This is a metadata-contract normalization only; it does not reopen FFH-017 or alter the closure verdict.
 
 This commit is the final Manager closure checkpoint after that normalization.
+
+## FFH-018 Manager review / FFH-034 implementation authorization
+
+FFH-018 discovery/design is **ACCEPTED and CLOSED**.
+
+Manager independently refreshed live GitHub/repository state from the exact pre-authorization milestone head `585134d3bda69c2bf3bb480eb3d3d4ef66879460`.
+
+### Live workflow / protection evidence
+
+Current workflow:
+- name: `Foundation CI`;
+- job id: `verify`;
+- check identity therefore remains `Foundation CI / verify`;
+- pull-request targets: `main`, `phase-5-money-priority-engine`;
+- manual dispatch: enabled;
+- runner: self-hosted Windows/X64/`ffh-local`;
+- Node 22;
+- full stage order: install -> AI state -> dependency audit -> calculations -> security -> typecheck -> lint -> build.
+
+Exact baseline CI:
+- Foundation CI #701;
+- run `35401859519`;
+- verify job `105783287366`;
+- SUCCESS;
+- calculations 919/919;
+- security 21/21;
+- AI state / dependency audit / typecheck / lint / build PASS;
+- artifacts: none.
+
+Repository constraints:
+- repository is private;
+- `main`: `protected=false`; required status checks OFF; zero contexts/checks;
+- `phase-5-money-priority-engine`: `protected=false`; required status checks OFF; zero contexts/checks;
+- repository rulesets API returns 403 with GitHub's explicit private-repo plan gate: “Upgrade to GitHub Pro or make this repository public to enable this feature.”
+- classic protection-detail endpoints are not readable through the connected integration, but branch metadata itself reports both relevant branches unprotected.
+
+Therefore there is no current external required-check/ruleset configuration to migrate. The implementation must nevertheless preserve the stable `Foundation CI / verify` identity so a future protection/ruleset can require the same always-present check without redesign.
+
+### Manager architecture decision
+
+**AUTHORIZED** as `FFH-034 — Foundation CI Documentation Fast Path + Evidence`.
+
+Accepted design:
+- one always-created `Foundation CI / verify` job;
+- no workflow-level `paths-ignore`;
+- no job-level condition that can remove `verify`;
+- in-job fail-closed classifier;
+- DOCS_ONLY allowlist limited to Markdown under `.ai/`, Markdown under `docs/`, and root-level Markdown;
+- any mixed/non-doc/ambiguous/error case => FULL;
+- rename/deletion handling must expose the original non-doc path and fail closed;
+- manual dispatch => FULL;
+- docs-only still runs classifier tests + AI-state validation + evidence;
+- only expensive dependency/application stages may be skipped;
+- all existing full-validation stages remain intact and ordered;
+- every run records classification reason, path/status evidence, base/head SHA, actual tested `github.sha`, run/job identity, and executed/skipped stages;
+- durable evidence artifact uploaded with `if: always()`, bounded retention, no secrets or user data;
+- FULL runs retain test/validation output without changing console visibility or exit/failure semantics.
+
+### Scope / custody
+
+Implementation task:
+`FFH-034`
+
+Implementation branch:
+`ffh/ffh-034-ci-efficiency-observability`
+
+Authorized production scope only:
+- `.github/workflows/ci.yml`;
+- `scripts/ci-change-mode.mjs`;
+- `scripts/ci-change-mode.test.mjs`.
+
+No `package.json`/lock change is authorized.
+
+The historical `manager/ffh-018-ci-efficiency-observability` branch MUST NOT be reused; it is 118 commits behind the reviewed milestone and contains stale workflow/package changes.
+
+### Acceptance / audit gates
+
+Worker must return READY_FOR_MANAGER unmerged with full-path CI on the implementation PR and exact evidence.
+
+If Manager accepts and integrates:
+1. exact integration FULL CI must pass;
+2. Manager creates a disposable docs-only PR against the integrated milestone;
+3. the same `Foundation CI / verify` job must succeed in DOCS_ONLY mode;
+4. classifier tests, AI-state validation, summary, and artifact must run;
+5. expensive steps must be visibly skipped;
+6. Manager freezes the integrated workflow target;
+7. fresh independent Technical / Workflow audit is mandatory before FFH-034 closure.
+
+FFH-034 does not change FFH-020/FFH-016 gates, does not make PR #5 merge-ready, and does not activate Phase 6.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | WAIT | — |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | FFH-020 remains blocked on secure Supabase CLI/auth/protected-backup execution; FFH-016 remains blocked behind Manager-accepted FFH-020. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | ACTIVATE NOW | Continue Family Finance Hub as Product & Technical R&D Engineer. Execute FFH-034 under STANDARD_CHAT_HIGH with Fast Refresh on branch `ffh/ffh-034-ci-efficiency-observability`. Read Workflow V3.1/V3/V2, FFH-034, FFH-018 closure, current task index/project state, current `.github/workflows/ci.yml`, and your role/handoff. Implement only the bounded always-running `Foundation CI / verify` fail-closed docs fast path and durable CI evidence described by FFH-034. Do not change package/lock, financial code/policy, Supabase/live data, protection/rulesets, Phase-6 code, or merge anything. Return READY_FOR_MANAGER unmerged with exact SHAs, PR, classifier adversaries, full-path CI, evidence artifact/summary proof, changed-file scope, handoff SHA, and the 11-role dashboard. |
+| 9 | Technical & Mathematical Auditor | WAIT | FFH-034 requires a fresh independent Technical/Workflow audit only after Manager integration + live docs-only proof; final Phase-5 audit also remains downstream of FFH-020/016. |
+| 10 | Financial Policy & Scenario Auditor | WAIT | No FFH-034 policy audit required; final integrated Phase-5 policy audit remains downstream of FFH-020/016 and stable workflow baseline. |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |

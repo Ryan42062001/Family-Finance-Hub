@@ -136,6 +136,15 @@ R2 is remediated but remains subject to integrated audit. PR #5 description/stat
 
 Do not pre-authorize Phase 5D–5G production work from prior chat discussion.
 
+### FFH-034 — Foundation CI Documentation Fast Path + Evidence
+Owner: Product & Technical R&D Engineer
+State: ACTIVE / MANAGER AUTHORIZED
+Execution: STANDARD_CHAT_HIGH
+Branch: `ffh/ffh-034-ci-efficiency-observability`
+Scope: preserve one always-running `Foundation CI / verify` job; use only a fail-closed Markdown documentation allowlist for expensive-step skipping; keep all non-doc/mixed/ambiguous/manual-dispatch runs FULL; add durable SHA/path/test-output evidence.
+Gate: Manager review -> integration FULL CI -> disposable docs-only live proof -> frozen target -> fresh independent Technical/Workflow audit. No Financial Policy audit is required unless implementation crosses into financial semantics.
+Non-goals: no financial code/policy, Supabase/live data, package/lock changes, branch-protection/ruleset changes, Phase-6 work, or PR #5 merge-readiness declaration.
+
 ## Phase 6 — Scenario Lab
 
 PLANNED / NOT STARTED. Remains downstream of an accepted Phase 5 recommendation engine.
@@ -155,7 +164,8 @@ Authoritative live task state in this reconciliation supersedes older historical
 - FFH-031 / FFH-032 / FFH-033: CLOSED.
 - FFH-020: BLOCKED before any live migration-history/DDL write because a secure Supabase CLI/auth/protected-backup execution environment is still required.
 - FFH-016: BLOCKED behind Manager-accepted FFH-020 deployment; it remains a verification-only pre-merge readiness gate.
-- FFH-018: ACTIVE for discovery/design only. It may proceed in parallel because the financial correctness wave is stable; no CI workflow/required-check implementation is authorized by this activation.
+- FFH-018: CLOSED — discovery/design accepted by Manager.
+- FFH-034: ACTIVE — bounded always-running verify / fail-closed documentation fast path / durable evidence implementation. Material workflow audit required after integration.
 - FFH-026: QUEUED for Phase 7 after accepted Phase 5 + Phase 6.
 
 Current Phase-5 merge-readiness sequence:
@@ -165,6 +175,6 @@ Current Phase-5 merge-readiness sequence:
 4. refresh PR #5 description/status against canonical task state and perform final merge review;
 5. merge only if all gates are clean, then verify post-merge CI and reconcile canonical state.
 
-FFH-018 discovery is not a merge blocker. Any later CI workflow implementation must be separately Manager-approved and validated before it can affect the final audit baseline.
+FFH-018 discovery is closed. FFH-034 implementation is Manager-authorized and may proceed in parallel; it is not a financial/product correctness blocker. If integrated, its live docs-only proof and independent Technical/Workflow audit must clear before the modified workflow is treated as a stable final-audit baseline.
 
 Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation engine and is not authorized for production activation yet.
