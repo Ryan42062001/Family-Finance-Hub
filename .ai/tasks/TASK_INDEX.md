@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | AUDIT_READY | R05/R06 integration/frozen target `5c96b993...` | Integration CI `35305470058` SUCCESS; fresh Technical + Policy closure audits ACTIVE |
+| FFH-017 | Core Engine | REMEDIATION | failed frozen target `5c96b993...`; R07 branch `ffh/ffh-017-r07-below-locality-remediation` | dual closure audit FAIL: TMA-017-07 MEDIUM + FFH-017-P04 MEDIUM; bounded R07 Core remediation ACTIVE |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -68,15 +68,15 @@ Last refreshed: 2026-09-17
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Technical & Mathematical Auditor — fresh independent FFH-017 closure audit of exact frozen target `5c96b99373c7c2593fbbb5766b109347f1588fcd` on `audit/ffh-017-technical-5c96b993`.
+- Core Financial Engine Engineer — bounded FFH-017 R07 Bucket-3 BELOW-only locality remediation on `ffh/ffh-017-r07-below-locality-remediation`; execution mode `STANDARD_CHAT_HIGH`; preserve R02/R03/R04/R05/R06/M01.
 
 ## ACTIVE / IDLE / BLOCKED
-- Financial Policy & Scenario Auditor — fresh independent FFH-017 closure audit of the same exact frozen target on `audit/ffh-017-policy-5c96b993`.
-- Core Financial Engine Engineer: IDLE after accepted/integrated R05/R06 remediation.
+- Technical & Mathematical Auditor: IDLE after completed `5c96b993...` closure audit; reactivate only after a new Manager-frozen target.
+- Financial Policy & Scenario Auditor: IDLE after completed `5c96b993...` closure audit; reactivate only after a new Manager-frozen target.
 - Work Helper: IDLE; escalate only if the bounded Core remediation becomes execution-heavy or technically stuck.
 - Financial Policy Analyst roles: IDLE.
 - Implementation Engineer / App-Data: FFH-020 remains BLOCKED on secure Supabase execution capability.
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is fresh independent FFH-017 Technical + Policy closure audit of `5c96b993...` -> Manager verdict reconciliation -> close or route remediation. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.
+Current near-term gate is bounded FFH-017 R07 Core remediation -> Manager acceptance/integration -> new frozen target -> fresh closure audit. Failed targets `9d3a880e...`, `90a31c75...`, and `c009a8c2...` must not be reused.

@@ -8,35 +8,62 @@ Execution mode: STANDARD_CHAT_HIGH
 Status: AUDIT COMPLETE — BLOCKING REMEDIATION REQUIRED  
 Verdict: **FAIL — REMEDIATION REQUIRED**
 
-Exact frozen implementation audited: `c009a8c22d92715696018c7089eb5ad1a79a3cf1`  
-Manager/control-plane audit base verified: `0cee62f328c179906669e830e307348952261011`  
-Assigned audit branch: `audit/ffh-017-technical-c009a8c2`  
-Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c009a8c2.md`  
-Canonical report: `.ai/audit/technical/FFH-017_TECHNICAL_CLOSURE_AUDIT_c009a8c2.md`  
-Report commit: `985b33beca7e7df607cef6886ef73adaf3050728`
+Exact frozen implementation audited: `5c96b99373c7c2593fbbb5766b109347f1588fcd`  
+Manager/control-plane audit base verified: `84a5ce450618b25a1a90bc798361e7a87c3b8d49`  
+Assigned audit branch: `audit/ffh-017-technical-5c96b993`  
+Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_5c96b993.md`  
+Canonical report: `.ai/audit/technical/FFH-017_TECHNICAL_CLOSURE_AUDIT_5c96b993.md`  
+Report commit: `ad7a6e15f70325a8eb2d573893af103904df2e1a`
 
 ### Independent result
 
-- **HIGH — TMA-017-06 — OPEN / BLOCKING:** R04 potential-OUTRANK detection covers unresolved Essential peers but excludes a confirmed, non-legacy peer whose current necessity is `unknown`. Goal Intelligence explicitly permits that state. If the missing necessity later resolves to Essential while already-known Fixed/Critical facts and a known core pace support OUTRANK, the peer can become financially senior to a known OUTRANK goal. The frozen allocator nevertheless treats it as incapable of OUTRANK and may allocate scarce Bucket-1 capacity prematurely.
-- Existing R04 Essential/core-amount adversaries otherwise clear.
-- R02 exact non-tied annual/monthly reconciliation remains clear.
-- R03 desired-excess tranche routing remains clear.
-- Protected FFH-013 M01 remains exact.
-- Financial Engine Reconciliation exact-cent mechanics remain clear; task closure fails because the allocation authority itself is not proven independent of the missing necessity fact.
+- **MEDIUM — TMA-017-07 — OPEN / BLOCKING:** R06 below-only locality excludes unresolved tranches whose cross-domain disposition is already `BELOW` but whose recurring pace/request remains unknown. Those tranches are not in `materialMissingGoals`, so they never enter `potentialBelowOnlyGoals`. A weaker known BELOW goal can therefore consume scarce Bucket-3 dollars that can later belong to the stronger unresolved BELOW claimant after its missing pace fact resolves.
+- **R05 / prior TMA-017-06:** CLEARS. Confirmed non-legacy `necessity = unknown` is now handled as potential Essential/OUTRANK when supported by known urgency/harm facts.
+- **R04:** CLEARS / preserved.
+- **R06 retirement / possible-CO_PRIORITY invariance:** CLEARS for the required retirement examples; only the separate below-only path remains defective.
+- **R02:** CLEARS / preserved.
+- **R03:** CLEARS / preserved.
+- **Protected FFH-013 M01:** CLEARS EXACTLY.
+- **Financial Engine Reconciliation exact-cent mechanics:** CLEAR. The blocker is allocation ownership, not arithmetic reconciliation.
+
+### TMA-017-07 adversary
+
+Residual recurring capacity: $100.  
+Additional retirement request: $0.
+
+Stronger Goal A:
+- confirmed Optional;
+- Fixed / Critical;
+- known positive core principal;
+- usable target date missing, so recurring request is null;
+- disposition is already BELOW.
+
+Weaker Goal B:
+- confirmed Optional;
+- Flexible / Low;
+- known $100/month request;
+- disposition BELOW.
+
+Frozen code excludes A from `materialMissingGoals` because A is BELOW rather than MORE_INFORMATION_NEEDED, then the normal BELOW loop omits A because its request is null and gives B the full $100.
+
+When A's missing usable deadline resolves positively, A remains BELOW but orders ahead of B and can claim the same $100. Therefore B's allocation was not independent of the missing fact.
 
 ### Custody / validation
 
-- PR #31 final accepted head: `381413b76799bd56caa2a9ce31717d9c9efca637`.
-- Frozen integration: `c009a8c22d92715696018c7089eb5ad1a79a3cf1`.
-- Independent accepted-head -> integration comparison: zero changed files.
-- Exact integration Foundation CI: run `35303342028`, job `105470402709` — SUCCESS.
-- Calculations: 909/909 PASS.
+- PR #32 final head: `be34ce35b64d0a0512b8913e2d65fa779d013db7`.
+- Frozen integration: `5c96b99373c7c2593fbbb5766b109347f1588fcd`.
+- Independent final-head -> integration comparison: zero changed files.
+- Exact integration Foundation CI: run `35305470058`, job `105476660670` — SUCCESS.
+- Calculations: 914/914 PASS.
 - Security: 21/21 PASS.
-- Green CI was evidence only; TMA-017-06 comes from independent frozen-source adversarial analysis.
+- Dependency audit: 0 vulnerabilities.
+- Green CI was corroborating evidence only.
 
 ### Exact next action
 
-Manager should route one bounded R04 follow-up that treats non-legacy material necessity uncertainty as a potential Essential/OUTRANK dimension when it can change scarce Bucket-1 ownership/order, without restoring global freeze for Optional, Important, legacy-unconfirmed, or provably lower-priority uncertainty.
+Manager should route one bounded R06 follow-up so unresolved tranches whose disposition is definitively BELOW but whose request remains unknown are included in lower-bucket independence analysis.
+
+Do not invent their missing pace. Reserve only the supported bound necessary to prevent a weaker known BELOW claimant from consuming contested capacity, while allowing unrelated residual capacity to continue.
 
 Then establish a new frozen FFH-017 target and require the canonical fresh closure audit gate.
 
