@@ -130,37 +130,48 @@ The compact `Next Activation` table is now canonical for Family Finance Hub empl
 
 FFH-017 remains independently active in bounded R07 remediation.
 
+## FFH-033 audit reconciliation
+
+Exact failed workflow target:
+`75fad74160f6ed412051adb4d4f2f33c091a0517`
+
+Independent Technical / Workflow verdict:
+**FAIL — REMEDIATION REQUIRED**
+
+Blocking finding:
+- `FFH-033-WF-01` — MEDIUM / BLOCKING
+- the canonical Manager handoff itself did not end with the mandatory 11-role workforce dashboard.
+
+Canonical report:
+`.ai/audit/technical/FFH-033_WORKFLOW_CONTROL_PLANE_AUDIT_75fad741.md`
+
+Report commit:
+`4fdcfaa8ce54c87d215abbeefee0ec48aa291d6e`
+
+Audit handoff commit:
+`9ab7538b2e79fdfb89405b35624ded9ec9f0161e`
+
+Manager accepts the finding.
+
+Bounded remediation:
+- no workflow authority change;
+- no production/financial/application/Supabase change;
+- only make the canonical Manager handoff comply with the already-approved FFH-033 rule by ending with the complete 11-role dashboard;
+- preserve Manager-only `ACTIVATE NOW` authority;
+- refreeze the corrected workflow target and require fresh independent closure audit.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
-|---|---|---|---|
-| 1 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as the Core Financial Engine Engineer. Execute FFH-017 R07 — Bucket-3 BELOW-only locality completion — under STANDARD_CHAT_HIGH with Fast Refresh on `ffh/ffh-017-r07-below-locality-remediation`. Treat live repository/GitHub state as authoritative. Read canonical workflow, FFH-017 task, core-engine charter/handoff, and both fresh `5c96b993` closure-audit reports. Fix only R07-A and R07-B, preserve R02-R06/M01/reconciliation/retirement-floor behavior, and return READY_FOR_MANAGER unmerged with exact SHAs, PR, direct regression proof, CI, and handoff. |
-
-## FFH-033 — full-workforce activation dashboard
-
-User-authorized control-plane follow-up to FFH-032.
-
-Every employee handoff will now display the entire 11-role Family Finance Hub workforce, including roles that are ACTIVE, WAIT, BLOCKED, or IDLE.
-
-The change preserves Manager-only `ACTIVATE NOW` authority and does not modify FFH-017 financial behavior.
-
-Branch:
-`manager/ffh-033-full-workforce-activation-table`
-
-Because this changes workflow semantics, one fresh independent workflow/control-plane audit is required before closure.
-
-## FFH-033 audit activation
-
-Status:
-AUDIT_READY
-
-Exact integrated workflow target:
-`75fad74160f6ed412051adb4d4f2f33c091a0517`
-
-Frozen packet:
-`.ai/audit/FFH-033_WORKFLOW_AUDIT_PACKET_75fad741.md`
-
-Audit branch:
-`audit/ffh-033-workflow-75fad741`
-
-FFH-033 requires all 11 Family Finance Hub roles in every meaningful Next Activation table. Manager-only activation authority remains unchanged.
+|---:|---|---|---|
+| 1 | Manager / Architect | WAIT | — |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as Core Financial Engine Engineer. On `ffh/ffh-017-r07-below-locality-remediation`, make only the final FFH-017 R07 `READY_FOR_MANAGER` task/index/worklog/handoff control-plane commit. Production is already validated at `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`, CI `35346849145` / job `105605334966` SUCCESS, PR #34 remains unmerged. Do not change financial implementation unless new evidence requires it. Return exact `HANDOFF_SHA` and recommend Manager review. |
+| 6 | Application, Data & Integration Engineer | BLOCKED | — |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | WAIT | — |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
