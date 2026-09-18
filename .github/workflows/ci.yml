@@ -54,6 +54,7 @@ jobs:
 
       - name: Test CI change classifier
         id: classifier_tests
+        continue-on-error: true
         run: |
           node --test scripts\ci-change-mode.test.mjs > ci-evidence\classifier-tests.log 2>&1
           set "code=%ERRORLEVEL%"
@@ -62,6 +63,8 @@ jobs:
 
       - name: Classify change mode
         id: classify
+        if: always()
+        continue-on-error: true
         env:
           CI_PR_NUMBER: ${{ github.event.pull_request.number }}
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -70,7 +73,7 @@ jobs:
 
       - name: Install dependencies
         id: install
-        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        if: ${{ steps.classifier_tests.outcome == 'success' && steps.classify.outcome == 'success' && steps.classify.outputs.mode != 'DOCS_ONLY' }}
         run: |
           npm ci > ci-evidence\install-dependencies.log 2>&1
           set "code=%ERRORLEVEL%"
@@ -79,6 +82,7 @@ jobs:
 
       - name: Validate AI control-plane state
         id: ai_state
+        if: always()
         run: |
           npm run ai:validate-state > ci-evidence\ai-state.log 2>&1
           set "code=%ERRORLEVEL%"
@@ -207,3 +211,23 @@ jobs:
           path: ci-evidence
           if-no-files-found: error
           retention-days: 14
+
+      - name: Enforce CI guardrails
+        if: always()
+        shell: pwsh
+        env:
+          CLASSIFIER_TESTS: ${{ steps.classifier_tests.outcome }}
+          CLASSIFY: ${{ steps.classify.outcome }}
+          AI_STATE: ${{ steps.ai_state.outcome }}
+        run: |
+          $failures = @()
+          if ($env:CLASSIFIER_TESTS -ne "success") { $failures += "classifier-tests=$env:CLASSIFIER_TESTS" }
+          if ($env:CLASSIFY -ne "success") { $failures += "classification=$env:CLASSIFY" }
+          if ($env:AI_STATE -ne "success") { $failures += "ai-state=$env:AI_STATE" }
+
+          if ($failures.Count -gt 0) {
+            Write-Error ("Foundation CI guardrail failure: " + ($failures -join ", "))
+            exit 1
+          }
+
+          Write-Host "Foundation CI guardrails passed."
