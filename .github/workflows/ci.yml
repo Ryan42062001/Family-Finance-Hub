@@ -7,33 +7,227 @@ on:
       - phase-5-money-priority-engine
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
-    runs-on: [self-hosted, Windows, X64, ffh-local]
+    runs-on: windows-latest
     defaults:
       run:
         shell: cmd
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      CI_EVIDENCE_DIR: ci-evidence
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CI evidence
+        if: always()
+        shell: pwsh
+        env:
+          CI_PR_NUMBER: ${{ github.event.pull_request.number }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          New-Item -ItemType Directory -Force -Path ci-evidence | Out-Null
+          @(
+            "event=$env:GITHUB_EVENT_NAME"
+            "repository=$env:GITHUB_REPOSITORY"
+            "pr=$env:CI_PR_NUMBER"
+            "base_sha=$env:CI_BASE_SHA"
+            "head_sha=$env:CI_HEAD_SHA"
+            "tested_sha=$env:GITHUB_SHA"
+            "run_id=$env:GITHUB_RUN_ID"
+            "run_number=$env:GITHUB_RUN_NUMBER"
+            "run_attempt=$env:GITHUB_RUN_ATTEMPT"
+            "job=verify"
+            "runner=windows-latest"
+          ) | Set-Content -Path ci-evidence\run-context.txt -Encoding utf8
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Test CI change classifier
+        id: classifier_tests
+        continue-on-error: true
+        run: |
+          node --test scripts\ci-change-mode.test.mjs > ci-evidence\classifier-tests.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\classifier-tests.log
+          exit /b %code%
+
+      - name: Classify change mode
+        id: classify
+        if: always()
+        continue-on-error: true
+        env:
+          CI_PR_NUMBER: ${{ github.event.pull_request.number }}
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts\ci-change-mode.mjs
+
       - name: Install dependencies
-        run: npm ci
+        id: install
+        if: ${{ steps.classifier_tests.outcome == 'success' && steps.classify.outcome == 'success' && steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm ci > ci-evidence\install-dependencies.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\install-dependencies.log
+          exit /b %code%
+
       - name: Validate AI control-plane state
-        run: npm run ai:validate-state
+        id: ai_state
+        if: always()
+        run: |
+          npm run ai:validate-state > ci-evidence\ai-state.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\ai-state.log
+          exit /b %code%
+
       - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+        id: dependency_audit
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm audit --omit=dev --audit-level=high > ci-evidence\dependency-audit.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\dependency-audit.log
+          exit /b %code%
+
       - name: Test calculations
-        run: npm test
+        id: calculations
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm test > ci-evidence\calculations.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\calculations.log
+          exit /b %code%
+
       - name: Test security policy contract
-        run: npm run test:security
+        id: security
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm run test:security > ci-evidence\security.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\security.log
+          exit /b %code%
+
       - name: Type check
-        run: npm run typecheck
+        id: typecheck
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm run typecheck > ci-evidence\typecheck.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\typecheck.log
+          exit /b %code%
+
       - name: Lint
-        run: npm run lint
+        id: lint
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm run lint > ci-evidence\lint.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\lint.log
+          exit /b %code%
+
       - name: Build
-        run: npm run build
+        id: build
+        if: ${{ steps.classify.outputs.mode != 'DOCS_ONLY' }}
+        run: |
+          npm run build > ci-evidence\build.log 2>&1
+          set "code=%ERRORLEVEL%"
+          type ci-evidence\build.log
+          exit /b %code%
+
+      - name: Record validation outcomes
+        if: always()
+        shell: pwsh
+        env:
+          CI_MODE: ${{ steps.classify.outputs.mode }}
+          CI_REASON: ${{ steps.classify.outputs.reason }}
+          CLASSIFIER_TESTS: ${{ steps.classifier_tests.outcome }}
+          CLASSIFY: ${{ steps.classify.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+          AI_STATE: ${{ steps.ai_state.outcome }}
+          DEPENDENCY_AUDIT: ${{ steps.dependency_audit.outcome }}
+          CALCULATIONS: ${{ steps.calculations.outcome }}
+          SECURITY: ${{ steps.security.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        run: |
+          $mode = if ([string]::IsNullOrWhiteSpace($env:CI_MODE)) { "FAILED_CLOSED" } else { $env:CI_MODE }
+          $reason = if ([string]::IsNullOrWhiteSpace($env:CI_REASON)) { "classification-unavailable-job-failed-closed" } else { $env:CI_REASON }
+
+          $rows = @(
+            [pscustomobject]@{ Stage = "Classifier tests"; Outcome = $env:CLASSIFIER_TESTS }
+            [pscustomobject]@{ Stage = "Change classification"; Outcome = $env:CLASSIFY }
+            [pscustomobject]@{ Stage = "Install dependencies"; Outcome = $env:INSTALL }
+            [pscustomobject]@{ Stage = "AI state validation"; Outcome = $env:AI_STATE }
+            [pscustomobject]@{ Stage = "Dependency audit"; Outcome = $env:DEPENDENCY_AUDIT }
+            [pscustomobject]@{ Stage = "Calculation tests"; Outcome = $env:CALCULATIONS }
+            [pscustomobject]@{ Stage = "Security tests"; Outcome = $env:SECURITY }
+            [pscustomobject]@{ Stage = "Typecheck"; Outcome = $env:TYPECHECK }
+            [pscustomobject]@{ Stage = "Lint"; Outcome = $env:LINT }
+            [pscustomobject]@{ Stage = "Build"; Outcome = $env:BUILD }
+          )
+
+          @(
+            "mode=$mode"
+            "reason=$reason"
+            ""
+            "stage`toutcome"
+          ) | Set-Content -Path ci-evidence\stage-outcomes.tsv -Encoding utf8
+
+          foreach ($row in $rows) {
+            "$($row.Stage)`t$($row.Outcome)" | Add-Content -Path ci-evidence\stage-outcomes.tsv -Encoding utf8
+          }
+
+          @(
+            ""
+            "## Foundation CI validation outcomes"
+            ""
+            "- Effective mode: **$mode**"
+            "- Reason: ``$reason``"
+            "- Runner: ``windows-latest``"
+            ""
+            "| Stage | Outcome |"
+            "|---|---|"
+          ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+          foreach ($row in $rows) {
+            "| $($row.Stage) | $($row.Outcome) |" | Add-Content -Path $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          }
+
+      - name: Upload Foundation CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundation-ci-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-evidence
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce CI guardrails
+        if: always()
+        shell: pwsh
+        env:
+          CLASSIFIER_TESTS: ${{ steps.classifier_tests.outcome }}
+          CLASSIFY: ${{ steps.classify.outcome }}
+          AI_STATE: ${{ steps.ai_state.outcome }}
+        run: |
+          $failures = @()
+          if ($env:CLASSIFIER_TESTS -ne "success") { $failures += "classifier-tests=$env:CLASSIFIER_TESTS" }
+          if ($env:CLASSIFY -ne "success") { $failures += "classification=$env:CLASSIFY" }
+          if ($env:AI_STATE -ne "success") { $failures += "ai-state=$env:AI_STATE" }
+
+          if ($failures.Count -gt 0) {
+            Write-Error ("Foundation CI guardrail failure: " + ($failures -join ", "))
+            exit 1
+          }
+
+          Write-Host "Foundation CI guardrails passed."
