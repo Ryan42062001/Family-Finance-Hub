@@ -1,6 +1,6 @@
 # Technical Audit Handoff
 
-## Current handoff — FFH-017 fresh independent Technical & Mathematical audit
+## Current handoff — FFH-017 FINAL fresh independent Technical & Mathematical re-audit
 
 Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition  
 Role: Technical & Mathematical Auditor  
@@ -8,51 +8,34 @@ Execution mode: STANDARD_CHAT
 Status: AUDIT COMPLETE — BLOCKING REMEDIATION REQUIRED  
 Verdict: **FAIL — REMEDIATION REQUIRED**
 
-Exact frozen implementation audited: `9d3a880e02365b4445b8070344c72c928ca34511`  
-Manager control-plane head verified before audit write: `4912736fbe0d4de28350ac009f23659ff93c5b3a`  
-Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_9d3a880e.md`  
-Canonical report: `.ai/audit/technical/FFH-017_TECHNICAL_AUDIT_9d3a880e.md`  
-Report commit: `662a5301379223dee847a3649f69a723f19cb02d`
+Exact frozen implementation audited: `90a31c755ea88310e58bb9e06ade60af73e182f5`  
+Manager control-plane base verified before audit: `f0e9825f17144b9f24fafbbe1a97816051dec8b9`  
+Assigned audit branch: `audit/ffh-017-technical-90a31c75`  
+Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_90a31c75.md`  
+Canonical report: `.ai/audit/technical/FFH-017_FINAL_TECHNICAL_REAUDIT_90a31c75.md`  
+Report commit: `11f97eaedc45da8f9f4b82e82590f8481229bfd1`
 
-### Findings
+### Fresh independent result
 
-- **HIGH — TMA-017-01:** missing goal facts are not localized; an unconfirmed legacy goal or an Optional goal with irrelevant missing borrowing details can zero the entire Phase 5C competition and suppress unrelated verified retirement/goal allocation.
-- **HIGH — TMA-017-02:** ordinary non-tied retirement routing rounds annual room to monthly cents without exact annual/monthly reconciliation. Reachable boundary: `$0.06` annual room becomes `$0.01/month` while only `$0.06` annual is consumed, so the recurring pace implies `$0.12/year` against `$0.06` legal room.
-- **HIGH — TMA-017-03:** desired-solution excess is stored as an amount but never emitted/routed as its required `BELOW` additional-retirement recurring tranche. Core-satisfied goals therefore lose their entire remaining desired/excess recurring request, and mixed core/excess goals leave otherwise valid residual Build capacity unused.
-- **LOW — TMA-017-04:** task/frozen packet cite pre-handoff CI job `104483637634`, but live GitHub run `34999388253` identifies the successful verify job as `104483702758`. The run/head/gates are valid; this is control-plane evidence hygiene only.
+- **HIGH — TMA-017-05 — OPEN / BLOCKING:** R01 targeted missing-fact locality is still incomplete at a multi-OUTRANK scarcity boundary. The frozen allocator funds all currently known OUTRANK tranches before checking materially unresolved Essential/Important core tranches. A materially unresolved Essential/Fixed/Critical goal with unknown core amount can resolve into a financially higher-ranked OUTRANK request, so a known Essential/Fixed/High OUTRANK allocation made first is not independent of the missing fact.
+- **R01 / prior TMA-017-01:** **DOES NOT FULLY CLEAR** because of TMA-017-05. Optional/lifestyle locality, legacy-unconfirmed isolation, unrelated lower-priority unknowns, and stand-alone material fail-close behavior are otherwise remediated.
+- **R02 / prior TMA-017-02:** **CLEARS.** Ordinary non-tied recurring retirement routing floors annual cents to exact full-year monthly authority; planner and router share the same helper; monthly cents × 12 equals actual annual ledger consumption; residual annual cents remain explicit.
+- **R03 / prior TMA-017-03:** **CLEARS.** Core and desired-excess are distinct tranches; desired excess is emitted separately, always BELOW additional retirement, has a distinct recommendation identity, and the required $600 core + $400 retirement + $600 excess case reconciles to exactly $1,600 with zero residual.
+- **Protected FFH-013 M01:** **CLEARS EXACTLY** at $833.33/month -> $416.67 + $416.66, $9,999.96 annual legal consumption, $0.05 shared annual remainder.
+- **Financial Engine Reconciliation Gate:** the remediated exact-cent routing/conversion mechanics clear, but FFH-017 overall cannot close because TMA-017-05 assigns scarce OUTRANK capacity before all material facts that can change that bucket's ordering are known.
 
-### What clears
+### Custody / validation
 
-- known-fact OUTRANK and CO_PRIORITY classification;
-- known-fact core BELOW classification aside from the missing desired-excess tranche;
-- sufficient/scarce common-fulfillment mathematics;
-- one-cent/odd-cent proportional competition allocation;
-- financially equivalent input-order invariance on inspected known-fact paths;
-- protected retirement-floor sequencing, subject to the non-tied unit-conversion defect;
-- closed FFH-013 factual-YTD versus schedule separation, scheduled reservation no-reuse, spouse/shared IRA conservation, and multiple-account nonmultiplication;
-- Existing Cash -> Secure -> Build -> Windfall authoritative ledger custody;
-- no separate underlying Roth / Traditional / SIMPLE / HSA / workplace evaluator regression identified.
+- PR #28 final head: `401204a34ec8ddf2305e073a1938f3cfb27a8900`.
+- Frozen integration: `90a31c755ea88310e58bb9e06ade60af73e182f5`.
+- Independent final-head -> integration comparison: zero changed files.
+- Exact integration Foundation CI: run `35297206526`, job `105452111495` — SUCCESS.
+- Integration calculation log: 904/904 PASS.
+- Security contract: 21/21 PASS.
+- Green CI was corroborating evidence only; the blocking finding comes from independent frozen-source adversarial analysis.
 
-### Protected FFH-013 M01
+### Next action
 
-**CLEARS EXACTLY:** shared annual room `$10,000.01`; owner conditional room `$7,500` each; Build `$833.33/month`; routes `$416.67 + $416.66`; annual legal consumption `$9,999.96`; shared annual remainder `$0.05`. The closed tied-spouse helper retains exact annual/monthly reconciliation and order invariance.
+Manager should route one bounded R01 remediation for TMA-017-05, then establish a new frozen implementation target and required closure audit.
 
-### Financial Engine Reconciliation Gate
-
-**DOES NOT CLEAR.** TMA-017-02 violates exact annual/monthly destination reconciliation for ordinary non-tied retirement routing. TMA-017-01 and TMA-017-03 separately violate accepted Phase 5C missing-fact locality and tranche completeness.
-
-### Validation evidence
-
-- PR #26 accepted final head `0e7c139b374716ad0e701d0f3c8ae05f9fac1692` -> frozen integration `9d3a880e...`: zero file differences.
-- Production checkpoint `1393ea928eb5756f16a6af063a68360892200bd6` is the last production financial-engine change; later frozen-target deltas are tests/fixtures/CI/control-plane only.
-- Foundation run `34999388253` on `545d3b12710086b0fefb44be9b7823309f30da0e`: SUCCESS; live verify job `104483702758`; full expected gates passed.
-- Foundation run `35000961119`, job `104488944773`, on `c7882907854579488eb82f4d9f18799b51522550`: SUCCESS through the same gates.
-- Green CI was treated as evidence, not proof; blocking findings were derived from independent frozen-source and mathematical adversarial analysis.
-
-### Scope / next action
-
-No production code, accepted policy, Manager-owned task/index state, merge state, downstream activation, or Supabase/live-data state was changed.
-
-Manager closure of FFH-017 is blocked. Route bounded Core Engine remediation for TMA-017-01/TMA-017-02/TMA-017-03, correct TMA-017-04 in Manager-owned evidence records, then create a new frozen audit target and repeat required independent audit gates.
-
-HANDOFF_SHA: this audit-only commit; exact immutable SHA is returned with the audit result after GitHub creates it.
+This audit did not modify production financial behavior or accepted policy, merge or accept anything, close FFH-017, activate downstream work, alter Manager-owned task/index state, or perform Supabase/live-database work.
