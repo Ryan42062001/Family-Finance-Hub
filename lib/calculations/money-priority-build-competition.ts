@@ -268,6 +268,22 @@ function maximumPotentialCoreMonthlyCents(goal: GoalIntelligenceResult): number 
   return toCents(maximumRemainingCore / months);
 }
 
+function maximumPotentialDesiredExcessMonthlyCents(goal: GoalIntelligenceResult): number {
+  if (goal.remainingCoreNeedAmount === null || goal.remainingTargetAmount <= 0) return 0;
+  const remainingExcess = Math.max(0, goal.remainingTargetAmount - goal.remainingCoreNeedAmount);
+  if (remainingExcess <= 0) return 0;
+
+  // Mirror goalMonthlyPaces() at the shortest supported positive period. This is
+  // reserve evidence only; it never becomes the authoritative requested pace.
+  const months = goal.monthsRemaining !== null && goal.monthsRemaining > 0 ? goal.monthsRemaining : 1;
+  const fullTargetMonthlyCents = toCents(goal.remainingTargetAmount / months);
+  const coreMonthlyCents = Math.min(
+    fullTargetMonthlyCents,
+    toCents(goal.remainingCoreNeedAmount / months),
+  );
+  return Math.max(0, fullTargetMonthlyCents - coreMonthlyCents);
+}
+
 type MaterialGoalResolution = {
   possibleDispositions: ReadonlySet<BuildCompetitionDisposition>;
   strongestBelowOrdering: GoalIntelligenceResult | null;
@@ -475,6 +491,15 @@ export function buildRecurringGoalRetirementCompetition(
     const source = byId.get(tranche.goalId);
     return source !== undefined && !isLegacyUnconfirmedGoal(source);
   });
+  const definitiveBelowRequestUnresolvedExcessGoals = excessTranches.filter((tranche) => {
+    if (
+      tranche.disposition !== "BELOW"
+      || tranche.requestedMonthlyAmount !== null
+      || tranche.remainingDesiredExcessAmount <= 0
+    ) return false;
+    const source = byId.get(tranche.goalId);
+    return source !== undefined && !isLegacyUnconfirmedGoal(source);
+  });
   const materialGoalAnalyses = [
     ...materialMissingGoals.flatMap((tranche) => {
       const source = byId.get(tranche.goalId);
@@ -498,6 +523,22 @@ export function buildRecurringGoalRetirementCompetition(
           strongestBelowOrdering: source,
         },
         maximumRequestedCents: maximumPotentialCoreMonthlyCents(source),
+      }];
+    }),
+    ...definitiveBelowRequestUnresolvedExcessGoals.flatMap((tranche) => {
+      const source = byId.get(tranche.goalId);
+      if (!source) return [];
+      return [{
+        tranche,
+        source,
+        // Desired excess is always retirement-junior. The missing period affects
+        // only the conservative demand bound, never its cross-domain disposition
+        // or financial ordering.
+        resolution: {
+          possibleDispositions: new Set<BuildCompetitionDisposition>(["BELOW"]),
+          strongestBelowOrdering: source,
+        },
+        maximumRequestedCents: maximumPotentialDesiredExcessMonthlyCents(source),
       }];
     }),
   ];
