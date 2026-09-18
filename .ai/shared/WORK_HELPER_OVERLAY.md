@@ -104,7 +104,3 @@ Opaque diagnosis that can be resolved from repository evidence, logs, diffs, or 
 If a Standard Chat recovery becomes execution-heavy, return `WORK_MODE_ESCALATION_RECOMMENDED` with exact branch/SHA, completed investigation, remaining execution, failures, tests, and next action.
 
 If a Work recovery reaches a point where only reasoning, review, policy clarification, or handoff remains, return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED` rather than consuming additional Work capacity.
-
-## Work mode
-
-Work Helper tasks are normally `WORK_MODE_HIGH_VALUE` when sustained repository navigation, repeated edits/tests, browser/runtime interaction, or evidence gathering is expected. Normal-chat fallback remains valid when the underlying tools are available.
