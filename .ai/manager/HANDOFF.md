@@ -284,15 +284,43 @@ R02-R07, FFH-013 M01, exact reconciliation, retirement floor, desired excess bel
 
 Phase 5 / PR #5 remains NOT MERGE READY.
 
+## FFH-017 R08 Manager acceptance
+
+PR #36 is Manager-ACCEPTED.
+
+Validated production/test SHA:
+`9d092d5a3939c75a229ed0e74568b40ea37dd387`
+
+Worker handoff head:
+`8c04e66e81498aa007deef733c09e81d10dd8cb7`
+
+Production CI:
+`35386756540` / job `105735352341` — SUCCESS
+
+Handoff-head CI:
+`35388295143` / job `105740364507` — SUCCESS
+
+Manager independently verified:
+- R08 senior request-null desired-excess adversary;
+- financially-junior unresolved-excess control;
+- reserve-only conservative bound;
+- known-facts-only financial ordering;
+- desired excess remains retirement-junior;
+- R02-R07/M01 preservation;
+- exact integer-cent reconciliation.
+
+Next gate:
+Manager integration -> exact integration CI -> new frozen target -> fresh Technical + Policy closure audits.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | WAIT | — |
+| 1 | Manager / Architect | ACTIVE | — |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as Core Financial Engine Engineer. Execute FFH-017 R08 — desired-excess request-null Bucket-3 locality completion — under STANDARD_CHAT_HIGH with Fast Refresh on `ffh/ffh-017-r08-desired-excess-locality-remediation`. Read canonical workflow, FFH-017 task, Core charter/handoff, frozen packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_b236239f.md`, and both fresh `b236239f` closure reports. Fix only the bounded desired-excess reserve gap: request-null positive desired-excess BELOW tranches must reserve contested Bucket-3 capacity when their known financial order outranks a known BELOW claimant, while remaining unfunded and below retirement; do not invent missing pace/date. Preserve R02-R07, M01, exact reconciliation, core-before-excess, retirement floor, and staged no-reuse. Return READY_FOR_MANAGER unmerged with exact SHAs, PR, direct R08 adversary + junior-control proof, preservation evidence, CI, reconciliation proof, handoff SHA, and the full 11-role dashboard. |
+| 5 | Core Financial Engine Engineer | WAIT | — |
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
