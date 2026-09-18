@@ -312,11 +312,39 @@ Manager independently verified:
 Next gate:
 Manager integration -> exact integration CI -> new frozen target -> fresh Technical + Policy closure audits.
 
+## FFH-017 R08 integration / closure-audit freeze
+
+PR #36 is merged.
+
+Exact frozen financial implementation target:
+`c563d011d0ebf71183200a574f3455f4fc940ab7`
+
+Accepted PR head -> integration:
+**zero changed files**
+
+Exact integration Foundation CI:
+- run #691 / `35395102951`
+- job `105762024059`
+- SUCCESS
+
+Frozen packet:
+`.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c563d011.md`
+
+Fresh Technical branch:
+`audit/ffh-017-technical-c563d011`
+
+Fresh Financial Policy branch:
+`audit/ffh-017-policy-c563d011`
+
+Both auditors must independently audit only exact target `c563d011...`.
+
+Phase 5 / PR #5 remains NOT MERGE READY pending FFH-017 closure.
+
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | ACTIVE | — |
+| 1 | Manager / Architect | WAIT | — |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
@@ -324,6 +352,6 @@ Manager integration -> exact integration CI -> new frozen target -> fresh Techni
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
-| 9 | Technical & Mathematical Auditor | WAIT | — |
-| 10 | Financial Policy & Scenario Auditor | WAIT | — |
+| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-technical-c563d011`; exact frozen target `c563d011d0ebf71183200a574f3455f4fc940ab7`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c563d011.md`. Independently verify R08 senior request-null desired-excess reservation, junior-control locality, closure of TMA-017-08, preservation of R02-R07/M01, and exact Financial Engine reconciliation. Do not rely on Manager acceptance or the Policy auditor. Publish the canonical Technical report/handoff and return exact verdict/commits. |
+| 10 | Financial Policy & Scenario Auditor | ACTIVATE NOW | Continue Family Finance Hub as Financial Policy & Scenario Auditor. Perform a fresh independent FFH-017 closure audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-017-policy-c563d011`; exact frozen target `c563d011d0ebf71183200a574f3455f4fc940ab7`; packet `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_c563d011.md`. Independently verify R08 policy/scenario correctness, closure of FFH-017-P05, preservation of R02-R07/M01, desired excess below retirement, core-before-excess semantics, and missing-information locality. Do not rely on Manager acceptance or the Technical auditor. Publish the canonical Policy report/handoff and return exact verdict/commits. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
