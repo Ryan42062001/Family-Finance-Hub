@@ -176,3 +176,30 @@ The worker must prove exact aggregate-to-destination reconciliation at applicabl
 Manager acceptance for such work requires an independent adversarial hand-check of at least one boundary scenario in addition to green CI. Green CI alone does not establish that routed account amounts reconcile with the aggregate amount presented by the stage.
 
 High-impact audit packets for affected work must carry the applicable reconciliation invariants into the Technical & Mathematical audit. A reachable mismatch returns the task to `REMEDIATION`; it must not be waived with epsilon/tolerance or hidden by residual clamping.
+
+## 12. Material control-plane audit gate
+
+Material workflow/control-plane changes require one fresh independent Technical / Workflow audit before the governing task may remain `CLOSED`.
+
+This gate applies when a change materially alters one or more of:
+- canonical workflow semantics or lifecycle behavior;
+- state validators or other machine-enforced control-plane rules;
+- role authority or separation-of-duties boundaries;
+- audit requirements, audit independence, or frozen-target rules;
+- branch/SHA, acceptance, merge, or release controls;
+- execution-mode routing defaults or escalation/de-escalation semantics;
+- other governance behavior whose defect could change how production work is authorized, validated, audited, or integrated.
+
+The gate normally does **not** apply to non-semantic wording cleanup, typo fixes, handoff refreshes, task-index synchronization, metadata corrections, prompt clarity changes, or other documentation-only maintenance that does not change authority or control behavior.
+
+For a required control-plane audit:
+- Manager freezes the exact integrated workflow/control-plane target;
+- Manager provides a bounded audit packet with changed scope, intended semantics, validator/CI evidence, and preserved safeguards;
+- the auditor uses a fresh independent chat in `STANDARD_CHAT_HIGH`;
+- the auditor must not be the author/implementer of the target;
+- the audit independently checks control-plane consistency, validator behavior where applicable, role/task/template agreement, backward-compatibility boundaries, and preservation of repository/branch/SHA/CI/audit/merge safeguards;
+- green CI is evidence, not proof;
+- allowed verdicts remain `PASS`, `PASS WITH NON-BLOCKING FINDINGS`, or `FAIL — REMEDIATION REQUIRED`;
+- a blocking finding moves the governing task to `REMEDIATION`; Manager owns routing and closure.
+
+A separate Financial Policy & Scenario audit is not required for control-plane-only work unless the change also alters financial policy or financial recommendation semantics.
