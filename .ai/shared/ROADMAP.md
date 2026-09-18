@@ -146,7 +146,7 @@ PLANNED / NOT STARTED. Includes household onboarding/invitations, recovery, secu
 
 ## Manager roadmap reconciliation — 2026-09-18
 
-Authoritative live task state supersedes older historical sequencing below.
+Authoritative live task state in this reconciliation supersedes older historical sequencing earlier in this file.
 
 - FFH-012: CLOSED.
 - FFH-013: CLOSED.
