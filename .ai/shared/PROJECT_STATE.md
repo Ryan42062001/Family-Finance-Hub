@@ -13,16 +13,16 @@ Workflow V3 remains canonical for workforce/chat/execution routing; Workflow V2 
 
 ## Phase 5 correctness state
 FFH-010: ACCEPTED; live migration deployment remains under FFH-020.
-FFH-011: REMEDIATION. Narrow security-test candidate exists at `c32942f1...` / PR #13; its owned security gate passes, but worker task/handoff completion is still required before Manager acceptance.
-FFH-012: REMEDIATION after dual post-FFH-023 re-audit FAIL on `1487b192...`.
-FFH-013: QUEUED.
-FFH-015: QUEUED.
-FFH-016: BLOCKED behind FFH-020.
-FFH-017: QUEUED.
-FFH-018: QUEUED CI hardening/test-output observability.
-FFH-020: BLOCKED before live write on secure CLI/auth/backup execution capability.
+FFH-011: ACCEPTED; SIMPLE persisted-field contract consumed by closed FFH-015.
+FFH-012: CLOSED.
+FFH-013: CLOSED.
+FFH-015: CLOSED.
+FFH-016: BLOCKED behind Manager-accepted FFH-020 deployment; verification-only pre-merge gate.
+FFH-017: CLOSED on final frozen target `c563d011...`; fresh Technical + Policy closure audits PASS with zero findings.
+FFH-018: ACTIVE for CI/test-output observability discovery/design only; implementation remains separately Manager-gated.
+FFH-020: BLOCKED before live write on secure CLI/auth/protected-backup execution capability.
 FFH-022: ACCEPTED authority.
-FFH-023: ACCEPTED / integrated at `1487b192...`.
+FFH-023: ACCEPTED / historical integration; later FFH-025/028 closed the FFH-012 recovery wave.
 FFH-024: ACCEPTED Supabase recovery plan.
 FFH-025: ACTIVE narrow HSA materiality remediation.
 
@@ -62,3 +62,20 @@ FFH-020 remains blocked before the first migration-history repair because a secu
 5. Resume FFH-020 only when secure CLI/auth/backup capability exists; then FFH-016 follows accepted deployment.
 6. Execute FFH-018 CI observability/hardening after current correctness blockers stabilize.
 7. Only then reassess FFH-013/015/017 and Phase-5 merge readiness.
+
+## Current Phase-5 merge-readiness — 2026-09-18
+
+PR #5 remains open/unmerged and **NOT MERGE READY**.
+
+FFH-017 financial-engine correctness is no longer a blocker. The remaining real blockers are:
+1. FFH-020 secure live migration deployment/recovery, currently environment-blocked before any live write;
+2. Manager acceptance of FFH-020;
+3. FFH-016 live Supabase/PostgREST/RLS/persistence/reload/browser parity;
+4. final integrated Phase-5 Technical + Financial Policy audit/review on the stable post-runtime-gate baseline;
+5. PR #5 description/status refresh and final merge review.
+
+FFH-018 discovery/design may proceed safely in parallel and is not itself a merge blocker. No workflow implementation is authorized by that discovery activation.
+
+The FFH-020 blocker is an execution-environment/live-deployment issue, not a financial-engine correctness defect.
+
+Phase 6 production work remains blocked until Phase 5 is actually accepted.
