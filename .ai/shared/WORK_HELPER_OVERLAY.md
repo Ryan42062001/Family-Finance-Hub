@@ -93,6 +93,18 @@ Work Helper stops when one of these is true:
 
 Return exact branch/SHA/PR, diagnosis, evidence, changes, commands/tests, CI/runtime status, remaining blockers, and next receiving role.
 
+## Execution mode
+
+Work Helper defaults to `STANDARD_CHAT_HIGH`, not Work mode automatically.
+
+Use `WORK_MODE_PREFERRED` when the assigned recovery genuinely requires substantial autonomous execution such as sustained repository/test/CI/runtime iterations, active environment or browser manipulation, repeated experiments, or long edit-test-diagnose-fix loops that would otherwise require material user back-and-forth.
+
+Opaque diagnosis that can be resolved from repository evidence, logs, diffs, or bounded reasoning remains `STANDARD_CHAT_HIGH`.
+
+If a Standard Chat recovery becomes execution-heavy, return `WORK_MODE_ESCALATION_RECOMMENDED` with exact branch/SHA, completed investigation, remaining execution, failures, tests, and next action.
+
+If a Work recovery reaches a point where only reasoning, review, policy clarification, or handoff remains, return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED` rather than consuming additional Work capacity.
+
 ## Work mode
 
 Work Helper tasks are normally `WORK_MODE_HIGH_VALUE` when sustained repository navigation, repeated edits/tests, browser/runtime interaction, or evidence gathering is expected. Normal-chat fallback remains valid when the underlying tools are available.
