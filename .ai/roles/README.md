@@ -57,16 +57,25 @@ It is not a sixth permanent department or an always-active employee. Manager may
 
 Legacy `troubleshooting-build.md` is retained only as a compatibility pointer and is not a separate role.
 
-## Work mode
+## Execution mode defaults
 
-Manager classifies new meaningful tasks as:
-- `STANDARD_CHAT`
+Canonical forward-looking modes are:
+- `STANDARD_CHAT_HIGH`
 - `WORK_MODE_PREFERRED`
-- `WORK_MODE_HIGH_VALUE`
 
-Work mode is an accelerator, not a required dependency. Any Work-preferred/high-value task should include a normal-chat fallback whenever the underlying task can still be completed without Work mode.
+Every role defaults to `STANDARD_CHAT_HIGH`. Work mode is not a seniority or difficulty tier; it is an execution accelerator.
 
-Work Helper recovery tasks are usually `WORK_MODE_HIGH_VALUE` when they involve repeated repository/test/CI/runtime iterations.
+Role defaults:
+- Manager / Architect — `STANDARD_CHAT_HIGH`
+- Financial Policy roles — `STANDARD_CHAT_HIGH`
+- Core Engine / Application & Data Engineering — `STANDARD_CHAT_HIGH`
+- Regulatory / Product R&D — `STANDARD_CHAT_HIGH`
+- Technical / Policy Audit — `STANDARD_CHAT_HIGH`
+- Work Helper — `STANDARD_CHAT_HIGH` by default, with a higher likelihood of justified Work escalation for execution-heavy recovery
+
+Use `WORK_MODE_PREFERRED` only when autonomous computer/tool execution materially reduces user interaction or execution overhead and the execution burden is substantial. Multi-file scope, GitHub use, importance, or conceptual difficulty alone are insufficient.
+
+Standard workers may return `WORK_MODE_ESCALATION_RECOMMENDED`; Work workers may return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED`. Both handoffs must preserve task/branch/SHA, completed work, remaining work, evidence/tests, blockers, and exact next action.
 
 ## Context hygiene
 
