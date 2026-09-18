@@ -269,6 +269,119 @@ test("R06 scarce possible CO_PRIORITY outcome keeps retirement share unresolved"
   assert.equal(plan.remainingMonthlyCapacity, 500);
 });
 
+test("R07-A stronger request-null definitive BELOW claimant reserves contested Bucket-3 capacity", () => {
+  const unresolved = goal("strong-unresolved-below", {
+    necessity: "optional",
+    goalNature: "improvement",
+    deadlineFlexibility: "fixed",
+    consequenceSeverity: "critical",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: null,
+    requiredMonthlyFunding: null,
+    state: "more_information_needed",
+    missingData: ["A target date is required to calculate schedule funding."],
+  });
+  const known = goal("weaker-known-below", {
+    necessity: "optional",
+    goalNature: "improvement",
+    deadlineFlexibility: "flexible",
+    consequenceSeverity: "low",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: 12,
+    requiredMonthlyFunding: 100,
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 0, 100);
+  assert.equal(core(plan, "strong-unresolved-below").disposition, "BELOW");
+  assert.equal(core(plan, "strong-unresolved-below").requestedMonthlyAmount, null);
+  assert.equal(core(plan, "strong-unresolved-below").allocatedMonthlyAmount, 0);
+  assert.equal(core(plan, "weaker-known-below").allocatedMonthlyAmount, 0);
+  assert.equal(plan.totalAllocatedMonthly, 0);
+  assert.equal(plan.remainingMonthlyCapacity, 100);
+  assert.equal(plan.state, "more_information_needed");
+});
+
+test("R07-B weaker known BELOW receives positive partial amount independent of stronger unresolved reserve", () => {
+  const unresolved = goal("strong-unresolved-below", {
+    necessity: "unknown",
+    goalNature: "improvement",
+    deadlineFlexibility: "flexible",
+    consequenceSeverity: "low",
+    debtExposure: "none",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: 12,
+    requiredMonthlyFunding: 100,
+    state: "more_information_needed",
+    missingData: ["The importance of the underlying need is required."],
+  });
+  const known = goal("weaker-known-below", {
+    necessity: "optional",
+    goalNature: "improvement",
+    deadlineFlexibility: "flexible",
+    consequenceSeverity: "low",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: 12,
+    requiredMonthlyFunding: 100,
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 250);
+  assert.equal(core(plan, "strong-unresolved-below").disposition, "MORE_INFORMATION_NEEDED");
+  assert.equal(core(plan, "strong-unresolved-below").allocatedMonthlyAmount, 0);
+  assert.equal(core(plan, "weaker-known-below").allocatedMonthlyAmount, 50);
+  assert.equal(core(plan, "weaker-known-below").unfundedMonthlyAmount, 50);
+  assert.equal(plan.additionalRetirementAllocatedMonthly, 100);
+  assert.equal(plan.totalAllocatedMonthly, 150);
+  assert.equal(plan.remainingMonthlyCapacity, 100);
+  assert.equal(plan.state, "more_information_needed");
+});
+
+test("R07-B zero independent Bucket-3 capacity keeps weaker known BELOW at zero", () => {
+  const unresolved = goal("strong-unresolved-below", {
+    necessity: "unknown",
+    goalNature: "improvement",
+    deadlineFlexibility: "flexible",
+    consequenceSeverity: "low",
+    debtExposure: "none",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: 12,
+    requiredMonthlyFunding: 100,
+    state: "more_information_needed",
+    missingData: ["The importance of the underlying need is required."],
+  });
+  const known = goal("weaker-known-below", {
+    necessity: "optional",
+    goalNature: "improvement",
+    deadlineFlexibility: "flexible",
+    consequenceSeverity: "low",
+    targetAmount: 1200,
+    coreNeedAmount: 1200,
+    remainingTargetAmount: 1200,
+    remainingCoreNeedAmount: 1200,
+    monthsRemaining: 12,
+    requiredMonthlyFunding: 100,
+  });
+  const plan = buildRecurringGoalRetirementCompetition([known, unresolved], "on_track", 100, 200);
+  assert.equal(core(plan, "strong-unresolved-below").allocatedMonthlyAmount, 0);
+  assert.equal(core(plan, "weaker-known-below").allocatedMonthlyAmount, 0);
+  assert.equal(plan.additionalRetirementAllocatedMonthly, 100);
+  assert.equal(plan.totalAllocatedMonthly, 100);
+  assert.equal(plan.remainingMonthlyCapacity, 100);
+  assert.equal(plan.state, "more_information_needed");
+});
+
 test("R01 genuinely material Essential unknown remains fail-closed for contested capacity", () => {
   const material = goal("material", { coreNeedAmount: null, remainingCoreNeedAmount: null });
   const plan = buildRecurringGoalRetirementCompetition([material], "on_track", 500, 1000);
