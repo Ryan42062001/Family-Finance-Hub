@@ -2,7 +2,7 @@
 
 Status: APPROVED / CANONICAL CONTROL-PLANE SUPPLEMENT
 Task: FFH-021
-Applies with: `.ai/shared/WORKFLOW_V3.md` and `.ai/shared/WORKFLOW.md`
+Applies with: `.ai/shared/WORKFLOW_V3_1.md`, `.ai/shared/WORKFLOW_V3.md`, and `.ai/shared/WORKFLOW.md`
 
 This supplement upgrades the former Troubleshooting & Build Specialist into the dedicated **Work Helper / Super Troubleshooter** role.
 
