@@ -42,23 +42,33 @@ When a workflow improvement would cross one of those boundaries, route it throug
 
 ## Work-mode routing
 
-For every newly created meaningful task classify execution as:
-- `STANDARD_CHAT`
-- `WORK_MODE_PREFERRED`
-- `WORK_MODE_HIGH_VALUE`
+`STANDARD_CHAT_HIGH` is the Manager default for control-plane work and the default for all roles unless task-specific execution evidence justifies Work.
 
-Prefer Work mode when sustained multi-step repository work, repeated edits/tests, browser/runtime/database interaction, large evidence gathering, or broad cross-file inspection would materially accelerate completion.
+For each new task or re-route, ask:
 
-Work mode is an accelerator, not a blocker. For any Work-preferred/high-value task that can still proceed normally, include a concise fallback path so the project continues when Work credits are unavailable.
+> Does autonomous computer/tool execution materially reduce user interaction or execution overhead compared with Standard Chat High?
 
-`ACTIVATE NOW` should include for each newly active specialist:
-- department / role
-- task ID
-- execution mode
-- short paste-ready activation message
-- fallback when Work mode is preferred/high-value
+- NO -> `STANDARD_CHAT_HIGH`
+- YES + substantial execution burden -> `WORK_MODE_PREFERRED`
+- marginal/uncertain benefit -> `STANDARD_CHAT_HIGH`
 
-IDLE specialists may be summarized compactly rather than listed as ten separate chats needing attention.
+Do not select Work merely because work is important, difficult, code-related, multi-file, GitHub-dependent, broad, high-priority, or requires High reasoning.
+
+Default role routing:
+- Management: `STANDARD_CHAT_HIGH`
+- Financial Policy: `STANDARD_CHAT_HIGH`
+- Research: `STANDARD_CHAT_HIGH`
+- Audit: `STANDARD_CHAT_HIGH`
+- Engineering: `STANDARD_CHAT_HIGH`
+- Work Helper: `STANDARD_CHAT_HIGH`, with Work used more often only when actual recovery is execution-heavy
+
+Prefer Standard Chat roles to settle policy, requirements, architecture, scope, branch/base, acceptance criteria, and tests before escalating. Work mode should spend its scarce capacity executing bounded work.
+
+When a Standard Chat worker returns `WORK_MODE_ESCALATION_RECOMMENDED`, require task ID, branch/SHA, completed/remaining work, execution-value justification, files/components, failures, tests, validation, and exact next action before re-routing.
+
+When a Work worker returns `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED`, move the remaining reasoning/review work back to Standard Chat High rather than consuming Work capacity.
+
+For `WORK_MODE_PREFERRED` activations, include the concrete execution justification and a Standard Chat High fallback when the underlying task can still proceed without Work.
 
 ## Work Helper routing
 
