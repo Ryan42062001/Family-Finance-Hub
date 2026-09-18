@@ -131,3 +131,10 @@ Task files are the high-frequency execution truth. `.ai/tasks/TASK_INDEX.md`, `P
 ## Chat rotation
 
 Chats are execution interfaces, not canonical memory. Prefer fresh chats before context degradation becomes costly. Default guideline: replace a worker after roughly 3–5 substantial tasks, after a long troubleshooting episode, or when responsiveness/context quality degrades. Replacement chats read their role charter, canonical shared state, active task file, and relevant handoff rather than receiving giant manually maintained prompts.
+
+
+## Full-workforce activation dashboard
+
+Workflow V3.1 requires every meaningful employee handoff to end with the complete 11-role Family Finance Hub workforce table. A handoff must show each role as `ACTIVATE NOW`, `ACTIVE`, `RECOMMEND TO MANAGER`, `WAIT`, `BLOCKED`, or `IDLE` according to authority.
+
+Only Manager may authorize `ACTIVATE NOW`. Worker tables are recommendations/status snapshots and never replace canonical task state.

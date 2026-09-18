@@ -29,7 +29,8 @@ Last refreshed: 2026-09-17
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
 | FFH-030 | Manager | CLOSED | control-plane workflow hardening | Reconciliation gate + direct Phase-5 PR CI trigger adopted |
 | FFH-031 | Manager | CLOSED | integration/audit target `5c83a504...` | Independent workflow/control-plane audit PASS; zero findings |
-| FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; Next Activation table canonical |
+| FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; compact table superseded by FFH-033 full-workforce view |
+| FFH-033 | Manager | ACCEPTED | control-plane candidate on `manager/ffh-033-full-workforce-activation-table` | exact-head CI -> integration -> fresh independent workflow audit |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
