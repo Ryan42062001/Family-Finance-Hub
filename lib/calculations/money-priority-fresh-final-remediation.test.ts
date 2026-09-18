@@ -181,15 +181,17 @@ test("one-time use in HSA group does not subtract room from a separate IRA group
   assert.equal(retirement.find((item) => item.relatedEntityId === "ira")?.allocatedAmount, 1200);
 });
 
-test("catch-up room consumed by Build cannot be reused by Windfall", () => {
+test("catch-up Build consumption is not reused while exact-cent residual remains Windfall-eligible", () => {
   const raw = baseRaw();
   raw.people![0].birth_date = "1970-01-01";
   raw.retirementAccounts![0].employee_contributed_ytd = 7500;
   const { engine, retirement } = windfallRetirement(raw);
   const entry = engine.retirementCapacityLedger.entries.find((item) => item.accountId === "ira")!;
+  const windfall = retirement.reduce((sum, item) => sum + item.allocatedAmount, 0);
   assert.equal(entry.originalRemainingAnnualRoom, 1100);
-  assert.equal(entry.catchUpRemainingRoom, 0);
-  assert.equal(retirement.length, 0);
+  assert.equal(entry.catchUpRemainingRoom, 0.08);
+  assert.equal(windfall, 0.08);
+  assert.equal(Number((annualEngineClaims(engine) + windfall).toFixed(2)), 1100);
 });
 
 test("unknown retirement capacity never becomes a Windfall contribution", () => {

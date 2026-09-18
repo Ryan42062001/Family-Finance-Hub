@@ -13,6 +13,7 @@ import {
 import {
   cloneRetirementCapacityLedger,
   consumeRetirementCapacity,
+  consumeRetirementCapacityRecurringMonthly,
   consumeRetirementCapacityForEqualOwnerTieRecurringMonthly,
   createRetirementCapacityLedger,
   remainingRetirementCapacity,
@@ -62,6 +63,7 @@ export type BuildStageAllocation = {
   protectedAllocatedMonthlyAmount: number;
   allocationPhase: "required_goal" | "retirement" | "important_goal" | "optional_goal";
   competitionDisposition?: BuildCompetitionDisposition;
+  goalTrancheType?: "core" | "desired_excess";
   reasons: string[];
 };
 
@@ -390,10 +392,10 @@ function routableRetirementMonthlyCapacity(
       monthly = roundMoney(monthly + planned.consumedMonthlyAmount);
       continue;
     }
-    const room = remainingRetirementCapacity(clone, destination.accountId);
-    if (room === null || room <= 0) continue;
-    const consumed = consumeRetirementCapacity(clone, destination.accountId, "build", room);
-    monthly = roundMoney(monthly + roundMoney(consumed.consumedAnnualAmount / 12));
+    const consumed = consumeRetirementCapacityRecurringMonthly(
+      clone, destination.accountId, "build", null,
+    );
+    monthly = roundMoney(monthly + consumed.allocatedMonthlyAmount);
   }
   return monthly;
 }
@@ -435,16 +437,10 @@ function routeRetirementMonthlyAmount(
       continue;
     }
 
-    const annualRoom = remainingRetirementCapacity(ledger, destination.accountId);
-    if (annualRoom === null || annualRoom <= 0) continue;
-    const requestedAnnual = roundMoney(Math.min(remainingMonthly * 12, annualRoom));
-    const consumed = consumeRetirementCapacity(
-      ledger,
-      destination.accountId,
-      "build",
-      requestedAnnual,
+    const consumed = consumeRetirementCapacityRecurringMonthly(
+      ledger, destination.accountId, "build", remainingMonthly,
     );
-    const allocatedMonthly = roundMoney(consumed.consumedAnnualAmount / 12);
+    const allocatedMonthly = consumed.allocatedMonthlyAmount;
     if (allocatedMonthly <= 0) continue;
     allocations.push({
       accountId: destination.accountId,
@@ -602,15 +598,20 @@ export function evaluateBuildStage(
     if (!assessment || !sourceGoal) continue;
     if ((tranche.requestedMonthlyAmount ?? 0) <= 0 && tranche.disposition !== "MORE_INFORMATION_NEEDED") continue;
 
-    const phase: BuildStageAllocation["allocationPhase"] = tranche.disposition === "OUTRANKS"
-      ? "required_goal"
-      : tranche.disposition === "BELOW"
-        ? (assessment.rankingFactors.economicTier === "optional_lifestyle" ? "optional_goal" : "important_goal")
-        : "important_goal";
+    const phase: BuildStageAllocation["allocationPhase"] = tranche.trancheType === "desired_excess"
+      ? "optional_goal"
+      : tranche.disposition === "OUTRANKS"
+        ? "required_goal"
+        : tranche.disposition === "BELOW"
+          ? (assessment.rankingFactors.economicTier === "optional_lifestyle" ? "optional_goal" : "important_goal")
+          : "important_goal";
+    const isExcess = tranche.trancheType === "desired_excess";
     requests.push({
       category: "goal",
       relatedEntityId: tranche.goalId,
-      title: `Fund ${tranche.goalName} core need`,
+      title: isExcess
+        ? `Fund ${tranche.goalName} desired-solution excess after additional retirement`
+        : `Fund ${tranche.goalName} core need`,
       requestedMonthlyAmount: tranche.requestedMonthlyAmount ?? 0,
       allocatedMonthlyAmount: tranche.allocatedMonthlyAmount,
       unfundedMonthlyAmount: tranche.unfundedMonthlyAmount ?? 0,
@@ -618,15 +619,24 @@ export function evaluateBuildStage(
       protectedAllocatedMonthlyAmount: 0,
       allocationPhase: phase,
       competitionDisposition: tranche.disposition,
-      reasons: [
-        `FFH-D004 disposition: ${tranche.disposition}.`,
-        tranche.requestedMonthlyAmount === null
-          ? "A usable recurring core-need pace cannot be established from current authoritative facts."
-          : `Actionable remaining goal-core pace is $${tranche.requestedMonthlyAmount.toFixed(2)} per month.`,
-        tranche.remainingDesiredExcessAmount > 0
-          ? `$${tranche.remainingDesiredExcessAmount.toFixed(2)} of remaining desired/excess principal is excluded from the elevated goal-core competition tranche.`
-          : "No remaining desired/excess principal is being elevated into the core tranche.",
-      ],
+      goalTrancheType: tranche.trancheType,
+      reasons: isExcess
+        ? [
+            "FFH-D004 disposition: BELOW for desired-solution excess.",
+            tranche.requestedMonthlyAmount === null
+              ? "A usable recurring desired-excess pace cannot be established from current authoritative facts."
+              : `Actionable desired-excess pace is $${tranche.requestedMonthlyAmount.toFixed(2)} per month.`,
+            "Desired-solution excess is always retirement-junior and never inherits the core tranche disposition.",
+          ]
+        : [
+            `FFH-D004 disposition: ${tranche.disposition}.`,
+            tranche.requestedMonthlyAmount === null
+              ? "A usable recurring core-need pace cannot be established from current authoritative facts."
+              : `Actionable remaining goal-core pace is $${tranche.requestedMonthlyAmount.toFixed(2)} per month.`,
+            tranche.remainingDesiredExcessAmount > 0
+              ? `$${tranche.remainingDesiredExcessAmount.toFixed(2)} of remaining desired/excess principal is represented separately as a retirement-junior tranche.`
+              : "No remaining desired/excess principal is being elevated into the core tranche.",
+          ],
     });
   }
 

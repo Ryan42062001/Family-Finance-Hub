@@ -52,9 +52,11 @@ export type RetirementCapacityConsumption = {
 
 export type RetirementCapacityTieAllocation = RetirementCapacityConsumption;
 
-export type RetirementRecurringTieAllocation = RetirementCapacityConsumption & {
+export type RetirementRecurringAllocation = RetirementCapacityConsumption & {
   allocatedMonthlyAmount: number;
 };
+
+export type RetirementRecurringTieAllocation = RetirementRecurringAllocation;
 
 export type RetirementRecurringTieResult = {
   allocations: RetirementRecurringTieAllocation[];
@@ -308,6 +310,37 @@ export function consumeRetirementCapacity(
   };
 }
 
+export function consumeRetirementCapacityRecurringMonthly(
+  ledger: RetirementCapacityLedger,
+  accountId: string,
+  consumer: RetirementCapacityConsumer,
+  requestedMonthlyAmount: number | null,
+): RetirementRecurringAllocation {
+  const entry = ledger.entries.find((item) => item.accountId === accountId);
+  const availableAnnual = remainingRetirementCapacity(ledger, accountId) ?? 0;
+  const availableMonthlyCents = recurringMonthlyCentsFromAnnual(availableAnnual);
+  const requestedMonthlyCents = requestedMonthlyAmount === null
+    ? availableMonthlyCents
+    : Math.round(roundMoney(Math.max(0, requestedMonthlyAmount)) * 100);
+  const allocatedMonthlyCents = Math.min(requestedMonthlyCents, availableMonthlyCents);
+  if (allocatedMonthlyCents <= 0) {
+    return {
+      accountId,
+      sharedCapacityGroup: entry?.sharedCapacityGroup ?? null,
+      consumer,
+      requestedAnnualAmount: 0,
+      consumedAnnualAmount: 0,
+      remainingAnnualRoom: availableAnnual,
+      allocatedMonthlyAmount: 0,
+    };
+  }
+  const requestedAnnual = recurringAnnualFromMonthlyCents(allocatedMonthlyCents);
+  const consumption = consumeRetirementCapacity(ledger, accountId, consumer, requestedAnnual);
+  if (annualCents(consumption.consumedAnnualAmount) !== allocatedMonthlyCents * 12) {
+    throw new Error("Recurring retirement allocation failed annual-capacity reconciliation.");
+  }
+  return { ...consumption, allocatedMonthlyAmount: allocatedMonthlyCents / 100 };
+}
 export function consumeRetirementCapacityForEqualOwnerTie(
   ledger: RetirementCapacityLedger,
   accountIds: string[],
