@@ -6,79 +6,138 @@ Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Role: Core Financial Engine Engineer
 Status: READY_FOR_MANAGER
 Execution mode: STANDARD_CHAT_HIGH
-Branch: `ffh/ffh-017-r07-below-locality-remediation`
-Pull request: #34 — draft / open / unmerged
+Branch: `ffh/ffh-017-r08-desired-excess-locality-remediation`
+Pull request: #36 — draft / open / unmerged
 Approved milestone branch: `phase-5-money-priority-engine`
-Manager routing checkpoint: `d0724ec9e990c4b2b743cfc66a285fa296d7bd1b`
-Latest milestone incorporated for control-plane freshness: `9d5c9e0b8e729ec4edcbcc8af9df852c25fb9777`
+Manager routing / base checkpoint: `295671c89659116e93dec2d7a61f8926839f65d0`
 
-PRODUCTION_SHA: `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
-FINAL_VALIDATION_SHA: `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
-VALIDATED_CI: Foundation CI run `35346849145`, job `105605334966` — SUCCESS
-HANDOFF_SHA: This documentation/control-plane merge commit; exact SHA is returned after creation
-INTEGRATION_SHA: Not yet established for R07
+Historical failed frozen target immediately preceding R08:
+`b236239f2b364cd1e643d01af07d4b8d788ffdf9`
+
+PRODUCTION_SHA: `9d092d5a3939c75a229ed0e74568b40ea37dd387`
+FINAL_VALIDATION_SHA: `9d092d5a3939c75a229ed0e74568b40ea37dd387`
+VALIDATED_CI: Foundation CI run `35386756540`, job `105735352341` — SUCCESS
+HANDOFF_SHA: This final documentation/control-plane commit; exact SHA is returned by the worker after creation
+INTEGRATION_SHA: Not yet established for R08
 MANAGER_VERDICT: PENDING
-AUDIT_STATUS: REQUIRED — new Manager-frozen R07 target + fresh independent closure audits after acceptance/integration
+AUDIT_STATUS: REQUIRED — new Manager-frozen R08 target + fresh independent dual closure audits after acceptance/integration
 
-## R07-A proof
+## R08 objective and implementation
 
-Non-legacy definitive-BELOW request-null core tranches now participate in Bucket-3 independence analysis. The missing pace remains unresolved/unfunded; only a conservative reserve bound is used. Ordering is based only on known financial factors.
+R08 closes only the request-null desired-excess Bucket-3 reserve gap identified independently as TMA-017-08 and FFH-017-P05.
 
-Required adversary PASS:
-- stronger Optional/Fixed/Critical request-null BELOW claimant;
-- weaker Optional/Flexible/Low known $100 BELOW claimant;
-- $100 residual;
-- stronger allocation $0;
-- weaker allocation $0;
-- $100 remains unresolved.
+Positive, non-legacy request-null desired-excess tranches are now enrolled as BELOW-only unresolved Bucket-3 reserve records.
 
-## R07-B proof
+They:
+- remain BELOW additional retirement;
+- remain unfunded while pace is unknown;
+- do not gain OUTRANK/CO_PRIORITY authority;
+- do not receive an invented date/period/pace;
+- use only a conservative maximum-demand bound as internal reserve evidence;
+- use only known financial facts for seniority.
 
-Known BELOW allocations now receive any positive amount proven independent of stronger unresolved reserves.
+The conservative excess bound mirrors the existing `goalMonthlyPaces()` cent calculation at the shortest supported positive period.
 
-Required adversary PASS:
-- $250 total capacity;
-- $100 retirement;
-- $100 stronger unresolved reserve;
-- $100 weaker known request;
-- weaker known allocation exactly $50;
-- unresolved claimant $0;
-- $100 remains unresolved.
+## Direct R08 proof
 
-Zero-independent-capacity control PASS.
+Senior adversary PASS:
+- Essential / Preservation / Fixed / Critical;
+- core fully satisfied;
+- desired excess $1,200;
+- missing usable period;
+- weaker Optional / Improvement / Flexible / Low known BELOW request $100;
+- Bucket-3 capacity $100.
 
-## Validation / preservation
+Result:
+- unresolved excess allocation $0;
+- weaker known allocation $0;
+- residual unresolved capacity $100.
 
-Exact validated production/test SHA:
-`33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
+Financially-junior control PASS:
+- unresolved excess Optional / Improvement / Flexible / Low;
+- senior known BELOW Optional / Improvement / Fixed / Critical requesting $100;
+- capacity $100.
+
+Result:
+- unresolved excess allocation $0;
+- senior known allocation $100;
+- residual $0.
+
+This proves the reserve is ordering-local rather than a global freeze.
+
+## Full validation
+
+Exact production/test candidate:
+`9d092d5a3939c75a229ed0e74568b40ea37dd387`
 
 Foundation CI:
-- run `35346849145`
-- job `105605334966`
-- SUCCESS
-- calculations 917/917 PASS
+- run `35386756540`
+- job `105735352341`
+- conclusion SUCCESS
+- calculations 919/919 PASS
 - security 21/21 PASS
-- state validation, dependency audit, typecheck, lint, build PASS.
+- AI-state validation PASS — 23 task files index-consistent
+- production dependency audit 0 vulnerabilities
+- typecheck PASS
+- lint PASS
+- build PASS
 
-The rejected candidate `59b67db6...` failed a pre-existing missing-date locality regression and is not the production checkpoint. The corrected SHA restores that test.
+Direct CI evidence confirms PASS for:
+- both R08 regressions;
+- all retained R07 regressions;
+- R04/R05/R06 named regressions;
+- R02 exact recurring-cent boundaries including $0.06;
+- R03 Scenario-8 desired-excess routing;
+- R03 exact $600 + $400 + $600 = $1,600;
+- protected FFH-013 M01 exact shared-pool boundary;
+- missing/invalid-date no-invented-pace locality.
 
-Named CI proof remains green for R07-A/R07-B, missing-date locality, R04/R05/R06, R02 cent boundaries including $0.06, R03 Scenario-8 and exact $1,600 mixed routing, and protected FFH-013 M01.
+## Preservation
 
-Financial Engine reconciliation remains exact integer-cent allocation + residual conservation with exact retirement destination reconciliation, no epsilon/tolerance waiver, no hidden residual clamp, protected Phase-5A retirement floor, and staged-capacity no-reuse.
+R02 exact annual/monthly reconciliation is unchanged.
 
-## Scope / branch safety
+R03:
+- core and desired excess remain separate;
+- desired excess remains retirement-junior;
+- known-pace desired excess routing remains green.
 
-Validated production/test scope is exactly:
+R04/R05/R06/R07 remain green.
+
+Core-before-excess semantics are unchanged: R08 adds only request-null desired-excess reserve participation; it does not change the existing tranche comparator or known allocation order.
+
+Protected FFH-013 M01 remains exact.
+
+Protected Phase-5A retirement floor and staged-capacity no-reuse remain unchanged.
+
+## Financial Engine Reconciliation Gate
+
+Authoritative unit: integer monthly cents.
+
+R08 senior adversary:
+- $0 definite allocation + $100 unresolved residual = exactly $100.
+
+Junior control:
+- $100 definite allocation + $0 residual = exactly $100.
+
+The targeted missing-data path still asserts exact `totalAllocatedCents + remainingCents === availableCents`.
+
+No epsilon/tolerance waiver, hidden positive residual clamp, double-use of staged capacity, or retirement-routing change was introduced.
+
+## Changed scope
+
+Exactly:
 - `lib/calculations/money-priority-build-competition.ts`
 - `lib/calculations/ffh-017-audit-remediation.test.ts`
 
-No financial implementation changed after validated SHA `33bfa79f...`.
-
-The milestone advanced after validation only through unrelated control-plane work. This final merge-aware handoff commit incorporates that canonical state while preserving the validated production/test blobs.
+This final worker return additionally changes only:
+- `.ai/tasks/FFH-017.md`
+- `.ai/tasks/TASK_INDEX.md`
+- `.ai/engineering/engine/FFH-017_WORKLOG.md`
+- `.ai/engineering/engine/HANDOFF.md`
 
 Worker blocker: NONE.
 
-Manager / Architect should independently review PR #34 and, if accepted, own integration, exact `INTEGRATION_SHA`, the new frozen FFH-017 target/packet, fresh independent closure audits, reconciliation, and eventual closure.
+Manager / Architect should independently review PR #36 and, if accepted, own integration, exact `INTEGRATION_SHA`, the new frozen FFH-017 target/packet, fresh independent dual closure audits, reconciliation, and eventual closure.
 
 READY_FOR_MANAGER
 
@@ -86,7 +145,7 @@ READY_FOR_MANAGER
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Fast Refresh FFH-017 R07 live state and review PR #34 on `ffh/ffh-017-r07-below-locality-remediation`. Validate production SHA `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`, Foundation CI `35346849145` / job `105605334966`, R07-A/R07-B proof, preserved R02-R06/M01/reconciliation evidence, and the Core handoff. If accepted, own integration, a new frozen FFH-017 target/packet, and fresh independent closure-audit activation. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Fast Refresh FFH-017 R08 live state and review PR #36 on `ffh/ffh-017-r08-desired-excess-locality-remediation`. Validate production SHA `9d092d5a3939c75a229ed0e74568b40ea37dd387`, Foundation CI `35386756540` / job `105735352341`, R08 senior-adversary and junior-control proof, preserved R02-R07/M01/reconciliation evidence, and the Core handoff. If accepted, own integration, a new frozen FFH-017 target/packet, and fresh independent dual closure-audit activation. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
@@ -94,6 +153,6 @@ READY_FOR_MANAGER
 | 6 | Application, Data & Integration Engineer | BLOCKED | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | WAIT | — |
-| 9 | Technical & Mathematical Auditor | ACTIVE | — |
-| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |

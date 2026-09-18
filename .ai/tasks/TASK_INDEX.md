@@ -14,7 +14,7 @@ Last refreshed: 2026-09-17
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
 | FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
-| FFH-017 | Core Engine | REMEDIATION | failed frozen target `b236239f...`; R08 branch `ffh/ffh-017-r08-desired-excess-locality-remediation` | dual closure audit FAIL: TMA-017-08 MEDIUM + FFH-017-P05 MEDIUM; bounded R08 Core remediation ACTIVE |
+| FFH-017 | Core Engine | READY_FOR_MANAGER | R08 production/validation `9d092d5a...`; failed frozen target `b236239f...` | PR #36 CI `35386756540` SUCCESS; Manager acceptance/integration next |
 | FFH-018 | Product R&D / Engineering | QUEUED | discovery/infrastructure | CI hardening/test-output observability after current correctness wave |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
 | FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
@@ -67,10 +67,14 @@ Last refreshed: 2026-09-17
 - Direct R06 tests cover the $500/$200/$100 invariant-retirement shape, the no-OUTRANK $600/$500/$100 shape, and a scarce possible-CO_PRIORITY fail-closed shape.
 - Exact candidate Foundation CI run `35304758354`, job `105474563283` — SUCCESS; 914/914 calculations and 21/21 security tests passed; state validation, dependency audit, typecheck, lint, and build all passed.
 - FFH-017 R05/R06 PR #32 is Manager-accepted and integrated at `5c96b99373c7c2593fbbb5766b109347f1588fcd`; final PR head `be34ce35b64d0a0512b8913e2d65fa779d013db7` -> integration has zero changed files. Exact integration Foundation CI run `35305470058`, job `105476660670` — SUCCESS with 914/914 calculations and 21/21 security tests.
+- R08 production/test checkpoint `9d092d5a3939c75a229ed0e74568b40ea37dd387` changes only `money-priority-build-competition.ts` and `ffh-017-audit-remediation.test.ts`.
+- Direct R08 tests prove senior request-null desired-excess reserve locality and the financially-junior non-blocking control.
+- Exact R08 Foundation CI run `35386756540`, job `105735352341` — SUCCESS; 919/919 calculations and 21/21 security tests passed; AI-state validation, dependency audit, typecheck, lint, and build all passed.
+- FFH-017 R08 worker lane is READY_FOR_MANAGER on draft PR #36; PR remains open/unmerged.
 - Phase 5 / PR #5 remains NOT MERGE READY until FFH-017 remediation and fresh dual re-audit clear.
 
 ## ACTIVATE NOW
-- Core Financial Engine Engineer — bounded FFH-017 R07 Bucket-3 BELOW-only locality remediation on `ffh/ffh-017-r07-below-locality-remediation`; execution mode `STANDARD_CHAT_HIGH`; preserve R02/R03/R04/R05/R06/M01.
+- No worker-authorized activation. Core Financial Engine Engineer recommends Manager / Architect review of completed FFH-017 R08 on PR #36. Manager must verify live state before downstream activation.
 
 ## ACTIVE / IDLE / BLOCKED
 - Technical & Mathematical Auditor: IDLE after completed `5c96b993...` closure audit; reactivate only after a new Manager-frozen target.
@@ -81,6 +85,6 @@ Last refreshed: 2026-09-17
 - R&D: IDLE.
 - FFH-026 deployment: QUEUED.
 
-Current near-term gate is bounded FFH-017 R08 Core remediation -> Manager acceptance/integration -> new frozen target -> fresh dual closure audit. Failed targets `9d3a880e...`, `90a31c75...`, `c009a8c2...`, and `5c96b993...` must not be reused.
+Current near-term gate is FFH-017 Manager review/acceptance of R08 PR #36 -> integration -> new frozen target -> fresh dual closure audit. Failed targets `9d3a880e...`, `90a31c75...`, `c009a8c2...`, `5c96b993...`, and `b236239f...` must not be reused.
 
 - FFH-032 compact Next Activation table is CLOSED on exact integration/audit target `30592f8cf130293c5e875b8fd391d3bc8ded92e0` after fresh independent workflow/control-plane audit PASS with zero findings. The table is now canonical.

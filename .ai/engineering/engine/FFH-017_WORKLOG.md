@@ -4,101 +4,106 @@ Task: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition
 Role: Core Financial Engine Engineer
 State: READY_FOR_MANAGER
 Execution mode: STANDARD_CHAT_HIGH
-Branch: `ffh/ffh-017-r07-below-locality-remediation`
-PR: #34 — draft / open / unmerged
+Branch: `ffh/ffh-017-r08-desired-excess-locality-remediation`
+PR: #36 — draft / open / unmerged
 Approved integration base: `phase-5-money-priority-engine`
-Manager routing checkpoint: `d0724ec9e990c4b2b743cfc66a285fa296d7bd1b`
-Production / validation checkpoint: `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
+Manager routing / base checkpoint: `295671c89659116e93dec2d7a61f8926839f65d0`
+Production / validation checkpoint: `9d092d5a3939c75a229ed0e74568b40ea37dd387`
 
-## R07 findings
+## R08 finding
 
-R07-A / TMA-017-07 MEDIUM:
-request-null tranches already definitively BELOW were omitted from Bucket-3 reserve analysis.
+Fresh dual audits of frozen target `b236239f...` closed R07-A/R07-B but identified one shared MEDIUM blocking desired-excess locality gap:
+- TMA-017-08;
+- FFH-017-P05.
 
-R07-B / FFH-017-P04 MEDIUM:
-positive independent capacity for a weaker known BELOW claim was frozen unless the entire request fit.
+Positive request-null desired-excess tranches were visible in local missing-data state but absent from Bucket-3 reserve analysis, allowing weaker known BELOW allocations to consume contested capacity.
 
-R02, R03, R04, R05, R06, exact reconciliation, protected Phase-5A floor, staged-capacity no-reuse, and FFH-013 M01 remain preservation gates.
+## Implementation
 
-## R07-A implementation
+R08 extends the existing BELOW-only uncertainty reservation to non-legacy positive request-null `desired_excess` tranches.
 
-Non-legacy definitive-BELOW request-null core tranches now participate in Bucket-3 locality analysis.
+The unresolved excess remains:
+- disposition BELOW;
+- definite allocation $0;
+- request null;
+- retirement-junior.
 
-The missing pace remains unresolved and unfunded. A conservative maximum is used only for reserve analysis. Ordering uses only already-known financial factors, so missing period evidence cannot invent a stronger rank.
+The conservative maximum demand mirrors the existing pace cent math at the shortest supported positive period and is reserve evidence only.
 
-Required Optional/Fixed/Critical vs Optional/Flexible/Low $100 residual adversary PASS:
-- unresolved stronger allocation $0;
-- weaker known allocation $0;
-- residual $100 unresolved.
+Financial order uses only known source factors. Missing period/date is not invented or used to strengthen rank.
 
-## R07-B implementation
+No OUTRANK/CO_PRIORITY authority is introduced for desired excess.
 
-Known BELOW allocation is now capped by independently safe capacity rather than all-or-nothing full-request fit.
+## Direct proof
 
-Required $250 total / $100 retirement / $100 stronger unresolved reserve / $100 weaker request PASS:
-- retirement $100;
-- weaker known BELOW $50;
-- unresolved claimant $0;
-- residual unresolved $100.
+Senior adversary PASS:
+- Essential / Preservation / Fixed / Critical;
+- core satisfied;
+- desired excess $1,200;
+- missing period;
+- weaker Optional / Improvement / Flexible / Low known BELOW $100;
+- capacity $100;
+- unresolved excess $0;
+- weaker known $0;
+- residual $100.
 
-Zero-independent-capacity control PASS.
+Financially-junior control PASS:
+- junior unresolved Optional / Improvement / Flexible / Low desired excess;
+- senior known Optional / Improvement / Fixed / Critical BELOW $100;
+- capacity $100;
+- known $100 proceeds;
+- unresolved excess $0;
+- residual $0.
 
 ## Validation
 
-Rejected first candidate:
-`59b67db6c897e3a28ec266118602fdab04f37ce5`
-- Foundation CI `35346105263` / job `105602938132` FAILED one pre-existing missing-date locality regression;
-- root cause: missing period evidence had been promoted into stronger ordering;
-- candidate rejected.
-
-Final production / validation:
-`33bfa79fc1b3d7a6471b35cecc44dfb72d246906`
+Exact candidate:
+`9d092d5a3939c75a229ed0e74568b40ea37dd387`
 
 Foundation CI:
-- run `35346849145`
-- job `105605334966`
+- run `35386756540`
+- job `105735352341`
 - SUCCESS
-- calculations 917/917 PASS
+- calculations 919/919 PASS
 - security 21/21 PASS
-- AI-state validation PASS — 22 task files index-consistent
+- AI-state validation PASS — 23 task files index-consistent
 - production dependency audit 0 vulnerabilities
 - typecheck PASS
 - lint PASS
 - build PASS
 
-Named log proof:
-- R07-A PASS;
-- R07-B positive partial PASS;
-- R07-B zero-independent PASS;
-- missing/invalid-date locality PASS;
-- R04/R05/R06 direct regressions PASS;
-- R02 exact recurring-cent boundaries PASS;
-- R03 Scenario-8 and $600/$400/$600 exact case PASS;
-- FFH-013 M01 exact boundary PASS.
+Named proof:
+- both R08 tests PASS;
+- all R07 tests PASS;
+- R04/R05/R06 named tests PASS;
+- R02 cent boundaries PASS;
+- R03 Scenario-8 and exact $1,600 mixed routing PASS;
+- FFH-013 M01 PASS;
+- missing/invalid-date locality PASS.
 
 ## Financial Engine Reconciliation Gate
 
 Authoritative unit remains integer monthly cents.
 
-Preserved:
-- aggregate allocation + residual = available capacity exactly;
-- retirement aggregate = concrete retirement destination totals;
-- exact annual/monthly retirement conversion;
-- no epsilon/tolerance waiver;
-- no hidden positive residual clamp;
-- deterministic final-cent handling;
-- protected Phase-5A floor;
-- no shared/owner/scheduled/staged capacity reuse.
+R08 adversary:
+- $0 allocated + $100 residual = $100 exactly.
 
-## Scope / freshness
+Junior control:
+- $100 allocated + $0 residual = $100 exactly.
 
-Validated production/test files:
+The targeted missing-data path retains exact allocated + residual equality. No epsilon/tolerance waiver or hidden residual clamp is introduced.
+
+Retirement routing, Phase-5A floor, core-before-excess ordering, and staged-capacity custody are unchanged.
+
+## Scope
+
+Production:
 - `lib/calculations/money-priority-build-competition.ts`
+
+Tests:
 - `lib/calculations/ffh-017-audit-remediation.test.ts`
 
-No financial implementation changed after `33bfa79f...`.
-
-The milestone advanced after validation through unrelated control-plane work. The final handoff commit incorporates latest canonical control-plane state while preserving the validated R07 production/test blobs byte-for-byte.
+No policy, schema, UI, Supabase/live-data, retirement-capacity, or Phase-6 implementation changed.
 
 Worker blocker: NONE.
 
