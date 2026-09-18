@@ -8,7 +8,7 @@ const ALLOWED_STATUSES = new Set(['A', 'M', 'D']);
 
 export function normalizeRepoPath(value) {
   if (typeof value !== 'string') return null;
-  const normalized = value.replaceAll('\\\\', '/').trim();
+  const normalized = value.replaceAll('\\', '/').trim();
   if (!normalized || normalized.startsWith('/') || normalized.includes('\0')) return null;
   const segments = normalized.split('/');
   if (segments.some((segment) => !segment || segment === '.' || segment === '..')) return null;
