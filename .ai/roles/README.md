@@ -81,10 +81,23 @@ Standard workers may return `WORK_MODE_ESCALATION_RECOMMENDED`; Work workers may
 
 Do not preserve a huge chat merely because it contains history that belongs in GitHub. Replace chats proactively when responsiveness or context quality degrades. Newly created task chats reconstruct state from canonical files rather than carrying forward large manual summaries.
 
-## Mandatory handoff footer — Next Activation
+## Mandatory handoff footer — full workforce Next Activation
 
-Every durable employee role and Work Helper must end meaningful handoffs with the Workflow V3.1 `Next Activation` table.
+Every durable employee role and Work Helper must end meaningful handoffs with the Workflow V3.1 full-workforce `Next Activation` table.
 
-Workers identify the smallest justified next role, use `RECOMMEND TO MANAGER`, `WAIT`, or `IDLE`, and provide a short copy/paste-ready prompt using authoritative repository pointers. They do not invent tasks, branch/SHA values, or self-authorize downstream work.
+The table always contains all 11 canonical roles:
+1. Manager / Architect
+2. Retirement & Tax-Advantaged Policy Analyst
+3. Debt & Liquidity Policy Analyst
+4. Goals, Cash Flow & Allocation Policy Analyst
+5. Core Financial Engine Engineer
+6. Application, Data & Integration Engineer
+7. Regulatory & Financial Research Analyst
+8. Product & Technical R&D Engineer
+9. Technical & Mathematical Auditor
+10. Financial Policy & Scenario Auditor
+11. Work Helper / Super Troubleshooter
 
-Manager verifies live state, converts justified recommendations into `ACTIVATE NOW`, and supplies the exact copy/paste prompt.
+Workers must classify every role truthfully. Workers may recommend Manager review but may not self-authorize downstream work or omit idle/blocked roles. Manager alone may use `ACTIVATE NOW` after live-state verification.
+
+The goal is that the user can scan one table and know the status of the entire AI workforce without asking which employee should be opened next.

@@ -108,3 +108,86 @@ Audit branch:
 The integrated rule requires every employee handoff to end with a short table identifying the next employee/role and a copy/paste-ready activation prompt. Workers recommend; only Manager may authorize `ACTIVATE NOW`.
 
 FFH-032 is independent of FFH-017 R07 financial remediation.
+
+## FFH-032 closure — Next Activation table canonical
+
+Exact workflow target:
+`30592f8cf130293c5e875b8fd391d3bc8ded92e0`
+
+Independent workflow/control-plane audit:
+- verdict: **PASS**
+- findings: **zero**
+- canonical report: `.ai/audit/technical/FFH-032_WORKFLOW_CONTROL_PLANE_AUDIT_30592f8c.md`
+- report commit: `a5ef98bc7a89b2d9370c003e3e4f3bec9ff4cc25`
+- audit handoff commit: `501f4c58f53e591a5c3953eae030b68c240b70a7`
+
+FFH-032 is CLOSED.
+
+The compact `Next Activation` table is now canonical for Family Finance Hub employee handoffs:
+- workers recommend with `RECOMMEND TO MANAGER`, `WAIT`, or `IDLE`;
+- only Manager may use `ACTIVATE NOW` after live-state verification;
+- prompts remain paste-ready but point to repository evidence rather than duplicating history.
+
+FFH-017 remains independently active in bounded R07 remediation.
+
+## FFH-033 audit reconciliation
+
+Exact failed workflow target:
+`75fad74160f6ed412051adb4d4f2f33c091a0517`
+
+Independent Technical / Workflow verdict:
+**FAIL — REMEDIATION REQUIRED**
+
+Blocking finding:
+- `FFH-033-WF-01` — MEDIUM / BLOCKING
+- the canonical Manager handoff itself did not end with the mandatory 11-role workforce dashboard.
+
+Canonical report:
+`.ai/audit/technical/FFH-033_WORKFLOW_CONTROL_PLANE_AUDIT_75fad741.md`
+
+Report commit:
+`4fdcfaa8ce54c87d215abbeefee0ec48aa291d6e`
+
+Audit handoff commit:
+`9ab7538b2e79fdfb89405b35624ded9ec9f0161e`
+
+Manager accepts the finding.
+
+Bounded remediation:
+- no workflow authority change;
+- no production/financial/application/Supabase change;
+- only make the canonical Manager handoff comply with the already-approved FFH-033 rule by ending with the complete 11-role dashboard;
+- preserve Manager-only `ACTIVATE NOW` authority;
+- refreeze the corrected workflow target and require fresh independent closure audit.
+
+## FFH-033 corrected freeze / fresh closure re-audit
+
+Exact corrected workflow target:
+`b47658187147d17e1bc932728e66786b87baecd5`
+
+Foundation CI #679:
+**SUCCESS**
+
+Fresh packet:
+`.ai/audit/FFH-033_WORKFLOW_REAUDIT_PACKET_b4765818.md`
+
+Fresh branch:
+`audit/ffh-033-workflow-b4765818`
+
+FFH-033 remains AUDIT_READY until the fresh closure re-audit returns.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | WAIT | — |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | ACTIVATE NOW | Continue Family Finance Hub as Core Financial Engine Engineer. On `ffh/ffh-017-r07-below-locality-remediation`, make only the final FFH-017 R07 `READY_FOR_MANAGER` task/index/worklog/handoff control-plane commit. Production is already validated at `33bfa79fc1b3d7a6471b35cecc44dfb72d246906`, CI `35346849145` / job `105605334966` SUCCESS, PR #34 remains unmerged. Do not change financial implementation unless new evidence requires it. Return exact `HANDOFF_SHA` and recommend Manager review. |
+| 6 | Application, Data & Integration Engineer | BLOCKED | — |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | WAIT | — |
+| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | Continue Family Finance Hub as Technical & Mathematical Auditor acting as Independent Workflow / Control-Plane Auditor. Perform the fresh FFH-033 closure re-audit under STANDARD_CHAT_HIGH with Fast Refresh. Assigned branch `audit/ffh-033-workflow-b4765818`; exact target `b47658187147d17e1bc932728e66786b87baecd5`; packet `.ai/audit/FFH-033_WORKFLOW_REAUDIT_PACKET_b4765818.md`. Independently verify FFH-033-WF-01 is closed, the canonical Manager handoff physically ends with all 11 canonical rows, governance remains intact, and no production behavior changed. Publish canonical report/handoff and recommend Manager reconciliation. |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |

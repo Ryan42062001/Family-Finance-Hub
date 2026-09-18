@@ -204,29 +204,47 @@ For a required control-plane audit:
 
 A separate Financial Policy & Scenario audit is not required for control-plane-only work unless the change also alters financial policy or financial recommendation semantics.
 
-## Next Activation table — mandatory compact handoff output
+## Next Activation table — mandatory full-workforce handoff dashboard
 
-Every employee handoff and meaningful task-completion response must end with a short `Next Activation` table so the user can immediately see who should act next and has a copy/paste-ready prompt.
+Every employee handoff and meaningful task-completion response must end with a `Next Activation` table that lists the **entire Family Finance Hub employee roster**, not only the current or next role.
+
+Canonical roster order:
+1. Manager / Architect
+2. Retirement & Tax-Advantaged Policy Analyst
+3. Debt & Liquidity Policy Analyst
+4. Goals, Cash Flow & Allocation Policy Analyst
+5. Core Financial Engine Engineer
+6. Application, Data & Integration Engineer
+7. Regulatory & Financial Research Analyst
+8. Product & Technical R&D Engineer
+9. Technical & Mathematical Auditor
+10. Financial Policy & Scenario Auditor
+11. Work Helper / Super Troubleshooter
 
 Use this shape:
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---|---|---|---|
-| 1 | <role> | <status> | <short complete prompt> |
+| 1 | Manager / Architect | <status> | <prompt or —> |
+| ... | ... | ... | ... |
+| 11 | Work Helper / Super Troubleshooter | <status> | <prompt or —> |
 
 Allowed status values:
-- `RECOMMEND TO MANAGER` — worker recommendation only; Manager must verify live state before authorizing;
-- `ACTIVATE NOW` — Manager only, after live repository/task/branch/dependency verification;
-- `WAIT` — role is the expected successor but a real gate is not yet satisfied;
-- `IDLE` — no activation is justified.
+- `ACTIVATE NOW` — Manager only; user should start/resume this role now;
+- `ACTIVE` — already executing; do not create a duplicate chat/assignment;
+- `RECOMMEND TO MANAGER` — worker recommends Manager review/activation; not authorization;
+- `WAIT` — role is a plausible/expected successor but a real gate is not yet satisfied;
+- `BLOCKED` — role cannot proceed because a named dependency/environment/user gate is unresolved;
+- `IDLE` — no current activation is justified.
 
 Rules:
-1. Manager remains the only activation authority. Workers may recommend the next role but may not activate dependent work, invent a task, create speculative branch/SHA instructions, or bypass Manager verification.
-2. A worker that needs Manager acceptance/reconciliation should normally recommend Manager / Architect rather than guessing the downstream specialist.
-3. The activation prompt must be short but complete enough to paste into a fresh or reusable chat. Include, when established: repository/project identity, exact role, task ID, execution mode, refresh mode, assigned branch or frozen target, required workflow/task/role/handoff pointers, bounded objective, key must-not boundaries, and expected return/handoff.
-4. Prefer repository pointers over copied history. Do not turn the table into an encyclopedic prompt.
-5. If multiple roles may run safely in parallel, Manager may list multiple `ACTIVATE NOW` rows only after dependency/overlap checks.
-6. If nobody should be activated, include one `IDLE` row with a short reason and no invented work.
-7. The table is a user-facing routing aid. It does not replace task state, `Activation`, `Next owner`, branch/SHA custody, Manager acceptance, audit independence, or repository authority.
-
-This applies to Engineering, Policy, Research, Audit, Work Helper, and Manager handoffs.
+1. **Every row is always present.** Do not omit an employee because it is idle, blocked, already active, or unrelated to the current task.
+2. **Manager remains the only activation authority.** Workers may use `RECOMMEND TO MANAGER`, `ACTIVE`, `WAIT`, `BLOCKED`, or `IDLE`; workers may not self-authorize `ACTIVATE NOW`.
+3. A worker that needs Manager acceptance/reconciliation should normally mark Manager / Architect `RECOMMEND TO MANAGER`, mark itself `WAIT` or `IDLE` as appropriate, and truthfully classify all other roles.
+4. Manager uses `ACTIVATE NOW` only after live repository/task/dependency/branch/PR verification. Existing active work is `ACTIVE`, not another `ACTIVATE NOW`.
+5. The copy/paste prompt is required for `ACTIVATE NOW` and `RECOMMEND TO MANAGER`. For `ACTIVE`, `WAIT`, `BLOCKED`, and `IDLE`, use `—` unless a short continuation/unblock prompt would materially help the user.
+6. Prompts must be short but complete enough to paste into a fresh or reusable chat. Include, when established: repository/project identity, exact role, task ID, execution mode, refresh mode, assigned branch or frozen target, required workflow/task/role/handoff pointers, bounded objective, key must-not boundaries, and expected return/handoff.
+7. Prefer repository pointers over copied history. Do not turn the table into an encyclopedic prompt.
+8. Multiple `ACTIVATE NOW` rows are allowed only when Manager verifies safe parallelism and no unsafe dependency/write overlap.
+9. `WAIT`, `BLOCKED`, and `IDLE` are first-class outcomes. Do not manufacture work merely to avoid them.
+10. The full-workforce table is a user-facing routing dashboard. It does not replace task state, `Activation`, `Next owner`, branch/SHA custody, Manager acceptance, audit independence, or repository authority.

@@ -1,70 +1,66 @@
 # Technical Audit Handoff
 
-## Current handoff — FFH-017 fresh Technical & Mathematical closure audit
+## Current handoff — FFH-033 Independent Workflow / Control-Plane Audit
 
-Task ID: FFH-017 — Phase 5C Recurring Goal-versus-Retirement Competition  
-Role: Technical & Mathematical Auditor  
+Task ID: FFH-033 — Full-Workforce Activation Dashboard  
+Role: Technical & Mathematical Auditor acting as Independent Workflow / Control-Plane Auditor  
 Execution mode: STANDARD_CHAT_HIGH  
+Refresh mode: Fast Refresh  
 Status: AUDIT COMPLETE — BLOCKING REMEDIATION REQUIRED  
 Verdict: **FAIL — REMEDIATION REQUIRED**
 
-Exact frozen implementation audited: `5c96b99373c7c2593fbbb5766b109347f1588fcd`  
-Manager/control-plane audit base verified: `84a5ce450618b25a1a90bc798361e7a87c3b8d49`  
-Assigned audit branch: `audit/ffh-017-technical-5c96b993`  
-Frozen packet: `.ai/audit/FFH-017_FROZEN_AUDIT_PACKET_5c96b993.md`  
-Canonical report: `.ai/audit/technical/FFH-017_TECHNICAL_CLOSURE_AUDIT_5c96b993.md`  
-Report commit: `ad7a6e15f70325a8eb2d573893af103904df2e1a`
+Exact frozen workflow target audited: `75fad74160f6ed412051adb4d4f2f33c091a0517`  
+Manager/control-plane audit base verified: `d5209a4da4740f228268515e28287a42f732ca8a`  
+Assigned audit branch: `audit/ffh-033-workflow-75fad741`  
+Frozen packet: `.ai/audit/FFH-033_WORKFLOW_AUDIT_PACKET_75fad741.md`  
+Canonical report: `.ai/audit/technical/FFH-033_WORKFLOW_CONTROL_PLANE_AUDIT_75fad741.md`  
+Report commit: `4fdcfaa8ce54c87d215abbeefee0ec48aa291d6e`
 
 ### Independent result
 
-- **MEDIUM — TMA-017-07 — OPEN / BLOCKING:** R06 below-only locality excludes unresolved tranches whose cross-domain disposition is already `BELOW` but whose recurring pace/request remains unknown. Those tranches are not in `materialMissingGoals`, so they never enter `potentialBelowOnlyGoals`. A weaker known BELOW goal can therefore consume scarce Bucket-3 dollars that can later belong to the stronger unresolved BELOW claimant after its missing pace fact resolves.
-- **R05 / prior TMA-017-06:** CLEARS. Confirmed non-legacy `necessity = unknown` is now handled as potential Essential/OUTRANK when supported by known urgency/harm facts.
-- **R04:** CLEARS / preserved.
-- **R06 retirement / possible-CO_PRIORITY invariance:** CLEARS for the required retirement examples; only the separate below-only path remains defective.
-- **R02:** CLEARS / preserved.
-- **R03:** CLEARS / preserved.
-- **Protected FFH-013 M01:** CLEARS EXACTLY.
-- **Financial Engine Reconciliation exact-cent mechanics:** CLEAR. The blocker is allocation ownership, not arithmetic reconciliation.
+**FAIL — REMEDIATION REQUIRED**
 
-### TMA-017-07 adversary
+Blocking finding:
 
-Residual recurring capacity: $100.  
-Additional retirement request: $0.
+- **FFH-033-WF-01 — MEDIUM / BLOCKING:** the exact target's canonical `.ai/manager/HANDOFF.md` still uses the old one-row `Next Activation` table and does not end with the mandatory 11-role workforce dashboard. The target changes that file, so this is a direct FFH-033 acceptance-criterion failure rather than untouched historical content.
 
-Stronger Goal A:
-- confirmed Optional;
-- Fixed / Critical;
-- known positive core principal;
-- usable target date missing, so recurring request is null;
-- disposition is already BELOW.
+### What clears
 
-Weaker Goal B:
-- confirmed Optional;
-- Flexible / Low;
-- known $100/month request;
-- disposition BELOW.
+- Workflow V3.1 itself makes all 11 rows mandatory.
+- `.ai/roles/README.md` makes the rule family-wide across all durable roles plus Work Helper.
+- Workers cannot use `ACTIVATE NOW`.
+- Manager-only activation after live-state verification remains intact.
+- `ACTIVE` prevents duplicate activation of already-running work.
+- `WAIT`, `BLOCKED`, and `IDLE` remain first-class outcomes.
+- Actionable rows require short paste-ready prompts with established task/mode/refresh/branch-or-target/pointers/scope/boundaries/return.
+- Parallel activation remains dependency/overlap-gated.
+- Repository authority, task lifecycle, Manager acceptance, checkpoint vocabulary, branch/SHA custody, audit independence, CI attribution, financial reconciliation, merge/release controls remain intact.
+- Candidate `cbdbc400ae381e79be83ce7db15f357158a119bf` -> integration `75fad74160f6ed412051adb4d4f2f33c091a0517` has zero changed files.
+- Exact integration Foundation CI run `35349975086`, job `105615509505` — SUCCESS.
+- No financial/application/Supabase/runtime/schema/deployment behavior changed.
 
-Frozen code excludes A from `materialMissingGoals` because A is BELOW rather than MORE_INFORMATION_NEEDED, then the normal BELOW loop omits A because its request is null and gives B the full $100.
+### Required bounded remediation
 
-When A's missing usable deadline resolves positively, A remains BELOW but orders ahead of B and can claim the same $100. Therefore B's allocation was not independent of the missing fact.
+Update the canonical Manager handoff so its final `Next Activation` section contains all 11 canonical roles in order and truthfully reflects live state.
 
-### Custody / validation
+Do not alter production behavior, specialist authority, FFH-017 financial semantics, or existing governance.
 
-- PR #32 final head: `be34ce35b64d0a0512b8913e2d65fa779d013db7`.
-- Frozen integration: `5c96b99373c7c2593fbbb5766b109347f1588fcd`.
-- Independent final-head -> integration comparison: zero changed files.
-- Exact integration Foundation CI: run `35305470058`, job `105476660670` — SUCCESS.
-- Calculations: 914/914 PASS.
-- Security: 21/21 PASS.
-- Dependency audit: 0 vulnerabilities.
-- Green CI was corroborating evidence only.
+After the bounded control-plane correction, Manager should freeze a new exact FFH-033 workflow target and require the fresh independent closure audit gate.
 
-### Exact next action
+This audit did not merge, close FFH-033, modify FFH-017, authorize downstream work, or perform Supabase/live-data actions.
 
-Manager should route one bounded R06 follow-up so unresolved tranches whose disposition is definitively BELOW but whose request remains unknown are included in lower-bucket independence analysis.
+## Next Activation
 
-Do not invent their missing pace. Reserve only the supported bound necessary to prevent a weaker known BELOW claimant from consuming contested capacity, while allowing unrelated residual capacity to continue.
-
-Then establish a new frozen FFH-017 target and require the canonical fresh closure audit gate.
-
-This audit did not modify production financial behavior or accepted policy, merge or accept anything, close FFH-017, activate downstream work, alter Manager-owned task/index state, or perform Supabase/live-database work.
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Under STANDARD_CHAT_HIGH with Fast Refresh, reconcile FFH-033 against exact frozen target `75fad74160f6ed412051adb4d4f2f33c091a0517`, audit branch `audit/ffh-033-workflow-75fad741`, packet `.ai/audit/FFH-033_WORKFLOW_AUDIT_PACKET_75fad741.md`, and Technical report `.ai/audit/technical/FFH-033_WORKFLOW_CONTROL_PLANE_AUDIT_75fad741.md`. Address only FFH-033-WF-01: make the canonical Manager handoff itself end with the mandatory 11-role dashboard, preserve Manager-only activation and all existing governance, then freeze a new exact target for fresh independent audit. Do not modify FFH-017 production behavior. Return exact remediation/freeze evidence and the canonical 11-role table. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | ACTIVE | FFH-017 R07 Bucket-3 BELOW-only locality remediation is already active; do not duplicate. |
+| 6 | Application, Data & Integration Engineer | BLOCKED | FFH-020 remains blocked on secure Supabase CLI/auth/protected-backup execution capability; FFH-016 remains behind FFH-020. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | WAIT | FFH-018 remains queued behind the current correctness wave. |
+| 9 | Technical & Mathematical Auditor | WAIT | FFH-033 audit is complete; await Manager reconciliation and any newly frozen closure target. |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
