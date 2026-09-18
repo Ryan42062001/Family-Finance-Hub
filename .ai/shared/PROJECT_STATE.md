@@ -26,7 +26,7 @@ Workflow V3.1 is canonical for current control-plane routing. Workflow V3 + Work
   - `TMA-017-08` CLOSED.
   - `FFH-017-P05` CLOSED.
   - R02-R07, protected FFH-013 M01, Financial Engine Reconciliation, Phase-5A retirement floor, desired-excess retirement-junior semantics, core-before-excess, and staged/shared/owner/scheduled no-reuse remain preserved.
-- FFH-018: ACTIVE for discovery/design only; CI workflow implementation remains separately Manager-gated.
+- FFH-018: CLOSED — discovery/design accepted by Manager.
 - FFH-020: BLOCKED before live write because a secure Supabase CLI/auth/protected-backup execution environment is unavailable.
 - FFH-024: ACCEPTED recovery authority for FFH-020.
 - FFH-026: QUEUED for Phase 7 after accepted Phase 5 + Phase 6.
@@ -91,3 +91,14 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - Technical & Mathematical Auditor: WAIT for final integrated Phase-5 audit gate after FFH-016.
 - Financial Policy & Scenario Auditor: WAIT for final integrated Phase-5 audit gate after FFH-016.
 - Other policy/research/troubleshooting roles: IDLE unless a new Manager-routed need appears.
+
+
+## FFH-034 integration / docs-fast-path proof
+
+- PR #37 merged at `da467f9473a0fcb3e8fd9bbe511c8e1aa476fa9b`.
+- Integration FULL: Foundation CI #711 / run `35407210097` / job `105799340320` — SUCCESS; artifact `10573366299`.
+- Disposable DOCS_ONLY proof: PR #38, Foundation CI #712 / run `35407273205` / job `105799522453` — SUCCESS; artifact `10572782585`; expensive stages skipped; PR closed unmerged.
+- Repository remains public; rulesets endpoint is readable and had no active ruleset at last Manager refresh.
+- Current FFH-034 blocker: user-admin activation of a minimal required-`verify` ruleset on `main` and `phase-5-money-priority-engine`.
+- After ruleset activation, Manager verifies exact live ruleset semantics and routes fresh independent Technical/Workflow audit.
+- FFH-020, FFH-016, PR #5 merge readiness, financial behavior, Supabase/live data, and Phase 6 remain unchanged.

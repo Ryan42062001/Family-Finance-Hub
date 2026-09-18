@@ -165,7 +165,7 @@ Authoritative live task state in this reconciliation supersedes older historical
 - FFH-020: BLOCKED before any live migration-history/DDL write because a secure Supabase CLI/auth/protected-backup execution environment is still required.
 - FFH-016: BLOCKED behind Manager-accepted FFH-020 deployment; it remains a verification-only pre-merge readiness gate.
 - FFH-018: CLOSED — discovery/design accepted by Manager.
-- FFH-034: ACTIVE — bounded always-running verify / fail-closed documentation fast path / durable evidence implementation. Material workflow audit required after integration.
+- FFH-034: BLOCKED only on user-admin required-`verify` ruleset activation. CI implementation is integrated; FULL #711 and DOCS_ONLY #712 are green. Ruleset verification + fresh independent Technical/Workflow audit remain before closure.
 - FFH-026: QUEUED for Phase 7 after accepted Phase 5 + Phase 6.
 
 Current Phase-5 merge-readiness sequence:
@@ -175,6 +175,6 @@ Current Phase-5 merge-readiness sequence:
 4. refresh PR #5 description/status against canonical task state and perform final merge review;
 5. merge only if all gates are clean, then verify post-merge CI and reconcile canonical state.
 
-FFH-018 discovery is closed. FFH-034 implementation is Manager-authorized and may proceed in parallel; it is not a financial/product correctness blocker. If integrated, its live docs-only proof and independent Technical/Workflow audit must clear before the modified workflow is treated as a stable final-audit baseline.
+FFH-018 discovery is closed. FFH-034 implementation is Manager-authorized and may proceed in parallel; it is not a financial/product correctness blocker. It is integrated and the live docs-only proof is green; required-`verify` ruleset activation/verification and fresh independent Technical/Workflow audit must still clear before the modified workflow is treated as a stable final-audit baseline.
 
 Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation engine and is not authorized for production activation yet.

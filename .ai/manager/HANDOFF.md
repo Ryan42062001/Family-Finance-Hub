@@ -566,3 +566,61 @@ Manager decision:
 The implementation branch had no worker commits at refresh time and remained identical to the prior Manager authorization base, so it is safe to fast-forward it to this amended Manager checkpoint.
 
 All financial, Supabase, live-data, FFH-020/FFH-016, PR #5, and Phase-6 gates remain unchanged.
+
+## FFH-034 Manager acceptance / integration / live fast-path proof
+
+Manager verdict: **ACCEPTED**, but task remains **BLOCKED** before audit on one GitHub-admin action.
+
+Accepted implementation:
+- production checkpoint `608332429c2dcf4e7689f3260aaa6b5d852b9dd5`;
+- R&D handoff `53b8ddd2ef877f143b698b0c24e4a91666fb494f`;
+- final accepted PR head `04af0397accf51e53871a2317415c462367b414b`;
+- PR #37 merged;
+- exact milestone integration `da467f9473a0fcb3e8fd9bbe511c8e1aa476fa9b`.
+
+Integration FULL proof:
+- Foundation CI #711 / `35407210097`;
+- verify job `105799340320`;
+- head SHA `da467f9473a0fcb3e8fd9bbe511c8e1aa476fa9b`;
+- SUCCESS;
+- artifact `10573366299`;
+- classifier/full financial-security-validation/build stages and final guardrails all PASS.
+
+Live DOCS_ONLY proof:
+- disposable PR #38;
+- base `da467f9473a0fcb3e8fd9bbe511c8e1aa476fa9b`;
+- proof head `ab60282e485acf340f0095c611a1d1221ee3708a`;
+- Foundation CI #712 / `35407273205`;
+- verify job `105799522453`;
+- SUCCESS;
+- mode DOCS_ONLY / all changes match Markdown allowlist;
+- classifier tests + AI-state + evidence + guardrails PASS;
+- install/dependency audit/calculations/security/typecheck/lint/build SKIPPED;
+- artifact `10572782585`;
+- PR #38 closed unmerged.
+
+Remaining FFH-034 gate:
+- activate one minimal repository ruleset requiring `verify` before merges to `main` and `phase-5-money-priority-engine`;
+- do not require branch-up-to-date/strict mode for this task;
+- do not add unrelated review/signing/history/deployment restrictions;
+- after activation, Manager verifies the readable ruleset and routes a fresh independent Technical/Workflow audit.
+
+The connected GitHub integration has read access to rulesets but no ruleset-admin write action, so this one setting requires user repository-admin UI action.
+
+All financial, Supabase, live-data, FFH-020/FFH-016, PR #5, and Phase-6 gates remain unchanged.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | BLOCKED | Resume immediately after the user activates the required-`verify` GitHub ruleset; verify live ruleset semantics, freeze FFH-034 workflow target, and route fresh Technical/Workflow audit. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | FFH-020 secure Supabase execution environment remains unavailable; FFH-016 remains blocked behind it. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | WAIT | FFH-034 implementation accepted/integrated; no further worker action pending ruleset/audit. |
+| 9 | Technical & Mathematical Auditor | WAIT | Activate only after required-`verify` ruleset is live and Manager freezes the exact FFH-034 workflow target. |
+| 10 | Financial Policy & Scenario Auditor | WAIT | No FFH-034 policy audit; final integrated Phase-5 policy audit remains downstream of FFH-020/FFH-016. |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
