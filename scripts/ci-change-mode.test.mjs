@@ -24,7 +24,7 @@ test('documentation allowlist accepts only intended Markdown paths', () => {
   assert.equal(isDocumentationPath('README.md'), true);
   assert.equal(isDocumentationPath('.ai/tasks/example.md'), true);
   assert.equal(isDocumentationPath('docs/example.md'), true);
-  assert.equal(isDocumentationPath('docs\\\\example.md'), true);
+  assert.equal(isDocumentationPath('docs\\example.md'), true);
   assert.equal(isDocumentationPath('.ai/example.yml'), false);
   assert.equal(isDocumentationPath('nested/README.md'), false);
   assert.equal(isDocumentationPath('docs/example.MD'), false);
