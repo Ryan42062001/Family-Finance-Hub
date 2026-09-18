@@ -21,7 +21,7 @@ Manager chats may span a milestone/phase but should roll over at major phase bou
 
 A replacement chat should normally receive only a short instruction such as:
 
-`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Then execute only the assigned task from repository evidence. If no task is assigned, remain IDLE.`
+`Continue Family Finance Hub as <ROLE>. Refresh the repository. Read .ai/shared/WORKFLOW_V3_1.md, .ai/shared/WORKFLOW_V3.md, .ai/shared/WORKFLOW.md, your .ai/roles/<role>.md charter, .ai/tasks/TASK_INDEX.md, your active task file, relevant canonical decisions, and your role HANDOFF.md. Then execute only the assigned task from repository evidence. If no task is assigned, remain IDLE.`
 
 The repository, task file, and verified runtime/CI evidence outrank the replacement prompt.
 
