@@ -149,7 +149,7 @@ Manager should activate only the smallest set of specialists needed for the curr
 - FFH task ID;
 - execution mode;
 - short paste-ready activation message;
-- fallback when Work mode is preferred/high-value.
+- fallback when Work mode is preferred.
 
 IDLE specialists may be summarized compactly by department rather than individually when no action is required.
 
