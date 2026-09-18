@@ -70,20 +70,77 @@ These fields are routing metadata, not new authority. Manager remains the router
 
 `Activation: READY` means the dependency graph permits work to start. `Activation: ACTIVE` or `USER_AUTHORIZED` means execution is currently authorized. `Activation: BLOCKED` must name the real blocker.
 
-## 7. Execution-mode classification
+## 7. Execution-mode classification and credit efficiency
 
-Every new meaningful task records exactly one:
-- `STANDARD_CHAT`
+Family Finance Hub has two canonical forward-looking execution classifications:
+- `STANDARD_CHAT_HIGH`
 - `WORK_MODE_PREFERRED`
-- `WORK_MODE_HIGH_VALUE`
 
-Manager chooses the mode based on expected value, not task prestige.
+`STANDARD_CHAT_HIGH` is the default. Work mode is a scarce execution resource and is chosen for execution leverage, not task prestige or reasoning difficulty.
 
-Use `STANDARD_CHAT` for bounded policy/research/audit/small implementation/control-plane work.
-Use `WORK_MODE_PREFERRED` for multi-file implementation, repeated test cycles, broad integration work, or runtime/browser interaction where sustained execution materially helps.
-Use `WORK_MODE_HIGH_VALUE` for long-running, highly interactive, database/browser/deployment/recovery work where Work mode is expected to provide major acceleration.
+For every new task and every meaningful re-routing decision, Manager must ask:
 
-Preferred/high-value remains an accelerator, not a dependency, unless the task file identifies a capability that truly cannot be reproduced through normal chat/tools.
+> Does autonomous computer/tool execution materially reduce user interaction or execution overhead compared with Standard Chat High?
+
+If **NO**, use `STANDARD_CHAT_HIGH`.
+
+If **YES** and the execution burden is substantial, use `WORK_MODE_PREFERRED`.
+
+If the benefit is marginal, uncertain, or primarily reasoning-related, use `STANDARD_CHAT_HIGH`.
+
+The following do **not** justify Work mode by themselves:
+- importance or priority;
+- conceptual difficulty;
+- code-related scope;
+- several files;
+- GitHub dependence;
+- High reasoning effort;
+- architecture/policy complexity;
+- broad repository reading that normal repository tools can handle.
+
+### Role defaults
+
+Unless the task itself demonstrates substantial autonomous-execution value:
+- Manager / Control Plane: `STANDARD_CHAT_HIGH`;
+- Financial Policy roles: `STANDARD_CHAT_HIGH`;
+- Strategy / decision-style analysis: `STANDARD_CHAT_HIGH`;
+- Regulatory and Product R&D: `STANDARD_CHAT_HIGH`;
+- Technical and Policy Audit: `STANDARD_CHAT_HIGH`;
+- Core Engine and Application/Data Engineering: `STANDARD_CHAT_HIGH`;
+- Work Helper / Super Troubleshooter: `STANDARD_CHAT_HIGH` by default, with a higher likelihood of justified Work escalation when recovery is execution-heavy.
+
+Use `WORK_MODE_PREFERRED` primarily for execution-heavy work such as sustained edit-test-diagnose-fix loops, extensive terminal/browser/application interaction, repeated environment manipulation, complicated CI recovery, live database/deployment work, large mechanical changes, or long autonomous experimentation that would otherwise require substantial user back-and-forth.
+
+### Prepare before Work escalation
+
+Whenever practical, Standard Chat High roles should resolve policy, architecture, acceptance criteria, branch/base, required tests, forbidden scope, and known blockers before Work mode begins. Work mode should execute an already-bounded task rather than research, define policy, implement, audit, and manage the same task in one session.
+
+### Standard Chat High -> Work escalation
+
+A Standard Chat worker may return `WORK_MODE_ESCALATION_RECOMMENDED` when actual execution proves materially heavier than expected. The handoff must include:
+- task ID;
+- current branch;
+- exact current SHA when relevant;
+- work already completed;
+- remaining work;
+- why autonomous execution now materially helps;
+- files/components involved;
+- known failures;
+- tests already run;
+- required validation;
+- exact next action.
+
+Manager verifies the escalation and updates routing metadata when appropriate. The Work-mode worker continues from that checkpoint; it must not restart completed investigation without cause.
+
+### Work -> Standard Chat High de-escalation
+
+When the remaining work becomes primarily reasoning, policy, architecture, research interpretation, audit analysis, review, or handoff, the Work-mode worker should return `STANDARD_CHAT_HIGH_HANDOFF_RECOMMENDED` with branch/SHA, completed execution, remaining reasoning work, evidence, tests, blockers, and exact next action.
+
+The objective is maximum useful autonomous execution per Work session, not simply the fewest Work sessions.
+
+### Legacy compatibility
+
+Historical terminal task files may retain legacy labels `STANDARD_CHAT` or `WORK_MODE_HIGH_VALUE` as immutable workflow evidence. Do not use those labels for new or current routing. When a historical task is materially reopened, reclassify it using the two canonical modes above.
 
 ## 8. Validation compatibility rule
 
