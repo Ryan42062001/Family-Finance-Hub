@@ -80,3 +80,11 @@ Standard workers may return `WORK_MODE_ESCALATION_RECOMMENDED`; Work workers may
 ## Context hygiene
 
 Do not preserve a huge chat merely because it contains history that belongs in GitHub. Replace chats proactively when responsiveness or context quality degrades. Newly created task chats reconstruct state from canonical files rather than carrying forward large manual summaries.
+
+## Mandatory handoff footer — Next Activation
+
+Every durable employee role and Work Helper must end meaningful handoffs with the Workflow V3.1 `Next Activation` table.
+
+Workers identify the smallest justified next role, use `RECOMMEND TO MANAGER`, `WAIT`, or `IDLE`, and provide a short copy/paste-ready prompt using authoritative repository pointers. They do not invent tasks, branch/SHA values, or self-authorize downstream work.
+
+Manager verifies live state, converts justified recommendations into `ACTIVATE NOW`, and supplies the exact copy/paste prompt.

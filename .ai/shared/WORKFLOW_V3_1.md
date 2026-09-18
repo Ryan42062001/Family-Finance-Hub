@@ -203,3 +203,30 @@ For a required control-plane audit:
 - a blocking finding moves the governing task to `REMEDIATION`; Manager owns routing and closure.
 
 A separate Financial Policy & Scenario audit is not required for control-plane-only work unless the change also alters financial policy or financial recommendation semantics.
+
+## Next Activation table — mandatory compact handoff output
+
+Every employee handoff and meaningful task-completion response must end with a short `Next Activation` table so the user can immediately see who should act next and has a copy/paste-ready prompt.
+
+Use this shape:
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | <role> | <status> | <short complete prompt> |
+
+Allowed status values:
+- `RECOMMEND TO MANAGER` — worker recommendation only; Manager must verify live state before authorizing;
+- `ACTIVATE NOW` — Manager only, after live repository/task/branch/dependency verification;
+- `WAIT` — role is the expected successor but a real gate is not yet satisfied;
+- `IDLE` — no activation is justified.
+
+Rules:
+1. Manager remains the only activation authority. Workers may recommend the next role but may not activate dependent work, invent a task, create speculative branch/SHA instructions, or bypass Manager verification.
+2. A worker that needs Manager acceptance/reconciliation should normally recommend Manager / Architect rather than guessing the downstream specialist.
+3. The activation prompt must be short but complete enough to paste into a fresh or reusable chat. Include, when established: repository/project identity, exact role, task ID, execution mode, refresh mode, assigned branch or frozen target, required workflow/task/role/handoff pointers, bounded objective, key must-not boundaries, and expected return/handoff.
+4. Prefer repository pointers over copied history. Do not turn the table into an encyclopedic prompt.
+5. If multiple roles may run safely in parallel, Manager may list multiple `ACTIVATE NOW` rows only after dependency/overlap checks.
+6. If nobody should be activated, include one `IDLE` row with a short reason and no invented work.
+7. The table is a user-facing routing aid. It does not replace task state, `Activation`, `Next owner`, branch/SHA custody, Manager acceptance, audit independence, or repository authority.
+
+This applies to Engineering, Policy, Research, Audit, Work Helper, and Manager handoffs.
