@@ -1,0 +1,29 @@
+{
+  "schema": "FFH_PHASE6_CLOSURE_EVIDENCE_V1",
+  "closed_at": "2026-09-19",
+  "product_target_sha": "9453deca36fe41f5d56e154cc9c8bc9de6f64da3",
+  "technical_audit": {
+    "task": "FFH-048",
+    "verdict": "PASS_WITH_NON_BLOCKING_FINDINGS",
+    "report_sha": "32d74580f13c6730faeb6c78fb00a0f4d0e2695f",
+    "handoff_sha": "1b086d173c651d1b97e84304b36ed6e267c485f8",
+    "ci_run": 35446091157,
+    "ci_job": 105905141954,
+    "blocking_findings": 0,
+    "non_blocking_findings": [
+      "TMA-048-01 -> FFH-047"
+    ]
+  },
+  "policy_audit": {
+    "task": "FFH-049",
+    "verdict": "PASS",
+    "report_sha": "1236e5acb7ec8c353181a870cb741c094cd6d84a",
+    "handoff_sha": "864fbbf1132d5b05030e33b8a08be45f7b4dd4d1",
+    "ci_run": 35446078248,
+    "ci_job": 105905109327,
+    "findings": 0,
+    "historical_blocker": "FFH-045-P01 CLOSED"
+  },
+  "manager_disposition": "PHASE_6_CLOSED_ACCEPTED",
+  "phase_7_readiness": "READY_FOR_MANAGER_ACTIVATION"
+}

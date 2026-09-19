@@ -384,3 +384,33 @@ Auditors must remain independent and audit the same exact frozen product target.
 - Policy/R&D/Research roles: IDLE.
 - Work Helper: IDLE / on-demand.
 - Phase 7: NOT STARTED.
+
+
+# Phase-6 final closure — 2026-09-19
+
+Status: CLOSED / ACCEPTED
+
+Accepted product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`
+
+Accepted fresh final audits:
+- FFH-048 — PASS WITH NON-BLOCKING FINDINGS; TMA-048-01 LOW only, preserved as FFH-047.
+- FFH-049 — PASS; zero findings; FFH-045-P01 CLOSED.
+
+No blocking Phase-6 finding remains.
+
+## READY NEXT
+
+FFH-026 — Production Deployment & Release Readiness
+Owner: Application, Data & Integration Engineer
+Execution: WORK_MODE_PREFERRED
+State: QUEUED / DEPENDENCIES SATISFIED
+
+Manager must first merge this Phase-6 closure control-plane checkpoint, then pin that exact canonical `main` SHA as the FFH-026 release candidate and create the worker branch.
+
+## NON-BLOCKING BACKLOG
+
+- FFH-047 — Scenario Rebase Unresolved-State UX Hardening — QUEUED / non-blocking.
+- FFH-038 — Post-Phase-5 HSA hardening — QUEUED / non-blocking.
+
+Neither backlog item reopens Phase 5 or Phase 6, and neither blocks FFH-026 activation.

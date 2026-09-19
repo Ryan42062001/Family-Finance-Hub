@@ -45,8 +45,8 @@ Last refreshed: 2026-09-18
 | FFH-045 | Financial Policy & Scenario Auditor | CLOSED | frozen target `8f4b1c44...`; report `8199ff7e...`; handoff `0d128ca1...` | FAIL — REMEDIATION REQUIRED; FFH-045-P01 routed to FFH-046 |
 | FFH-046 | Core Financial Engine Engineer | CLOSED | production `3a045c4a...`; validation `c5d1b686...`; integration `9453deca...` | Manager ACCEPTED; exact merge tree; new remediated Phase-6 target frozen |
 | FFH-047 | Application, Data & Integration Engineer | QUEUED | non-blocking follow-up | Preserve unresolved rebase status/bootstrap UX from TMA-044-01 |
-| FFH-048 | Technical & Mathematical Auditor | ACTIVE | frozen target `9453deca...` | Fresh final remediated Phase-6 re-audit; independent of FFH-049 |
-| FFH-049 | Financial Policy & Scenario Auditor | ACTIVE | frozen target `9453deca...` | Fresh final remediated Phase-6 re-audit; independent of FFH-048 |
+| FFH-048 | Technical & Mathematical Auditor | CLOSED | target `9453deca...`; report `32d74580...`; handoff `1b086d17...` | PASS WITH NON-BLOCKING FINDINGS; LOW TMA-048-01 preserved in FFH-047 |
+| FFH-049 | Financial Policy & Scenario Auditor | CLOSED | target `9453deca...`; report `1236e5ac...`; handoff `864fbbf1...` | PASS; zero findings; FFH-045-P01 CLOSED |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -228,3 +228,23 @@ FFH-046 ACTIVE for bounded Core remediation. Phase 6 remains OPEN / REMEDIATION.
 - Shared packet: `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`.
 - Prior failed target `8f4b1c44...` remains immutable historical evidence.
 - Phase 6 remains OPEN pending both fresh verdicts + Manager reconciliation.
+
+
+## Phase-6 final closure — 2026-09-19
+
+Exact accepted Phase-6 product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+
+Fresh final re-audits:
+- FFH-048 Technical & Mathematical — PASS WITH NON-BLOCKING FINDINGS; CRITICAL/HIGH/MEDIUM 0, LOW 1; TMA-048-01 mapped to queued FFH-047.
+- FFH-049 Financial Policy & Scenario — PASS; zero findings; historical FFH-045-P01 CLOSED.
+
+Audit evidence:
+- FFH-048 report `32d74580f13c6730faeb6c78fb00a0f4d0e2695f`, handoff `1b086d173c651d1b97e84304b36ed6e267c485f8`, CI `35446091157` / `105905141954`, evidence PR #65.
+- FFH-049 report `1236e5acb7ec8c353181a870cb741c094cd6d84a`, handoff `864fbbf1132d5b05030e33b8a08be45f7b4dd4d1`, CI `35446078248` / `105905109327`, evidence PR #64.
+
+Manager independently confirmed TMA-048-01 is the already-queued client-only unresolved-rebase status/bootstrap precision issue and is non-blocking for Phase 6.
+
+PHASE 6: CLOSED / ACCEPTED.
+PHASE 7: READY FOR MANAGER ACTIVATION.
+FFH-026 dependencies are satisfied; exact activation base must be pinned after this closure control-plane merge.

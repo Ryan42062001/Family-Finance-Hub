@@ -1143,3 +1143,61 @@ The prior failed target `8f4b1c44...` remains historical evidence and must not b
 | 9 | Technical & Mathematical Auditor | ACTIVATE NOW | FFH-048 | Freshly audit exact target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` using the shared re-audit packet; do not rely on FFH-049. |
 | 10 | Financial Policy & Scenario Auditor | ACTIVATE NOW | FFH-049 | Freshly audit exact target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` using the shared re-audit packet; do not rely on FFH-048. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | On-demand only | — |
+
+
+## Phase-6 CLOSED / Phase-7 release readiness unlocked — 2026-09-19
+
+Manager reconciled both fresh final remediated Phase-6 audits against exact frozen product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+
+### FFH-048 — Technical & Mathematical
+
+Accepted verdict: **PASS WITH NON-BLOCKING FINDINGS**.
+
+Evidence:
+- report `32d74580f13c6730faeb6c78fb00a0f4d0e2695f`;
+- handoff/final head `1b086d173c651d1b97e84304b36ed6e267c485f8`;
+- CI `35446091157` / `105905141954` SUCCESS / DOCS_ONLY;
+- evidence PR #65;
+- CRITICAL/HIGH/MEDIUM 0; LOW 1.
+
+TMA-048-01 is independently confirmed as the same client-only unresolved-rebase status/bootstrap precision issue already captured by FFH-047. Server behavior remains fail-closed; deleted stable IDs remain unresolved; no display-name retarget, financial execution, persistence, or capacity reuse occurs. It is non-blocking.
+
+### FFH-049 — Financial Policy & Scenario
+
+Accepted verdict: **PASS**.
+
+Evidence:
+- report `1236e5acb7ec8c353181a870cb741c094cd6d84a`;
+- handoff/final head `864fbbf1132d5b05030e33b8a08be45f7b4dd4d1`;
+- CI `35446078248` / `105905109327` SUCCESS / DOCS_ONLY;
+- evidence PR #64;
+- zero findings.
+
+Historical FFH-045-P01 is CLOSED.
+
+### Product custody
+
+From frozen product target `9453deca...` through the accepted audit-evidence merges, only `.ai/**` files changed. No application, calculation, schema, test, workflow, package, or runtime file changed.
+
+**Phase 6 is CLOSED / ACCEPTED.**
+
+FFH-026 Production Deployment & Release Readiness is now dependency-unlocked. Because it requires live deployment, environment configuration, browser/runtime smoke testing, and rollback verification, its existing execution designation remains **WORK_MODE_PREFERRED**. Manager must pin the exact canonical post-closure `main` SHA before activating its worker branch.
+
+FFH-047 and FFH-038 remain queued, non-blocking follow-ups.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Current Task / Gate | Copy/paste activation prompt / next action |
+|---:|---|---|---|---|
+| 1 | Manager / Architect | ACTIVATE NEXT | Pin post-closure canonical main and activate FFH-026 | Merge closure control plane, then route exact release candidate. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | No active task | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | No active task | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | No active task | — |
+| 5 | Core Financial Engine Engineer | IDLE | FFH-038 queued/non-blocking | Do not activate from this closure. |
+| 6 | Application, Data & Integration Engineer | WAIT | FFH-026 ready after exact base pin; FFH-047 queued | Manager will activate FFH-026 after closure merge. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | No active task | — |
+| 8 | Product & Technical R&D Engineer | IDLE | No active task | — |
+| 9 | Technical & Mathematical Auditor | IDLE | FFH-048 CLOSED | — |
+| 10 | Financial Policy & Scenario Auditor | IDLE | FFH-049 CLOSED | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | On-demand only | — |
