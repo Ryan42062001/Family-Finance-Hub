@@ -290,3 +290,26 @@ Implementation order accepted by Manager:
 7. Remediate blocking findings, then final Phase-6 review.
 
 No persistence schema is planned for v1. Categories requiring new policy remain outside the v1 critical path unless Manager separately activates them.
+
+## Phase-6 implementation wave 1 — FFH-040 — 2026-09-18
+
+FFH-039 contract acceptance unlocks the first production slice:
+
+### FFH-040 — Scenario Overlay + Runner Foundation
+Owner: Core Financial Engine Engineer
+State: ACTIVE
+Base: `cc8e2c207f16350c1baeab131ffd685c848948ce`
+
+Purpose:
+- establish the typed Scenario Definition contract;
+- extract one authoritative normalized-to-raw reuse path;
+- apply validated immutable overlays;
+- rerun the accepted Money Priority Engine;
+- support generic INCLUDE scenarios that require no new policy;
+- preserve exact reconciliation, shared legal-capacity ledgers, unknown-safe behavior, and cross-stage no-reuse.
+
+The authenticated page/server-action/UI layer remains downstream. Home/Vehicle/Windfall/Your Plan/Recommendation Refresh Scenario Lab adapters also remain downstream of this Core foundation.
+
+Policy categories marked REQUIRES POLICY remain outside v1's critical path and are not activated.
+
+FFH-038 remains queued separately.
