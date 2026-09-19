@@ -1,56 +1,65 @@
 # Work Helper / Super Troubleshooter Handoff
 
-Task: FFH-029 — Phase-5 Inherited TypeScript Test-Debt Cleanup
+Task: FFH-051-R01 — Email Confirmation Security Remediation
 Status: READY_FOR_MANAGER
-Execution mode: STANDARD_CHAT
-Assigned baseline: `d472f8d85ed058eec345d0975ed32565a1bb4476`
-Refreshed milestone/base: `a417acc4fec7672acaab28d11806c0963137fa56`
-Branch: `ffh/ffh-029-ci001-typescript-test-debt`
-PR: #18 — https://github.com/Ryan42062001/Family-Finance-Hub/pull/18
-IMPLEMENTATION_SHA: `5b06448ae1e11d50635d9c12b00a700bfed29c5c`
-PRODUCTION_SHA: N/A — test-only remediation
-VALIDATED_CI: Foundation CI run `34708768213`, job `103593557184`, exact implementation SHA `5b06448ae1e11d50635d9c12b00a700bfed29c5c`
-FOCUSED_VALIDATION: run `34708987406`, job `103594145850`, exact validation SHA `b7fe4c2489af80e2098f231f0b4b9c5f3dfa08eb`; `Test FFH-029 affected files` PASS. Temporary workflow instrumentation was reverted at `e200d6a44abe2962609e22a535d3f575401fcfff` and is not part of the final diff.
-HANDOFF_SHA: documentation commit containing this file; use the exact commit that introduced this handoff.
+Execution mode: STANDARD_CHAT_HIGH
+Refresh mode: FAST_REFRESH
+Branch: `ffh/ffh-051-production-email-confirmation-remediation`
+PR: #70 — draft / unmerged
+Starting rejected implementation: `e9ff76d6e5309f36f5648c034cd24f94b5ce7fbb`
+Canonical base at assignment: `e747d27ddc16c97413bc9832fba37e40797e5a01`
+PRODUCTION_SHA: `4598770486fd3300cc1048103342fda4bb509aef`
+VALIDATED_CI: FULL Foundation CI run `35477444861`, job `105989022647`, SUCCESS on exact production SHA
+HANDOFF_SHA: this documentation commit; use the exact commit containing this file
+INTEGRATION_SHA: N/A — Manager integration is prohibited pending fresh independent security re-audit
+MANAGER_VERDICT: PENDING
+AUDIT_STATUS: prior frozen audit FAIL on PR #73; repaired target requires fresh independent security re-audit
 
-## Refresh and failure identity
+## Custody and audit discrepancy
 
-The approved integration branch advanced from the Manager-recorded assignment baseline to `a417acc4fec7672acaab28d11806c0963137fa56` before execution. FFH-029 remained ACTIVE and assigned to Work Helper, with no pre-existing task branch or FFH-029 PR. Current-milestone Foundation CI run `34700520728`, job `103571341426`, reproduced registered CI-001 exactly before editing:
+Manager routed FFH-051-R01 in PR #70 comment `5746218491` to Work Helper on the existing production branch. PR #70 remained draft/unmerged and no competing production writer was identified.
 
-1. `lib/calculations/money-priority-married-hsa-remediation.test.ts(219,87): error TS2339: Property 'accountType' does not exist on type 'RetirementAccountAllocationResult'.`
-2. `lib/calculations/money-priority-retirement-accounts.test.ts(20,17): error TS2339: Property 'account_type' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
-3. `lib/calculations/money-priority-retirement-accounts.test.ts(20,57): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
-4. `lib/calculations/money-priority-retirement-accounts.test.ts(20,109): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
-5. `lib/calculations/money-priority-retirement-accounts.test.ts(21,34): error TS2339: Property 'owner_person_id' does not exist on type '{ hsa_ytd_tax_year?: number | undefined; balance: number; monthly_employee_contribution: number; monthly_employer_contribution: number; }'.`
+PR #73 audit CI `35476912910` / `105987618331` failed seven security tests despite its local 9/9 report. Exact artifact diagnosis:
+- the frozen fixture was read with Windows line endings, so its recomputed Git blob was `f55b7c9c...` instead of the asserted repository blob `ca486ca...`;
+- its import-stripping regex matched LF only, leaving imports in the VM fixture on Windows and causing six `Cannot use import statement outside a module` failures.
 
-No failure-identity reclassification was required.
+The audit branch was not cherry-picked or modified. Its source-verifiable findings were remediated with a fresh acceptance suite.
 
-## Root cause and correction
+## Bounded remediation
 
-- The married-HSA test used stale `item.accountType` access even though `RetirementAccountAllocationResult` exposes account identity through `accountId`. The assertion now checks the two fixture HSA account IDs (`hsa-a` / `hsa-b`) without changing the intended assertion.
-- The retirement-account test helper accepts `Record<string, unknown>[]`, but mapped-object inference narrowed the normalized fixture to only the explicitly emitted common properties. The normalized array is now explicitly typed `Record<string, unknown>[]`, preserving guarded access to fixture keys without `any`, casts, blanket assertions, runtime changes, or weakened expectations.
+- `app/auth/confirm/route.ts`: exact runtime `type=email`, unique bounded token input, session-backed success only, exception fail-closed path, generic token-free failures, and shared final-destination validation.
+- `lib/supabase/proxy.ts`: exact public `/auth/confirm`; protected routes remain protected; unauthenticated redirects are constructed from a fresh query-free login URL.
+- `app/auth/callback/route.ts`: unchanged PKCE code exchange with shared safe destination resolution.
+- `lib/auth/safe-destination.ts`: strict same-origin internal destination and unique/bounded auth-parameter helpers.
+- `tests/security/ffh-051-auth-remediation.test.ts`: positive and adversarial controls for all accepted findings.
 
-Exact implementation files changed:
-- `lib/calculations/money-priority-married-hsa-remediation.test.ts`
-- `lib/calculations/money-priority-retirement-accounts.test.ts`
+No migration, schema, RLS, package, workflow, financial calculation/policy, unrelated feature, or live production configuration changed.
 
-No production files, financial formulas, accepted FFH-012 behavior, or accepted FFH-028 behavior changed.
+## Validation evidence
 
-## Validation
+Local canonical `npm run verify` passed:
+- AI state validator PASS;
+- 979/979 calculation tests PASS;
+- 40/40 security tests PASS, including 6 FFH-051-R01 focused tests;
+- typecheck PASS;
+- lint PASS with three inherited warnings and zero errors;
+- production build PASS.
 
-Implementation candidate Foundation CI run `34708768213` / job `103593557184` is SUCCESS on exact SHA `5b06448ae1e11d50635d9c12b00a700bfed29c5c`:
-- AI control-plane state: PASS
-- production dependency audit: PASS
-- full calculation suite: PASS
-- security suite: PASS
-- Type check: PASS; all five registered TS2339 diagnostics are gone
-- lint: PASS
-- build: PASS
+`npm audit --omit=dev --audit-level=high`: zero vulnerabilities.
 
-Focused validation run `34708987406` / job `103594145850` explicitly ran both affected test files and the `Test FFH-029 affected files` step passed. The validation-only workflow step was then removed so the repository workflow returned to its original content.
+Exact production SHA FULL Foundation CI `35477444861` / `105989022647`: SUCCESS. Vercel preview also completed successfully. Preview success is not production deployment or security acceptance.
 
-Remaining failure identity: NONE observed after CI-001 removal. Lint and build are observable and green again. `CI-001` is technically remediated; `.ai/manager/KNOWN_CI_DEBT.md` remains Manager-owned, so administrative registry closure is left to Manager acceptance rather than self-acceptance by Work Helper.
+## Hosted configuration and live-session boundary
 
-## Manager next action
+Verified read-only in the live Supabase project:
+- Site URL: `https://family-finance-hub-ten-brown.vercel.app`;
+- sole redirect allowlist entry: `https://family-finance-hub-ten-brown.vercel.app/auth/callback`;
+- hosted Confirm signup template uses `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`.
 
-Verify PR #18 against `phase-5-money-priority-engine`, clear Manager-tracked CI-001 if accepted, and integrate FFH-029. Work Helper does not merge, self-accept, close the task, or activate FFH-013/015/017/020 or Supabase work.
+Source/build evidence confirms the route uses the existing Supabase SSR server client and requires provider-returned session success before navigation. No cookies, token values, SMTP secrets, or real-user data were exposed.
+
+Still unverified and intentionally deferred to the FFH-026 production-safe release gate: real synthetic-account token consumption, invalid/expired/reused/mismatched token lifecycle, Set-Cookie round trip, first authenticated request, account switching, and cross-household isolation. This handoff does not equate source-level session assurance with live session verification.
+
+## Next action
+
+Manager must independently verify this handoff and exact branch head, freeze `4598770486fd3300cc1048103342fda4bb509aef` as the repaired production target, and route a fresh Technical / Security re-audit. Do not merge, deploy, or authorize Private Beta.
