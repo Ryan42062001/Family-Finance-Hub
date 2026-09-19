@@ -128,3 +128,26 @@ Status: PHASE 5 CLOSED / NO ACTIVE SPECIALIST WORK
 - FFH-026: QUEUED for Phase 7.
 - Phase 6 Scenario Lab: READY / NOT STARTED.
 - Manager: event-driven; next action is a separate Phase-6 activation decision, not implicit continuation.
+
+# Phase-6 Scenario Lab kickoff — 2026-09-18
+
+Status: ACTIVE — DISCOVERY/DESIGN ONLY
+
+## ACTIVE
+
+### FFH-039 — Scenario Lab Product + Technical Contract
+Owner: Product & Technical R&D Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: Fast Refresh
+Base: `ae11a48359d082e615b76822b6bbe3a7f379a8d2`
+Branch: `research/ffh-039-scenario-lab-contract`
+Scope: bounded Scenario Lab v1 product/technical contract, existing-engine reuse, scenario matrix, persistence/staleness model, safety boundaries, follow-on task graph.
+Must not: implement production code/UI/schema, define new financial policy, modify live Supabase, activate Phase 7, or implement FFH-038.
+
+## WAIT / IDLE
+
+- Manager: wait for FFH-039 READY_FOR_MANAGER/BLOCKED event.
+- Core/App engineering: idle until FFH-039 acceptance and Manager task routing.
+- Financial Policy / Regulatory: idle until FFH-039 identifies a concrete unresolved policy question.
+- Auditors: idle; no design audit currently required.
+- FFH-038: queued/non-blocking, separate from Scenario Lab.
