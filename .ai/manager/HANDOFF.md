@@ -1064,3 +1064,34 @@ Fresh independent lanes:
 - FFH-045 Financial Policy & Scenario Auditor — `audit/ffh-045-phase6-final-policy-8f4b1c44`.
 
 Do not expose either auditor's verdict/reasoning to the other before both submit. Manager reconciles both reports afterward. Phase 6 remains ACTIVE / NOT CLOSED until that reconciliation.
+
+
+## Final Phase-6 audit reconciliation — blocker routed — 2026-09-19
+
+Both fresh independent audits completed against exact frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+FFH-044 Technical & Mathematical:
+- report `676db24ff11455890afee236492b5cf5f1395376`;
+- handoff `3f1935917d4bc2bf212bc47e1dcde7975ac0d53f`;
+- PASS WITH NON-BLOCKING FINDINGS;
+- one LOW: TMA-044-01, unresolved rebase UI status/bootstrap precision. No financial execution, retarget, or server fail-open. Preserved separately as FFH-047.
+
+FFH-045 Financial Policy & Scenario:
+- report `8199ff7eaae83c620e6b2cb01da30b03170538b8`;
+- handoff `0d128ca1a8d16f3d6b7af78cf2b024978c0b2fa2`;
+- FAIL — REMEDIATION REQUIRED;
+- HIGH FFH-045-P01: Windfall tax-treatment authority fails closed incompletely.
+
+Manager independently reproduced the source condition. The allocator:
+- does not validate runtime `taxTreatment` membership;
+- uses `knownTaxLiability ?? 0` before authority is established;
+- therefore `known_taxable_liability_provided + null/missing` can become known-zero/deployable;
+- any unsupported non-null treatment other than literal `uncertain` also bypasses the tax-review hold.
+
+This contradicts FFH-039 unknown-safe/tax-review requirements. It is a blocking allocation-authority defect even though arithmetic still reconciles.
+
+Manager routes FFH-046 to Core Financial Engine Engineer for the smallest authoritative allocator fix. No new tax policy is required. Phase 6 remains OPEN / REMEDIATION and Phase 7 remains NOT STARTED.
+
+TMA-044-01 is not bundled into the blocker; queued as FFH-047 non-blocking App/Data hardening.
+
+After FFH-046 Manager acceptance/integration, freeze a new exact remediated Phase-6 target and run fresh final Technical + Policy re-audits before Phase-6 closure.
