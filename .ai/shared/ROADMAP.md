@@ -358,3 +358,20 @@ Manager splits accepted FFH-039 Node C into two bounded steps to reduce Core/App
    - no persistence/new policy.
 
 After the specialized App/Data wiring is accepted, Manager freezes the integrated Phase-6 target and activates fresh independent Technical & Mathematical plus Financial Policy & Scenario audits.
+
+
+## Phase-6 implementation wave 4 — FFH-043 — 2026-09-19
+
+FFH-042 specialized Core composition is CLOSED / ACCEPTED and integrated at `768644c1e8baf41eef72fa0e857a0c474a56823e`.
+
+FFH-043 is ACTIVE for the final bounded application integration slice:
+- expose accepted Home/Vehicle/Windfall specialized scenarios in the authenticated ephemeral Scenario Lab;
+- expose optional Your Plan overrides and accepted Recommendation Refresh/specialized comparison output;
+- surface FFH-042 deterministic conflict/validation issues;
+- refresh current stable-ID entity-option lists after successful rebase;
+- preserve FFH-041 auth/stale/no-write/in-memory/accessibility boundaries;
+- no persistence/schema/RLS/profile writes;
+- no Core financial-semantic changes;
+- no new financial policy.
+
+After FFH-043 acceptance/integration, Manager freezes the exact integrated Phase-6 implementation and activates fresh independent Technical & Mathematical plus Financial Policy & Scenario audits against that same frozen target.

@@ -242,3 +242,34 @@ pure Home / Vehicle / Windfall / Your Plan / Recommendation Refresh adapters; ge
 - Financial Policy & Scenario Auditor: IDLE until same target.
 - Work Helper: IDLE / on-demand.
 - FFH-038: QUEUED / non-blocking and separate.
+
+
+# Phase-6 implementation wave 4 — FFH-043 — 2026-09-19
+
+Status: ACTIVE
+
+## ACTIVE
+
+### FFH-043 — Authenticated Specialized Scenario Lab Wiring
+Owner: Application, Data & Integration Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Production base: `768644c1e8baf41eef72fa0e857a0c474a56823e`
+Branch: `ffh/ffh-043-scenario-specialized-wiring`
+
+Bounded scope:
+wire accepted FFH-042 Home/Vehicle/Windfall/Your Plan/Recommendation Refresh specialized composition into the accepted FFH-041 authenticated ephemeral Scenario Lab; refresh stable-ID entity options after explicit rebase; preserve auth/stale/no-write/accessibility boundaries.
+
+Must not:
+change Core financial semantics; add persistence/schema/RLS/profile writes; add new financial policy; implement FFH-038 or Phase 7.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-043 READY_FOR_MANAGER/BLOCKED.
+- Core Financial Engine Engineer: IDLE; FFH-042 CLOSED / ACCEPTED.
+- Product & Technical R&D: IDLE; FFH-039 complete.
+- Financial Policy / Regulatory roles: IDLE; no v1 policy blocker activated.
+- Technical & Mathematical Auditor: WAIT until FFH-043 is accepted/integrated and Manager freezes the final Phase-6 target.
+- Financial Policy & Scenario Auditor: WAIT until the same frozen integrated target.
+- Work Helper: IDLE / on-demand.
+- FFH-038: QUEUED / non-blocking and separate.
