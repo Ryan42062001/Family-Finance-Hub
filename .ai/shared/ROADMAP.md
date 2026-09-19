@@ -423,3 +423,19 @@ Both audit the whole target using:
 The old failed target `8f4b1c44...` is historical only. FFH-047 remains queued/non-blocking and must not alter the frozen target while audits run.
 
 Phase 6 remains ACTIVE / NOT CLOSED pending both fresh verdicts and Manager reconciliation. Phase 7 remains PLANNED / NOT STARTED.
+
+
+## Phase-6 closure / Phase-7 readiness — 2026-09-19
+
+Phase 6 — Scenario Lab is **CLOSED / ACCEPTED** on exact product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+
+Final remediated audit gate:
+- FFH-048 Technical & Mathematical — PASS WITH NON-BLOCKING FINDINGS; TMA-048-01 LOW only.
+- FFH-049 Financial Policy & Scenario — PASS; zero findings; FFH-045-P01 CLOSED.
+
+TMA-048-01 is preserved as FFH-047 non-blocking App/Data hardening and does not reopen Phase 6.
+
+Phase 7 — Deployment & Release Readiness is now **READY FOR MANAGER ACTIVATION** through FFH-026.
+
+FFH-026 should be activated from the exact canonical post-closure `main` checkpoint. FFH-038 and FFH-047 remain queued/non-blocking maintenance and do not block release-readiness activation.
