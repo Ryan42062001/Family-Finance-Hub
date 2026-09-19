@@ -39,7 +39,7 @@ Last refreshed: 2026-09-18
 | FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
 | FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
 | FFH-041 | App/Data | CLOSED | production `ef1afe85...`; handoff `796fe701...`; integration `2587a547...` | Manager ACCEPTED; auth/stale/rebase/no-write boundaries clear; final dual audit deferred to integrated Phase-6 target |
-| FFH-042 | Core Engine | ACTIVE | base `2587a547...`; branch `ffh/ffh-042-scenario-specialized-adapters` | Pure-domain Home/Vehicle/Windfall/Your Plan/Refresh adapter composition + conflict detector; reconciliation required |
+| FFH-042 | Core Engine | READY_FOR_MANAGER | production `feb1bd54...`; validation `269f4c49...`; PR #57 | Foundation CI `35422348781` / job `105842214259` SUCCESS; Manager acceptance/integration next |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
