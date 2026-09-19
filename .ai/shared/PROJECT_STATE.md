@@ -191,3 +191,28 @@ No blocking disagreement exists between auditors. No previously closed FFH-012/0
 FFH-036 and FFH-037 are CLOSED / ACCEPTED. The three LOW observations are preserved in queued non-blocking FFH-038 rather than changing the audited target.
 
 PR #5 now enters FINAL MERGE REVIEW. Phase 6 remains gated until merge and post-merge CI/state reconciliation complete.
+
+## Phase-5 merged / post-merge verification — 2026-09-18
+
+PR #5 — `Phase 5: Money Priority Engine — Final Audited Integration` — merged successfully.
+
+Merge commit:
+`c0a5d87ea96a778066982e28fbb52083e61a3451`
+
+Final tested PR head:
+`e9ff7d1e1b90f76e1820a837c41640c5802e69c1`
+
+Validation:
+- Foundation CI #735 / run `35416342120` / verify job `105825653221` — SUCCESS;
+- predecessor continuity PASS;
+- guardrails PASS;
+- required ruleset `23686709` remained active and mergeable state was clean;
+- `main` was unchanged from PR base before merge;
+- merge commit parents are the prior `main` head `8d68af5d5cdeef866d4a8a481bc3bb31f098199e` and tested PR head `e9ff7d1e...`;
+- merge commit tree `259327f12d7385a3f6e3014ab47fee3b4b52ab4e` is byte-identical to the tested PR-head tree.
+
+The current workflow has no `push` trigger, so no automatic CI run is expected on the merge commit itself. Post-merge correctness is therefore evidenced by exact tree identity with the green required-check head plus this fresh reconciliation PR against the new `main`.
+
+Phase-5 implementation, live Supabase/runtime parity, exact reconciliation, and final dual-audit gates are CLOSED/CLEAR.
+
+FFH-038 remains QUEUED as non-blocking HSA/test hardening. Phase 6 is now READY for future Manager activation but is not started by this reconciliation.
