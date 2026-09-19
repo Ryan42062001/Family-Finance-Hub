@@ -897,3 +897,20 @@ Final merge evidence:
 - no automatic post-merge run exists because Foundation CI has no push trigger.
 
 Phase 5 is CLOSED / MERGED / ACCEPTED. FFH-038 remains QUEUED / NON-BLOCKING. Phase 6 is READY for a new Manager activation event but remains NOT STARTED.
+
+## Phase-6 Scenario Lab activation — 2026-09-18
+
+User authorized starting Phase 6.
+
+Manager activated exactly one initial lane:
+- FFH-039 — Scenario Lab Product + Technical Contract;
+- Product & Technical R&D Engineer;
+- STANDARD_CHAT_HIGH / Fast Refresh;
+- base `ae11a48359d082e615b76822b6bbe3a7f379a8d2`;
+- branch `research/ffh-039-scenario-lab-contract`.
+
+Reason for R&D-first sequencing: the repository has accepted reusable primitives (`money-priority-hypothetical`, home/vehicle affordability, Windfall, Your Plan, Recommendation Refresh) but no accepted Scenario Lab v1 product/data/runtime contract. Immediate implementation would risk duplicating financial logic or silently defining new policy.
+
+FFH-039 is design-only. It must classify scenario categories as INCLUDE / DEFER / REQUIRES POLICY, recommend the persistence model, prove reuse of the accepted Phase-5 engine, isolate new policy questions, and return bounded follow-on tasks.
+
+No Engineering, Policy, Regulatory, or Audit lane is activated yet. FFH-038 remains queued/non-blocking outside Phase 6.
