@@ -38,7 +38,7 @@ Last refreshed: 2026-09-18
 | FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
 | FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
 | FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
-| FFH-041 | App/Data | ACTIVE | base `75d2766f...`; branch `ffh/ffh-041-scenario-lab-ephemeral-surface` | Authenticated ephemeral Scenario Lab route/action/UI + fingerprint/stale/compare; no persistence or specialized adapters |
+| FFH-041 | App/Data | READY_FOR_MANAGER | production/final validation `ef1afe85...`; draft PR #55 | Full Foundation CI `35420514850` / job `105837191187` SUCCESS; Manager review next; no persistence/Core semantic change |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -137,3 +137,8 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-040 CLOSED / ACCEPTED after independent source review + exact reconciliation hand-check. No remediation routed.
 - FFH-041 ACTIVE as the next dependency: authenticated ephemeral Scenario Lab application surface over the accepted Core contract.
 - Specialized Home/Vehicle/Windfall/Your Plan adapters remain downstream. Final dual audits remain downstream of the integrated implementation target.
+
+
+- FFH-041 worker lane is READY_FOR_MANAGER on draft PR #55 at exact production/final-validation SHA `ef1afe85f29598b2545e83e486ffce22498c02c6`.
+- Exact full Foundation CI `35420514850` / job `105837191187` is SUCCESS: calculations, security, typecheck, lint, build, dependency audit, AI-state validation, and guardrails all pass.
+- No Core semantic, persistence/schema/RLS/live-write, profile-apply, or specialized-adapter scope was introduced. Manager review/acceptance is the next gate.
