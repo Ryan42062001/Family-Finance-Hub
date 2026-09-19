@@ -366,3 +366,77 @@ Non-blocking later App/Data note:
 successful rebase currently refreshes baseline descriptor/summary but not the in-page entity-option lists. Server-side stable-ID validation remains fail-closed. Refresh those option lists when the specialized Scenario Lab UI is wired after FFH-042.
 
 Application, Data & Integration Engineer is WAIT/IDLE until Manager accepts FFH-042.
+
+
+## FFH-043 — Authenticated Specialized Scenario Lab Wiring — worker completion — 2026-09-19
+
+Status: READY_FOR_MANAGER
+
+Exact custody:
+- canonical Manager/control-plane assignment head: `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`;
+- accepted FFH-042 integration base: `768644c1e8baf41eef72fa0e857a0c474a56823e`;
+- assigned branch: `ffh/ffh-043-scenario-specialized-wiring`;
+- draft PR: #59 — OPEN / DRAFT / UNMERGED / mergeable at the validated production checkpoint;
+- PRODUCTION_SHA: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- FINAL_VALIDATION_SHA: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- full Foundation CI: run `35423965522` / job `105846580432` — SUCCESS, mode FULL;
+- HANDOFF_SHA: documentation-only completion chain after the exact tested production checkpoint; exact final branch SHA is reported by the worker after the single PR-branch fast-forward;
+- INTEGRATION_SHA: N/A — Manager-owned.
+
+Implementation evidence:
+- specialized server actions reuse FFH-041's server-side authentication/household authority dependency and never accept client household identity as authority;
+- every explicit specialized Run/Rebase loads the fresh server-authorized normalized snapshot and reconstructs the current canonical Money Priority baseline;
+- fingerprint/policy-basis staleness is checked before FFH-042 execution; stale runs return `stale_baseline` with no specialized result/provenance;
+- generic assumptions remain validated by accepted FFH-040 before the accepted FFH-042 specialized runner is invoked;
+- Home and Vehicle transport preserves the accepted evaluator result plus authoritative post-engine summaries/Recommendation Refresh projections;
+- Windfall transport preserves accepted gross amount, explicit reservations, held-for-tax-review amount, destinations/allocations, and remaining residual without converting proceeds into generic cash/income;
+- focused Windfall proof reconciles gross exactly to reserved tax + other liability + restricted + earmarked + held-for-review + allocations + remaining unallocated, to cents;
+- Your Plan remains an allocation layer using exact stable allocation IDs and preserves active/superseded/invalid status, funding gap, remaining capacity, and accepted warnings;
+- accepted FFH-042 duplicate-event, ambiguous-ownership, stable-entity-overlap, duplicate-override, and unavailable-post-engine conditions remain structured/fail-closed;
+- unrelated independent generic operations remain permitted where FFH-042 permits them;
+- successful explicit specialized rebase returns a fresh `ScenarioLabBootstrap`, and the workspace installs it so new eligible stable-ID entity options appear and unrelated deleted options disappear without page reload;
+- deleted referenced stable IDs return `unresolved` / `missing_entity`; no display-name matching or retargeting is present;
+- specialized editor/result controls retain labels, explicit units, ordinary keyboard-operable buttons, alert/status semantics, live-region announcement, post-run focus, and narrow-screen card behavior inherited from FFH-041;
+- baseline + at most two drafts remains the bounded in-memory model with create/edit/run/rerun/reset/duplicate/compare/discard and dirty-draft warnings;
+- no Scenario Lab persistence, localStorage/sessionStorage/IndexedDB, Supabase table/migration/RLS change, live household/profile write, Apply/Save/Commit path, Core financial semantic change, new financial policy, FFH-038, or Phase-7 work was introduced.
+
+Exact production/test changed-file scope versus Manager checkpoint `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`:
+- `app/scenario-lab/ScenarioLabWorkspace.tsx`;
+- `app/scenario-lab/SpecializedScenarioControls.tsx`;
+- `app/scenario-lab/SpecializedScenarioResult.tsx`;
+- `app/scenario-lab/actions.ts`;
+- `lib/calculations/ffh-043-scenario-specialized-wiring.test.ts`;
+- `lib/scenarios/scenario-app-contract.ts`;
+- `lib/scenarios/scenario-drafts.ts`;
+- `lib/scenarios/scenario-execution.ts`;
+- `lib/scenarios/scenario-specialized-execution.ts`;
+- `tests/security/ffh-043-scenario-specialized-wiring.test.ts`.
+
+Validation at exact FINAL_VALIDATION_SHA:
+- full Foundation CI mode: FULL;
+- classifier + AI-state validation: PASS;
+- dependency installation/audit: PASS;
+- calculation suite: PASS;
+- security suite: PASS;
+- typecheck: PASS;
+- lint: PASS;
+- production build: PASS;
+- evidence + Foundation guardrails: PASS.
+
+No App/Data blocker remains. Worker verdict is READY_FOR_MANAGER only; no self-acceptance or merge occurred.
+
+### Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-043 on draft PR #59 / branch `ffh/ffh-043-scenario-specialized-wiring`. Verify production/final-validation SHA `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`, full Foundation CI `35423965522` / job `105846580432`, final documentation-only handoff/continuity CI, accepted FFH-039/041/042 boundaries, server-derived household authority, stale fail-closed ordering, direct specialized-output transport, successful-rebase stable-ID option refresh, conflict/Your Plan/Windfall reconciliation behavior, no-write semantics, and accessibility/mobile preservation. Independently accept/integrate or route remediation; then freeze the integrated Phase-6 target before any dual audit activation. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | WAIT | — |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
