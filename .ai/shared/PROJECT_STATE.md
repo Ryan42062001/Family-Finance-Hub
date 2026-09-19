@@ -412,3 +412,20 @@ Status: READY_FOR_MANAGER for independent R01 re-review, not accepted/integrated
 - Phase 6 remains OPEN / REMEDIATION.
 - Phase 7 remains NOT STARTED.
 - New final dual re-audits will occur only after FFH-046 is accepted/integrated and Manager freezes a new remediated target.
+
+
+## Phase-6 remediated final re-audit freeze — 2026-09-19
+
+FFH-046 is CLOSED / Manager ACCEPTED and integrated at:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+
+That exact integration is now the new frozen remediated Phase-6 product target.
+
+Fresh independent re-audits:
+- FFH-048 — Technical & Mathematical;
+- FFH-049 — Financial Policy & Scenario.
+
+Shared packet:
+`.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`.
+
+The prior failed target `8f4b1c443684446cdf9b619bd35336f5873265bc` remains immutable historical evidence. FFH-047 remains queued/non-blocking and is outside the frozen target. Phase 6 remains OPEN pending both fresh verdicts and Manager reconciliation. Phase 7 remains NOT STARTED.

@@ -43,8 +43,10 @@ Last refreshed: 2026-09-18
 | FFH-043 | App/Data | CLOSED | production/validation `35036b8a...`; handoff `d1bca71c...`; integration/frozen target `8f4b1c44...` | Manager ACCEPTED after R01; exact merge tree; final dual audits active |
 | FFH-044 | Technical & Mathematical Auditor | CLOSED | frozen target `8f4b1c44...`; report `676db24f...`; handoff `3f193591...` | PASS WITH NON-BLOCKING FINDINGS; TMA-044-01 queued as FFH-047 |
 | FFH-045 | Financial Policy & Scenario Auditor | CLOSED | frozen target `8f4b1c44...`; report `8199ff7e...`; handoff `0d128ca1...` | FAIL — REMEDIATION REQUIRED; FFH-045-P01 routed to FFH-046 |
-| FFH-046 | Core Financial Engine Engineer | READY_FOR_MANAGER | production `3a045c4a...`; validation `c5d1b686...`; PR #62 | FULL Foundation CI `35443929743` / job `105899505669` SUCCESS; Manager review/integration next |
+| FFH-046 | Core Financial Engine Engineer | CLOSED | production `3a045c4a...`; validation `c5d1b686...`; integration `9453deca...` | Manager ACCEPTED; exact merge tree; new remediated Phase-6 target frozen |
 | FFH-047 | Application, Data & Integration Engineer | QUEUED | non-blocking follow-up | Preserve unresolved rebase status/bootstrap UX from TMA-044-01 |
+| FFH-048 | Technical & Mathematical Auditor | ACTIVE | frozen target `9453deca...` | Fresh final remediated Phase-6 re-audit; independent of FFH-049 |
+| FFH-049 | Financial Policy & Scenario Auditor | ACTIVE | frozen target `9453deca...` | Fresh final remediated Phase-6 re-audit; independent of FFH-048 |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -214,3 +216,15 @@ FFH-046 ACTIVE for bounded Core remediation. Phase 6 remains OPEN / REMEDIATION.
 - FFH-045-P01 is remediated at the authoritative Windfall allocator boundary: unsupported treatment fails closed; missing/null required known liability is held for tax review; explicit zero remains valid; authenticated specialized execution inherits the same behavior.
 - Scope is limited to the Windfall allocator plus direct/authenticated regression tests and FFH-046 evidence. PR #62 remains draft/unmerged.
 - Manager acceptance/integration is required before freezing a new remediated Phase-6 target and routing fresh final dual re-audits.
+
+
+## Phase-6 remediated dual re-audit freeze — 2026-09-19
+
+- FFH-046 CLOSED / ACCEPTED.
+- Integration/new frozen target: `9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+- PR #62 accepted head -> integration: zero changed files.
+- FFH-048 ACTIVE — fresh Technical & Mathematical re-audit.
+- FFH-049 ACTIVE — fresh Financial Policy & Scenario re-audit.
+- Shared packet: `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`.
+- Prior failed target `8f4b1c44...` remains immutable historical evidence.
+- Phase 6 remains OPEN pending both fresh verdicts + Manager reconciliation.

@@ -348,3 +348,39 @@ Source: TMA-044-01 LOW.
 - R&D: IDLE.
 - Work Helper: IDLE / on-demand.
 - Phase 7: NOT STARTED.
+
+
+# Phase-6 remediated final dual re-audits — 2026-09-19
+
+Status: ACTIVE / FROZEN
+
+Frozen product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`
+
+Shared packet:
+`.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`
+
+## ACTIVE
+
+### FFH-048 — Final Remediated Phase-6 Technical & Mathematical Re-Audit
+Owner: Technical & Mathematical Auditor
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Branch: `audit/ffh-048-phase6-technical-reaudit-9453deca`
+
+### FFH-049 — Final Remediated Phase-6 Financial Policy & Scenario Re-Audit
+Owner: Financial Policy & Scenario Auditor
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Branch: `audit/ffh-049-phase6-policy-reaudit-9453deca`
+
+Auditors must remain independent and audit the same exact frozen product target. Neither may consume the other's verdict/reasoning before submission.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for both fresh verdicts.
+- Core Financial Engine Engineer: IDLE; FFH-046 CLOSED / ACCEPTED.
+- Application, Data & Integration Engineer: WAIT; FFH-047 remains queued/non-blocking and must not alter this audit target.
+- Policy/R&D/Research roles: IDLE.
+- Work Helper: IDLE / on-demand.
+- Phase 7: NOT STARTED.

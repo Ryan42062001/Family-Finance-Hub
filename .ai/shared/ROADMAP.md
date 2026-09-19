@@ -404,3 +404,22 @@ The first frozen final target `8f4b1c443684446cdf9b619bd35336f5873265bc` did not
 FFH-046 is a bounded fail-closed fix to accepted Windfall tax authority, not new tax policy. Phase 6 remains ACTIVE / REMEDIATION. Phase 7 remains gated.
 
 After FFH-046 acceptance/integration, Manager will freeze a new exact Phase-6 target and activate fresh independent final Technical & Mathematical plus Financial Policy & Scenario re-audits.
+
+
+## Phase-6 remediated final re-audit gate — 2026-09-19
+
+FFH-046 Windfall tax-authority remediation is CLOSED / ACCEPTED.
+
+Exact new frozen Phase-6 product target:
+`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
+
+Fresh independent final re-audits:
+- FFH-048 Technical & Mathematical;
+- FFH-049 Financial Policy & Scenario.
+
+Both audit the whole target using:
+`.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`.
+
+The old failed target `8f4b1c44...` is historical only. FFH-047 remains queued/non-blocking and must not alter the frozen target while audits run.
+
+Phase 6 remains ACTIVE / NOT CLOSED pending both fresh verdicts and Manager reconciliation. Phase 7 remains PLANNED / NOT STARTED.
