@@ -112,6 +112,8 @@ test("explicit known zero liability is valid and distinct from missing liability
   assert.equal(result.reservedTaxAmount, 0);
   assert.equal(result.heldForTaxReviewAmount, 0);
   assert.equal(result.deployableAmount, 10000);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 10000);
   assertWindfallReconcilesExactly(result);
 });
 
@@ -145,6 +147,8 @@ test("explicit known positive liability preserves exact reservation and cent rec
   assert.equal(result.reservedTaxAmount, 1000.01);
   assert.equal(result.heldForTaxReviewAmount, 0);
   assert.equal(result.deployableAmount, 10445.59);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 10445.59);
   assertWindfallReconcilesExactly(result);
 });
 
@@ -153,6 +157,9 @@ test("uncertain tax treatment estimates no percentage and holds the remainder", 
   assert.equal(result.reservedTaxAmount, 1000);
   assert.equal(result.heldForTaxReviewAmount, 9000);
   assert.equal(result.deployableAmount, 0);
+  assert.deepEqual(result.allocations, []);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 0);
   assert.equal(result.state, "more_information_needed");
   assertWindfallReconcilesExactly(result);
 });
