@@ -41,8 +41,10 @@ Last refreshed: 2026-09-18
 | FFH-041 | App/Data | CLOSED | production `ef1afe85...`; handoff `796fe701...`; integration `2587a547...` | Manager ACCEPTED; auth/stale/rebase/no-write boundaries clear; final dual audit deferred to integrated Phase-6 target |
 | FFH-042 | Core Engine | CLOSED | production/validation `f9c6081c...`; handoff `30c6e649...`; integration `768644c1...` | Manager ACCEPTED after R01; exact reconciliation clear; final dual audit deferred |
 | FFH-043 | App/Data | CLOSED | production/validation `35036b8a...`; handoff `d1bca71c...`; integration/frozen target `8f4b1c44...` | Manager ACCEPTED after R01; exact merge tree; final dual audits active |
-| FFH-044 | Technical & Mathematical Auditor | ACTIVE | frozen target `8f4b1c44...`; branch `audit/ffh-044-phase6-final-technical-8f4b1c44` | Fresh independent final Phase-6 technical/math audit |
-| FFH-045 | Financial Policy & Scenario Auditor | ACTIVE | frozen target `8f4b1c44...`; branch `audit/ffh-045-phase6-final-policy-8f4b1c44` | Fresh independent final Phase-6 policy/scenario audit |
+| FFH-044 | Technical & Mathematical Auditor | CLOSED | frozen target `8f4b1c44...`; report `676db24f...`; handoff `3f193591...` | PASS WITH NON-BLOCKING FINDINGS; TMA-044-01 queued as FFH-047 |
+| FFH-045 | Financial Policy & Scenario Auditor | CLOSED | frozen target `8f4b1c44...`; report `8199ff7e...`; handoff `0d128ca1...` | FAIL — REMEDIATION REQUIRED; FFH-045-P01 routed to FFH-046 |
+| FFH-046 | Core Financial Engine Engineer | ACTIVE | base `8f4b1c44...`; branch `ffh/ffh-046-windfall-tax-authority-fail-closed` | Blocking FFH-045-P01 Windfall tax-authority remediation |
+| FFH-047 | Application, Data & Integration Engineer | QUEUED | non-blocking follow-up | Preserve unresolved rebase status/bootstrap UX from TMA-044-01 |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -183,3 +185,24 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-045 Financial Policy & Scenario audit ACTIVE.
 - Auditor conclusions must remain independent; neither may rely on the other's report before submitting.
 - Phase 6 is not CLOSED pending both verdicts + Manager reconciliation.
+
+
+## Phase-6 dual-audit reconciliation / remediation — 2026-09-19
+
+Frozen target: `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+FFH-044 Technical & Mathematical:
+- report `676db24ff11455890afee236492b5cf5f1395376`;
+- handoff `3f1935917d4bc2bf212bc47e1dcde7975ac0d53f`;
+- verdict PASS WITH NON-BLOCKING FINDINGS;
+- TMA-044-01 LOW preserved in queued FFH-047.
+
+FFH-045 Financial Policy & Scenario:
+- report `8199ff7eaae83c620e6b2cb01da30b03170538b8`;
+- handoff `0d128ca1a8d16f3d6b7af78cf2b024978c0b2fa2`;
+- verdict FAIL — REMEDIATION REQUIRED;
+- FFH-045-P01 HIGH independently confirmed by Manager.
+
+Manager confirmation: `allocateWindfall()` can treat missing/null known tax liability as zero under `known_taxable_liability_provided`, and unsupported non-null tax-treatment values bypass the uncertain-tax hold. This can make otherwise-unreserved proceeds deployable without accepted tax authority.
+
+FFH-046 ACTIVE for bounded Core remediation. Phase 6 remains OPEN / REMEDIATION. Phase 7 remains NOT STARTED. After FFH-046 acceptance/integration, Manager will freeze a new remediated target and route fresh final re-audit.
