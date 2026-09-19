@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { compareScenariosAction, rebaseScenarioAction, runScenarioAction } from "./actions";
+import {
+  compareScenariosAction,
+  rebaseSpecializedScenarioAction,
+  runScenarioAction,
+  runSpecializedScenarioAction,
+} from "./actions";
+import SpecializedScenarioControls from "./SpecializedScenarioControls";
+import SpecializedScenarioResult from "./SpecializedScenarioResult";
 import type {
   ScenarioLabBootstrap,
   ScenarioPairComparisonDTO,
@@ -14,6 +21,7 @@ import {
   editScenarioDraft,
   resetScenarioDraft,
   scenarioDraftCanCompare,
+  specializedScenarioSubmission,
   type ScenarioDraft,
 } from "@/lib/scenarios/scenario-drafts";
 import type {
@@ -96,11 +104,15 @@ function appendOperations(
 }
 
 function removeOperation(draft: ScenarioDraft, operationId: string): ScenarioDraft {
-  return editScenarioDraft(draft, {
+  const next = editScenarioDraft(draft, {
     ...draft.definition,
     recurringOverrides: draft.definition.recurringOverrides.filter((item) => item.id !== operationId),
     oneTimeEvents: draft.definition.oneTimeEvents.filter((item) => item.id !== operationId),
   });
+  return {
+    ...next,
+    operationEventLinks: draft.operationEventLinks.filter((link) => link.operationId !== operationId),
+  };
 }
 
 function operationSummary(operation: ScenarioRecurringOverride | ScenarioOneTimeEvent): string {
@@ -360,6 +372,17 @@ function BaselineCard({ bootstrap }: { bootstrap: ScenarioLabBootstrap }) {
 }
 
 function ScenarioResultCard({ draft }: { draft: ScenarioDraft }) {
+  if (draft.specializedResult) {
+    return (
+      <article className="scenario-result-card">
+        <p className="eyebrow">Hypothetical specialized scenario</p>
+        <h3>{draft.title}</h3>
+        <p><strong>Status:</strong> {draft.specializedResult.status.replaceAll("_", " ")}</p>
+        <SpecializedScenarioResult result={draft.specializedResult} />
+        <p className="muted">Hypothetical only · never applied to your profile.</p>
+      </article>
+    );
+  }
   const result = draft.result;
   if (!result) return (
     <article className="scenario-result-card">
@@ -436,10 +459,23 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
 
   function runDraft(draft: ScenarioDraft) {
     startTransition(async () => {
+      if (draft.specialized || draft.yourPlanOverrides.length) {
+        const specializedResult = await runSpecializedScenarioAction(specializedScenarioSubmission(draft));
+        const next = {
+          ...draft,
+          result: null,
+          specializedResult,
+          dirty: specializedResult.status === "valid" || specializedResult.status === "more_information_needed" ? false : draft.dirty,
+        };
+        updateDraft(next);
+        announce(`${draft.title} specialized run finished with ${specializedResult.status.replaceAll("_", " ")}.`);
+        return;
+      }
       const result = await runScenarioAction(submission(draft));
       const next = {
         ...draft,
         result,
+        specializedResult: null,
         dirty: result.status === "valid" || result.status === "more_information_needed" ? false : draft.dirty,
       };
       updateDraft(next);
@@ -449,32 +485,42 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
 
   function rebaseDraft(draft: ScenarioDraft) {
     startTransition(async () => {
-      const result = await rebaseScenarioAction(submission(draft));
-      if (result.status === "rebased" && result.definition && result.baseline && result.baselineSummary) {
-        setBaseline((current) => ({ ...current, baseline: result.baseline!, baselineSummary: result.baselineSummary! }));
+      const result = await rebaseSpecializedScenarioAction(specializedScenarioSubmission(draft));
+      if (result.status === "rebased" && result.definition && result.baseline && result.bootstrap) {
+        setBaseline(result.bootstrap);
         updateDraft({
           ...draft,
-          definition: result.definition,
+          definition: result.definition.genericDefinition,
           baseline: result.baseline,
+          specialized: result.definition.specialized,
+          operationEventLinks: [...result.definition.operationEventLinks],
+          yourPlanOverrides: [...result.definition.yourPlanOverrides],
           result: null,
+          specializedResult: null,
           dirty: true,
         });
       } else {
+        const previousSpecialized = draft.specializedResult;
         updateDraft({
           ...draft,
-          result: {
+          specializedResult: previousSpecialized ? {
+            ...previousSpecialized,
+            status: result.status === "unauthorized" ? "unauthorized" : "invalid",
+            issues: result.issues,
+          } : null,
+          result: previousSpecialized ? draft.result : {
             status: result.status === "unauthorized" ? "unauthorized" : "invalid",
             scenarioId: draft.localId,
             baseline: result.baseline,
             baselineSummary: result.baselineSummary,
             scenarioSummary: null,
-            issues: result.issues,
+            issues: result.issues.map((item) => ({ path: item.path, code: "invalid_definition", message: item.message })),
             comparison: null,
             provenance: null,
           },
         });
       }
-      announce(`${draft.title} rebase finished with ${result.status}.`);
+      announce(`${draft.title} rebase finished with ${result.status.replaceAll("_", " ")}.`);
     });
   }
 
@@ -513,10 +559,11 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
                   <input value={draft.title} onChange={(event) => updateDraft(editScenarioDraft(draft, draft.definition, event.target.value))} />
                 </label>
               </div>
-              <span className="scenario-status">{draft.result?.status?.replaceAll("_", " ") ?? "not run"}</span>
+              <span className="scenario-status">{(draft.specializedResult?.status ?? draft.result?.status)?.replaceAll("_", " ") ?? "not run"}</span>
             </div>
 
             <AssumptionComposer draft={draft} bootstrap={baseline} onChange={updateDraft} />
+            <SpecializedScenarioControls draft={draft} bootstrap={baseline} onChange={updateDraft} />
 
             <div className="scenario-assumptions">
               <h3>Assumptions</h3>
@@ -532,7 +579,9 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
 
             <div className="hero-actions">
               <button type="button" onClick={() => runDraft(draft)} disabled={isPending}>{draft.result ? "Rerun" : "Run scenario"}</button>
-              {draft.result?.status === "stale_baseline" ? <button type="button" className="secondary-button" onClick={() => rebaseDraft(draft)} disabled={isPending}>Rebase explicitly</button> : null}
+              {draft.result?.status === "stale_baseline" || draft.specializedResult?.status === "stale_baseline"
+                ? <button type="button" className="secondary-button" onClick={() => rebaseDraft(draft)} disabled={isPending}>Rebase explicitly</button>
+                : null}
               <button type="button" className="secondary-button" onClick={() => updateDraft(resetScenarioDraft(draft, baseline.baseline))} disabled={isPending}>Reset</button>
               <button type="button" className="secondary-button" onClick={() => {
                 if (drafts.length >= 2) return;
