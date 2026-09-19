@@ -197,6 +197,23 @@ test("FFH-040 one-time inflow and cash use remain distinct from recurring income
   });
 });
 
+test("FFH-040 generated one-time cash IDs cannot collide with baseline stable IDs", () => {
+  const input = raw();
+  input.accounts = [...(input.accounts ?? []), {
+    id: "scenario:scenario-1:cash-inflow:bonus",
+    name: "Existing",
+    account_type: "checking",
+    balance: 1,
+    cash_purpose: "unallocated",
+  }];
+  const baseline = engine(input);
+  const run = runMoneyPriorityScenario(baseline, definition({
+    oneTimeEvents: [{ type: "cash_inflow", id: "bonus", amount: 100, label: "Bonus" }],
+  }));
+  assert.equal(run.status, "invalid");
+  assert.ok(run.issues.some((issue) => issue.code === "duplicate_entity_id"));
+});
+
 test("FFH-040 cash-funded debt payoff is atomic, exact, and cannot double-count cash or principal", () => {
   const baseline = engine();
   const frozen = structuredClone(baseline);
@@ -271,7 +288,7 @@ test("FFH-040 HSA family/shared/catch-up authority survives no-op and unrelated 
   const baseline = engine(hsaRaw());
   const sharedBefore = baseline.retirementCapacityLedger.groups.find((group) => group.id === "hsa:married-family");
   assert.ok(sharedBefore);
-  assert.equal(sharedBefore.originalRemainingAnnualRoom, 8750);
+  assert.equal(sharedBefore.originalRemainingAnnualRoom, 10750);\n  assert.deepEqual(baseline.retirementCapacityLedger.entries.map((entry) => entry.sharedOrdinaryRemainingRoom), [8750, 8750]);\n  assert.deepEqual(baseline.retirementCapacityLedger.entries.map((entry) => entry.catchUpRemainingRoom), [1000, 1000]);
   const noOp = runMoneyPriorityScenario(baseline, definition());
   assert.deepEqual(noOp.scenarioEngineResult?.retirementCapacityLedger, baseline.retirementCapacityLedger);
   assert.deepEqual(noOp.scenarioEngineResult?.snapshot.hsa, baseline.snapshot.hsa);
@@ -281,7 +298,7 @@ test("FFH-040 HSA family/shared/catch-up authority survives no-op and unrelated 
   }));
   assert.ok(changed.scenarioEngineResult);
   assert.deepEqual(changed.scenarioEngineResult.snapshot.hsa, baseline.snapshot.hsa);
-  assert.equal(changed.scenarioEngineResult.retirementCapacityLedger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 8750);
+  assert.equal(changed.scenarioEngineResult.retirementCapacityLedger.groups.find((group) => group.id === "hsa:married-family")?.originalRemainingAnnualRoom, 10750);\n  assert.deepEqual(changed.scenarioEngineResult.retirementCapacityLedger.entries.map((entry) => entry.sharedOrdinaryRemainingRoom), [8750, 8750]);\n  assert.deepEqual(changed.scenarioEngineResult.retirementCapacityLedger.entries.map((entry) => entry.catchUpRemainingRoom), [1000, 1000]);
   assert.ok(retirementCapacityInvariantHolds(changed.scenarioEngineResult.retirementCapacityLedger));
 });
 

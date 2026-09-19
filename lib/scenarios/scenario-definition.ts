@@ -334,6 +334,7 @@ export function validateScenarioDefinition(input: unknown, baseline: MoneyPriori
     goals: new Set(baseline.goals.map((item) => item.id)),
     retirement: new Set(baseline.retirementAccounts.map((item) => item.id)),
     insurance: new Set(baseline.insuranceExposures.map((item) => item.id)),
+    accounts: new Set(baseline.accounts.map((item) => item.id)),
   };
 
   const registerOperation = (value: Row, path: string): void => {
@@ -552,6 +553,16 @@ export function validateScenarioDefinition(input: unknown, baseline: MoneyPriori
       rejectUnknownKeys(raw, ["type", "id", "amount", "label"], path, issues);
       money(raw.amount, path + ".amount", issues);
       requireString(raw.label, path + ".label", issues);
+      if (nonemptyString(input.scenarioId) && nonemptyString(raw.id)) {
+        const generatedAccountId = "scenario:" + input.scenarioId + ":cash-inflow:" + raw.id;
+        if (ids.accounts.has(generatedAccountId)) {
+          issues.push({
+            path: path + ".id",
+            code: "duplicate_entity_id",
+            message: "Cash-inflow event would collide with an existing stable account ID.",
+          });
+        }
+      }
       return;
     }
     if (raw.type === "cash_use") {
