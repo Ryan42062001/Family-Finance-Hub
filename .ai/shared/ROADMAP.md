@@ -273,3 +273,20 @@ Phase 6 — Scenario Lab is now **READY FOR MANAGER ACTIVATION / NOT STARTED**. 
 - Policy specialists: WAIT/IDLE until FFH-039 identifies concrete policy questions.
 - Engineering: WAIT/IDLE until Manager accepts the contract and issues bounded implementation tasks.
 - FFH-038: remains queued non-blocking post-Phase-5 hardening; not bundled into Scenario Lab.
+
+## Scenario Lab contract accepted — 2026-09-18
+
+FFH-039 is CLOSED / ACCEPTED.
+
+Phase-6 Scenario Lab v1 is now contractually bounded as an ephemeral deterministic composition layer over the accepted Phase-5 Money Priority Engine.
+
+Implementation order accepted by Manager:
+1. Core Financial Engine — typed scenario definition / immutable overlay / pure scenario runner / generic INCLUDE categories / reconciliation tests.
+2. App/Data — authenticated ephemeral route/server action/UI after the Core contract is stable.
+3. Bounded specialized-adapter integration for Home, Vehicle, Windfall, Your Plan and Recommendation Refresh.
+4. Freeze integrated implementation.
+5. Fresh independent Technical & Mathematical audit.
+6. Fresh independent Financial Policy & Scenario audit.
+7. Remediate blocking findings, then final Phase-6 review.
+
+No persistence schema is planned for v1. Categories requiring new policy remain outside the v1 critical path unless Manager separately activates them.

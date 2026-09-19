@@ -914,3 +914,28 @@ Reason for R&D-first sequencing: the repository has accepted reusable primitives
 FFH-039 is design-only. It must classify scenario categories as INCLUDE / DEFER / REQUIRES POLICY, recommend the persistence model, prove reuse of the accepted Phase-5 engine, isolate new policy questions, and return bounded follow-on tasks.
 
 No Engineering, Policy, Regulatory, or Audit lane is activated yet. FFH-038 remains queued/non-blocking outside Phase 6.
+
+## FFH-039 accepted — 2026-09-18
+
+Manager independently reviewed and accepted the Scenario Lab Product + Technical Contract.
+
+R&D evidence:
+- report commit `b549b8d13e1f54a4b54f7fff2fdab1cbd1073c98`;
+- handoff/final branch head `0566022bb4c809ee55f526af63ac96d7cf1b8a20`;
+- docs-only branch delta from `177cce093cd24fd9169361ff4ccb397ac7b6b5d1`.
+
+Accepted design:
+- ephemeral v1;
+- no Supabase migration or saved scenarios;
+- typed immutable overlays;
+- canonical engine rerun;
+- existing specialized evaluators reused;
+- baseline fingerprint/stale fail-closed model;
+- no apply-to-profile;
+- exact reconciliation, unknown-safe legal capacity and cross-stage no-reuse preserved.
+
+Manager independently confirmed the source supports the composition model and that job-loss/temporary-income scenarios can stay inside existing disruption/reserve semantics when all benefits/entitlements/tax effects remain user-supplied or unknown.
+
+No new policy lane blocks v1. Tax-filing-status, investment-return and Monte Carlo categories remain excluded pending future policy work.
+
+Next event: integrate FFH-039 acceptance, then activate the Core Scenario Lab foundation task from the exact resulting canonical SHA.

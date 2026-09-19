@@ -235,3 +235,27 @@ FFH-039 — Scenario Lab Product + Technical Contract:
 Manager intentionally starts Phase 6 with one R&D lane only. Engineering and policy roles remain idle until FFH-039 identifies bounded implementation and/or policy dependencies.
 
 FFH-038 remains QUEUED / NON-BLOCKING and is outside this activation.
+
+## FFH-039 acceptance — 2026-09-18
+
+FFH-039 — Scenario Lab Product + Technical Contract — is CLOSED / Manager ACCEPTED.
+
+Accepted evidence:
+- report `b549b8d13e1f54a4b54f7fff2fdab1cbd1073c98`;
+- final R&D handoff `0566022bb4c809ee55f526af63ac96d7cf1b8a20`;
+- branch scope: documentation only.
+
+Authoritative Scenario Lab v1 boundary:
+- deterministic ephemeral authenticated workspace;
+- no Scenario Lab Supabase table/migration/cache/localStorage persistence;
+- immutable typed overrides against one server-loaded canonical baseline;
+- one accepted Phase-5 engine, not a parallel engine;
+- specialized adapters for Home, Vehicle, Windfall and Your Plan;
+- Recommendation Refresh semantics reused for before/after basis and explanation;
+- server-generated versioned baseline fingerprint; stale drafts fail closed;
+- no hypothetical-to-profile apply/commit action;
+- exact reconciliation/no-reuse/unknown-safe legal-capacity behavior remains mandatory.
+
+The accepted INCLUDE set is bounded to existing policy/data semantics. Tax filing-status changes, user-selectable return assumptions, and Monte Carlo remain REQUIRES POLICY and are excluded from v1 implementation. Dedicated child/dependent, relocation and refinance experiences remain deferred.
+
+Next: activate the Core scenario overlay/runner foundation from the exact post-acceptance canonical checkpoint. App/Data remains idle until that contract is stable.

@@ -36,7 +36,7 @@ Last refreshed: 2026-09-18
 | FFH-036 | Technical Audit | CLOSED | frozen target `b8e60292...`; report `3ab9fe0a...`; handoff `45026c5f...` | PASS WITH NON-BLOCKING FINDINGS; 1 LOW test-fixture finding accepted; reconciliation gate CLEAR |
 | FFH-037 | Policy Audit | CLOSED | frozen target `b8e60292...`; report `101e24ba...`; handoff `674b9a3c...` | PASS WITH NON-BLOCKING FINDINGS; 2 LOW HSA observations accepted |
 | FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
-| FFH-039 | Product R&D | ACTIVE | design-only; base `ae11a483...` | Phase-6 Scenario Lab product + technical contract; no production implementation |
+| FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -124,3 +124,7 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 
 - Phase 6 Scenario Lab is now ACTIVE through FFH-039 discovery/design only. No Phase-6 production implementation is authorized until Manager accepts the FFH-039 contract and routes bounded follow-on tasks.
 - FFH-038 remains QUEUED / non-blocking and is not part of the Phase-6 kickoff.
+
+- FFH-039 CLOSED / Manager ACCEPTED. Scenario Lab v1 contract is authoritative for Phase-6 implementation planning.
+- Next Phase-6 execution node: Core Financial Engine scenario overlay + runner foundation. Manager will activate it only after this acceptance is integrated to canonical `main`.
+- App/Data remains WAIT behind the Core foundation. REQUIRES POLICY categories remain excluded from v1 and do not block the first implementation slice.
