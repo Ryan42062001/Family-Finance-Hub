@@ -651,3 +651,30 @@ R01 architecture:
 Only after R01 integration and a docs-only follow-up on the existing non-doc-bearing PR #5 succeeds may the required-`verify` ruleset be activated.
 
 All financial, Supabase, live-data, FFH-020/FFH-016, PR #5 merge-readiness, and Phase-6 gates remain unchanged.
+
+## FFH-034-R01 live long-running-PR proof trigger
+
+R01 implementation PR #39 is merged at exact milestone SHA:
+`11aaf9c0a76c44537b0023cb34088ece36e9a4ff`.
+
+Its Phase-5 PR #5 synchronize run is the predecessor validation checkpoint:
+- Foundation CI #717;
+- run `35407991846`;
+- verify job `105801624693`;
+- conclusion SUCCESS;
+- action `synchronize`;
+- scope `synchronize-delta`;
+- range `eb5b6cda93354dcd59c9d710c6238f32c06f297a -> 11aaf9c0a76c44537b0023cb34088ece36e9a4ff`;
+- classification FULL because the delta changed `.github/workflows/ci.yml`;
+- 29/29 classifier tests PASS;
+- complete Foundation pipeline PASS;
+- durable artifact `10573342545`.
+
+This commit intentionally changes only this allowed Markdown control-plane file. Its resulting PR #5 synchronize run is the decisive R01 proof:
+- event predecessor must be `11aaf9c0...`;
+- classification must be DOCS_ONLY on the exact synchronize delta;
+- predecessor continuity must locate successful run #717 for PR #5;
+- AI-state/evidence/guardrails must pass;
+- expensive stages must skip.
+
+Do not treat FFH-034-R01 as closed unless that live proof succeeds.
