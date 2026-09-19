@@ -965,3 +965,19 @@ Core scope is intentionally pure-domain only:
 Do not implement UI, App Router/server actions/auth, Supabase/schema/persistence, Home/Vehicle/Windfall/Your Plan Scenario Lab adapters, Recommendation Refresh UI integration, new financial policy, REQUIRES POLICY categories, FFH-038, or Phase 7.
 
 App/Data remains WAIT until Manager accepts FFH-040's stable contract.
+
+## FFH-040 accepted / FFH-041 activated — 2026-09-18
+
+Manager accepted FFH-040 after independent review of exact production SHA `3407df88440b0742a76cd59aab195c7fe1a103f7`, handoff `870967e1cf5b40979e8c959413b35a037e078f90`, full CI `35418840708` / `105832568156`, continuity CI `35419008620` / `105833024265`, and the required reconciliation hand-check.
+
+PR #52 merged at `75d2766fb370d506b695d722788b03af5f36a155`; the merge tree exactly matches the tested handoff-head tree.
+
+No remediation and no checkpoint audit are warranted. Final dual audits remain attached to the later integrated Scenario Lab target.
+
+Manager activates:
+FFH-041 — Authenticated Ephemeral Scenario Lab Surface
+Owner: Application, Data & Integration Engineer
+Base: `75d2766fb370d506b695d722788b03af5f36a155`
+Branch: `ffh/ffh-041-scenario-lab-ephemeral-surface`
+
+App/Data must consume the accepted Core contract without modifying Core financial semantics. No persistence/schema/live-data mutation or specialized adapter work is authorized.
