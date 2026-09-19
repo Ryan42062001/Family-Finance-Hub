@@ -10,6 +10,7 @@ const execution = readFileSync(new URL("../../lib/scenarios/scenario-execution.t
 const fingerprint = readFileSync(new URL("../../lib/scenarios/scenario-fingerprint.ts", import.meta.url), "utf8");
 const drafts = readFileSync(new URL("../../lib/scenarios/scenario-drafts.ts", import.meta.url), "utf8");
 const coreDefinition = readFileSync(new URL("../../lib/scenarios/scenario-definition.ts", import.meta.url), "utf8");
+const appContract = readFileSync(new URL("../../lib/scenarios/scenario-app-contract.ts", import.meta.url), "utf8");
 
 const surface = [page, actions, workspace, auth, execution, fingerprint, drafts].join("\n");
 
@@ -37,7 +38,8 @@ test("FFH-041 server run boundary reloads baseline, stale-checks, validates Core
   assert.match(execution, /validateScenarioDefinition\(transport\.parsed\.definition, current\.engine\.snapshot\)/);
   assert.match(execution, /runMoneyPriorityScenario\(baselineEngine, definition\)/);
   assert.match(fingerprint, /createHash\("sha256"\)/);
-  assert.match(fingerprint, /scenario-basis-v1/);
+  assert.match(fingerprint, /SCENARIO_FINGERPRINT_SCHEMA_VERSION/);
+  assert.match(appContract, /scenario-basis-v1/);
 });
 
 test("FFH-041 UI does not expose protected legal/statutory Scenario Lab editors", () => {
