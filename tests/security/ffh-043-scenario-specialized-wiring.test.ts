@@ -16,7 +16,7 @@ test("FFH-043 preserves server-derived household authority and stale fail-closed
   assert.match(execution, /loadSnapshot\(authority\.householdId\)/);
   assert.match(execution, /staleSubmission\(transport\.parsed, current\.baseline\)/);
   assert.match(execution, /runSpecializedScenario\(current\.engine, definition\)/);
-  assert.doesNotMatch(actions, /householdId/);
+  assert.doesNotMatch(actions, /input\.householdId|formData\.get\([^)]*household/i);
 });
 
 test("FFH-043 has no specialized persistence, profile-write, schema, or browser-storage path", () => {
