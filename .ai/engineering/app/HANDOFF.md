@@ -259,3 +259,96 @@ Assigned branch:
 Consume the accepted FFH-040 Core scenario contract exactly. Own authenticated baseline loading, server action/run orchestration, fingerprint/stale/rebase behavior, ephemeral lifecycle/UI, generic comparison, and transport/security boundaries.
 
 Do not modify Core financial semantics, add Scenario Lab persistence/schema/live writes, implement specialized Home/Vehicle/Windfall/Your Plan adapters, or introduce new financial policy.
+
+
+## FFH-041 — Authenticated Ephemeral Scenario Lab Surface — worker completion — 2026-09-19
+
+Status: READY_FOR_MANAGER
+
+Exact custody:
+- canonical Manager/control-plane head verified: `b9b0aa9db17a489f2bab666e214a5844d6cb643b`;
+- approved FFH-041 production integration base: `75d2766fb370d506b695d722788b03af5f36a155`;
+- assigned branch: `ffh/ffh-041-scenario-lab-ephemeral-surface`;
+- draft PR: #55 — OPEN / DRAFT / UNMERGED / mergeable at worker completion;
+- PRODUCTION_SHA: `ef1afe85f29598b2545e83e486ffce22498c02c6`;
+- FINAL_VALIDATION_SHA: `ef1afe85f29598b2545e83e486ffce22498c02c6`;
+- exact full Foundation CI: run `35420514850` / job `105837191187` — SUCCESS, mode FULL;
+- HANDOFF_SHA: this completion documentation commit; exact resulting SHA is reported by the worker after branch-ref update;
+- INTEGRATION_SHA: N/A — Manager-owned.
+
+Implementation boundary verified:
+- authenticated `/scenario-lab` route with server-derived membership/household authority;
+- every Run/Rerun authenticates, reloads exactly one current normalized baseline, rebuilds the canonical baseline engine, derives current policy basis/fingerprint, stale-checks before execution, validates through accepted FFH-040, then invokes the accepted pure scenario runner;
+- client-supplied household authority is rejected as an unknown transport field and never selects the loaded household;
+- versioned `scenario-basis-v1:<sha256>` fingerprint mirrors Recommendation Refresh canonicalization: deterministic key ordering, stable-ID collection ordering, display-only exclusions, and cent-normalized monetary comparison;
+- Money Priority policy version, planning-assumptions version, tax-policy version, tax year, explicit as-of date, and fingerprint-schema version are included in the basis;
+- stale drafts fail closed with no scenario engine result/provenance;
+- explicit rebase preserves stable-ID override intent only after validation and returns `unresolved` for deleted referenced entities; no display-name retargeting;
+- purpose-built DTOs preserve authoritative engine amounts and explicit USD/month + USD/year units;
+- generic Recommendation Refresh comparison semantics are reused for profile/recommendation/allocation/feasibility/warning/missing-data changes;
+- ephemeral lifecycle supports create/edit/run/rerun/reset/duplicate/compare/discard, capped to baseline + two drafts;
+- dirty drafts receive before-unload/discard warnings;
+- no Scenario Lab persistence, Supabase table/migration/RLS change, live-data write, profile mutation, localStorage, sessionStorage, indexedDB, save/share/history, Apply Scenario, Save to Profile, or Commit Scenario path exists;
+- generic v1 UI exposes only FFH-040-authorized editor categories; protected legal/statutory fields remain absent from UI/transport and malformed attempts are rejected by the Core validator;
+- responsive comparison stacks to cards on mobile; controls use labels/units, semantic text, keyboard buttons, alert/status/live-region behavior, and post-run focus announcement;
+- no application diagnostic logging of household/scenario financial values was introduced.
+
+Focused validation evidence at the exact candidate:
+- fingerprint deterministic across entity ordering and display-name changes;
+- cent-equivalent money does not create false staleness;
+- material financial, policy, and explicit as-of changes alter the fingerprint;
+- unauthenticated run is rejected before baseline loading;
+- household-ID spoof attempt is rejected while the loader receives only the server-derived household;
+- each explicit run reloads the baseline exactly once;
+- stale baseline returns `stale_baseline` before scenario execution;
+- protected-field payload reaches FFH-040 validation and returns `protected_field`;
+- rebase preserves stable IDs and deleted targets return `unresolved` / `missing_entity`;
+- create/edit/reset/duplicate/compare/discard lifecycle tests pass in memory;
+- comparison DTO amounts equal authoritative engine values and preserve units;
+- security contract proves no persistence/write/schema/apply surface;
+- accessibility-focused contract verifies labels, live status, alert semantics, focus target, before-unload protection, keyboard buttons, and no drag/table-only interaction.
+
+Foundation CI run `35420514850` / job `105837191187`:
+- change classifier: FULL;
+- dependency installation: PASS;
+- AI-state validation: PASS;
+- production dependency audit: PASS;
+- calculation suite: PASS;
+- security suite: PASS;
+- typecheck: PASS;
+- lint: PASS;
+- production build: PASS;
+- Foundation guardrails: PASS.
+The only workflow-level notice observed was GitHub Actions' Node-20 deprecation/Node-24 forcing notice; it is not an FFH-041 product failure.
+
+Production/test changed-file scope at FINAL_VALIDATION_SHA:
+- `app/dashboard/page.tsx`;
+- `app/globals.css`;
+- `app/scenario-lab/ScenarioLabWorkspace.tsx`;
+- `app/scenario-lab/actions.ts`;
+- `app/scenario-lab/page.tsx`;
+- `lib/calculations/ffh-041-scenario-lab.test.ts`;
+- `lib/scenarios/scenario-app-contract.ts`;
+- `lib/scenarios/scenario-auth.ts`;
+- `lib/scenarios/scenario-drafts.ts`;
+- `lib/scenarios/scenario-execution.ts`;
+- `lib/scenarios/scenario-fingerprint.ts`;
+- `tests/security/ffh-041-scenario-lab-surface.test.ts`.
+
+No Core financial-semantic file, Supabase migration, schema, RLS policy, or live production data was modified.
+
+### Next Activation
+
+| Role | Status | Reason | Copy/paste prompt |
+|---|---|---|---|
+| Manager / Architect | RECOMMEND TO MANAGER | Independently verify FFH-041 custody, boundaries, CI, and decide acceptance/integration or remediation. | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-041 on draft PR #55 / branch `ffh/ffh-041-scenario-lab-ephemeral-surface`. Verify production/final-validation SHA `ef1afe85f29598b2545e83e486ffce22498c02c6`, Foundation CI `35420514850` / job `105837191187`, accepted FFH-039/040 boundaries, server-derived household authority, baseline reload + versioned fingerprint/stale fail-closed behavior, explicit stable-ID rebase, protected-field transport rejection, no-persistence/no-write guarantees, lifecycle/comparison exact-unit behavior, and accessible/mobile workspace. Independently accept/integrate or route remediation as warranted. Do not self-merge on worker evidence alone. |
+| Retirement & Tax-Advantaged Policy Analyst | IDLE | No new tax/legal policy was introduced. | — |
+| Debt & Liquidity Policy Analyst | IDLE | No new debt/liquidity policy was introduced. | — |
+| Goals, Cash Flow & Allocation Policy Analyst | IDLE | No new allocation policy was introduced. | — |
+| Core Financial Engine Engineer | IDLE | FFH-040 is accepted; FFH-041 found no Core-contract defect. | — |
+| Application, Data & Integration Engineer | WAIT | FFH-041 worker implementation/validation is complete pending Manager disposition. | — |
+| Regulatory & Financial Research Analyst | IDLE | No regulatory research gap was found. | — |
+| Product & Technical R&D Engineer | IDLE | FFH-039 contract is accepted and consumed. | — |
+| Technical & Mathematical Auditor | WAIT | Fresh Phase-6 audit remains downstream of the later frozen integrated Scenario Lab target. | — |
+| Financial Policy & Scenario Auditor | WAIT | Fresh Phase-6 policy/scenario audit remains downstream of the later frozen integrated target. | — |
+| Work Helper / Super Troubleshooter | IDLE | No escalation trigger or unresolved blocker exists. | — |

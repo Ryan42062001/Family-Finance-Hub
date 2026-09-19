@@ -306,3 +306,28 @@ It owns authenticated baseline loading, server action orchestration, versioned b
 FFH-041 may not add persistence, schema/migrations, live-data writes, apply-to-profile behavior, specialized Home/Vehicle/Windfall/Your Plan adapters, or new financial policy.
 
 Final independent Technical + Financial Policy audits remain downstream of the later frozen integrated Scenario Lab target.
+
+
+## FFH-041 worker READY_FOR_MANAGER — 2026-09-19
+
+Application, Data & Integration Engineering completed the bounded authenticated ephemeral Scenario Lab surface on draft PR #55.
+
+Exact validated production candidate:
+- `ef1afe85f29598b2545e83e486ffce22498c02c6`;
+- Foundation CI `35420514850` / job `105837191187` — SUCCESS / FULL;
+- canonical Manager head remains `b9b0aa9db17a489f2bab666e214a5844d6cb643b`;
+- approved production integration base remains `75d2766fb370d506b695d722788b03af5f36a155`.
+
+Verified FFH-041 boundary:
+- server-authenticated, server-derived household authority;
+- fresh current baseline reload for every explicit run/rerun;
+- versioned SHA-256 financial-basis fingerprint and policy basis;
+- fail-closed stale baseline and explicit stable-ID rebase;
+- ephemeral create/edit/rerun/reset/duplicate/compare/discard only;
+- baseline + at most two scenario drafts;
+- generic Recommendation Refresh comparison semantics;
+- protected-field transport rejection through FFH-040;
+- no persistence/schema/RLS/live-data/profile writes;
+- accessible/mobile generic workspace.
+
+Worker verdict is READY_FOR_MANAGER, not acceptance. Manager now owns independent review and disposition. The separately planned specialized-adapter integration task remains downstream of FFH-041 acceptance, followed later by the frozen integrated Phase-6 dual audits.
