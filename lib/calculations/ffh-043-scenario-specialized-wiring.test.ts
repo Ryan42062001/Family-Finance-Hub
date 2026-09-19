@@ -271,6 +271,94 @@ test("FFH-043 Windfall transport preserves exact reservations, allocations, and 
     + cents(result.totalAllocated) + cents(result.remainingUnallocated));
 });
 
+test("FFH-046 authenticated Windfall tax authority fails closed and preserves explicit known facts", async () => {
+  const engine = baseline();
+
+  const run = async (eventId: string, input: unknown) => {
+    const intent = { type: "windfall", eventId, input } as unknown as ScenarioSpecializedIntent;
+    return executeSpecializedScenarioRun(request(engine, intent), deps(engine.snapshot));
+  };
+  const reconcile = (result: NonNullable<Awaited<ReturnType<typeof run>>["specialized"]> extends { type: "windfall"; result: infer R } ? R : never) => {
+    const cents = (value: number) => Math.round(value * 100);
+    assert.equal(
+      cents(result.grossAmount ?? 0),
+      cents(result.reservedTaxAmount)
+        + cents(result.reservedOtherLiabilityAmount)
+        + cents(result.restrictedAmount)
+        + cents(result.earmarkedAmount)
+        + cents(result.heldForTaxReviewAmount)
+        + cents(result.totalAllocated)
+        + cents(result.remainingUnallocated),
+    );
+  };
+  const windfallResult = (transported: Awaited<ReturnType<typeof run>>) => {
+    assert.equal(transported.specialized?.type, "windfall");
+    if (transported.specialized?.type !== "windfall") throw new Error("Expected Windfall specialized result.");
+    return transported.specialized.result;
+  };
+
+  const missing = await run("windfall-missing-tax", {
+    amount: 10000, source: "bonus", taxTreatment: "known_taxable_liability_provided",
+  });
+  assert.equal(missing.status, "more_information_needed");
+  const missingResult = windfallResult(missing);
+  assert.equal(missingResult.heldForTaxReviewAmount, 10000);
+  assert.equal(missingResult.deployableAmount, 0);
+  assert.deepEqual(missingResult.allocations, []);
+  reconcile(missingResult);
+
+  const nullLiability = await run("windfall-null-tax", {
+    amount: 10000, source: "bonus", taxTreatment: "known_taxable_liability_provided", knownTaxLiability: null,
+  });
+  assert.equal(nullLiability.status, "more_information_needed");
+  const nullResult = windfallResult(nullLiability);
+  assert.equal(nullResult.heldForTaxReviewAmount, 10000);
+  assert.equal(nullResult.deployableAmount, 0);
+  assert.deepEqual(nullResult.allocations, []);
+  reconcile(nullResult);
+
+  const explicitZero = await run("windfall-zero-tax", {
+    amount: 10000, source: "bonus", taxTreatment: "known_taxable_liability_provided", knownTaxLiability: 0,
+  });
+  assert.equal(explicitZero.status, "valid");
+  const zeroResult = windfallResult(explicitZero);
+  assert.equal(zeroResult.reservedTaxAmount, 0);
+  assert.equal(zeroResult.heldForTaxReviewAmount, 0);
+  assert.equal(zeroResult.deployableAmount, 10000);
+  reconcile(zeroResult);
+
+  const unsupported = await run("windfall-unsupported-tax", {
+    amount: 10000, source: "bonus", taxTreatment: "unsupported-value",
+  });
+  assert.equal(unsupported.status, "invalid");
+  const unsupportedResult = windfallResult(unsupported);
+  assert.equal(unsupportedResult.heldForTaxReviewAmount, 10000);
+  assert.equal(unsupportedResult.deployableAmount, 0);
+  assert.deepEqual(unsupportedResult.allocations, []);
+  reconcile(unsupportedResult);
+
+  const known = await run("windfall-known-tax", {
+    amount: 12345.67, source: "bonus", taxTreatment: "known_taxable_liability_provided",
+    knownTaxLiability: 1000.01, knownOtherLiability: 200, restrictedAmount: 300.03, earmarkedAmount: 400.04,
+  });
+  assert.equal(known.status, "valid");
+  const knownResult = windfallResult(known);
+  assert.equal(knownResult.reservedTaxAmount, 1000.01);
+  assert.equal(knownResult.deployableAmount, 10445.59);
+  reconcile(knownResult);
+
+  const uncertain = await run("windfall-uncertain-tax", {
+    amount: 12345.67, source: "bonus", taxTreatment: "uncertain",
+    knownTaxLiability: 1000.01, knownOtherLiability: 200, restrictedAmount: 300.03, earmarkedAmount: 400.04,
+  });
+  assert.equal(uncertain.status, "more_information_needed");
+  const uncertainResult = windfallResult(uncertain);
+  assert.equal(uncertainResult.heldForTaxReviewAmount, 10445.59);
+  assert.equal(uncertainResult.deployableAmount, 0);
+  assert.deepEqual(uncertainResult.allocations, []);
+  reconcile(uncertainResult);
+});
+
 test("FFH-043 Your Plan transports active, superseded, invalid, and funding-gap states", async () => {
   const engine = baseline();
   const allocationId = deriveRecommendedPlanAllocations(engine)[0]!.allocationId;
