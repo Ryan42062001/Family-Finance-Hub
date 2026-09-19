@@ -1037,3 +1037,30 @@ Branch: `ffh/ffh-043-scenario-specialized-wiring`.
 FFH-043 owns only App/Data wiring of the accepted FFH-042 specialized contract into the FFH-041 authenticated ephemeral workspace plus refresh of stable-ID entity options after successful rebase. It may not change Core financial semantics, add persistence/schema/RLS/profile writes, or introduce new policy.
 
 After FFH-043 Manager acceptance/integration, freeze the exact integrated Phase-6 target and activate fresh independent Technical & Mathematical and Financial Policy & Scenario audits against the same frozen checkpoint.
+
+
+## FFH-043 accepted / final Phase-6 dual audits activated — 2026-09-19
+
+Manager independently re-reviewed FFH-043 R01 and accepted the final specialized Scenario Lab application wiring.
+
+Evidence:
+- R01 production/final-validation `35036b8aa228306c3c40212877c38f33940f74ce`;
+- FULL Foundation CI `35425124896` / `105849617675` SUCCESS;
+- final handoff `d1bca71cf32d2b36edfafbba199d0742c9e572da`;
+- continuity CI `35425264535` / `105849982649` SUCCESS;
+- PR #59 integration `8f4b1c443684446cdf9b619bd35336f5873265bc`;
+- merge tree exactly matches accepted handoff.
+
+The prior malformed nested baseline-reference blocker is closed. Matching-outer malformed Run/Rebase inputs fail closed with structured validation; valid and genuinely stale paths remain preserved.
+
+Manager freezes exact integrated Phase-6 production target:
+`8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+Shared packet:
+`.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`.
+
+Fresh independent lanes:
+- FFH-044 Technical & Mathematical Auditor — `audit/ffh-044-phase6-final-technical-8f4b1c44`;
+- FFH-045 Financial Policy & Scenario Auditor — `audit/ffh-045-phase6-final-policy-8f4b1c44`.
+
+Do not expose either auditor's verdict/reasoning to the other before both submit. Manager reconciles both reports afterward. Phase 6 remains ACTIVE / NOT CLOSED until that reconciliation.

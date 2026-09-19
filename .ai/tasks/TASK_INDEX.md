@@ -40,7 +40,9 @@ Last refreshed: 2026-09-18
 | FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
 | FFH-041 | App/Data | CLOSED | production `ef1afe85...`; handoff `796fe701...`; integration `2587a547...` | Manager ACCEPTED; auth/stale/rebase/no-write boundaries clear; final dual audit deferred to integrated Phase-6 target |
 | FFH-042 | Core Engine | CLOSED | production/validation `f9c6081c...`; handoff `30c6e649...`; integration `768644c1...` | Manager ACCEPTED after R01; exact reconciliation clear; final dual audit deferred |
-| FFH-043 | App/Data | READY_FOR_MANAGER | R01 production/final validation `35036b8a...`; draft PR #59 | R01 FULL Foundation CI `35425124896` / job `105849617675` SUCCESS; Manager blocking comment 5739746605 repaired; fresh Manager re-review next |
+| FFH-043 | App/Data | CLOSED | production/validation `35036b8a...`; handoff `d1bca71c...`; integration/frozen target `8f4b1c44...` | Manager ACCEPTED after R01; exact merge tree; final dual audits active |
+| FFH-044 | Technical & Mathematical Auditor | ACTIVE | frozen target `8f4b1c44...`; branch `audit/ffh-044-phase6-final-technical-8f4b1c44` | Fresh independent final Phase-6 technical/math audit |
+| FFH-045 | Financial Policy & Scenario Auditor | ACTIVE | frozen target `8f4b1c44...`; branch `audit/ffh-045-phase6-final-policy-8f4b1c44` | Fresh independent final Phase-6 policy/scenario audit |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -169,3 +171,15 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-043 R01 worker remediation after Manager PR #59 comment `5739746605` is READY_FOR_MANAGER on production/final-validation `35036b8aa228306c3c40212877c38f33940f74ce`; R01 FULL Foundation CI `35425124896` / job `105849617675` is SUCCESS.
 - Narrow scope: guarded malformed nested `genericDefinition.baselineReference` Run/Rebase transport and seven matching-outer-fingerprint malformed-reference regressions, plus valid/stale controls. No financial evaluator, UI, schema, persistence, or profile-write change.
 - Prior `b21efd79...` / `8a99aabd...` checkpoint remains historical initial worker handoff and is superseded for Manager review by the R01 validated checkpoint plus final docs-only handoff. Manager must independently re-review before integration; integrated Phase-6 dual audits remain WAIT.
+
+
+## Phase-6 final dual-audit freeze — 2026-09-19
+
+- FFH-043 CLOSED / Manager ACCEPTED; integration `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+- Handoff-to-integration comparison: zero changed files.
+- Frozen final integrated Phase-6 target: `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+- Shared packet: `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`.
+- FFH-044 Technical & Mathematical audit ACTIVE.
+- FFH-045 Financial Policy & Scenario audit ACTIVE.
+- Auditor conclusions must remain independent; neither may rely on the other's report before submitting.
+- Phase 6 is not CLOSED pending both verdicts + Manager reconciliation.

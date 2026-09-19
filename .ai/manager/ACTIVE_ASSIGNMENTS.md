@@ -273,3 +273,38 @@ change Core financial semantics; add persistence/schema/RLS/profile writes; add 
 - Financial Policy & Scenario Auditor: WAIT until the same frozen integrated target.
 - Work Helper: IDLE / on-demand.
 - FFH-038: QUEUED / non-blocking and separate.
+
+
+# Phase-6 final dual audits — 2026-09-19
+
+Status: ACTIVE / FROZEN
+
+Frozen production target:
+`8f4b1c443684446cdf9b619bd35336f5873265bc`
+
+Shared packet:
+`.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`
+
+## ACTIVE
+
+### FFH-044 — Final Integrated Phase-6 Technical & Mathematical Audit
+Owner: Technical & Mathematical Auditor
+Branch: `audit/ffh-044-phase6-final-technical-8f4b1c44`
+Audit only frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+### FFH-045 — Final Integrated Phase-6 Financial Policy & Scenario Audit
+Owner: Financial Policy & Scenario Auditor
+Branch: `audit/ffh-045-phase6-final-policy-8f4b1c44`
+Audit only frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for both independent audit verdicts.
+- Retirement, Debt/Liquidity, Goals/Cash-Flow policy roles: IDLE unless an auditor routes a concrete policy question through Manager.
+- Core Financial Engine Engineer: IDLE.
+- Application, Data & Integration Engineer: IDLE; FFH-043 CLOSED.
+- Regulatory Research: IDLE.
+- Product & Technical R&D: IDLE.
+- Work Helper: IDLE / on-demand.
+- FFH-038 remains separately QUEUED / non-blocking.
+- Phase 7 remains NOT STARTED.

@@ -375,3 +375,18 @@ FFH-043 is ACTIVE for the final bounded application integration slice:
 - no new financial policy.
 
 After FFH-043 acceptance/integration, Manager freezes the exact integrated Phase-6 implementation and activates fresh independent Technical & Mathematical plus Financial Policy & Scenario audits against that same frozen target.
+
+
+## Phase-6 final integrated audit gate — 2026-09-19
+
+FFH-043 is CLOSED / ACCEPTED and integrated at `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+That exact integration is frozen as the final Phase-6 production audit target.
+
+Active independent audits:
+- FFH-044 — Technical & Mathematical;
+- FFH-045 — Financial Policy & Scenario.
+
+Both use shared packet `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md` and audit the same exact frozen SHA while remaining independent.
+
+Phase 6 remains ACTIVE pending both verdicts and Manager reconciliation. Phase 7 remains PLANNED / NOT STARTED. FFH-038 remains queued non-blocking and outside this audit target.
