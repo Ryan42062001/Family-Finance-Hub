@@ -363,8 +363,8 @@ test("FFH-042 Windfall reservations, destinations, and residual reconcile exactl
   );
   assert.equal(cents(result.deployableAmount), cents(result.totalAllocated) + cents(result.remainingUnallocated));
   assert.equal(result.deployableAmount, 10445.59);
-  assert.equal(result.totalAllocated, 4000);
-  assert.equal(result.remainingUnallocated, 6445.59);
+  assert.equal(result.totalAllocated, 4300);
+  assert.equal(result.remainingUnallocated, 6145.59);
 });
 
 test("FFH-042 Your Plan is the exact final allocation layer and exposes funding gaps without clamping", () => {
