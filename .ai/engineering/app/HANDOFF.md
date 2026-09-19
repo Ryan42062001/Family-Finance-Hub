@@ -117,3 +117,20 @@ Manager authorizes one live command from that exact safe worktree:
 `npx.cmd --yes supabase@latest db push --linked --include-all`
 
 After execution, stop and preserve output. Do not retry on failure. Required next evidence is read-only migration/schema/RLS/policy/advisor verification for Manager acceptance. FFH-016 remains blocked until that acceptance.
+
+## FFH-020 accepted / FFH-035 current assignment — 2026-09-18
+
+FFH-020 deployment is Manager-accepted.
+
+Live proof:
+- Phase-5A / FFH-010 / FFH-011 migrations applied successfully;
+- migration history canonical;
+- expected schema/constraints present;
+- FFH-010 RLS/policies/grants verified;
+- no backfills;
+- security advisor clean;
+- FFH-023 table remains absent.
+
+Current assignment: FFH-035 — deploy exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql` after fresh protected backup and single-migration dry-run proof.
+
+FFH-016 remains verification-only and BLOCKED until FFH-035 is accepted.

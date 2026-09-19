@@ -119,3 +119,13 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - FFH-020 Stage A ACCEPTED on 2026-09-18. Live history now canonicalizes foundation as `0001` and Phase 5B as `20260903134156`; old aliases removed.
 - Stage B is Manager-authorized for exactly `supabase db push --linked --include-all` from safe checkpoint `945bf8f4403a26812a93a160479cf319096579d5`; FFH-023 migration excluded.
 - FFH-016 remains BLOCKED pending Manager-accepted Stage B deployment/post-deploy verification. PR #5 remains NOT MERGE READY; Phase 6 remains gated.
+
+## FFH-020 acceptance / FFH-035 routing — 2026-09-18
+
+- FFH-020 ACCEPTED: exact Phase-5A + FFH-010 + FFH-011 live push succeeded on project `tsqwvggojeudgspnumze`.
+- Manager independently verified canonical migration history, required schema/constraints, FFH-010 RLS + 12 policies + authenticated-only CRUD grants, zero backfill rows, and zero Supabase security-advisor findings.
+- Performance advisor produced INFO-only findings: two unindexed FK suggestions on the new married-allocation table and unused-index notices on a fresh/low-traffic database; non-blocking for FFH-020.
+- FFH-023 migration `20260911170000` remains intentionally undeployed and its table remains absent.
+- Current milestone runtime queries that FFH-023 table in both loader and HSA UI; therefore FFH-016 remains BLOCKED on new bounded deployment task FFH-035 rather than starting with a known schema mismatch.
+- FFH-035 ACTIVE: deploy exactly the accepted FFH-023 legal-spouse authority migration after fresh backup + one-migration dry-run proof.
+- PR #5 remains NOT MERGE READY. Phase 6 remains gated.

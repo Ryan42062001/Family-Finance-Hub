@@ -13,11 +13,11 @@ Last refreshed: 2026-09-18
 | FFH-013 | Core Engine | CLOSED | production `8d9cbc62...`; final frozen target `4b7ed998...` | Final Technical PASS + Policy PASS; zero findings; R01/R02/R03/T1/A01-A05/M01/M02 and reconciliation gate clear |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
-| FFH-016 | App/Data | BLOCKED | verification-only | Wait for Manager-accepted FFH-020 deployment |
+| FFH-016 | App/Data | BLOCKED | verification-only | FFH-020 accepted; wait for FFH-035 legal-spouse migration so current runtime schema is complete |
 | FFH-017 | Core Engine | CLOSED | final frozen target `c563d011...` | Technical PASS + Policy PASS; zero findings; TMA-017-08/P05 closed; R02-R07/M01/reconciliation/floor/no-reuse preserved |
 | FFH-018 | Product R&D / Engineering | CLOSED | discovery/design accepted | Manager accepted fail-closed always-running verify design; implementation split to FFH-034 |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
-| FFH-020 | App/Data | ACTIVE | Stage A ACCEPTED; safe worktree `945bf8f...` | Stage B authorized for exact three-migration linked push; FFH-023 excluded |
+| FFH-020 | App/Data | ACCEPTED | live deployment to `tsqwvggojeudgspnumze` | Phase 5A + FFH-010 + FFH-011 applied; schema/RLS/policies/security verified; FFH-023 correctly excluded |
 | FFH-021 | Manager | CLOSED | control-plane | Work Helper / Super Troubleshooter role adopted |
 | FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e53...` | Legal-marriage authority remains sufficient; no new authority gap |
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
@@ -32,6 +32,7 @@ Last refreshed: 2026-09-18
 | FFH-032 | Manager | CLOSED | integration/audit target `30592f8c...` | independent workflow/control-plane audit PASS; zero findings; compact table superseded by FFH-033 full-workforce view |
 | FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
 | FFH-034 | Product R&D / Engineering | CLOSED | frozen target `aa88b8d4...`; ruleset `23686709`; audit report `945be18c...` | Independent Technical/Workflow audit PASS; zero findings; required `verify` enforcement active |
+| FFH-035 | App/Data | ACTIVE | exact migration `20260911170000...` | Deploy accepted FFH-023 legal-spouse authority migration only; then reactivate FFH-016 |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
