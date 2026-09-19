@@ -37,6 +37,7 @@ Last refreshed: 2026-09-18
 | FFH-037 | Policy Audit | CLOSED | frozen target `b8e60292...`; report `101e24ba...`; handoff `674b9a3c...` | PASS WITH NON-BLOCKING FINDINGS; 2 LOW HSA observations accepted |
 | FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
 | FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
+| FFH-040 | Core Engine | ACTIVE | base `cc8e2c20...`; branch `ffh/ffh-040-scenario-runner-foundation` | Typed immutable scenario overlay + canonical runner foundation; reconciliation gate required |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -128,3 +129,6 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-039 CLOSED / Manager ACCEPTED. Scenario Lab v1 contract is authoritative for Phase-6 implementation planning.
 - Next Phase-6 execution node: Core Financial Engine scenario overlay + runner foundation. Manager will activate it only after this acceptance is integrated to canonical `main`.
 - App/Data remains WAIT behind the Core foundation. REQUIRES POLICY categories remain excluded from v1 and do not block the first implementation slice.
+
+- FFH-040 ACTIVE. Core owns the pure Scenario Lab typed overlay/runner foundation. No UI, Supabase, persistence, specialized adapters, or new policy is authorized in this task.
+- App/Data remains WAIT behind FFH-040. FFH-038 remains separately QUEUED / non-blocking.
