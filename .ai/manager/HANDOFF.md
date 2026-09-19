@@ -812,3 +812,22 @@ Stage B authorization:
 `npx.cmd --yes supabase@latest db push --linked`
 
 The CLI confirmation must list that migration and no other. Stop on any error. After success, only read-only verification is authorized pending Manager acceptance.
+
+## FFH-035 accepted / FFH-016 reactivated — 2026-09-18
+
+Manager accepted FFH-035 after the exact one-migration push and independent live verification.
+
+Accepted FFH-035 evidence:
+- `20260911170000 ffh_023_hsa_legal_spouse_authority` recorded remotely;
+- legal-spouse authority table live;
+- expected constraints/index live;
+- RLS enabled;
+- four exact household-scoped policies live;
+- authenticated CRUD only; no anon grants;
+- zero rows/backfill;
+- Supabase security advisor zero findings;
+- performance advisor INFO-only findings.
+
+FFH-016 is now ACTIVE as the verification-only live parity gate. No production remediation is authorized inside FFH-016; any mismatch must be returned to Manager and routed separately.
+
+PR #5 remains NOT MERGE READY. Final integrated Technical + Financial Policy audits remain downstream of FFH-016.

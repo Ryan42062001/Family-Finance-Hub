@@ -132,3 +132,7 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - FFH-035 Stage A ACCEPTED: fresh protected backup complete; dry run lists exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`.
 - FFH-035 Stage B authorized for one linked push of that exact migration only.
 - FFH-016 remains BLOCKED until Manager accepts FFH-035 post-deployment evidence.
+- FFH-035 ACCEPTED: exact legal-spouse authority migration `20260911170000` applied successfully and independently verified live.
+- FFH-035 post-deploy proof: table + expected constraints/index + RLS + four policies + authenticated-only CRUD grants; zero rows/backfill; security advisor zero findings; performance findings INFO only.
+- FFH-016 ACTIVE: all required current-milestone Supabase migrations are now live; proceed with verification-only PostgREST/RLS/persistence/reload/runtime/browser parity.
+- PR #5 remains NOT MERGE READY until FFH-016 and final integrated Phase-5 audits/review clear. Phase 6 remains gated.
