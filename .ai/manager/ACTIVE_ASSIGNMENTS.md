@@ -151,3 +151,15 @@ Must not: implement production code/UI/schema, define new financial policy, modi
 - Financial Policy / Regulatory: idle until FFH-039 identifies a concrete unresolved policy question.
 - Auditors: idle; no design audit currently required.
 - FFH-038: queued/non-blocking, separate from Scenario Lab.
+
+# FFH-039 Manager disposition — 2026-09-18
+
+Status: ACCEPTED / awaiting canonical integration of acceptance record
+
+- FFH-039: CLOSED / ACCEPTED.
+- Product R&D: WAIT / complete.
+- Core Financial Engine Engineer: WAIT until Manager establishes exact post-acceptance base and issues the new Scenario Lab foundation task.
+- Application, Data & Integration Engineer: WAIT behind Core foundation.
+- Policy / Regulatory roles: IDLE; no v1 blocker. REQUIRES POLICY categories remain excluded.
+- Auditors: IDLE until integrated production implementation is frozen.
+- FFH-038: remains QUEUED / non-blocking and separate.
