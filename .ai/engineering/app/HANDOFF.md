@@ -366,3 +366,118 @@ Non-blocking later App/Data note:
 successful rebase currently refreshes baseline descriptor/summary but not the in-page entity-option lists. Server-side stable-ID validation remains fail-closed. Refresh those option lists when the specialized Scenario Lab UI is wired after FFH-042.
 
 Application, Data & Integration Engineer is WAIT/IDLE until Manager accepts FFH-042.
+
+
+## FFH-043 — Authenticated Specialized Scenario Lab Wiring — worker completion — 2026-09-19
+
+Status: READY_FOR_MANAGER
+
+Exact custody:
+- canonical Manager/control-plane assignment head: `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`;
+- accepted FFH-042 integration base: `768644c1e8baf41eef72fa0e857a0c474a56823e`;
+- assigned branch: `ffh/ffh-043-scenario-specialized-wiring`;
+- draft PR: #59 — OPEN / DRAFT / UNMERGED / mergeable at the validated production checkpoint;
+- PRODUCTION_SHA: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- FINAL_VALIDATION_SHA: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- full Foundation CI: run `35423965522` / job `105846580432` — SUCCESS, mode FULL;
+- HANDOFF_SHA: documentation-only completion chain after the exact tested production checkpoint; exact final branch SHA is reported by the worker after the single PR-branch fast-forward;
+- INTEGRATION_SHA: N/A — Manager-owned.
+
+Implementation evidence:
+- specialized server actions reuse FFH-041's server-side authentication/household authority dependency and never accept client household identity as authority;
+- every explicit specialized Run/Rebase loads the fresh server-authorized normalized snapshot and reconstructs the current canonical Money Priority baseline;
+- fingerprint/policy-basis staleness is checked before FFH-042 execution; stale runs return `stale_baseline` with no specialized result/provenance;
+- generic assumptions remain validated by accepted FFH-040 before the accepted FFH-042 specialized runner is invoked;
+- Home and Vehicle transport preserves the accepted evaluator result plus authoritative post-engine summaries/Recommendation Refresh projections;
+- Windfall transport preserves accepted gross amount, explicit reservations, held-for-tax-review amount, destinations/allocations, and remaining residual without converting proceeds into generic cash/income;
+- focused Windfall proof reconciles gross exactly to reserved tax + other liability + restricted + earmarked + held-for-review + allocations + remaining unallocated, to cents;
+- Your Plan remains an allocation layer using exact stable allocation IDs and preserves active/superseded/invalid status, funding gap, remaining capacity, and accepted warnings;
+- accepted FFH-042 duplicate-event, ambiguous-ownership, stable-entity-overlap, duplicate-override, and unavailable-post-engine conditions remain structured/fail-closed;
+- unrelated independent generic operations remain permitted where FFH-042 permits them;
+- successful explicit specialized rebase returns a fresh `ScenarioLabBootstrap`, and the workspace installs it so new eligible stable-ID entity options appear and unrelated deleted options disappear without page reload;
+- deleted referenced stable IDs return `unresolved` / `missing_entity`; no display-name matching or retargeting is present;
+- specialized editor/result controls retain labels, explicit units, ordinary keyboard-operable buttons, alert/status semantics, live-region announcement, post-run focus, and narrow-screen card behavior inherited from FFH-041;
+- baseline + at most two drafts remains the bounded in-memory model with create/edit/run/rerun/reset/duplicate/compare/discard and dirty-draft warnings;
+- no Scenario Lab persistence, localStorage/sessionStorage/IndexedDB, Supabase table/migration/RLS change, live household/profile write, Apply/Save/Commit path, Core financial semantic change, new financial policy, FFH-038, or Phase-7 work was introduced.
+
+Exact production/test changed-file scope versus Manager checkpoint `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`:
+- `app/scenario-lab/ScenarioLabWorkspace.tsx`;
+- `app/scenario-lab/SpecializedScenarioControls.tsx`;
+- `app/scenario-lab/SpecializedScenarioResult.tsx`;
+- `app/scenario-lab/actions.ts`;
+- `lib/calculations/ffh-043-scenario-specialized-wiring.test.ts`;
+- `lib/scenarios/scenario-app-contract.ts`;
+- `lib/scenarios/scenario-drafts.ts`;
+- `lib/scenarios/scenario-execution.ts`;
+- `lib/scenarios/scenario-specialized-execution.ts`;
+- `tests/security/ffh-043-scenario-specialized-wiring.test.ts`.
+
+Validation at exact FINAL_VALIDATION_SHA:
+- full Foundation CI mode: FULL;
+- classifier + AI-state validation: PASS;
+- dependency installation/audit: PASS;
+- calculation suite: PASS;
+- security suite: PASS;
+- typecheck: PASS;
+- lint: PASS;
+- production build: PASS;
+- evidence + Foundation guardrails: PASS.
+
+No App/Data blocker remains. Worker verdict is READY_FOR_MANAGER only; no self-acceptance or merge occurred.
+
+### Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-043 on draft PR #59 / branch `ffh/ffh-043-scenario-specialized-wiring`. Verify production/final-validation SHA `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`, full Foundation CI `35423965522` / job `105846580432`, final documentation-only handoff/continuity CI, accepted FFH-039/041/042 boundaries, server-derived household authority, stale fail-closed ordering, direct specialized-output transport, successful-rebase stable-ID option refresh, conflict/Your Plan/Windfall reconciliation behavior, no-write semantics, and accessibility/mobile preservation. Independently accept/integrate or route remediation; then freeze the integrated Phase-6 target before any dual audit activation. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | WAIT | — |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-043 R01 — malformed nested baseline reference transport — worker completion — 2026-09-19
+
+Status: READY_FOR_MANAGER / Manager re-review required.
+
+Manager blocking finding: PR #59 comment `5739746605` identified a reachable authenticated request with matching outer current fingerprint/policy basis but missing/null/malformed nested `genericDefinition.baselineReference`. The previous `staleSubmission()` dereferenced `.fingerprint` before accepted generic validation and could throw rather than returning a structured `invalid` response.
+
+R01 exact custody:
+- Manager/control-plane base: `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`;
+- accepted FFH-042 integration base: `768644c1e8baf41eef72fa0e857a0c474a56823e`;
+- original FFH-043 production: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- original worker handoff/Manager-reviewed branch head: `8a99aabd32c9e3fa0eebf0b3b7994dd738a821dd`;
+- source guard commit: `efc19a5a52d82d628f1f665565179769d985de5f`;
+- PRODUCTION_SHA / FINAL_VALIDATION_SHA: `35036b8aa228306c3c40212877c38f33940f74ce`;
+- R01 FULL Foundation CI: run `35425124896` / job `105849617675`, SUCCESS;
+- HANDOFF_SHA: this documentation-only R01 handoff chain, with exact final branch SHA returned by worker after the PR-branch fast-forward;
+- INTEGRATION_SHA: N/A — Manager-owned; MANAGER_VERDICT: PENDING; AUDIT_STATUS: NOT_READY.
+
+Narrow production repair:
+- `lib/scenarios/scenario-specialized-execution.ts`: `validateSpecializedShape()` requires a non-array nested `baselineReference` object and fingerprint that is null or a nonempty string before `staleSubmission()`; malformed nested request inputs return `invalid_definition` or `invalid_string` with stable issue paths.
+- `lib/calculations/ffh-043-scenario-specialized-wiring.test.ts`: matching current outer fingerprint/policy-basis regressions for missing, null, primitive, array, missing-fingerprint, numeric-fingerprint and empty-fingerprint nested references. Both authenticated Run and Rebase return structured `invalid` without throw; no specialized result/provenance on Run, no rebased definition on Rebase, fresh server-authorized bootstrap available. Each explicit request loads once.
+- Valid Home specialized Run remains usable, valid explicit Rebase returns `rebased`, and a valid-string but mismatched nested fingerprint still returns `stale_baseline` with no specialized result/provenance. The prior genuine changed-baseline stale regression remains in the full suite.
+- No FFH-042 Core semantic/evaluator change, UI redesign, security-boundary change, financial policy, persistence, Supabase schema/RLS, profile/live-data write, FFH-038, or Phase-7 work.
+
+Validation at `35036b8aa228306c3c40212877c38f33940f74ce`: Foundation CI mode FULL with classifier, dependency installation/audit, AI-state validation, entire calculation/security suites, typecheck, lint, production build, evidence and guardrails SUCCESS. This is worker evidence, not Manager acceptance. PR #59 remains draft/unmerged pending independent R01 review. Final dual audits must not be activated/frozen yet.
+
+### Next Activation — FFH-043 R01
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Re-review FFH-043 R01 on draft PR #59 / branch `ffh/ffh-043-scenario-specialized-wiring` against Manager blocking comment `5739746605`. Verify corrected production/final-validation SHA `35036b8aa228306c3c40212877c38f33940f74ce`, FULL Foundation CI `35425124896` / job `105849617675`, exact final handoff/continuity CI, and only the narrow nested `genericDefinition.baselineReference` transport guard plus matching-outer malformed Run/Rebase and valid/stale regression evidence. Independently accept/integrate or route further remediation. Keep final Phase-6 dual audits gated until accepted integrated target is frozen. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | WAIT | — |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | — |
+| 10 | Financial Policy & Scenario Auditor | WAIT | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |

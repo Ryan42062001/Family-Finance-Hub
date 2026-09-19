@@ -350,3 +350,40 @@ One non-blocking UI hardening note remains for later App/Data wiring: successful
 
 FFH-042 — Scenario Lab Specialized Adapter Composition — is ACTIVE.
 It owns only the pure-domain Home/Vehicle/Windfall/Your Plan/Recommendation Refresh composition layer plus conflict detection and reconciliation. No Scenario Lab UI/server-action/Supabase/persistence/new-policy work is authorized.
+
+
+## FFH-043 worker completion — 2026-09-19
+
+FFH-043 — Authenticated Specialized Scenario Lab Wiring — is READY_FOR_MANAGER.
+
+Exact worker custody:
+- canonical Manager/control-plane head at assignment: `d37a8d0627f5e3dfb9676baf57bae2c08e7bdc3f`;
+- accepted FFH-042 production integration base: `768644c1e8baf41eef72fa0e857a0c474a56823e`;
+- assigned branch: `ffh/ffh-043-scenario-specialized-wiring`;
+- draft PR: #59 — OPEN / DRAFT / UNMERGED at worker completion;
+- production/final-validation: `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`;
+- full Foundation CI: run `35423965522` / job `105846580432` — SUCCESS / FULL;
+- handoff: documentation-only READY_FOR_MANAGER chain after the tested production checkpoint; exact final branch SHA is reported by the worker;
+- integration: N/A — Manager-owned.
+
+Verified Phase-6 wiring boundary:
+- FFH-041 server-derived authenticated household authority and fresh normalized baseline loading remain authoritative for specialized runs/rebases;
+- stale fingerprint/policy-basis mismatch fails closed before accepted FFH-042 specialized execution;
+- Home, Vehicle, Windfall, Your Plan, Recommendation Refresh, and composition conflict behavior are consumed from the accepted FFH-042 runner/contract rather than reimplemented in App/Data;
+- Home/Vehicle/Windfall result transport preserves accepted evaluator values, and Windfall reservation/allocation/residual reconciliation is exact to cents;
+- successful explicit rebase returns and installs a fresh current bootstrap so stable-ID editor options refresh without a page reload;
+- deleted referenced stable IDs remain unresolved / missing-entity and are never retargeted by display name;
+- baseline + up to two drafts remains in-memory only with the accepted lifecycle and accessibility/mobile behavior;
+- no Core semantic change, Scenario Lab persistence, Supabase schema/migration/RLS change, live/profile write, browser storage, new financial policy, FFH-038, or Phase-7 work was introduced.
+
+Worker verdict is READY_FOR_MANAGER, not Manager acceptance. Manager now owns independent source/CI/custody review and disposition. Final fresh Technical & Mathematical and Financial Policy & Scenario audits remain downstream until Manager accepts/integrates FFH-043 and freezes the integrated Phase-6 target.
+
+## FFH-043 R01 remediation worker-ready — 2026-09-19
+
+Manager's independent review of initial FFH-043 PR #59 handoff at `8a99aabd32c9e3fa0eebf0b3b7994dd738a821dd` identified a blocking prevalidation nested-baseline-reference dereference (Manager PR comment `5739746605`), without finding an authorization or monetary reconciliation defect.
+
+App/Data R01 changed only `lib/scenarios/scenario-specialized-execution.ts` and its focused `lib/calculations/ffh-043-scenario-specialized-wiring.test.ts`: guard `genericDefinition.baselineReference` and its fingerprint at the transport boundary before stale comparison, yielding structured `invalid` for malformed current-outer-fingerprint input in both Run and Rebase. Legitimate valid nested mismatch continues to return `stale_baseline`, and valid specialized Run/Rebase behavior remains unchanged.
+
+Exact R01 production/final-validation SHA `35036b8aa228306c3c40212877c38f33940f74ce`; FULL Foundation CI run `35425124896` / job `105849617675` SUCCESS (calculation and security suites, AI-state, dependency audit, typecheck, lint, build and guardrails). Draft PR #59 remains unmerged. R01 handoff is documentation-only after this tested checkpoint; exact final handoff SHA/continuity CI is reported by worker after branch fast-forward.
+
+Status: READY_FOR_MANAGER for independent R01 re-review, not accepted/integrated. Do not freeze/activate final Phase-6 dual audits until Manager accepts/integrates FFH-043 and independently freezes the integrated target.

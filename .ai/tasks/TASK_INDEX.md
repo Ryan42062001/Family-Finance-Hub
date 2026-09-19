@@ -40,7 +40,7 @@ Last refreshed: 2026-09-18
 | FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
 | FFH-041 | App/Data | CLOSED | production `ef1afe85...`; handoff `796fe701...`; integration `2587a547...` | Manager ACCEPTED; auth/stale/rebase/no-write boundaries clear; final dual audit deferred to integrated Phase-6 target |
 | FFH-042 | Core Engine | CLOSED | production/validation `f9c6081c...`; handoff `30c6e649...`; integration `768644c1...` | Manager ACCEPTED after R01; exact reconciliation clear; final dual audit deferred |
-| FFH-043 | App/Data | ACTIVE | base `768644c1...`; branch `ffh/ffh-043-scenario-specialized-wiring` | Authenticated specialized Home/Vehicle/Windfall/Your Plan wiring + rebase entity-option refresh; no persistence/new policy |
+| FFH-043 | App/Data | READY_FOR_MANAGER | R01 production/final validation `35036b8a...`; draft PR #59 | R01 FULL Foundation CI `35425124896` / job `105849617675` SUCCESS; Manager blocking comment 5739746605 repaired; fresh Manager re-review next |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -158,3 +158,14 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 
 - FFH-042 CLOSED / ACCEPTED at integration `768644c1e8baf41eef72fa0e857a0c474a56823e`; tested handoff tree is exact.
 - FFH-043 ACTIVE as the final bounded Phase-6 App/Data specialized wiring task before the integrated dual-audit freeze.
+
+
+- FFH-043 worker lane is READY_FOR_MANAGER on draft PR #59 at exact production/final-validation SHA `b21efd7935aaf907c6a297b42728adcb3cd5cfb4`.
+- Exact full Foundation CI run `35423965522` / job `105846580432` is SUCCESS / FULL: calculations, security, typecheck, lint, production build, dependency audit, AI-state validation, and guardrails all pass.
+- Accepted FFH-042 Home/Vehicle/Windfall/Your Plan/Recommendation Refresh composition is wired directly into FFH-041's authenticated ephemeral surface; successful rebase refreshes current stable-ID editor options while deleted references remain unresolved.
+- No Core financial semantics, Supabase schema/migration/RLS, live/profile writes, scenario persistence/browser storage, new policy, FFH-038, or Phase-7 scope was introduced.
+- Manager independent review/acceptance is the next gate. The final integrated Phase-6 Technical & Mathematical and Financial Policy & Scenario audits remain WAIT until Manager accepts/integrates FFH-043 and freezes the audit target.
+
+- FFH-043 R01 worker remediation after Manager PR #59 comment `5739746605` is READY_FOR_MANAGER on production/final-validation `35036b8aa228306c3c40212877c38f33940f74ce`; R01 FULL Foundation CI `35425124896` / job `105849617675` is SUCCESS.
+- Narrow scope: guarded malformed nested `genericDefinition.baselineReference` Run/Rebase transport and seven matching-outer-fingerprint malformed-reference regressions, plus valid/stale controls. No financial evaluator, UI, schema, persistence, or profile-write change.
+- Prior `b21efd79...` / `8a99aabd...` checkpoint remains historical initial worker handoff and is superseded for Manager review by the R01 validated checkpoint plus final docs-only handoff. Manager must independently re-review before integration; integrated Phase-6 dual audits remain WAIT.

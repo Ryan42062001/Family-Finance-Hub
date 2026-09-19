@@ -1,4 +1,12 @@
+import type { HomeAffordabilityResult } from "../calculations/home-affordability.ts";
+import type { PlanAllocation, UserMoneyPlanResult } from "../calculations/money-priority-user-plan.ts";
+import type { VehicleAffordabilityResult } from "../calculations/vehicle-affordability.ts";
+import type { WindfallAllocationResult } from "../calculations/money-priority-windfall.ts";
 import type { ScenarioDefinition, ScenarioValidationIssue } from "./scenario-definition.ts";
+import type {
+  ScenarioCompositionIssue,
+  SpecializedScenarioDefinition,
+} from "./scenario-specialized-contract.ts";
 
 export const SCENARIO_FINGERPRINT_SCHEMA_VERSION = "scenario-basis-v1" as const;
 
@@ -17,6 +25,7 @@ export type ScenarioBaselineDescriptor = {
 };
 
 export type ScenarioAllocationDTO = {
+  allocationId: string;
   category: string;
   relatedEntityId: string | null;
   monthlyAmount: number;
@@ -145,4 +154,94 @@ export type ScenarioLabBootstrap = {
     retirementAccounts: ScenarioEntityOption[];
     insuranceExposures: ScenarioEntityOption[];
   };
+};
+
+
+export type ScenarioTransportIssue = {
+  path: string;
+  code: string;
+  message: string;
+};
+
+export type HomeSpecializedResultDTO = {
+  type: "home";
+  eventId: string;
+  result: HomeAffordabilityResult;
+  postEngineSummary: ScenarioEngineSummaryDTO | null;
+  comparison: ScenarioRefreshComparisonDTO | null;
+  stressedPostEngineSummary: ScenarioEngineSummaryDTO | null;
+  stressedComparison: ScenarioRefreshComparisonDTO | null;
+};
+
+export type VehicleSpecializedResultDTO = {
+  type: "vehicle";
+  eventId: string;
+  result: VehicleAffordabilityResult;
+  postEngineSummary: ScenarioEngineSummaryDTO | null;
+  comparison: ScenarioRefreshComparisonDTO | null;
+};
+
+export type WindfallSpecializedResultDTO = {
+  type: "windfall";
+  eventId: string;
+  result: WindfallAllocationResult;
+};
+
+export type SpecializedScenarioResultDTO =
+  | HomeSpecializedResultDTO
+  | VehicleSpecializedResultDTO
+  | WindfallSpecializedResultDTO;
+
+export type ScenarioYourPlanDTO = {
+  engineBasis: "generic" | "specialized";
+  result: UserMoneyPlanResult;
+  refresh: {
+    state: ScenarioRefreshComparisonDTO["state"];
+    reasons: string[];
+    overrideStatuses: Array<{
+      allocationId: string;
+      status: "active" | "superseded" | "invalid";
+      reason: string;
+    }>;
+  };
+};
+
+export type SpecializedScenarioRunDTO = {
+  status: "valid" | "more_information_needed" | "invalid" | "stale_baseline" | "unauthorized";
+  scenarioId: string | null;
+  baseline: ScenarioBaselineDescriptor | null;
+  baselineSummary: ScenarioEngineSummaryDTO | null;
+  genericSummary: ScenarioEngineSummaryDTO | null;
+  genericComparison: ScenarioRefreshComparisonDTO | null;
+  specialized: SpecializedScenarioResultDTO | null;
+  yourPlan: ScenarioYourPlanDTO | null;
+  planAllocations: PlanAllocation[];
+  conflicts: {
+    valid: boolean;
+    issues: ScenarioCompositionIssue[];
+  } | null;
+  issues: ScenarioTransportIssue[];
+  provenance: {
+    hypothetical: true;
+    specializedDefinitionVersion: string;
+    specializedType: "home" | "vehicle" | "windfall" | null;
+    specializedEventId: string | null;
+    genericRecurringOverrideIds: string[];
+    genericOneTimeEventIds: string[];
+  } | null;
+};
+
+export type SpecializedScenarioSubmission = {
+  definition: SpecializedScenarioDefinition;
+  baselineFingerprint: string;
+  baselinePolicyBasis: ScenarioPolicyBasis;
+};
+
+export type SpecializedScenarioRebaseDTO = {
+  status: "rebased" | "unresolved" | "invalid" | "unauthorized";
+  baseline: ScenarioBaselineDescriptor | null;
+  baselineSummary: ScenarioEngineSummaryDTO | null;
+  bootstrap: ScenarioLabBootstrap | null;
+  definition: SpecializedScenarioDefinition | null;
+  issues: ScenarioTransportIssue[];
 };

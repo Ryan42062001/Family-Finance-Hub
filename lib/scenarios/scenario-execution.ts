@@ -1,6 +1,7 @@
 import { runMoneyPriorityEngine, type MoneyPriorityEngineResult } from "../calculations/money-priority-engine.ts";
 import { moneyPrioritySnapshotToRaw } from "../calculations/money-priority-raw-adapter.ts";
 import { assessRecommendationRefresh, type RecommendationRefreshAssessment } from "../calculations/money-priority-recommendation-refresh.ts";
+import { buildPlanAllocationId } from "../calculations/money-priority-user-plan.ts";
 import type { MoneyPrioritySnapshot } from "../calculations/money-priority-snapshot.ts";
 import {
   validateScenarioDefinition,
@@ -126,6 +127,7 @@ export function scenarioEngineSummary(engine: MoneyPriorityEngineResult): Scenar
       urgency: item.urgency,
       title: item.title,
       allocations: item.allocations.map((allocation) => ({
+        allocationId: buildPlanAllocationId(item.id, allocation.category, allocation.relatedEntityId),
         category: allocation.category,
         relatedEntityId: allocation.relatedEntityId,
         monthlyAmount: allocation.monthlyAmount,
