@@ -231,3 +231,13 @@ Manager independently verifies this live evidence and decides acceptance. Do not
 | Technical & Mathematical Auditor | WAIT | Final integrated Phase-5 audit is downstream of Manager acceptance. |
 | Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 audit is downstream of Manager acceptance. |
 | Work Helper / Super Troubleshooter | IDLE | No escalation trigger. |
+
+## Manager disposition — FFH-016 — 2026-09-18
+
+Status: CLOSED / ACCEPTED.
+
+Manager independently reproduced live rollback-only RLS/persistence behavior and verified exact frozen source selectors/runtime contracts against Supabase. No production/schema mismatch was found; rollback left zero synthetic rows.
+
+Direct authenticated browser/PostgREST HTTP capture remains an explicitly isolated environment-only remainder and is non-blocking under the task's Standard Chat fallback.
+
+Application, Data & Integration Engineering is now WAIT/IDLE for Phase 5. Any finding from the final integrated audits returns through Manager routing; no proactive remediation is authorized.
