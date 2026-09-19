@@ -205,10 +205,10 @@ export function classifyEvent({
 
   if (diffError) {
     return {
+      ...range,
       mode: 'FULL',
       reason: `classifier-error:${sanitizeReason(diffError)}`,
       records: [],
-      ...range,
       requiresPredecessor: false,
       predecessorSha: null,
     };
@@ -217,10 +217,10 @@ export function classifyEvent({
   const parsed = parseNameStatus(diffText);
   if (!parsed.ok) {
     return {
+      ...range,
       mode: 'FULL',
       reason: parsed.reason,
       records: parsed.records,
-      ...range,
       requiresPredecessor: false,
       predecessorSha: null,
     };
@@ -228,8 +228,8 @@ export function classifyEvent({
 
   const classified = classifyRecords(parsed.records);
   return {
-    ...classified,
     ...range,
+    ...classified,
     requiresPredecessor:
       classified.mode === 'DOCS_ONLY' && range.requiresPredecessor,
     predecessorSha:
