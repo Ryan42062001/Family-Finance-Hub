@@ -8,6 +8,7 @@ const loader = readFileSync(new URL("../../lib/supabase/money-priority-snapshot.
 const actions = readFileSync(new URL("../../app/financial-profile/simple/actions.ts", import.meta.url), "utf8");
 const page = readFileSync(new URL("../../app/financial-profile/simple/page.tsx", import.meta.url), "utf8");
 const hypothetical = readFileSync(new URL("../../lib/calculations/money-priority-hypothetical.ts", import.meta.url), "utf8");
+const rawAdapter = readFileSync(new URL("../../lib/calculations/money-priority-raw-adapter.ts", import.meta.url), "utf8");
 
 test("FFH-011 adds an explicit tax-year-bound SIMPLE plan category without backfilling legacy hints", () => {
   assert.match(migration, /add column if not exists simple_plan_limit_category text null/i);
@@ -49,7 +50,8 @@ test("loader and normalized snapshot carry the new contract while the legacy boo
 });
 
 test("hypothetical reruns preserve only the explicit SIMPLE contract for decisions", () => {
-  assert.match(hypothetical, /simple_plan_limit_category: item\.simplePlanLimitCategory/);
-  assert.match(hypothetical, /simple_plan_limit_tax_year: item\.simplePlanLimitTaxYear/);
-  assert.match(hypothetical, /simple_higher_limit_eligible: item\.simpleHigherLimitEligible/);
+  assert.match(hypothetical, /moneyPrioritySnapshotToRaw\(current\.snapshot\)/);
+  assert.match(rawAdapter, /simple_plan_limit_category: item\.simplePlanLimitCategory/);
+  assert.match(rawAdapter, /simple_plan_limit_tax_year: item\.simplePlanLimitTaxYear/);
+  assert.match(rawAdapter, /simple_higher_limit_eligible: item\.simpleHigherLimitEligible/);
 });
