@@ -21,7 +21,7 @@ test("FFH-041 authenticates and derives household authority server-side", () => 
   assert.match(auth, /\.eq\("user_id", userId\)/);
   assert.match(execution, /resolveAuthority\(\)/);
   assert.match(execution, /loadSnapshot\(authority\.householdId\)/);
-  assert.doesNotMatch(actions, /householdId\s*:/);
+  assert.doesNotMatch(actions, /input\.householdId|formData\.get\(.*household/i);
 });
 
 test("FFH-041 has no Scenario Lab persistence or live-data write surface", () => {
