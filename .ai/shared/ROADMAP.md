@@ -196,3 +196,24 @@ Current remaining Phase-5 sequence:
 3. run final integrated Phase-5 Technical + Financial Policy audits/review;
 4. refresh PR #5 and perform final merge review;
 5. merge only if all gates remain clean, then verify post-merge CI.
+
+## Final Phase-5 audit gate — 2026-09-18
+
+This section supersedes older FFH-016 sequencing text above.
+
+- FFH-020: ACCEPTED.
+- FFH-035: ACCEPTED.
+- FFH-016: CLOSED / Manager ACCEPTED after independent live Supabase/RLS/persistence/runtime verification.
+- Frozen final integrated production target: `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+- FFH-036: ACTIVE — fresh independent Technical & Mathematical final integrated audit.
+- FFH-037: ACTIVE — fresh independent Financial Policy & Scenario final integrated audit.
+- Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`.
+- PR #5: OPEN / NOT MERGE READY pending both audit verdicts + Manager reconciliation.
+- Phase 6: remains PLANNED / NOT STARTED.
+
+Remaining Phase-5 sequence:
+1. receive both independent FFH-036 / FFH-037 verdicts on the exact same frozen target;
+2. Manager reconcile findings without averaging disagreements;
+3. route remediation if any blocking finding exists;
+4. if both required audit gates clear, refresh PR #5 description/status and perform final merge review;
+5. merge only after Manager explicitly declares the merge gate clean, then verify post-merge CI and canonical state.
