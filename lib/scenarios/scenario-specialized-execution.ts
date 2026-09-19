@@ -71,7 +71,16 @@ function validateSpecializedShape(value: unknown, issues: ScenarioTransportIssue
     return false;
   }
   exactKeys(value, ["version", "genericDefinition", "specialized", "operationEventLinks", "yourPlanOverrides"], "request.definition", issues);
-  if (!record(value.genericDefinition)) issues.push(issue("request.definition.genericDefinition", "invalid_definition", "genericDefinition must be an object."));
+  if (!record(value.genericDefinition)) {
+    issues.push(issue("request.definition.genericDefinition", "invalid_definition", "genericDefinition must be an object."));
+  } else if (!record(value.genericDefinition.baselineReference)) {
+    issues.push(issue("request.definition.genericDefinition.baselineReference", "invalid_definition", "baselineReference must be an object."));
+  } else {
+    const fingerprint = value.genericDefinition.baselineReference.fingerprint;
+    if (fingerprint !== null && (typeof fingerprint !== "string" || !fingerprint.trim())) {
+      issues.push(issue("request.definition.genericDefinition.baselineReference.fingerprint", "invalid_string", "fingerprint must be null or a nonempty opaque string."));
+    }
+  }
   if (!Array.isArray(value.operationEventLinks)) {
     issues.push(issue("request.definition.operationEventLinks", "invalid_definition", "operationEventLinks must be an array."));
   } else {
