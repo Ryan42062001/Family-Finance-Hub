@@ -190,3 +190,27 @@ typed Scenario Definition + runtime validation; immutable generic overlays; shar
 - Financial Policy & Scenario Auditor: IDLE until the same stable integrated target.
 - Work Helper: IDLE / on-demand.
 - FFH-038: QUEUED / non-blocking and not part of FFH-040.
+
+# Phase-6 implementation wave 2 — FFH-041 — 2026-09-18
+
+Status: ACTIVE
+
+## ACTIVE
+
+### FFH-041 — Authenticated Ephemeral Scenario Lab Surface
+Owner: Application, Data & Integration Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Base: `75d2766fb370d506b695d722788b03af5f36a155`
+Branch: `ffh/ffh-041-scenario-lab-ephemeral-surface`
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-041 READY_FOR_MANAGER/BLOCKED.
+- Core Financial Engine Engineer: IDLE; FFH-040 complete.
+- Product & Technical R&D: IDLE; FFH-039 complete.
+- Policy / Regulatory roles: IDLE; REQUIRES POLICY categories remain excluded.
+- Technical & Mathematical Auditor: IDLE until integrated Phase-6 target.
+- Financial Policy & Scenario Auditor: IDLE until same target.
+- Work Helper: IDLE / on-demand.
+- FFH-038: QUEUED / non-blocking.
