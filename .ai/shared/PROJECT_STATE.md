@@ -104,3 +104,8 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - FFH-020, FFH-016, PR #5 merge readiness, financial behavior, Supabase/live data, and Phase 6 remain unchanged.
 
 - FFH-034 R01 live synchronize proof PASS: Foundation CI #718 / run `35408121204` / verify `105802006094`; DOCS_ONLY exact delta with predecessor continuity PASS; expensive stages skipped. Remaining gate: user-admin required-`verify` ruleset activation, then fresh Technical/Workflow audit.
+
+- FFH-034 required-check enforcement LIVE: ruleset `23686709` active on `main` + `phase-5-money-priority-engine`, requiring GitHub Actions `verify` with non-strict semantics and no bypass actors/unrelated rules.
+- FFH-034 frozen audit target: `aa88b8d4091f4496487823d52f1dad25735b44c8`.
+- Fresh independent audit branch: `audit/ffh-034-workflow-aa88b8d4`; packet commit `36b13edda3b6720af900d976a47f8c3b2a56eb97`.
+- FFH-034 state: AUDIT_READY / Technical & Mathematical Auditor activated. Task remains open pending independent verdict + Manager reconciliation.

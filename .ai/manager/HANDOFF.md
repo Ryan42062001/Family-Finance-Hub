@@ -688,3 +688,36 @@ The live Phase-5 PR #5 synchronize event classified only the exact delta `11aaf9
 Artifact: `10572478765`; digest `sha256:7c360ef822db46e7c4df1df01e0f2e84b656d8f97d9bde369eb906f6e3bdb907`.
 
 FFH-034-R01 is accepted. The only remaining pre-audit gate is user-admin creation of the minimal required-`verify` repository ruleset for `main` and `phase-5-money-priority-engine`. The connected GitHub integration has no admin write action for rulesets. After the user activates it, Manager must verify the live ruleset, freeze the exact workflow target, and activate the fresh Technical/Workflow auditor.
+
+## FFH-034 required-check ruleset verified / fresh audit activated — 2026-09-18
+
+User-admin ruleset activation is complete and Manager independently verified live GitHub state.
+
+Ruleset:
+- id `23686709`;
+- `Foundation CI Required`;
+- active branch ruleset;
+- exact targets: `main`, `phase-5-money-priority-engine`;
+- only rule: require status check `verify`;
+- GitHub Actions integration id `15368`;
+- non-strict / branch-up-to-date not required;
+- no bypass actors;
+- no unrelated restrictions.
+
+Both target branches now report protected.
+
+Frozen repository audit target:
+`aa88b8d4091f4496487823d52f1dad25735b44c8`
+
+Fresh audit lane:
+`audit/ffh-034-workflow-aa88b8d4`
+
+Packet:
+`.ai/audit/FFH-034_WORKFLOW_AUDIT_PACKET_aa88b8d4.md`
+
+Packet commit:
+`36b13edda3b6720af900d976a47f8c3b2a56eb97`
+
+Next activation: Technical & Mathematical Auditor performs one fresh independent workflow/control-plane audit. Do not use Manager acceptance, green CI, or prior worker conclusions as proof.
+
+All financial, Supabase/live-data, FFH-020/FFH-016, PR #5 merge-readiness, and Phase-6 gates remain unchanged.
