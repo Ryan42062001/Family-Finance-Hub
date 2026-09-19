@@ -132,3 +132,7 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 
 - FFH-040 ACTIVE. Core owns the pure Scenario Lab typed overlay/runner foundation. No UI, Supabase, persistence, specialized adapters, or new policy is authorized in this task.
 - App/Data remains WAIT behind FFH-040. FFH-038 remains separately QUEUED / non-blocking.
+
+- FFH-040 CLOSED / ACCEPTED after independent source review + exact reconciliation hand-check. No remediation routed.
+- FFH-041 ACTIVE as the next dependency: authenticated ephemeral Scenario Lab application surface over the accepted Core contract.
+- Specialized Home/Vehicle/Windfall/Your Plan adapters remain downstream. Final dual audits remain downstream of the integrated implementation target.
