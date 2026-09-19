@@ -216,3 +216,22 @@ The current workflow has no `push` trigger, so no automatic CI run is expected o
 Phase-5 implementation, live Supabase/runtime parity, exact reconciliation, and final dual-audit gates are CLOSED/CLEAR.
 
 FFH-038 remains QUEUED as non-blocking HSA/test hardening. Phase 6 is now READY for future Manager activation but is not started by this reconciliation.
+
+## Phase-6 activation — Scenario Lab — 2026-09-18
+
+Phase 5 remains CLOSED / MERGED / ACCEPTED on canonical `main`.
+
+Phase 6 — Scenario Lab is now **ACTIVE in discovery/design only** through FFH-039.
+
+FFH-039 — Scenario Lab Product + Technical Contract:
+- owner: Product & Technical R&D Engineer;
+- execution: STANDARD_CHAT_HIGH;
+- approved base: `ae11a48359d082e615b76822b6bbe3a7f379a8d2`;
+- expected branch: `research/ffh-039-scenario-lab-contract`;
+- scope: product/technical contract, scenario taxonomy, reuse of existing Phase-5 hypothetical/affordability/windfall/user-plan/refresh primitives, persistence decision, safety invariants, and follow-on task graph;
+- production/UI/schema/live-data changes: NOT AUTHORIZED;
+- new financial-policy decisions: NOT AUTHORIZED; route to the appropriate policy specialist.
+
+Manager intentionally starts Phase 6 with one R&D lane only. Engineering and policy roles remain idle until FFH-039 identifies bounded implementation and/or policy dependencies.
+
+FFH-038 remains QUEUED / NON-BLOCKING and is outside this activation.

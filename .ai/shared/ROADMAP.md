@@ -15,7 +15,7 @@ Long-term differentiators include the Money Priority Engine, Household Financial
 - Phase 3 — Dashboard: COMPLETE
 - Phase 4 — Planning Tools: COMPLETE on stable `main`
 - Phase 5 — Money Priority Engine: ACTIVE on PR #5; NOT MERGE READY / NOT MERGED
-- Phase 6 — Scenario Lab: PLANNED / NOT STARTED
+- Phase 6 — Scenario Lab: ACTIVE — FFH-039 discovery/design; production implementation NOT STARTED
 - Phase 7 — Private Beta: PLANNED / NOT STARTED
 
 ## Phase 5 approved policy / workflow
@@ -147,7 +147,21 @@ Non-goals: no financial code/policy, Supabase/live data, package/lock changes, b
 
 ## Phase 6 — Scenario Lab
 
-PLANNED / NOT STARTED. Remains downstream of an accepted Phase 5 recommendation engine.
+ACTIVE — discovery/design only through FFH-039. Phase 5 is accepted and merged, so the dependency is satisfied.
+
+Current Phase-6 objective: define a bounded Scenario Lab v1 product/technical contract that composes the accepted Money Priority Engine with existing hypothetical, home/vehicle affordability, Windfall, Your Plan, and Recommendation Refresh capabilities without creating a second financial engine.
+
+FFH-039 owns:
+- Scenario Lab v1 user/product contract;
+- supported/deferred/requires-policy scenario taxonomy;
+- baseline-versus-hypothetical model;
+- financial-engine reuse boundary;
+- persistence/schema decision;
+- stale/baseline-change behavior;
+- safety/no-mutation invariants;
+- implementation/test task decomposition.
+
+No Phase-6 production code, UI, migration, live-data mutation, or new financial policy is authorized until Manager accepts FFH-039 and explicitly routes follow-on tasks.
 
 ## Phase 7 — Private Beta
 
@@ -249,3 +263,13 @@ Phase 5 is complete and merged to `main` at `c0a5d87ea96a778066982e28fbb52083e61
 FFH-038 is a queued non-blocking post-Phase-5 hardening task and does not reopen Phase 5.
 
 Phase 6 — Scenario Lab is now **READY FOR MANAGER ACTIVATION / NOT STARTED**. Manager must create/activate the bounded Phase-6 task(s) before any production work begins.
+
+
+## Phase-6 formal kickoff — 2026-09-18
+
+- FFH-039 ACTIVE — Product & Technical R&D discovery/design.
+- Approved base: `ae11a48359d082e615b76822b6bbe3a7f379a8d2`.
+- Phase-6 production work: NOT YET AUTHORIZED.
+- Policy specialists: WAIT/IDLE until FFH-039 identifies concrete policy questions.
+- Engineering: WAIT/IDLE until Manager accepts the contract and issues bounded implementation tasks.
+- FFH-038: remains queued non-blocking post-Phase-5 hardening; not bundled into Scenario Lab.
