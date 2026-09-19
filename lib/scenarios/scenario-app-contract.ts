@@ -73,7 +73,7 @@ export type ScenarioRefreshComparisonDTO = {
     currentAmount: number | null;
     delta: number;
     changeType: "added" | "removed" | "increased" | "decreased";
-    significance: "material";
+    significance: "informational" | "material" | "critical";
     unit: "USD/month";
   }>;
   warningsAdded: string[];
