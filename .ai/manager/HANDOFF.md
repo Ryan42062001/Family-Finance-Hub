@@ -1201,3 +1201,48 @@ FFH-047 and FFH-038 remain queued, non-blocking follow-ups.
 | 9 | Technical & Mathematical Auditor | IDLE | FFH-048 CLOSED | — |
 | 10 | Financial Policy & Scenario Auditor | IDLE | FFH-049 CLOSED | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | On-demand only | — |
+
+
+## FFH-026 activated — Phase-7 Production Deployment & Release Readiness — 2026-09-19
+
+Phase 6 is CLOSED / ACCEPTED and the exact canonical post-closure checkpoint has been pinned as the production release candidate:
+
+`18ccbacd4265461b01580f5e96214788b15ec5af`
+
+FFH-026 is ACTIVE.
+
+Owner: Application, Data & Integration Engineer  
+Execution: WORK_MODE_PREFERRED  
+Assigned branch: `ffh/ffh-026-production-release-readiness`
+
+The worker branch will be created from the final Manager activation control-plane head after this activation record is integrated. The worker must nevertheless deploy and verify the exact release candidate `18ccbacd...`; later control-plane commits do not redefine the production SHA.
+
+FFH-026 owns:
+- Vercel production project/deployment for the exact release candidate;
+- secure production environment configuration;
+- production Supabase/auth/callback/migration verification;
+- authenticated production smoke tests;
+- Money Priority Engine and Scenario Lab critical-flow smoke;
+- safe unknown/incomplete-data behavior;
+- privacy-safe cross-household isolation verification;
+- rollback evidence;
+- stable production URL;
+- GitHub About → Website and README production URL/status once stable.
+
+Do not purchase/configure a paid custom domain without explicit user authorization. Do not expose credentials, tokens, service-role keys, real household financial records, or private auth URLs in evidence.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Current Task / Gate | Copy/paste activation prompt / next action |
+|---:|---|---|---|---|
+| 1 | Manager / Architect | WAIT | FFH-026 active | Await READY_FOR_MANAGER / BLOCKED evidence. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | No active task | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | No active task | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | No active task | — |
+| 5 | Core Financial Engine Engineer | IDLE | FFH-038 queued/non-blocking | — |
+| 6 | Application, Data & Integration Engineer | ACTIVATE NOW | FFH-026 Production Deployment & Release Readiness | Use WORK_MODE_PREFERRED. Deploy/verify exact release candidate `18ccbacd4265461b01580f5e96214788b15ec5af`; preserve security/privacy; return exact deployment, smoke, rollback, CI and handoff evidence. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | No active task | — |
+| 8 | Product & Technical R&D Engineer | IDLE | No active task | — |
+| 9 | Technical & Mathematical Auditor | IDLE | FFH-048 CLOSED | — |
+| 10 | Financial Policy & Scenario Auditor | IDLE | FFH-049 CLOSED | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | On-demand only | — |
