@@ -399,3 +399,16 @@ Status: READY_FOR_MANAGER for independent R01 re-review, not accepted/integrated
 - Later Manager control-plane commits do not alter the frozen implementation.
 - Phase 6 is not closed until both audits are reconciled by Manager.
 - Phase 7 is not started.
+
+
+## Phase-6 audit reconciliation — remediation active — 2026-09-19
+
+- Frozen audit target `8f4b1c443684446cdf9b619bd35336f5873265bc` did NOT clear final Phase-6 gate.
+- FFH-044 Technical: PASS WITH NON-BLOCKING FINDINGS; one LOW TMA-044-01 queued as FFH-047.
+- FFH-045 Policy/Scenario: FAIL — REMEDIATION REQUIRED; HIGH FFH-045-P01.
+- Manager independently confirmed FFH-045-P01 in the authoritative Windfall allocator.
+- FFH-046 ACTIVE: fail-closed Windfall tax-treatment / known-liability remediation.
+- No new tax policy is required.
+- Phase 6 remains OPEN / REMEDIATION.
+- Phase 7 remains NOT STARTED.
+- New final dual re-audits will occur only after FFH-046 is accepted/integrated and Manager freezes a new remediated target.
