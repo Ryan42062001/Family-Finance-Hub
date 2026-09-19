@@ -155,3 +155,89 @@ FFH-035 is Manager-accepted. The FFH-023 legal-spouse authority migration is liv
 Current assignment: FFH-016 verification-only live parity.
 
 Do not mutate production/schema under FFH-016. Verify PostgREST/RLS/persistence/reload/normalized runtime/Recommendation Refresh/browser behavior and return any mismatch to Manager for separate remediation routing.
+
+
+## FFH-016 — Live Supabase Migration and Runtime Parity Verification — 2026-09-18
+
+Status: READY_FOR_MANAGER
+
+Exact baseline:
+- repository: `Ryan42062001/Family-Finance-Hub`;
+- verified Manager milestone / PR #5 head: `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`;
+- linked Supabase project: `tsqwvggojeudgspnumze`;
+- execution lane: `STANDARD_CHAT_HIGH` fallback under FFH-016;
+- verification-only: no production code, financial policy, Core calculation, schema, migration, or live household remediation was authorized or performed.
+
+Live migration/schema parity:
+- project is `ACTIVE_HEALTHY` in `us-east-2`, PostgreSQL `17.6.1.166`;
+- live migration history includes Phase-5A `20260902190000`, FFH-010 `20260909005000`, FFH-011 `20260909033000`, and FFH-023 `20260911170000`;
+- every exact selected column used by the current money-priority loader, HSA page, and SIMPLE page parses against the live schema;
+- expected HSA/SIMPLE/legal-spouse constraints, RLS policies, and authenticated grants are present;
+- Supabase security advisor: zero findings;
+- performance advisor: INFO-only unindexed-FK/unused-index notices; no remediation was performed.
+
+Rollback-only RLS/persistence proof:
+- one explicit transaction created synthetic owner/member/viewer/nonmember identities and a synthetic household;
+- owner and member read/write behavior passed;
+- viewer read behavior passed, while update returned zero rows and HSA insert was denied by RLS;
+- authenticated nonmember reads returned zero, update returned zero, and legal-spouse-authority insert was denied;
+- HSA YTD binding round-trip: `NULL/NULL/NULL -> 1000/250/2026`;
+- expected HSA medical spending: `NULL -> 1800`;
+- HSA profile: `unknown/unknown -> not_elected/not_applicable`;
+- all 12 HSA month rows: `unknown/unknown/unknown -> eligible/family/confirmed`;
+- married allocation: `0/0 -> 4000/4750`;
+- legal-spouse authority: `unknown -> confirmed_legal_spouses`;
+- SIMPLE plan-limit contract: `NULL/NULL -> standard/2026`;
+- transaction ended in `ROLLBACK`;
+- post-test counts returned to zero for temporary auth identities and all synthetic household/financial/HSA rows.
+
+Runtime propagation:
+- `lib/supabase/money-priority-snapshot.ts` selects the live HSA/SIMPLE/legal-spouse fields and passes them to `buildMoneyPrioritySnapshot`;
+- HSA normalization preserves explicit unknown and confirmed values, including legal-spouse authority;
+- SIMPLE normalization preserves category/year, keeps unknown as null, and does not invent affirmative legacy evidence;
+- HSA YTD tax-year binding and expected medical spending remain nullable in normalization;
+- Recommendation Refresh fingerprints the complete normalized snapshot;
+- accepted HSA contract coverage proves HSA decision-basis changes alter the financial-basis fingerprint and leave refresh state non-`current`;
+- accepted SIMPLE coverage proves explicit category/year survive normalized and hypothetical runtime paths.
+
+PostgREST/browser transport remainder:
+- current `supabase-js` selection/write shapes were matched to live tables/columns/constraints/grants and exercised at the underlying `authenticated` database/RLS layer;
+- this Standard Chat connector does not expose an authenticated PostgREST/browser session, so no direct HTTP header/schema-cache capture is claimed;
+- the linked project currently contains zero auth users and zero household rows;
+- persistent fixture creation only to obtain a browser session would violate the rollback-only verification boundary;
+- direct authenticated HTTP/browser capture is therefore explicitly isolated as the environment-only remainder permitted by FFH-016's Standard Chat fallback. No production mismatch was found.
+
+CI context:
+- exact milestone Foundation CI run `35413944471` / #731: SUCCESS;
+- mode: `DOCS_ONLY`;
+- predecessor continuity: PASS against run #729;
+- FFH-016 claims no remediation CI because no production/schema code changed.
+
+Exact next action:
+Manager independently verifies this live evidence and decides acceptance. Do not declare PR #5 merge ready from this handoff. After Manager acceptance, route the roadmap-required final integrated Phase-5 Technical + Financial Policy audit/review, then refresh PR #5 status/description and perform final merge review.
+
+### Next Activation
+
+| Role | Status | Reason |
+|---|---|---|
+| Manager / Architect | RECOMMEND TO MANAGER | Independently verify FFH-016 and accept or route a separate remediation. |
+| Retirement & Tax-Advantaged Policy Analyst | IDLE | No new policy issue found. |
+| Debt & Liquidity Policy Analyst | IDLE | No scope. |
+| Goals, Cash Flow & Allocation Policy Analyst | IDLE | No scope. |
+| Core Financial Engine Engineer | IDLE | No Core change; FFH-017 is closed. |
+| Application, Data & Integration Engineer | WAIT | Verification complete pending Manager disposition. |
+| Regulatory & Financial Research Analyst | IDLE | No research gap found. |
+| Product & Technical R&D Engineer | IDLE | FFH-018/FFH-034 are closed. |
+| Technical & Mathematical Auditor | WAIT | Final integrated Phase-5 audit is downstream of Manager acceptance. |
+| Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 audit is downstream of Manager acceptance. |
+| Work Helper / Super Troubleshooter | IDLE | No escalation trigger. |
+
+## Manager disposition — FFH-016 — 2026-09-18
+
+Status: CLOSED / ACCEPTED.
+
+Manager independently reproduced live rollback-only RLS/persistence behavior and verified exact frozen source selectors/runtime contracts against Supabase. No production/schema mismatch was found; rollback left zero synthetic rows.
+
+Direct authenticated browser/PostgREST HTTP capture remains an explicitly isolated environment-only remainder and is non-blocking under the task's Standard Chat fallback.
+
+Application, Data & Integration Engineering is now WAIT/IDLE for Phase 5. Any finding from the final integrated audits returns through Manager routing; no proactive remediation is authorized.

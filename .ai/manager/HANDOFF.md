@@ -831,3 +831,32 @@ Accepted FFH-035 evidence:
 FFH-016 is now ACTIVE as the verification-only live parity gate. No production remediation is authorized inside FFH-016; any mismatch must be returned to Manager and routed separately.
 
 PR #5 remains NOT MERGE READY. Final integrated Technical + Financial Policy audits remain downstream of FFH-016.
+
+## FFH-016 accepted / final integrated Phase-5 audits activated — 2026-09-18
+
+Manager independently accepted and closed FFH-016 against frozen production target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+
+Independent checks reproduced:
+- live canonical migration/schema parity;
+- exact application-selector/live-column parity;
+- production RLS helper/policy semantics;
+- rollback-only owner/member/viewer/nonmember matrix;
+- HSA YTD, HSA medical spending, HSA person/month, married allocation, legal-spouse authority, and SIMPLE category/year persistence round trips;
+- explicit rollback with zero surviving synthetic rows;
+- normalization and Recommendation Refresh propagation;
+- zero Supabase security-advisor findings.
+
+The direct authenticated browser/PostgREST HTTP capture remainder is accepted as environment-only/non-blocking under FFH-016's stated fallback: the project has no persistent auth users/households, and fixture creation solely for browser capture would exceed rollback-only authority.
+
+No remediation task is warranted.
+
+Manager froze `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9` for the final integrated Phase-5 dual audit and created one shared packet:
+`.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`.
+
+Activated independently:
+- FFH-036 — Technical & Mathematical Auditor — branch `audit/ffh-036-phase5-final-technical-b8e60292`;
+- FFH-037 — Financial Policy & Scenario Auditor — branch `audit/ffh-037-phase5-final-policy-b8e60292`.
+
+Do not expose either auditor's verdict/reasoning to the other before both submit.
+
+PR #5 remains NOT MERGE READY. Phase 6 remains gated.
