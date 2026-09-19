@@ -506,6 +506,51 @@ test("FFH-042 ambiguous cash/expense ownership fails closed while explicit indep
   assert.notEqual(runSpecializedScenario(baseline, explicit).status, "invalid");
 });
 
+test("FFH-042 same-goal currentAmount override fails closed for Home relatedGoalId", () => {
+  const intent = { type: "home", eventId: "home-goal-current", scenario: homeScenario() } as const;
+  const request = definition(intent, {
+    genericDefinition: genericDefinition(intent, {
+      recurringOverrides: [{
+        type: "goal",
+        id: "house-current-duplicate",
+        goalId: "house-goal",
+        currentAmount: 25000,
+      }],
+    }),
+  });
+  const conflicts = detectScenarioCompositionConflicts(request);
+  assert.equal(conflicts.valid, false);
+  assert.ok(conflicts.issues.some((item) =>
+    item.code === "stable_entity_overlap"
+      && item.path === "specialized.genericOperation.house-current-duplicate"
+      && item.message.includes("goal:house-goal")));
+  const run = runSpecializedScenario(engine(), request);
+  assert.equal(run.status, "invalid");
+  assert.equal(run.specialized, null);
+});
+
+test("FFH-042 unrelated goal override remains allowed beside Home relatedGoalId", () => {
+  const baseline = engine();
+  const intent = { type: "home", eventId: "home-unrelated-goal", scenario: homeScenario() } as const;
+  const request = definition(intent, {
+    genericDefinition: genericDefinition(intent, {
+      recurringOverrides: [{
+        type: "goal",
+        id: "college-current-independent",
+        goalId: "college-goal",
+        currentAmount: 49000,
+      }],
+    }),
+  });
+  const conflicts = detectScenarioCompositionConflicts(request);
+  assert.equal(conflicts.valid, true);
+  const run = runSpecializedScenario(baseline, request);
+  assert.notEqual(run.status, "invalid");
+  assert.equal(run.specialized?.type, "home");
+  assert.equal(run.genericEngineResult?.snapshot.goals.find((goal) => goal.id === "college-goal")?.currentAmount, 49000);
+  assert.equal(run.genericEngineResult?.snapshot.goals.find((goal) => goal.id === "house-goal")?.currentAmount, 20000);
+});
+
 test("FFH-042 adapter-owned stable goal cash cannot also be consumed generically", () => {
   const intent = { type: "home", eventId: "home-event", scenario: homeScenario() } as const;
   const request = definition(intent, {

@@ -129,6 +129,7 @@ function stableOverlap(operation: ScenarioOperation, specialized: ScenarioSpecia
     case "expense":
     case "synthetic_expense":
       return owned.expenses.has(operation.expenseId) ? "expense:" + operation.expenseId : null;
+    case "goal":
     case "goal_completion":
       return owned.goals.has(operation.goalId) ? "goal:" + operation.goalId : null;
     case "cash_use":
