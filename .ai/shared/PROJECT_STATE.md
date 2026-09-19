@@ -331,3 +331,22 @@ Verified FFH-041 boundary:
 - accessible/mobile generic workspace.
 
 Worker verdict is READY_FOR_MANAGER, not acceptance. Manager now owns independent review and disposition. The separately planned specialized-adapter integration task remains downstream of FFH-041 acceptance, followed later by the frozen integrated Phase-6 dual audits.
+
+## FFH-041 accepted / FFH-042 activated — 2026-09-19
+
+FFH-041 — Authenticated Ephemeral Scenario Lab Surface — is CLOSED / Manager ACCEPTED.
+
+Accepted custody:
+- production/final-validation `ef1afe85f29598b2545e83e486ffce22498c02c6`;
+- full Foundation CI `35420514850` / `105837191187` SUCCESS;
+- handoff/final head `796fe7011389c5ce40d664a918f6bdb68ea05e94`;
+- continuity CI `35421188796` / `105839091467` SUCCESS;
+- integration `2587a547450602bf663692320e64a0aa821d0ca2`;
+- merge tree equals tested final head.
+
+Manager independently verified authenticated server authority, fresh baseline reload, versioned fingerprint/stale fail-closed, stable-ID rebase, protected-field rejection, no persistence/write path, exact-unit DTO transport, bounded in-memory lifecycle/comparison, and accessible/mobile behavior.
+
+One non-blocking UI hardening note remains for later App/Data wiring: successful rebase refreshes descriptor/summary but not the in-page entity-option lists. Server validation remains fail-closed.
+
+FFH-042 — Scenario Lab Specialized Adapter Composition — is ACTIVE.
+It owns only the pure-domain Home/Vehicle/Windfall/Your Plan/Recommendation Refresh composition layer plus conflict detection and reconciliation. No Scenario Lab UI/server-action/Supabase/persistence/new-policy work is authorized.
