@@ -279,3 +279,30 @@ Manager now activates FFH-040 as the first Phase-6 production implementation sli
 FFH-040 is a required dependency for the later authenticated App/Data Scenario Lab surface. App/Data remains WAIT until Manager accepts the stable Core contract.
 
 FFH-038 remains QUEUED / NON-BLOCKING and is not part of FFH-040.
+
+## FFH-040 accepted / FFH-041 activated — 2026-09-18
+
+FFH-040 — Scenario Overlay + Runner Foundation — is CLOSED / Manager ACCEPTED.
+
+Accepted production checkpoint:
+`3407df88440b0742a76cd59aab195c7fe1a103f7`
+
+Accepted handoff head:
+`870967e1cf5b40979e8c959413b35a037e078f90`
+
+Integration:
+`75d2766fb370d506b695d722788b03af5f36a155`
+
+Validation:
+- full Foundation CI `35418840708` / `105832568156` SUCCESS;
+- handoff-head continuity CI `35419008620` / `105833024265` SUCCESS;
+- merge tree exactly equals tested handoff-head tree.
+
+Manager independent reconciliation found no mismatch or no-reuse defect.
+
+FFH-041 — Authenticated Ephemeral Scenario Lab Surface — is now ACTIVE.
+It owns authenticated baseline loading, server action orchestration, versioned baseline fingerprint/stale handling, ephemeral lifecycle, bounded generic editors, baseline/scenario comparison, and accessible application presentation.
+
+FFH-041 may not add persistence, schema/migrations, live-data writes, apply-to-profile behavior, specialized Home/Vehicle/Windfall/Your Plan adapters, or new financial policy.
+
+Final independent Technical + Financial Policy audits remain downstream of the later frozen integrated Scenario Lab target.

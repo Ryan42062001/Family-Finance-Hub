@@ -4,7 +4,7 @@ HANDOFF
 
 Task ID: FFH-040 — Scenario Overlay + Runner Foundation
 Role: Core Financial Engine Engineer
-Status: READY_FOR_MANAGER
+Status: ACCEPTED
 Execution mode: STANDARD_CHAT_HIGH
 Refresh mode: FAST_REFRESH
 Branch: `ffh/ffh-040-scenario-runner-foundation`
@@ -143,3 +143,15 @@ READY_FOR_MANAGER
 | 9 | Technical & Mathematical Auditor | WAIT | — |
 | 10 | Financial Policy & Scenario Auditor | WAIT | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+
+## Manager disposition — 2026-09-18
+
+FFH-040 is CLOSED / ACCEPTED.
+
+Manager independently verified source boundaries, CI custody, protected-field exclusions, no-op/immutability/determinism, atomic payoff semantics, shared HSA/spousal-IRA capacity preservation, and exact reconciliation.
+
+Accepted integration:
+`75d2766fb370d506b695d722788b03af5f36a155`
+
+Core Financial Engine Engineer is now IDLE for Phase 6 unless FFH-041 exposes a concrete Core integration defect. Do not proactively change Scenario Lab Core semantics.

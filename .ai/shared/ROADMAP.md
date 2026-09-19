@@ -313,3 +313,25 @@ The authenticated page/server-action/UI layer remains downstream. Home/Vehicle/W
 Policy categories marked REQUIRES POLICY remain outside v1's critical path and are not activated.
 
 FFH-038 remains queued separately.
+
+## Phase-6 implementation wave 2 — FFH-041 — 2026-09-18
+
+FFH-040 Core Scenario foundation is CLOSED / ACCEPTED and integrated at `75d2766fb370d506b695d722788b03af5f36a155`.
+
+FFH-041 is ACTIVE for the authenticated ephemeral Scenario Lab application surface.
+
+Wave-2 boundary:
+- authenticated server route + household authority;
+- baseline load and explicit-run server action;
+- versioned financial-basis fingerprint;
+- stale fail-closed + explicit rebase;
+- in-memory create/edit/rerun/reset/duplicate/compare/discard;
+- baseline + up to two scenario comparison;
+- generic Recommendation Refresh comparison semantics;
+- accessible/mobile generic scenario editors;
+- no persistence or schema;
+- no profile writes;
+- no specialized adapters;
+- no new policy.
+
+After FFH-041 acceptance, Manager will route a separate bounded specialized-adapter integration task before freezing the final Phase-6 implementation for dual audit.
