@@ -439,3 +439,19 @@ TMA-048-01 is preserved as FFH-047 non-blocking App/Data hardening and does not 
 Phase 7 — Deployment & Release Readiness is now **READY FOR MANAGER ACTIVATION** through FFH-026.
 
 FFH-026 should be activated from the exact canonical post-closure `main` checkpoint. FFH-038 and FFH-047 remain queued/non-blocking maintenance and do not block release-readiness activation.
+
+
+## Phase-7 activation — Production Deployment & Release Readiness — 2026-09-19
+
+Phase 6 is CLOSED / ACCEPTED.
+
+FFH-026 is now **ACTIVE**.
+
+- owner: Application, Data & Integration Engineer;
+- execution: WORK_MODE_PREFERRED;
+- exact production release candidate: `18ccbacd4265461b01580f5e96214788b15ec5af`;
+- assigned branch: `ffh/ffh-026-production-release-readiness`.
+
+The task must verify an exact-SHA Vercel production deployment, secure production environment configuration, production Supabase/auth/migration readiness, critical authenticated browser/runtime flows, privacy-safe cross-household isolation, stable URL, and rollback path before Private Beta can begin.
+
+FFH-038 and FFH-047 remain non-blocking backlog and do not delay FFH-026.
