@@ -214,3 +214,31 @@ Branch: `ffh/ffh-041-scenario-lab-ephemeral-surface`
 - Financial Policy & Scenario Auditor: IDLE until same target.
 - Work Helper: IDLE / on-demand.
 - FFH-038: QUEUED / non-blocking.
+
+# Phase-6 implementation wave 3 — FFH-042 — 2026-09-19
+
+Status: ACTIVE
+
+## ACTIVE
+
+### FFH-042 — Scenario Lab Specialized Adapter Composition
+Owner: Core Financial Engine Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Base: `2587a547450602bf663692320e64a0aa821d0ca2`
+Branch: `ffh/ffh-042-scenario-specialized-adapters`
+
+Bounded scope:
+pure Home / Vehicle / Windfall / Your Plan / Recommendation Refresh adapters; generic/specialized conflict detector; immutability/determinism; exact reconciliation/no-reuse; existing-module equivalence.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-042 READY_FOR_MANAGER/BLOCKED.
+- Application, Data & Integration Engineer: WAIT for accepted FFH-042 before specialized UI/server wiring.
+- Core Financial Engine Engineer: ACTIVE on FFH-042 only.
+- Product & Technical R&D: IDLE; FFH-039 complete.
+- Policy / Regulatory roles: IDLE; no v1 policy blocker activated.
+- Technical & Mathematical Auditor: IDLE until frozen integrated Phase-6 target.
+- Financial Policy & Scenario Auditor: IDLE until same target.
+- Work Helper: IDLE / on-demand.
+- FFH-038: QUEUED / non-blocking and separate.

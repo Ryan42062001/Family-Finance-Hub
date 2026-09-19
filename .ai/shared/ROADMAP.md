@@ -335,3 +335,26 @@ Wave-2 boundary:
 - no new policy.
 
 After FFH-041 acceptance, Manager will route a separate bounded specialized-adapter integration task before freezing the final Phase-6 implementation for dual audit.
+
+## Phase-6 implementation wave 3 — FFH-042 — 2026-09-19
+
+FFH-041 is CLOSED / ACCEPTED and integrated at `2587a547450602bf663692320e64a0aa821d0ca2`.
+
+Manager splits accepted FFH-039 Node C into two bounded steps to reduce Core/App overlap:
+
+1. FFH-042 — Core specialized-adapter composition (ACTIVE)
+   - Home adapter over `evaluateHomeAffordability`;
+   - Vehicle adapter over `evaluateVehicleAffordability`;
+   - Windfall post-engine adapter over `allocateWindfall`;
+   - optional Your Plan layer over `evaluateUserPlan`;
+   - Recommendation Refresh comparisons;
+   - deterministic generic/specialized conflict detector;
+   - exact reconciliation/no-reuse/equivalence tests;
+   - no UI/server action/persistence.
+
+2. Later App/Data specialized Scenario Lab wiring
+   - expose accepted FFH-042 adapters in the authenticated ephemeral workspace;
+   - refresh current entity options after rebase;
+   - no persistence/new policy.
+
+After the specialized App/Data wiring is accepted, Manager freezes the integrated Phase-6 target and activates fresh independent Technical & Mathematical plus Financial Policy & Scenario audits.

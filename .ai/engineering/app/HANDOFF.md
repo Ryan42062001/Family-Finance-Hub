@@ -352,3 +352,17 @@ No Core financial-semantic file, Supabase migration, schema, RLS policy, or live
 | Technical & Mathematical Auditor | WAIT | Fresh Phase-6 audit remains downstream of the later frozen integrated Scenario Lab target. | — |
 | Financial Policy & Scenario Auditor | WAIT | Fresh Phase-6 policy/scenario audit remains downstream of the later frozen integrated target. | — |
 | Work Helper / Super Troubleshooter | IDLE | No escalation trigger or unresolved blocker exists. | — |
+
+## Manager disposition — FFH-041 — 2026-09-19
+
+FFH-041 is CLOSED / ACCEPTED.
+
+Accepted integration:
+`2587a547450602bf663692320e64a0aa821d0ca2`
+
+Manager independently verified server-derived household authority, fresh baseline reload per run, versioned fingerprint/stale fail-closed, stable-ID rebase, protected-field transport rejection, no persistence/write-through, exact-unit comparison transport, in-memory lifecycle, and accessible/mobile workspace.
+
+Non-blocking later App/Data note:
+successful rebase currently refreshes baseline descriptor/summary but not the in-page entity-option lists. Server-side stable-ID validation remains fail-closed. Refresh those option lists when the specialized Scenario Lab UI is wired after FFH-042.
+
+Application, Data & Integration Engineer is WAIT/IDLE until Manager accepts FFH-042.

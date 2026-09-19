@@ -38,7 +38,8 @@ Last refreshed: 2026-09-18
 | FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
 | FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
 | FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
-| FFH-041 | App/Data | READY_FOR_MANAGER | production/final validation `ef1afe85...`; draft PR #55 | Full Foundation CI `35420514850` / job `105837191187` SUCCESS; Manager review next; no persistence/Core semantic change |
+| FFH-041 | App/Data | CLOSED | production `ef1afe85...`; handoff `796fe701...`; integration `2587a547...` | Manager ACCEPTED; auth/stale/rebase/no-write boundaries clear; final dual audit deferred to integrated Phase-6 target |
+| FFH-042 | Core Engine | ACTIVE | base `2587a547...`; branch `ffh/ffh-042-scenario-specialized-adapters` | Pure-domain Home/Vehicle/Windfall/Your Plan/Refresh adapter composition + conflict detector; reconciliation required |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -142,3 +143,6 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-041 worker lane is READY_FOR_MANAGER on draft PR #55 at exact production/final-validation SHA `ef1afe85f29598b2545e83e486ffce22498c02c6`.
 - Exact full Foundation CI `35420514850` / job `105837191187` is SUCCESS: calculations, security, typecheck, lint, build, dependency audit, AI-state validation, and guardrails all pass.
 - No Core semantic, persistence/schema/RLS/live-write, profile-apply, or specialized-adapter scope was introduced. Manager review/acceptance is the next gate.
+
+- FFH-041 CLOSED / ACCEPTED after independent Manager source, CI, auth/stale/rebase/no-write, unit, and accessibility review.
+- FFH-042 ACTIVE as Node-C Core specialized-adapter composition. UI/server wiring remains downstream in a separate App/Data task.

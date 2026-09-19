@@ -981,3 +981,27 @@ Base: `75d2766fb370d506b695d722788b03af5f36a155`
 Branch: `ffh/ffh-041-scenario-lab-ephemeral-surface`
 
 App/Data must consume the accepted Core contract without modifying Core financial semantics. No persistence/schema/live-data mutation or specialized adapter work is authorized.
+
+## FFH-041 accepted / FFH-042 activated — 2026-09-19
+
+Manager independently accepted FFH-041.
+
+Evidence:
+- production/final-validation `ef1afe85f29598b2545e83e486ffce22498c02c6`;
+- full CI `35420514850` / `105837191187` SUCCESS;
+- handoff/final head `796fe7011389c5ce40d664a918f6bdb68ea05e94`;
+- continuity CI `35421188796` / `105839091467` SUCCESS;
+- integration `2587a547450602bf663692320e64a0aa821d0ca2`;
+- merge tree exact.
+
+Independent review found no blocking auth, stale/fingerprint, rebase, protected-field, persistence/write, transport-unit, lifecycle, comparison, or accessibility defect.
+
+Non-blocking later App/Data hardening: refresh entity option lists after successful rebase; current server validation remains fail-closed.
+
+Manager now activates:
+FFH-042 — Scenario Lab Specialized Adapter Composition
+Owner: Core Financial Engine Engineer
+Base: `2587a547450602bf663692320e64a0aa821d0ca2`
+Branch: `ffh/ffh-042-scenario-specialized-adapters`
+
+Core owns pure Home/Vehicle/Windfall/Your Plan/Refresh composition plus deterministic conflict detection and exact reconciliation. No UI/App Router/auth/Supabase/persistence/new-policy work.
