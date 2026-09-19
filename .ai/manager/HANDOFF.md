@@ -860,3 +860,26 @@ Activated independently:
 Do not expose either auditor's verdict/reasoning to the other before both submit.
 
 PR #5 remains NOT MERGE READY. Phase 6 remains gated.
+
+## Final Phase-5 audit reconciliation — 2026-09-18
+
+Both fresh independent final auditors completed against frozen production target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+
+Technical FFH-036:
+- report `3ab9fe0a051ae64cb687a8fafcb863bf0587f281`;
+- handoff `45026c5f4c9ae82dbd40b2a9c34ccafacb6372d7`;
+- PASS WITH NON-BLOCKING FINDINGS;
+- one LOW test-fixture hygiene finding;
+- exact reconciliation CLEAR.
+
+Policy FFH-037:
+- report `101e24bacd2ccd9bd0f51876ed040c8721ee2e76`;
+- handoff `674b9a3c44ca92cc3b3201bf47ac2d79d6547cc3`;
+- PASS WITH NON-BLOCKING FINDINGS;
+- two LOW HSA observations.
+
+Manager source inspection confirms all three LOWs are genuinely non-blocking. No remediation is required before merge. They are preserved in FFH-038, QUEUED for post-Phase-5 hardening.
+
+Final integrated audit gate: CLEAR.
+
+Next: integrate this reconciliation, refresh PR #5 description/checks, perform final merge review, merge if clean, then verify post-merge CI before activating Phase 6.
