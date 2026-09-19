@@ -8,6 +8,10 @@ import {
   executeScenarioRun,
   type ScenarioExecutionDependencies,
 } from "@/lib/scenarios/scenario-execution";
+import {
+  executeSpecializedScenarioRebase,
+  executeSpecializedScenarioRun,
+} from "@/lib/scenarios/scenario-specialized-execution";
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
@@ -34,4 +38,13 @@ export async function rebaseScenarioAction(input: unknown) {
 
 export async function compareScenariosAction(input: unknown) {
   return executeScenarioPairComparison(input, dependencies());
+}
+
+
+export async function runSpecializedScenarioAction(input: unknown) {
+  return executeSpecializedScenarioRun(input, dependencies());
+}
+
+export async function rebaseSpecializedScenarioAction(input: unknown) {
+  return executeSpecializedScenarioRebase(input, dependencies());
 }
