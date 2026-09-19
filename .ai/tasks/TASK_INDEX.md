@@ -37,7 +37,8 @@ Last refreshed: 2026-09-18
 | FFH-037 | Policy Audit | CLOSED | frozen target `b8e60292...`; report `101e24ba...`; handoff `674b9a3c...` | PASS WITH NON-BLOCKING FINDINGS; 2 LOW HSA observations accepted |
 | FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
 | FFH-039 | Product R&D | CLOSED | report `b549b8d1...`; handoff `0566022b...` | Scenario Lab v1 product/technical contract ACCEPTED; ephemeral/no-schema; Core foundation next |
-| FFH-040 | Core Engine | READY_FOR_MANAGER | production/validation `3407df88...`; PR #52 | Foundation CI `35418840708` / job `105832568156` SUCCESS; Manager acceptance/integration next |
+| FFH-040 | Core Engine | CLOSED | production `3407df88...`; integration `75d2766f...`; handoff `870967e1...` | Manager ACCEPTED; reconciliation clear; integrated; final Phase-6 dual audit deferred to integrated target |
+| FFH-041 | App/Data | ACTIVE | base `75d2766f...`; branch `ffh/ffh-041-scenario-lab-ephemeral-surface` | Authenticated ephemeral Scenario Lab route/action/UI + fingerprint/stale/compare; no persistence or specialized adapters |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
