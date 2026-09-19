@@ -166,6 +166,13 @@ export type HomeScenarioComparison<T extends HomePurchaseScenario = HomePurchase
   result: HomeAffordabilityResult;
 };
 
+export type HomeAffordabilityEvaluationTrace = {
+  postEngine: MoneyPriorityEngineResult | null;
+  stressedPostEngine: MoneyPriorityEngineResult | null;
+};
+
+export type HomeAffordabilityEvaluationObserver = (trace: HomeAffordabilityEvaluationTrace) => void;
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -332,6 +339,7 @@ export function evaluateHomeAffordability(
   engine: MoneyPriorityEngineResult,
   scenario: HomePurchaseScenario,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  observe?: HomeAffordabilityEvaluationObserver,
 ): HomeAffordabilityResult {
   const missingData: string[] = [];
   const warnings: string[] = [];
@@ -748,6 +756,8 @@ export function evaluateHomeAffordability(
     risks.push("ARM affordability is tested at the supplied contractual lifetime-cap rate, not only the initial payment.");
   }
   reasons.push("Purchase readiness, ongoing affordability, and financing quality are evaluated against an authoritative hypothetical post-purchase Phase 5 plan.");
+
+  observe?.({ postEngine, stressedPostEngine });
 
   return {
     purchaseReadiness,

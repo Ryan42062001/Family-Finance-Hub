@@ -2,19 +2,19 @@
 
 HANDOFF
 
-Task ID: FFH-040 — Scenario Overlay + Runner Foundation
+Task ID: FFH-042 — Scenario Lab Specialized Adapter Composition
 Role: Core Financial Engine Engineer
-Status: ACCEPTED
+Status: READY_FOR_MANAGER
 Execution mode: STANDARD_CHAT_HIGH
 Refresh mode: FAST_REFRESH
-Branch: `ffh/ffh-040-scenario-runner-foundation`
-Pull request: #52 — draft / open / unmerged
-Manager / control-plane assignment head: `06e28d8035c550407b8388dfef594aa16d91b583`
-Approved production integration base: `cc8e2c207f16350c1baeab131ffd685c848948ce`
+Branch: `ffh/ffh-042-scenario-specialized-adapters`
+Pull request: #57 — draft / open / unmerged / mergeable
+Manager / control-plane assignment head: `cd508613330c357a946666527bf22cb16c351593`
+Approved production integration base: `2587a547450602bf663692320e64a0aa821d0ca2`
 
-PRODUCTION_SHA: `3407df88440b0742a76cd59aab195c7fe1a103f7`
-FINAL_VALIDATION_SHA: `3407df88440b0742a76cd59aab195c7fe1a103f7`
-VALIDATED_CI: Foundation CI run `35418840708`, job `105832568156` — SUCCESS
+PRODUCTION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+FINAL_VALIDATION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+VALIDATED_CI: Foundation CI run `35422840158`, job `105843532078` — SUCCESS
 HANDOFF_SHA: This final documentation/control-plane commit; exact SHA is returned after creation
 INTEGRATION_SHA: Not yet established
 MANAGER_VERDICT: PENDING
@@ -22,109 +22,132 @@ AUDIT_STATUS: NOT_READY — Manager acceptance/integration not yet established
 
 ## Result
 
-FFH-040's pure Scenario Lab financial-domain foundation is complete without a second financial engine.
+FFH-042's pure-domain specialized Scenario Lab composition layer is complete without duplicating any accepted financial evaluator.
 
-The implementation:
-- extracts one reusable normalized-snapshot-to-raw adapter and routes existing hypothetical reruns through it;
-- defines a versioned/discriminated ScenarioDefinition with bounded recurring overrides and one-time events;
-- validates unknown types/fields, malformed values, duplicate/conflicting targets, missing entities, generated-ID collisions, and protected legal/statutory fields fail-closed;
-- applies overlays to fresh raw objects and deeply freezes the returned overlay;
-- reruns only `runMoneyPriorityEngine` with the baseline as-of date and matching accepted policy;
-- returns structured valid / more_information_needed / invalid status, validation issues, policy basis, opaque baseline provenance, applied operation IDs, and exact one-time cash provenance.
+Composition is:
+baseline engine -> generic FFH-040 scenario engine -> optional Home/Vehicle/Windfall specialized result -> optional Your Plan allocation layer.
 
-Generic v1 support includes bounded explicit income, synthetic income, recurring expense/childcare, debt, goal, retirement planning, retirement age, insurance, non-statutory planning assumptions, explicit disruption/end-date facts, one-time cash inflow/use, cash-impact-only medical use, goal completion, and atomic cash-funded debt payoff.
+Delegation is direct:
+- Home -> `evaluateHomeAffordability`;
+- Vehicle -> `evaluateVehicleAffordability`;
+- Windfall -> `allocateWindfall`;
+- Your Plan -> `evaluateUserPlan`;
+- comparisons/override reconciliation -> `assessRecommendationRefresh`.
 
-Protected HSA/SIMPLE/YTD/filing/compensation/policy authority is not exposed through generic overrides. A paycheck change does not rewrite statutory compensation, YTD contributions, MAGI, filing status, HSA eligibility, legal-spouse authority, SIMPLE category, or tax/policy versions.
+Home and Vehicle received only optional observer callbacks exposing the post-engine objects those evaluators already compute internally. Standalone result shape/outcomes and calculations are unchanged.
 
-Specialized Home/Vehicle/Windfall intent can be represented only as a deferred boundary; FFH-040 rejects execution because those adapters are explicitly out of scope.
+## Conflict contract
 
-## Focused validation
+`scenario-specialized-v1` uses:
+- specialized stable `eventId`;
+- generic operation IDs;
+- explicit operation-to-event links where cash/synthetic recurring representation is otherwise ambiguous;
+- stable goal/debt/expense IDs for adapter-owned entity overlap;
+- exact Your Plan allocation IDs.
 
-Foundation CI `35418840708` / `105832568156`:
-- calculations: 933/933 PASS;
-- security: 21/21 PASS;
-- AI state: PASS;
-- dependency audit: PASS;
-- typecheck: PASS;
-- lint: PASS with zero errors;
-- production build: PASS.
+It rejects:
+- Home generic cash representation of the same event;
+- Vehicle generic acquisition/operating-cost representation of the same event;
+- Windfall generic cash inflow for the same event;
+- ambiguous Home/Vehicle cash or synthetic-expense operations without explicit independent event ownership;
+- adapter-owned recurring goal override and stable goal cash overlap;
+- adapter-owned stable debt/expense overlap;
+- duplicate Your Plan allocation overrides.
 
-All 14 focused FFH-040 subtests pass:
-1. no-op baseline reproduction + deep immutability;
-2. invalid/protected fail-closed + immutability;
-3. duplicate/conflict rejection;
-4. stable IDs instead of display names;
-5. generic INCLUDE recurring categories;
-6. recurring override order + repeat determinism;
-7. one-time event order / odd-cent determinism;
-8. one-time versus recurring separation;
-9. generated account-ID collision rejection;
-10. atomic payoff / no-double-count;
-11. deep frozen overlay;
-12. HSA shared/catch-up no-recreation;
-13. spousal-IRA shared compensation + odd-cent preservation;
-14. missing legal facts remain unknown.
+Independent operations with explicit different event IDs remain allowed. No display names participate in conflict identity.
 
-## Reconciliation proof
+## Validation
 
-No-op:
-- scenario engine result is structurally/deeply identical to the baseline engine result.
+Final Foundation CI `35422840158` / `105843532078`:
+- calculations 963/963 PASS;
+- security 28/28 PASS;
+- AI state PASS;
+- dependency audit PASS / 0 vulnerabilities;
+- typecheck PASS;
+- lint PASS with 0 errors / 3 inherited warnings;
+- production build PASS.
 
-One-time cash:
-- `$1,000.01` inflow = `100,001` cents;
-- `$500.00` medical use = `50,000` cents;
-- exact net = `50,001` cents / `$500.01`;
-- monthly take-home is unchanged.
+20 focused FFH-042 tests PASS.
 
-Order/final-cent control:
-- `$100.01 - $33.34 = $66.67` exactly;
-- reversing event input order yields identical output.
+R01 production/final-validation checkpoint `f9c6081c...` independently passed full Foundation CI run `35422840158` / job `105843532078`.
 
-Atomic payoff:
-- debt principal before = `$4,000`;
-- cash consumed = exactly `$4,000`;
-- debt principal after = `$0`;
-- minimum payment after = `$0`;
-- monthly required debt payments fall exactly `$200`;
-- protected reserve and unrelated goal earmark are unavailable;
-- insufficient eligible cash returns invalid with no scenario engine result.
+R01 production and final validation are the same exact commit; the bounded remediation changes only the conflict contract and focused FFH-042 test file before this documentation handoff.
 
-Retirement/legal capacity:
-- `retirementCapacityInvariantHolds` remains true on changed scenario runs;
-- married-family HSA group remains exactly `$10,750` total capacity with `$8,750` shared ordinary room and `$1,000 + $1,000` owner catch-ups;
-- unrelated scenario changes do not recreate those capacities;
-- spousal IRA shared compensation remains exactly `$10,000.01` under unrelated changes;
-- full suite retains FFH-013 M01 exact `$416.67 + $416.66` final-cent behavior;
-- full suite retains the staged Existing Cash / Secure / Build / Windfall no-reuse proofs and canonical annual/monthly cent conversion;
-- no epsilon/tolerance waiver or hidden residual clamp exists in FFH-040.
+## Equivalence / immutability
 
-## Compatibility / scope
+Home and Vehicle adapter results deep-equal direct accepted evaluator calls made against the final generic engine, including captured post-engine results and Recommendation Refresh comparisons.
 
-Existing hypothetical behavior remains green after moving normalized-to-raw conversion to the shared adapter.
+Windfall adapter result deep-equals direct `allocateWindfall(finalGenericEngine, input)`.
 
-The full green calculation suite preserves Home, Vehicle, Windfall, Your Plan, Recommendation Refresh, Phase-5C/R08, HSA, SIMPLE, and FFH-013 regression coverage.
+Baseline engine is deep-unchanged after repeated specialized runs.
 
-Validated PR production/test/security scope before this handoff:
-- `lib/calculations/money-priority-hypothetical.ts`
-- `lib/calculations/money-priority-raw-adapter.ts`
-- `lib/calculations/money-priority-scenario-runner.test.ts`
-- `lib/scenarios/scenario-definition.ts`
-- `lib/scenarios/scenario-overlay.ts`
-- `lib/scenarios/scenario-runner.ts`
-- `tests/security/hsa-input-contract.test.ts`
-- `tests/security/simple-plan-limit-contract.test.ts`
+The generic scenario engine deep-equals an independent FFH-040 generic-only run and remains unchanged after specialized execution.
 
-This handoff additionally updates only:
-- `.ai/tasks/FFH-040.md`
+Equivalent repeated runs are deep-identical. Reversing explicit operation-event-link ordering produces identical output.
+
+## Reconciliation
+
+Home no-reuse control:
+- `$12,000` protected reserve;
+- `$250,000` unrelated earmark;
+- legitimate purchase cash `$0`;
+- cash still required `$67,000`;
+- protected cash required `$67,000`;
+- unrelated earmark used `$0`.
+
+Vehicle no-reuse control:
+- `$12,000` protected reserve;
+- `$250,000` unrelated earmark;
+- available vehicle cash `$0`;
+- cash required `$10,000`;
+- protected cash required `$10,000`;
+- unrelated earmark used `$0`.
+
+Windfall exact control:
+- gross `$12,345.67`;
+- reservations `$1,900.08`;
+- deployable `$10,445.59`;
+- authoritative destination total `$4,300.00`;
+- residual `$6,145.59`;
+- exact identity: `$1,900.08 + $4,300.00 + $6,145.59 = $12,345.67`.
+- uncertain-tax control holds `$9,000` for review after a `$1,000` known liability and deploys `$0`.
+
+Your Plan:
+- exact allocation IDs only;
+- funding gap is asserted as exact integer-cent `totalAllocated - monthlyCapacity`;
+- duplicate overrides fail closed;
+- missing IDs are superseded without retargeting;
+- no silent clamp/reallocation.
+
+Retirement:
+- Windfall consumes only the final generic engine ledger;
+- HSA married-family capacity remains `$10,750` total / `$8,750` ordinary / `$1,000 + $1,000` catch-ups;
+- spousal-IRA shared compensation remains exactly `$10,000.01`;
+- generic ledger remains unchanged after Windfall;
+- `retirementCapacityInvariantHolds` remains true;
+- full suite preserves Existing Cash -> Secure -> Build -> Windfall no-reuse and stable final-cent behavior.
+
+No tolerance/epsilon reconciliation waiver or hidden residual clamp was introduced.
+
+## Complete validated production/test scope
+
+- `lib/calculations/home-affordability.ts`
+- `lib/calculations/vehicle-affordability.ts`
+- `lib/scenarios/scenario-specialized-contract.ts`
+- `lib/scenarios/scenario-specialized-runner.ts`
+- `lib/calculations/ffh-042-scenario-specialized-adapters.test.ts`
+
+This final handoff additionally changes only:
+- `.ai/tasks/FFH-042.md`
 - `.ai/tasks/TASK_INDEX.md`
-- `.ai/engineering/engine/FFH-040_WORKLOG.md`
+- `.ai/engineering/engine/FFH-042_WORKLOG.md`
 - `.ai/engineering/engine/HANDOFF.md`
 
-No application, Supabase, schema, persistence, authentication, UI, or policy files changed.
+No Scenario Lab UI/server actions, authentication, Supabase, schema/migration/RLS, persistence, saved-scenario, tax-policy, FFH-038, or Phase-7 surface changed.
 
 Worker blocker: NONE.
 
-Manager should independently review PR #52 and hand-check at least one adversarial reconciliation scenario before acceptance/integration.
+Manager should independently review PR #57 and perform the required reconciliation hand-check before acceptance/integration.
 
 READY_FOR_MANAGER
 
@@ -132,7 +155,7 @@ READY_FOR_MANAGER
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-040 on draft PR #52 / branch `ffh/ffh-040-scenario-runner-foundation`. Verify production/validation SHA `3407df88440b0742a76cd59aab195c7fe1a103f7`, Foundation CI `35418840708` / job `105832568156`, ScenarioDefinition/overlay/runner boundaries, protected legal-fact exclusions, no-op/immutability/determinism/atomic-payoff proofs, HSA/spousal-IRA/no-reuse reconciliation, and preservation of existing hypothetical/Home/Vehicle/Windfall/Your Plan/Refresh behavior. Perform the required independent reconciliation hand-check, then accept/integrate or route remediation/audit as warranted. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-042 on draft PR #57 / branch `ffh/ffh-042-scenario-specialized-adapters`. Verify R01 production/final-validation SHA `f9c6081c8987a7bdb450cc62898e12c8de668ef7`, Foundation CI `35422840158` / job `105843532078`, recurring GoalOverride stable-ID overlap remediation, Home/Vehicle direct-evaluator equivalence, post-generic Windfall ordering, Your Plan exact-capacity behavior, Recommendation Refresh delegation, explicit event/stable-ID conflict detector, immutability/determinism, HSA/spousal-IRA/no-reuse reconciliation, and full existing-module preservation. Perform the required independent reconciliation hand-check, then accept/integrate or route remediation as warranted. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
@@ -145,38 +168,24 @@ READY_FOR_MANAGER
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
 
 
-## Manager disposition — 2026-09-18
+## Manager-routed remediation R01
 
-FFH-040 is CLOSED / ACCEPTED.
+Manager review identified one blocking omission: recurring `GoalOverride` operations (`type: "goal"`) were not checked by `stableOverlap()`.
 
-Manager independently verified source boundaries, CI custody, protected-field exclusions, no-op/immutability/determinism, atomic payoff semantics, shared HSA/spousal-IRA capacity preservation, and exact reconciliation.
+The bounded fix adds `case "goal"` to the existing stable-goal overlap path. This applies equally to Home and Vehicle because both adapter intents use the shared `ownedIds()` set, which already includes explicit `ownedStableIds.goalIds` and the adapter's `relatedGoalId`.
 
-Accepted integration:
-`75d2766fb370d506b695d722788b03af5f36a155`
+Direct regression:
+- same-goal Home `currentAmount` override on `house-goal` => `stable_entity_overlap`, invalid before specialized execution;
+- unrelated `college-goal` `currentAmount` override => conflict detector valid, generic engine updates `college-goal` only, Home adapter still runs.
 
-Core Financial Engine Engineer is now IDLE for Phase 6 unless FFH-041 exposes a concrete Core integration defect. Do not proactively change Scenario Lab Core semantics.
+No other production behavior changed.
 
-## FFH-042 assignment — 2026-09-19
+R01 exact production/final-validation SHA:
+`f9c6081c8987a7bdb450cc62898e12c8de668ef7`
 
-Current assignment:
-FFH-042 — Scenario Lab Specialized Adapter Composition
+Full Foundation CI:
+`35422840158` / `105843532078` — SUCCESS / FULL.
 
-Owner:
-Core Financial Engine Engineer
+PR #57 remains draft / open / unmerged / mergeable.
 
-Approved base:
-`2587a547450602bf663692320e64a0aa821d0ca2`
-
-Assigned branch:
-`ffh/ffh-042-scenario-specialized-adapters`
-
-Own only the pure-domain specialized composition layer:
-- Home via `evaluateHomeAffordability`;
-- Vehicle via `evaluateVehicleAffordability`;
-- Windfall via post-engine `allocateWindfall`;
-- optional Your Plan via `evaluateUserPlan`;
-- Recommendation Refresh comparison;
-- deterministic generic/specialized conflict detection;
-- exact reconciliation/no-reuse/equivalence tests.
-
-Do not implement Scenario Lab UI/server actions/auth/Supabase/persistence/new policy.
+READY_FOR_MANAGER

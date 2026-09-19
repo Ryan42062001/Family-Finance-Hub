@@ -89,6 +89,12 @@ export type VehicleScenarioComparison<T extends VehiclePurchaseScenario = Vehicl
   result: VehicleAffordabilityResult;
 };
 
+export type VehicleAffordabilityEvaluationTrace = {
+  postEngine: MoneyPriorityEngineResult | null;
+};
+
+export type VehicleAffordabilityEvaluationObserver = (trace: VehicleAffordabilityEvaluationTrace) => void;
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -244,6 +250,7 @@ export function evaluateVehicleAffordability(
   engine: MoneyPriorityEngineResult,
   scenario: VehiclePurchaseScenario,
   policy: MoneyPriorityPolicy = MONEY_PRIORITY_POLICY_V1,
+  observe?: VehicleAffordabilityEvaluationObserver,
 ): VehicleAffordabilityResult {
   const missingData: string[] = [];
   const requiredAmounts: Array<[string, number | null]> = [
@@ -444,6 +451,8 @@ export function evaluateVehicleAffordability(
         : "Affordability reflects an authoritative Money Priority Engine rerun after the hypothetical purchase.",
     );
   }
+
+  observe?.({ postEngine });
 
   return {
     affordability,
