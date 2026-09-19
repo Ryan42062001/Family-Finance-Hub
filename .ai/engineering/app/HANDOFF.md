@@ -232,6 +232,82 @@ Manager independently verifies this live evidence and decides acceptance. Do not
 | Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 audit is downstream of Manager acceptance. |
 | Work Helper / Super Troubleshooter | IDLE | No escalation trigger. |
 
+## FFH-026 — Production Deployment & Release Readiness — blocked 2026-09-19
+
+Status: BLOCKED
+
+Repository and release custody:
+- assigned branch: `ffh/ffh-026-production-release-readiness`;
+- starting control-plane/branch head: `8b5273b0bc36be3a48b6f12145e9674f31141804`;
+- exact Manager-approved deployment candidate: `18ccbacd4265461b01580f5e96214788b15ec5af`;
+- candidate was isolated in a detached worktree and not replaced with the later control-plane head.
+
+Completed evidence:
+- `npm ci && npm run verify` on the exact release candidate passed AI-state validation, 979 calculation tests, 34 security tests, typecheck, lint (zero errors; three existing warnings), and production build;
+- intended production Supabase project `tsqwvggojeudgspnumze` is healthy in `us-east-2` on PostgreSQL 17.6.1.166;
+- live history contains all 15 canonical migrations through FFH-023 `20260911170000`;
+- every listed public table has RLS enabled and the live security advisor has zero findings;
+- production Auth exposes email signup, requires email confirmation, and has no external social provider enabled;
+- a rollback-only synthetic two-household check proved owner A could read exactly one own household/account and zero foreign accounts; post-rollback counts were zero for the synthetic auth users, households, and accounts;
+- no live DDL, migration, migration-history, auth configuration, or persistent data mutation occurred.
+
+Blocking Vercel evidence:
+- the connected Vercel surface returned zero accessible teams;
+- `vercel whoami` returned `loggedIn: false` / `login_required`;
+- two interactive device-login sessions were opened and the user confirmed both approvals, but neither authorization bound to the waiting CLI session;
+- therefore no production project could be created/verified, no production environment values could be configured, and no exact-SHA deployment identity or stable production URL exists;
+- production browser smoke, final Auth Site URL/redirect allowlist verification, deployment rollback exercise, GitHub About website update, and README production URL update are downstream of that missing deployment and remain unclaimed.
+
+Required user action:
+Establish a usable Vercel account context for this workspace without pasting a token into chat: authenticate the Vercel CLI in the execution environment or connect a Vercel team/project that the Vercel integration can enumerate. Then resume this same task/branch; do not create a competing deployment PR and do not change the pinned release SHA.
+
+Application rollback plan once deployment is possible:
+- first deploy the pinned candidate without promoting its stable production alias;
+- smoke the immutable deployment URL;
+- promote only after release gates pass;
+- on regression, immediately reassign the production alias to the last known-good Vercel deployment while preserving the failed immutable deployment for diagnostics.
+
+Database recovery boundary:
+- FFH-026 introduces no migration, so application rollback does not require schema rollback;
+- canonical production migrations are additive and already live;
+- any future database recovery must use a protected backup and a separately Manager-authorized recovery plan, never ad hoc migration-history mutation or destructive down migration.
+
+### Next Activation
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Review FFH-026 blocker evidence on the assigned branch and coordinate usable Vercel account authorization; retain exact release candidate `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | Resume FFH-026 on `ffh/ffh-026-production-release-readiness` only after Vercel CLI or connected-team authorization is usable; deploy exact SHA `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | Wait for a deployed and fully smoke-tested FFH-026 candidate if Manager later routes release verification. |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-026 current handoff pointer — 2026-09-19
+
+FFH-026 is BLOCKED only on establishing a usable Vercel CLI or connected-team authorization. The exact blocker, candidate validation, live Supabase/auth/migration/RLS evidence, privacy-safe rollback-only isolation proof, and rollback boundaries are recorded in the FFH-026 section above. No deployment or production URL is claimed.
+
+### Next Activation — FFH-026
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Review FFH-026 blocker evidence on the assigned branch and coordinate usable Vercel account authorization; retain exact release candidate `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | Resume FFH-026 on `ffh/ffh-026-production-release-readiness` only after Vercel CLI or connected-team authorization is usable; deploy exact SHA `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | Wait for a deployed and fully smoke-tested FFH-026 candidate if Manager later routes release verification. |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
 ## Manager disposition — FFH-016 — 2026-09-18
 
 Status: CLOSED / ACCEPTED.
@@ -480,4 +556,24 @@ Validation at `35036b8aa228306c3c40212877c38f33940f74ce`: Foundation CI mode FUL
 | 8 | Product & Technical R&D Engineer | IDLE | — |
 | 9 | Technical & Mathematical Auditor | WAIT | — |
 | 10 | Financial Policy & Scenario Auditor | WAIT | — |
+| 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-026 current handoff — 2026-09-19
+
+Status: BLOCKED on usable Vercel account authorization. See the detailed FFH-026 section above for the exact pinned candidate, validation, live Supabase/auth/migration/RLS evidence, privacy-safe rollback-only isolation proof, and application/database rollback boundaries. No Vercel deployment, production URL, production browser smoke, GitHub About URL, or README URL is claimed.
+
+### Next Activation — FFH-026
+
+| Order | Employee / Role | Status | Copy/paste activation prompt |
+|---:|---|---|---|
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Review FFH-026 blocker evidence on branch `ffh/ffh-026-production-release-readiness` and coordinate usable Vercel account authorization; preserve exact release candidate `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | BLOCKED | Resume the same FFH-026 branch after Vercel CLI or connected-team authorization is usable; deploy only exact SHA `18ccbacd4265461b01580f5e96214788b15ec5af`. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | — |
+| 8 | Product & Technical R&D Engineer | IDLE | — |
+| 9 | Technical & Mathematical Auditor | WAIT | Wait for a deployed and fully smoke-tested FFH-026 candidate if Manager later routes release verification. |
+| 10 | Financial Policy & Scenario Auditor | IDLE | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
