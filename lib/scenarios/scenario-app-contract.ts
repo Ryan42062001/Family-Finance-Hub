@@ -25,6 +25,7 @@ export type ScenarioBaselineDescriptor = {
 };
 
 export type ScenarioAllocationDTO = {
+  allocationId: string;
   category: string;
   relatedEntityId: string | null;
   monthlyAmount: number;
