@@ -147,3 +147,11 @@ Authorized live command:
 `npx.cmd --yes supabase@latest db push --linked`
 
 Confirmation must show only `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`. Stop after command and preserve output.
+
+## FFH-035 accepted / FFH-016 active — 2026-09-18
+
+FFH-035 is Manager-accepted. The FFH-023 legal-spouse authority migration is live with verified table, constraints, index, RLS, policies, authenticated-only grants, zero rows/backfill, and clean security advisor.
+
+Current assignment: FFH-016 verification-only live parity.
+
+Do not mutate production/schema under FFH-016. Verify PostgREST/RLS/persistence/reload/normalized runtime/Recommendation Refresh/browser behavior and return any mismatch to Manager for separate remediation routing.
