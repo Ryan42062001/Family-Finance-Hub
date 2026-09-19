@@ -109,3 +109,9 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - FFH-034 frozen audit target: `aa88b8d4091f4496487823d52f1dad25735b44c8`.
 - Fresh independent audit branch: `audit/ffh-034-workflow-aa88b8d4`; packet commit `36b13edda3b6720af900d976a47f8c3b2a56eb97`.
 - FFH-034 state: AUDIT_READY / Technical & Mathematical Auditor activated. Task remains open pending independent verdict + Manager reconciliation.
+
+- FFH-034 CLOSED on frozen target `aa88b8d4091f4496487823d52f1dad25735b44c8` after fresh independent Technical/Workflow audit PASS with zero findings.
+- Audit report: `945be18ccf93a61200be3042d419bdafa4e83ace`; audit handoff head: `e41445ae11701b351cbc91ec69a84354d5b24030`.
+- Live ruleset `23686709` remains active and requires GitHub Actions `verify` on exactly `main` + `phase-5-money-priority-engine`, non-strict, no bypass actors, no unrelated restrictions.
+- Post-freeze Manager routing changed documentation/control-plane state only; Foundation CI #721 / run `35409486250` / verify `105806039636` SUCCESS on protected milestone checkpoint `a2aba5b471d7572b07287b41e5ecb8d6ded485d3`.
+- FFH-020/FFH-016, PR #5 merge readiness, financial/Supabase boundaries, and Phase 6 gates are unchanged.
