@@ -33,8 +33,9 @@ Last refreshed: 2026-09-18
 | FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
 | FFH-034 | Product R&D / Engineering | CLOSED | frozen target `aa88b8d4...`; ruleset `23686709`; audit report `945be18c...` | Independent Technical/Workflow audit PASS; zero findings; required `verify` enforcement active |
 | FFH-035 | App/Data | ACCEPTED | live `20260911170000...` | Table/constraints/index/RLS/policies/grants/zero-backfill/security verified; FFH-016 reactivated |
-| FFH-036 | Technical Audit | ACTIVE | frozen target `b8e60292...` | Fresh final integrated Phase-5 Technical & Mathematical audit; shared frozen packet; reconciliation gate required |
-| FFH-037 | Policy Audit | ACTIVE | frozen target `b8e60292...` | Fresh final integrated Phase-5 Financial Policy & Scenario audit; shared frozen packet |
+| FFH-036 | Technical Audit | CLOSED | frozen target `b8e60292...`; report `3ab9fe0a...`; handoff `45026c5f...` | PASS WITH NON-BLOCKING FINDINGS; 1 LOW test-fixture finding accepted; reconciliation gate CLEAR |
+| FFH-037 | Policy Audit | CLOSED | frozen target `b8e60292...`; report `101e24ba...`; handoff `674b9a3c...` | PASS WITH NON-BLOCKING FINDINGS; 2 LOW HSA observations accepted |
+| FFH-038 | Core Engine | QUEUED | not established | Non-blocking post-Phase-5 hardening for TMA-036-01 / FFH-037-P01 / FFH-037-P02; do not activate before Phase-5 merge closure |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -105,3 +106,8 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - FFH-016 CLOSED / Manager ACCEPTED after independent live Supabase/RLS/persistence/runtime verification on frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`; no remediation routed.
 - FFH-036 and FFH-037 are ACTIVE as fresh independent final integrated Phase-5 audits against the same frozen target and shared packet `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`.
 - PR #5 remains NOT MERGE READY until both final audits are reconciled by Manager. Phase 6 remains gated.
+
+- Final integrated Phase-5 dual audit gate CLEARED on frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`: FFH-036 and FFH-037 both CLOSED / ACCEPTED with PASS WITH NON-BLOCKING FINDINGS and no CRITICAL/HIGH/MEDIUM findings.
+- Manager independently inspected all three LOW findings and accepts them as non-blocking. They are preserved in queued FFH-038 rather than modifying audited production before merge.
+- PR #5 enters FINAL MERGE REVIEW. It is not declared merged until Manager refreshes PR metadata/checks, updates the stale description, verifies no blocker drift, merges, and verifies post-merge CI/canonical state.
+- Phase 6 remains gated until Phase-5 merge + post-merge verification complete.

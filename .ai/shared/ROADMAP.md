@@ -217,3 +217,19 @@ Remaining Phase-5 sequence:
 3. route remediation if any blocking finding exists;
 4. if both required audit gates clear, refresh PR #5 description/status and perform final merge review;
 5. merge only after Manager explicitly declares the merge gate clean, then verify post-merge CI and canonical state.
+
+## Phase-5 final dual-audit clearance — 2026-09-18
+
+The roadmap-required final integrated audits are complete on exact frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`:
+- FFH-036 Technical & Mathematical: PASS WITH NON-BLOCKING FINDINGS; 1 LOW; no blocking finding; reconciliation CLEAR.
+- FFH-037 Financial Policy & Scenario: PASS WITH NON-BLOCKING FINDINGS; 2 LOW; no blocking finding.
+
+Manager independently accepts all three LOW findings as non-blocking and queues FFH-038 for post-Phase-5 hardening. FFH-038 does not block PR #5.
+
+Current Phase-5 sequence:
+1. integrate final audit reports + Manager reconciliation into the milestone;
+2. refresh PR #5 description/status against canonical state;
+3. perform final merge review and required-check verification;
+4. merge PR #5 only if no blocker drift exists;
+5. verify post-merge Foundation CI and reconcile canonical state;
+6. only then consider Phase 6 activation.

@@ -162,3 +162,32 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - Both auditors receive the same frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9` and shared packet `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`; auditor conclusions must remain independent.
 - PR #5 remains NOT MERGE READY pending both final audit verdicts and Manager reconciliation.
 - Phase 6 remains PLANNED / NOT STARTED.
+
+## Final integrated Phase-5 dual-audit reconciliation — 2026-09-18
+
+Frozen production target: `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+
+FFH-036 Technical & Mathematical audit:
+- report `3ab9fe0a051ae64cb687a8fafcb863bf0587f281`;
+- handoff head `45026c5f4c9ae82dbd40b2a9c34ccafacb6372d7`;
+- verdict **PASS WITH NON-BLOCKING FINDINGS**;
+- CRITICAL/HIGH/MEDIUM: 0; LOW: 1;
+- Financial Engine Reconciliation Gate: CLEAR.
+
+FFH-037 Financial Policy & Scenario audit:
+- report `101e24bacd2ccd9bd0f51876ed040c8721ee2e76`;
+- handoff head `674b9a3c44ca92cc3b3201bf47ac2d79d6547cc3`;
+- verdict **PASS WITH NON-BLOCKING FINDINGS**;
+- CRITICAL/HIGH/MEDIUM: 0; LOW: 2;
+- policy/scenario reconciliation gate: CLEAR.
+
+Manager independently verified branch custody and source behavior behind all LOW findings:
+- TMA-036-01 is test-only fixture hygiene; production does not call the helper;
+- FFH-037-P01 is conservative HSA under-routing only and cannot fabricate legal capacity;
+- FFH-037-P02 leaves copied married-HSA component metadata stale, but authoritative entry/shared/owner totals used by routing are correctly decremented.
+
+No blocking disagreement exists between auditors. No previously closed FFH-012/013/015/017 finding was reopened. Live Supabase/runtime parity remains accepted.
+
+FFH-036 and FFH-037 are CLOSED / ACCEPTED. The three LOW observations are preserved in queued non-blocking FFH-038 rather than changing the audited target.
+
+PR #5 now enters FINAL MERGE REVIEW. Phase 6 remains gated until merge and post-merge CI/state reconciliation complete.
