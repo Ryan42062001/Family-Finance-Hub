@@ -4,6 +4,7 @@ import test from "node:test";
 import type { HomePurchaseScenario } from "./home-affordability.ts";
 import { runMoneyPriorityEngine } from "./money-priority-engine.ts";
 import { deriveRecommendedPlanAllocations } from "./money-priority-user-plan.ts";
+import type { WindfallAllocationResult } from "./money-priority-windfall.ts";
 import type { MoneyPriorityRawSnapshot, MoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import type { VehiclePurchaseScenario } from "./vehicle-affordability.ts";
 import { SCENARIO_DEFINITION_VERSION, type ScenarioDefinition } from "../scenarios/scenario-definition.ts";
@@ -278,7 +279,7 @@ test("FFH-046 authenticated Windfall tax authority fails closed and preserves ex
     const intent = { type: "windfall", eventId, input } as unknown as ScenarioSpecializedIntent;
     return executeSpecializedScenarioRun(request(engine, intent), deps(engine.snapshot));
   };
-  const reconcile = (result: NonNullable<Awaited<ReturnType<typeof run>>["specialized"]> extends { type: "windfall"; result: infer R } ? R : never) => {
+  const reconcile = (result: WindfallAllocationResult) => {
     const cents = (value: number) => Math.round(value * 100);
     assert.equal(
       cents(result.grossAmount ?? 0),
