@@ -27,7 +27,7 @@ Workflow V3.1 is canonical for current control-plane routing. Workflow V3 + Work
   - `FFH-017-P05` CLOSED.
   - R02-R07, protected FFH-013 M01, Financial Engine Reconciliation, Phase-5A retirement floor, desired-excess retirement-junior semantics, core-before-excess, and staged/shared/owner/scheduled no-reuse remain preserved.
 - FFH-018: CLOSED — discovery/design accepted by Manager.
-- FFH-020: BLOCKED before live write because a secure Supabase CLI/auth/protected-backup execution environment is unavailable.
+- FFH-020: ACTIVE — Stage A recovery accepted; Stage B exact three-migration live push authorized from safe pre-FFH-023 worktree `945bf8f...`.
 - FFH-024: ACCEPTED recovery authority for FFH-020.
 - FFH-026: QUEUED for Phase 7 after accepted Phase 5 + Phase 6.
 - FFH-031 / FFH-032 / FFH-033: CLOSED.
@@ -58,7 +58,7 @@ Audits:
 
 ## Live Supabase / runtime gate
 
-FFH-020 remains blocked before the first migration-history repair because the authorized secure CLI/auth/protected-backup execution environment is unavailable.
+FFH-020 Stage A is complete: protected backup established, migration-history identities canonically repaired, and exact dry-run proves only Phase 5A -> FFH-010 -> FFH-011 are pending from the safe pre-FFH-023 worktree.
 
 No live migration-history, DDL, data, RLS, or configuration mutation occurred during the blocked Stage A attempt.
 
@@ -115,3 +115,7 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - Live ruleset `23686709` remains active and requires GitHub Actions `verify` on exactly `main` + `phase-5-money-priority-engine`, non-strict, no bypass actors, no unrelated restrictions.
 - Post-freeze Manager routing changed documentation/control-plane state only; Foundation CI #721 / run `35409486250` / verify `105806039636` SUCCESS on protected milestone checkpoint `a2aba5b471d7572b07287b41e5ecb8d6ded485d3`.
 - FFH-020/FFH-016, PR #5 merge readiness, financial/Supabase boundaries, and Phase 6 gates are unchanged.
+
+- FFH-020 Stage A ACCEPTED on 2026-09-18. Live history now canonicalizes foundation as `0001` and Phase 5B as `20260903134156`; old aliases removed.
+- Stage B is Manager-authorized for exactly `supabase db push --linked --include-all` from safe checkpoint `945bf8f4403a26812a93a160479cf319096579d5`; FFH-023 migration excluded.
+- FFH-016 remains BLOCKED pending Manager-accepted Stage B deployment/post-deploy verification. PR #5 remains NOT MERGE READY; Phase 6 remains gated.

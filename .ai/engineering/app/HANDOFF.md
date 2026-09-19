@@ -98,3 +98,22 @@ FFH-020 remains BLOCKED on the previously documented secure Supabase CLI/auth/li
 ## Exact next action
 
 Manager independently verifies PR #13, PRODUCTION_SHA `c32942f1ee1dd700b2c8d23d2f6b641f37962fc8`, Foundation CI run `34628911063` / job `103360669269`, and this documentation-only handoff commit. Worker state is `READY_FOR_MANAGER`. Do not self-accept or merge PR #13.
+
+## FFH-020 live recovery resumed — Stage A accepted / Stage B authorized — 2026-09-18
+
+Status: ACTIVE
+
+Manager accepted Stage A after user-controlled CLI execution established:
+- Supabase CLI `2.117.0`;
+- Docker-backed protected backup outside Git;
+- exact project `tsqwvggojeudgspnumze`;
+- safe pre-FFH-023 worktree `945bf8f4403a26812a93a160479cf319096579d5`;
+- canonical foundation history `0001`;
+- canonical Phase-5B history `20260903134156`;
+- exact three-migration dry run: Phase 5A -> FFH-010 -> FFH-011;
+- no FFH-023 migration in execution source.
+
+Manager authorizes one live command from that exact safe worktree:
+`npx.cmd --yes supabase@latest db push --linked --include-all`
+
+After execution, stop and preserve output. Do not retry on failure. Required next evidence is read-only migration/schema/RLS/policy/advisor verification for Manager acceptance. FFH-016 remains blocked until that acceptance.
