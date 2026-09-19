@@ -13,7 +13,7 @@ Last refreshed: 2026-09-18
 | FFH-013 | Core Engine | CLOSED | production `8d9cbc62...`; final frozen target `4b7ed998...` | Final Technical PASS + Policy PASS; zero findings; R01/R02/R03/T1/A01-A05/M01/M02 and reconciliation gate clear |
 | FFH-014 | Manager | CLOSED | workflow docs | Workflow V2 / FFH-D007 adopted historically; Workflow V3.1 is current |
 | FFH-015 | Core Engine | CLOSED | production `378f1872...`; integration `01d9c225...` | Policy PASS; Technical PASS WITH NON-BLOCKING FINDINGS; R1 CLOSED |
-| FFH-016 | App/Data | READY_FOR_MANAGER | verification-only | live migration/schema + rollback RLS/persistence/normalization parity PASS; authenticated browser/HTTP capture isolated as environment-only remainder; Manager review required |
+| FFH-016 | App/Data | CLOSED | verification-only; frozen production `b8e60292...` | Manager independently reproduced live rollback RLS/persistence parity; browser/HTTP remainder non-blocking; ACCEPTED |
 | FFH-017 | Core Engine | CLOSED | final frozen target `c563d011...` | Technical PASS + Policy PASS; zero findings; TMA-017-08/P05 closed; R02-R07/M01/reconciliation/floor/no-reuse preserved |
 | FFH-018 | Product R&D / Engineering | CLOSED | discovery/design accepted | Manager accepted fail-closed always-running verify design; implementation split to FFH-034 |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
@@ -33,6 +33,8 @@ Last refreshed: 2026-09-18
 | FFH-033 | Manager | CLOSED | corrected integration/audit target `b4765818...` | fresh closure re-audit PASS; zero findings; FFH-033-WF-01 CLOSED; full 11-role dashboard canonical |
 | FFH-034 | Product R&D / Engineering | CLOSED | frozen target `aa88b8d4...`; ruleset `23686709`; audit report `945be18c...` | Independent Technical/Workflow audit PASS; zero findings; required `verify` enforcement active |
 | FFH-035 | App/Data | ACCEPTED | live `20260911170000...` | Table/constraints/index/RLS/policies/grants/zero-backfill/security verified; FFH-016 reactivated |
+| FFH-036 | Technical Audit | ACTIVE | frozen target `b8e60292...` | Fresh final integrated Phase-5 Technical & Mathematical audit; shared frozen packet; reconciliation gate required |
+| FFH-037 | Policy Audit | ACTIVE | frozen target `b8e60292...` | Fresh final integrated Phase-5 Financial Policy & Scenario audit; shared frozen packet |
 
 ## Current verified state
 - Workflow V3.1 and `.ai/shared/FINANCIAL_ENGINE_RECONCILIATION_GATE.md` remain canonical.
@@ -99,3 +101,7 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - The rollback test left zero synthetic auth/household/financial/HSA rows.
 - Direct authenticated browser/PostgREST HTTP capture is explicitly isolated as an environment-only remainder under the Standard Chat fallback; no production mismatch was found.
 - PR #5 remains NOT MERGE READY. Manager review/acceptance of FFH-016 is required before final integrated Phase-5 audit/review and PR status refresh.
+
+- FFH-016 CLOSED / Manager ACCEPTED after independent live Supabase/RLS/persistence/runtime verification on frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`; no remediation routed.
+- FFH-036 and FFH-037 are ACTIVE as fresh independent final integrated Phase-5 audits against the same frozen target and shared packet `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`.
+- PR #5 remains NOT MERGE READY until both final audits are reconciled by Manager. Phase 6 remains gated.
