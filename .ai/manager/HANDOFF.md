@@ -782,3 +782,21 @@ from exact worktree checkpoint `945bf8f4403a26812a93a160479cf319096579d5`.
 No other live command is authorized beyond required read-only post-push verification. On any error, stop; do not retry automatically.
 
 FFH-016 remains blocked until Manager accepts Stage B deployment evidence. PR #5 remains NOT MERGE READY. Phase 6 remains gated.
+
+## FFH-020 accepted / FFH-035 activated — 2026-09-18
+
+Manager accepted FFH-020 after the user executed the exact authorized three-migration push and independent live verification confirmed:
+- canonical history including `20260902190000`, `20260909005000`, `20260909033000`;
+- Phase-5A column live;
+- FFH-010 tables + HSA YTD tax-year field live;
+- FFH-011 SIMPLE category/year + constraint live;
+- FFH-010 RLS enabled with all 12 expected policies and authenticated-only CRUD grants;
+- zero silent backfills;
+- zero Supabase security-advisor findings;
+- FFH-023 migration/table still absent.
+
+FFH-020 verdict: **ACCEPTED**.
+
+Current milestone runtime already queries the FFH-023 legal-spouse authority table, so FFH-016 remains blocked until that accepted additive migration is deployed. Manager created FFH-035 as the narrow deployment gate for exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`.
+
+Next: complete FFH-035 Stage A backup + one-migration dry run; do not run live FFH-035 DDL until Manager verifies that evidence.

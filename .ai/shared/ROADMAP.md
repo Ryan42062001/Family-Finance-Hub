@@ -178,3 +178,21 @@ Current Phase-5 merge-readiness sequence:
 FFH-018 discovery is closed. FFH-034 implementation is Manager-authorized and may proceed in parallel; it is not a financial/product correctness blocker. It is integrated and the live docs-only proof is green; required-`verify` ruleset activation/verification and fresh independent Technical/Workflow audit must still clear before the modified workflow is treated as a stable final-audit baseline.
 
 Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation engine and is not authorized for production activation yet.
+
+## Manager live-deployment reconciliation — 2026-09-18
+
+This reconciliation supersedes older FFH-020/FFH-016 deployment-status text above.
+
+- FFH-020: **ACCEPTED**. Phase-5A, FFH-010, and FFH-011 are live on `tsqwvggojeudgspnumze` with canonical history, schema/RLS/policy evidence, zero silent backfills, and clean security advisor.
+- FFH-035: **ACTIVE**. Narrow deployment gate for the already-accepted FFH-023 legal-spouse migration `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`.
+- FFH-016: **BLOCKED behind FFH-035** because current milestone runtime queries the FFH-023 table; start parity only after that table is live.
+- FFH-034 remains CLOSED.
+- PR #5 remains NOT MERGE READY.
+- Phase 6 remains PLANNED / NOT STARTED.
+
+Current remaining Phase-5 sequence:
+1. complete/accept FFH-035;
+2. reactivate and close FFH-016;
+3. run final integrated Phase-5 Technical + Financial Policy audits/review;
+4. refresh PR #5 and perform final merge review;
+5. merge only if all gates remain clean, then verify post-merge CI.
