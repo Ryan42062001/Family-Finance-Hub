@@ -136,3 +136,17 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - FFH-035 post-deploy proof: table + expected constraints/index + RLS + four policies + authenticated-only CRUD grants; zero rows/backfill; security advisor zero findings; performance findings INFO only.
 - FFH-016 ACTIVE: all required current-milestone Supabase migrations are now live; proceed with verification-only PostgREST/RLS/persistence/reload/runtime/browser parity.
 - PR #5 remains NOT MERGE READY until FFH-016 and final integrated Phase-5 audits/review clear. Phase 6 remains gated.
+
+
+## FFH-016 live runtime parity handoff — 2026-09-18
+
+- FFH-016 is `READY_FOR_MANAGER` from exact Manager milestone `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+- Linked project `tsqwvggojeudgspnumze` is healthy with Phase-5A, FFH-010, FFH-011, and FFH-023 all present in live migration history.
+- Exact milestone loader/HSA/SIMPLE selectors are compatible with the live schema.
+- Rollback-only synthetic verification passed owner/member read-write, viewer read-only, and authenticated nonmember isolation.
+- HSA null/unknown and confirmed values, SIMPLE category/year, married allocation, and HSA legal-spouse authority all round-tripped in the live transaction and were fully rolled back.
+- Post-test counts returned to zero for every synthetic auth/household/financial/HSA row.
+- Current normalization wiring preserves unknown/null semantics and carries HSA/SIMPLE/legal-spouse facts into the normalized snapshot; Recommendation Refresh fingerprints the complete normalized snapshot.
+- Supabase security advisor has zero findings; performance notices remain INFO-only.
+- Direct authenticated browser/PostgREST HTTP capture is the isolated environment-only remainder because the live project has zero users/households and FFH-016 does not authorize persistent fixture creation.
+- PR #5 remains NOT MERGE READY pending Manager acceptance of FFH-016, final integrated Phase-5 Technical + Financial Policy audit/review, PR status refresh, and final merge review.
