@@ -2,133 +2,115 @@
 
 ## Current assignment
 
-FFH-045 — Final Integrated Phase-6 Financial Policy & Scenario Audit
+FFH-049 — Final Remediated Phase-6 Financial Policy & Scenario Re-Audit
 
 ## Exact audit boundary
 
 - Repository: `Ryan42062001/Family-Finance-Hub`
 - Execution mode: `STANDARD_CHAT_HIGH`
 - Refresh mode: Fast Refresh
-- Assigned branch: `audit/ffh-045-phase6-final-policy-8f4b1c44`
-- Expected/verified Manager-control-plane checkpoint: `27556a3697a6477eb7da2973dde5b71cb6369c0b`
-- Exact frozen production target: `8f4b1c443684446cdf9b619bd35336f5873265bc`
-- Shared packet: `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`
-- Canonical report: `.ai/audit/policy/FFH-045_PHASE6_FINAL_POLICY_SCENARIO_AUDIT_8f4b1c44.md`
-- Report commit: `8199ff7eaae83c620e6b2cb01da30b03170538b8`
-- FFH-044 verdict/reasoning was not opened, inspected, quoted, summarized, or relied upon.
+- Assigned branch: `audit/ffh-049-phase6-policy-reaudit-9453deca`
+- Canonical Manager/control-plane checkpoint verified at start: `ca220330eba659efef9b26fa3acc17ea8b9df34a`
+- Initial audit branch head: exact same checkpoint
+- Exact frozen PRODUCT target: `9453deca36fe41f5d56e154cc9c8bc9de6f64da3`
+- Packet: `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`
+- Canonical report: `.ai/audit/policy/FFH-049_PHASE6_REAUDIT_9453deca.md`
+- Report commit: `1236e5acb7ec8c353181a870cb741c094cd6d84a`
+- FFH-048 verdict/reasoning was not opened, inspected, quoted, summarized, or relied upon.
 
 ## Verdict
 
-**FAIL — REMEDIATION REQUIRED**
+**PASS**
 
-## Blocking finding
+No CRITICAL, HIGH, MEDIUM, or LOW Financial Policy & Scenario findings.
 
-### FFH-045-P01 — HIGH / BLOCKING
+Historical blocking finding **FFH-045-P01 is CLOSED**.
 
-**Windfall tax-treatment validation can convert missing or malformed tax authority into deployable hypothetical cash.**
+## P01 closure
 
-Two independently verified reachable shapes:
+The remediated Windfall allocator now enforces the accepted tax-treatment runtime membership and fails closed before deployment.
 
-1. **Normal UI**
-   - choose `known_taxable_liability_provided`;
-   - leave the UI's optional known-tax-liability amount blank (`null`);
-   - allocator converts `null` to a $0 reservation and treats the state as not uncertain;
-   - otherwise-unreserved windfall proceeds become deployable rather than held/fail-closed.
+Verified independently:
 
-2. **Malformed authenticated transport**
-   - nested Windfall input accepts an unsupported `taxTreatment` string;
-   - server transport does not validate the nested enum;
-   - allocator validates source/reservation numbers but not tax-treatment membership;
-   - any non-null value other than the literal `uncertain` bypasses the uncertainty hold.
+- unsupported non-null tax treatment -> `invalid`, $0 deployable, no allocations, remainder held;
+- `known_taxable_liability_provided` + omitted liability -> `more_information_needed`, $0 deployable, no allocations;
+- same treatment + explicit null -> same conservative result;
+- explicit known zero -> valid and distinct from missing/null;
+- explicit positive liability -> exact accepted reservation/deployment arithmetic;
+- null/omitted/explicit `uncertain` treatment -> no tax percentage invented; otherwise-deployable remainder held;
+- authenticated specialized execution inherits each allocator result;
+- exact cents reconcile for the remediation adversaries.
 
-This violates accepted FFH-039 unknown/missing/tax boundaries and can expose the entire otherwise-unreserved windfall remainder to actual one-time allocation.
+Independent extra hand-check:
+- gross $100.01;
+- reservations $0.01 + $0.02 + $0.03 + $0.04 = $0.10;
+- unsupported treatment holds $99.91;
+- deployable/allocated/residual = $0;
+- $100.01 = $0.10 + $99.91 exactly.
 
-### Required bounded remediation
+## Whole Phase-6 preservation
 
-No new tax policy is required.
+Independently rechecked and clear:
 
-Manager should route validation so:
-- only accepted tax-treatment enum values reach allocation;
-- `known_taxable_liability_provided` requires an explicit finite nonnegative liability;
-- missing/null is not coerced to known zero;
-- unsupported values fail closed;
-- explicit zero remains distinct and valid if it is the supplied known fact;
-- existing `uncertain` hold-for-review semantics and exact reconciliation remain unchanged.
-
-Required regressions:
-- known-taxable-provided + null/missing liability -> no deployable uncertain remainder;
-- unsupported treatment -> structured invalid / no allocation;
-- explicit known liability -> preserved exact result;
-- uncertain -> preserved held-for-review result;
-- authenticated Scenario Lab transport preserves the same behavior.
-
-## Cleared integrated Phase-6 boundaries
-
-Independently clear:
-- supported / DEFER / REQUIRES POLICY taxonomy, except P01 malformed Windfall tax state;
-- generic typed overlay only; no second financial engine;
-- protected legal/statutory fields unavailable to generic overrides;
-- income/job-loss changes do not invent severance, unemployment, recovery, MAGI, filing status, legal compensation, HSA or SIMPLE eligibility;
-- Home delegates to accepted Home affordability evaluator;
-- Vehicle delegates to accepted Vehicle affordability evaluator;
-- Windfall remains post-engine/one-time and exact when tax treatment is valid;
-- Your Plan remains stable-ID allocation layer, exposes funding gaps without clamping, and preserves legal retirement-room analysis;
+- one canonical Phase-5 Money Priority Engine; no second financial truth;
+- immutable validated typed generic overlays;
+- protected HSA/SIMPLE/IRA/tax/legal fields cannot be generic overrides;
+- server-derived authenticated household authority;
+- fresh baseline load and fingerprint/policy stale fail-closed;
+- malformed nested baseline-reference R01 remains closed;
+- explicit rebase preserves stable IDs and refuses deleted targets;
+- Home delegates to accepted Home evaluator;
+- Vehicle delegates to accepted Vehicle evaluator;
+- Windfall remains post-engine and one-time;
+- Your Plan stable IDs, active/superseded/invalid states and funding-gap/no-clamp semantics;
 - Recommendation Refresh remains comparison/explanation only;
-- FFH-042 R01 same-goal stable-ID overlap is closed;
-- FFH-043 R01 malformed nested baseline-reference guard is closed;
-- HSA family/shared/catch-up authority survives generic and specialized composition without recreation;
-- spousal-IRA shared compensation preserves exact $10,000.01 shared room;
-- retirement floor/legal capacity/no-reuse remain delegated to the Phase-5 engine/ledger;
-- generic one-time cash and atomic payoff semantics reconcile;
-- no filing-status, user-selectable return, Monte Carlo, relocation, dedicated refi, or HSA-tax-medical policy leakage;
-- no scenario persistence/browser storage/profile write/apply/save/commit authority.
+- duplicate economic-event/stable-ID conflicts fail closed, including FFH-042 R01 goal overlap;
+- HSA family/shared/catch-up capacity is not recreated;
+- spousal-IRA shared-compensation exact $10,000.01 boundary is preserved;
+- Existing Cash -> Secure -> Build -> Windfall/Your Plan retirement capacity is not reused;
+- excluded filing-status/return-assumption/Monte-Carlo/relocation/refinance/HSA-tax-medical policy remains excluded;
+- scenario drafts/results remain in memory only;
+- no Scenario Lab schema, persistence, browser storage, Apply/Save/Commit or profile-write authority.
 
-## Reconciliation evidence
+## Custody / validation evidence
 
-Accepted valid Windfall example remains exact:
-- gross $12,345.67;
-- tax $1,000.01;
-- other liability $200;
-- restricted $300.03;
-- earmarked $400.04;
-- deployable $10,445.59;
-- allocated $4,300;
-- residual $6,145.59.
+FFH-046 accepted production evidence independently verified:
 
-Your Plan:
-- total user allocations are shown without clamping;
-- capacity excess becomes explicit funding gap;
-- Windfall retirement contributions are included in retirement-room analysis.
+- production: `3a045c4acae7b32efe68165c021dfc34c1a1209a`;
+- final validation: `c5d1b6863707460f046dfd1fc1cf2d0aea82d88c`;
+- handoff: `ee59da65a6902ba0586f696b02c0dd575cd434d4`;
+- integration/frozen target: `9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
 
-P01 is an **allocation-authority** defect: arithmetic may balance while the deployable starting amount is financially unauthorized.
+Compares:
+- validation -> target: only FFH-046 documentation/control-plane files;
+- handoff -> target: zero changed files.
 
-## CI / custody evidence
+Full Foundation CI:
+- run `35443929743` / #778;
+- job `105899505669`;
+- SUCCESS through calculations, security, typecheck, lint and build.
 
-- full FFH-043 validation: `35036b8aa228306c3c40212877c38f33940f74ce`;
-- Foundation CI `35425124896` / job `105849617675` SUCCESS;
-- handoff `d1bca71cf32d2b36edfafbba199d0742c9e572da`;
-- continuity CI `35425264535` / job `105849982649` SUCCESS;
-- handoff -> integration `8f4b1c44...`: zero changed files;
-- validation -> integration: control-plane docs only.
-
-Green CI did not exercise missing-liability or unsupported-tax-treatment adversaries and therefore does not close P01.
+Continuity CI:
+- run `35444101087` / #779;
+- job `105899954293`;
+- SUCCESS / DOCS_ONLY with predecessor continuity.
 
 ## Manager action
 
-Return to Manager for independent reconciliation with FFH-044.
+Return to Manager for reconciliation with the independently produced FFH-048 audit.
 
-This Policy lane does not implement remediation, close Phase 6, or activate Phase 7.
+This Policy lane does not merge its evidence-only PR, self-close Phase 6, or activate Phase 7.
 
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Reconcile the independent FFH-044 and FFH-045 final Phase-6 audits against exact frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc` and shared packet `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`. Independently verify FFH-045-P01 Windfall tax-treatment fail-closed behavior and route the smallest remediation if confirmed. Do not close Phase 6 or activate Phase 7 unless the dual-audit gate clears. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect. Reconcile the fresh independent FFH-048 and FFH-049 Phase-6 re-audits against exact frozen target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` and packet `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`. Verify exact audit report/handoff heads and evidence-only PR/CI for both lanes. Close Phase 6 only if the dual gate clears; do not activate Phase 7 before explicit closure. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | WAIT | — |
-| 6 | Application, Data & Integration Engineer | WAIT | — |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | IDLE | — |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | IDLE | — |
 | 9 | Technical & Mathematical Auditor | ACTIVE | — |
