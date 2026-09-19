@@ -155,3 +155,28 @@ Accepted integration:
 `75d2766fb370d506b695d722788b03af5f36a155`
 
 Core Financial Engine Engineer is now IDLE for Phase 6 unless FFH-041 exposes a concrete Core integration defect. Do not proactively change Scenario Lab Core semantics.
+
+## FFH-042 assignment — 2026-09-19
+
+Current assignment:
+FFH-042 — Scenario Lab Specialized Adapter Composition
+
+Owner:
+Core Financial Engine Engineer
+
+Approved base:
+`2587a547450602bf663692320e64a0aa821d0ca2`
+
+Assigned branch:
+`ffh/ffh-042-scenario-specialized-adapters`
+
+Own only the pure-domain specialized composition layer:
+- Home via `evaluateHomeAffordability`;
+- Vehicle via `evaluateVehicleAffordability`;
+- Windfall via post-engine `allocateWindfall`;
+- optional Your Plan via `evaluateUserPlan`;
+- Recommendation Refresh comparison;
+- deterministic generic/specialized conflict detection;
+- exact reconciliation/no-reuse/equivalence tests.
+
+Do not implement Scenario Lab UI/server actions/auth/Supabase/persistence/new policy.
