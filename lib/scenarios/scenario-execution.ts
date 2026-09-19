@@ -104,7 +104,6 @@ function unique(values: readonly string[]): string[] {
 function missingData(engine: MoneyPriorityEngineResult): string[] {
   return unique([
     ...engine.recommendations.flatMap((item) => item.missingData),
-    ...engine.secure.recommendations.flatMap((item) => item.missingData),
     ...engine.build.goalIntelligence.flatMap((item) => item.missingData),
     ...engine.build.retirementAccounts.opportunities.flatMap((item) => item.missingData),
   ]);
