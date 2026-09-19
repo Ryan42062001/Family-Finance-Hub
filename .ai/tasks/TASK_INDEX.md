@@ -23,7 +23,7 @@ Last refreshed: 2026-09-18
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | ACCEPTED | production `f537b7b...`; integration `ffde8440...` | Final FFH-012 audit confirms Finding A remains closed |
-| FFH-026 | App/Data | QUEUED | Not established | Phase 7 production deployment/release readiness after Phase 5 + Phase 6 acceptance |
+| FFH-026 | App/Data | ACTIVE | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | Phase 7 production deployment/release readiness; WORK_MODE_PREFERRED |
 | FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical |
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
@@ -248,3 +248,14 @@ Manager independently confirmed TMA-048-01 is the already-queued client-only unr
 PHASE 6: CLOSED / ACCEPTED.
 PHASE 7: READY FOR MANAGER ACTIVATION.
 FFH-026 dependencies are satisfied; exact activation base must be pinned after this closure control-plane merge.
+
+
+## Phase-7 FFH-026 activation — 2026-09-19
+
+- Phase 6 is CLOSED / ACCEPTED.
+- Exact release candidate: `18ccbacd4265461b01580f5e96214788b15ec5af`.
+- FFH-026 ACTIVE — Production Deployment & Release Readiness.
+- Owner: Application, Data & Integration Engineer.
+- Execution: WORK_MODE_PREFERRED.
+- Assigned branch: `ffh/ffh-026-production-release-readiness`.
+- FFH-038 and FFH-047 remain QUEUED / non-blocking and do not block deployment readiness.

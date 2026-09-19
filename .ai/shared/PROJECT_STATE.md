@@ -446,3 +446,19 @@ PHASE 6: CLOSED / ACCEPTED.
 PHASE 7: READY FOR MANAGER ACTIVATION.
 
 FFH-026 deployment/release-readiness dependencies are satisfied. FFH-047 and FFH-038 remain queued/non-blocking.
+
+
+## Phase-7 deployment/release-readiness activation — 2026-09-19
+
+Phase 6 remains CLOSED / ACCEPTED.
+
+FFH-026 is ACTIVE for Production Deployment & Release Readiness.
+
+Exact approved release candidate:
+`18ccbacd4265461b01580f5e96214788b15ec5af`
+
+Owner: Application, Data & Integration Engineer.
+Execution: WORK_MODE_PREFERRED.
+Branch: `ffh/ffh-026-production-release-readiness`.
+
+FFH-038 and FFH-047 remain queued, non-blocking hardening tasks and do not alter the approved FFH-026 release candidate.
