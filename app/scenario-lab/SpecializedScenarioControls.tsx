@@ -352,7 +352,7 @@ function HomeFields({
       {homeSale ? (
         <>
           <label>Sale proceeds timing
-            <select value={homeSale.proceedsState} onChange={(e) => onChange({ ...scenario, homeSale: { ...homeSale, proceedsState: e.target.value as HomePurchaseScenario["homeSale"] extends infer T ? T extends { proceedsState: infer P } ? P : never : never } })}>
+            <select value={homeSale.proceedsState} onChange={(e) => onChange({ ...scenario, homeSale: { ...homeSale, proceedsState: e.target.value as NonNullable<HomePurchaseScenario["homeSale"]>["proceedsState"] } })}>
               <option value="already_received">Already received</option><option value="closing_before_purchase">Closing before purchase</option><option value="simultaneous_closing">Simultaneous closing</option><option value="expected_after_purchase">Expected after purchase</option><option value="uncertain">Uncertain</option>
             </select>
           </label>
