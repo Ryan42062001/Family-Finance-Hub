@@ -241,3 +241,21 @@ Manager independently reproduced live rollback-only RLS/persistence behavior and
 Direct authenticated browser/PostgREST HTTP capture remains an explicitly isolated environment-only remainder and is non-blocking under the task's Standard Chat fallback.
 
 Application, Data & Integration Engineering is now WAIT/IDLE for Phase 5. Any finding from the final integrated audits returns through Manager routing; no proactive remediation is authorized.
+
+## FFH-041 assignment — 2026-09-18
+
+Current assignment:
+FFH-041 — Authenticated Ephemeral Scenario Lab Surface
+
+Owner:
+Application, Data & Integration Engineer
+
+Approved base:
+`75d2766fb370d506b695d722788b03af5f36a155`
+
+Assigned branch:
+`ffh/ffh-041-scenario-lab-ephemeral-surface`
+
+Consume the accepted FFH-040 Core scenario contract exactly. Own authenticated baseline loading, server action/run orchestration, fingerprint/stale/rebase behavior, ephemeral lifecycle/UI, generic comparison, and transport/security boundaries.
+
+Do not modify Core financial semantics, add Scenario Lab persistence/schema/live writes, implement specialized Home/Vehicle/Windfall/Your Plan adapters, or introduce new financial policy.
