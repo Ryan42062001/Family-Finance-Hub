@@ -148,6 +148,75 @@ test("FFH-043 client household spoof is rejected while server household remains 
   assert.ok(result.issues.some((item) => item.path === "request.householdId"));
 });
 
+test("FFH-043 R01 matching-outer-fingerprint malformed nested baseline references return structured invalid for run and rebase", async () => {
+  const engine = baseline();
+  const intent = { type: "home", eventId: "home-r01", scenario: homeScenario() } as const;
+  const current = request(engine, intent);
+  const malformedReferences: Array<{ label: string; reference: unknown; issuePath: string }> = [
+    { label: "missing", reference: undefined, issuePath: "request.definition.genericDefinition.baselineReference" },
+    { label: "null", reference: null, issuePath: "request.definition.genericDefinition.baselineReference" },
+    { label: "string", reference: "not-a-reference", issuePath: "request.definition.genericDefinition.baselineReference" },
+    { label: "array", reference: [], issuePath: "request.definition.genericDefinition.baselineReference" },
+    { label: "missing fingerprint", reference: {}, issuePath: "request.definition.genericDefinition.baselineReference.fingerprint" },
+    { label: "numeric fingerprint", reference: { fingerprint: 42 }, issuePath: "request.definition.genericDefinition.baselineReference.fingerprint" },
+    { label: "blank fingerprint", reference: { fingerprint: "" }, issuePath: "request.definition.genericDefinition.baselineReference.fingerprint" },
+  ];
+
+  for (const { label, reference, issuePath } of malformedReferences) {
+    // Preserve the matching outer fingerprint/policy so malformed nested access is actually reached.
+    const malformed: unknown = {
+      ...current,
+      definition: {
+        ...current.definition,
+        genericDefinition: { ...current.definition.genericDefinition, baselineReference: reference },
+      },
+    };
+    let loads = 0;
+    const dependencies = deps(engine.snapshot, { onLoad: () => { loads += 1; } });
+    const run = await executeSpecializedScenarioRun(malformed, dependencies);
+    assert.equal(run.status, "invalid", label);
+    assert.ok(run.issues.some((item) => item.path === issuePath), label);
+    assert.equal(run.specialized, null, label);
+    assert.equal(run.provenance, null, label);
+    assert.equal(run.genericSummary, null, label);
+    assert.deepEqual(run.planAllocations, [], label);
+
+    const rebase = await executeSpecializedScenarioRebase(malformed, dependencies);
+    assert.equal(rebase.status, "invalid", label);
+    assert.ok(rebase.issues.some((item) => item.path === issuePath), label);
+    assert.equal(rebase.definition, null, label);
+    assert.equal(rebase.bootstrap?.baseline.fingerprint, current.baselineFingerprint, label);
+    assert.equal(loads, 2, label);
+  }
+});
+
+test("FFH-043 R01 valid nested reference still runs/rebases and legitimate mismatches remain stale", async () => {
+  const engine = baseline();
+  const intent = { type: "home", eventId: "home-r01-valid", scenario: homeScenario() } as const;
+  const payload = request(engine, intent);
+  const current = deps(engine.snapshot);
+  const run = await executeSpecializedScenarioRun(payload, current);
+  assert.notEqual(run.status, "invalid");
+  assert.equal(run.specialized?.type, "home");
+  const rebase = await executeSpecializedScenarioRebase(payload, current);
+  assert.equal(rebase.status, "rebased");
+  assert.equal(rebase.definition?.genericDefinition.baselineReference.fingerprint, payload.baselineFingerprint);
+
+  const stale = await executeSpecializedScenarioRun({
+    ...payload,
+    definition: {
+      ...payload.definition,
+      genericDefinition: {
+        ...payload.definition.genericDefinition,
+        baselineReference: { fingerprint: "different-valid-fingerprint", referenceId: null },
+      },
+    },
+  }, current);
+  assert.equal(stale.status, "stale_baseline");
+  assert.equal(stale.specialized, null);
+  assert.equal(stale.provenance, null);
+});
+
 test("FFH-043 stale specialized run fails closed before specialized output", async () => {
   const old = baseline();
   const intent = { type: "home", eventId: "home-1", scenario: homeScenario() } as const;
