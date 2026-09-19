@@ -2,122 +2,124 @@
 
 HANDOFF
 
-Task ID: FFH-034
+Task ID: FFH-039
 
 Role: Product & Technical R&D Engineer
 
 Status: READY_FOR_MANAGER
 
+Execution mode: STANDARD_CHAT_HIGH
+
+Branch: research/ffh-039-scenario-lab-contract
+
+Verified Manager/control-plane baseline:
+177cce093cd24fd9169361ff4ccb397ac7b6b5d1
+
+Verified Phase-6 product baseline:
+ae11a48359d082e615b76822b6bbe3a7f379a8d2
+
+Report:
+.ai/research/rnd/FFH-039_SCENARIO_LAB_PRODUCT_TECHNICAL_CONTRACT.md
+
+Report commit:
+b549b8d13e1f54a4b54f7fff2fdab1cbd1073c98
+
 ## Result
 
-FFH-034 bounded CI/control-plane implementation is complete on PR #37 and remains unmerged.
+Scenario Lab v1 discovery/design is complete.
 
-Manager authorization baseline: `ef461fe977ad83cbeefe885b7da50351e58d586f`
+The contract defines an ephemeral deterministic Scenario Lab that reuses the accepted Phase-5 Money Priority Engine rather than creating a second financial engine.
 
-Validated production checkpoint: `608332429c2dcf4e7689f3260aaa6b5d852b9dd5`
+Key product/technical boundary:
+- authoritative persisted household -> normalized snapshot remains the baseline;
+- scenario inputs are typed hypothetical overlays with explicit provenance;
+- generic profile-change scenarios rerun runMoneyPriorityEngine on an immutable clone;
+- Home, Vehicle, Windfall, Your Plan and Recommendation Refresh remain specialized accepted modules/adapters rather than copied logic;
+- legal/tax unknowns remain unknown;
+- recurring and one-time money stay distinct;
+- exact reconciliation, final-cent determinism and cross-stage legal-capacity no-reuse remain mandatory;
+- stale scenarios are rejected using a versioned baseline fingerprint and require explicit rebase;
+- v1 scenarios are ephemeral/in-memory only, with no Supabase schema or RLS change;
+- no scenario-to-profile commit/apply action exists in v1.
 
-Implementation PR: `#37 — FFH-034: Foundation CI documentation fast path and evidence`
+## Scenario taxonomy
 
-Production scope:
-- `.github/workflows/ci.yml`
-- `scripts/ci-change-mode.mjs`
-- `scripts/ci-change-mode.test.mjs`
+INCLUDE:
+- income/paycheck change;
+- recurring expense change;
+- one-time cash/windfall;
+- debt balance/payment/payoff;
+- savings/goal amount/date/priority;
+- retirement contribution;
+- home purchase/affordability;
+- vehicle purchase/affordability;
+- job loss;
+- parental leave / temporary income reduction;
+- childcare;
+- bounded insurance changes;
+- cash-impact-only large medical expense;
+- retirement-age changes.
 
-Control-plane evidence:
-- `.ai/tasks/FFH-034.md`
-- `.ai/research/rnd/HANDOFF.md`
+DEFER:
+- dedicated new-child/dependent event;
+- dedicated relocation;
+- dedicated refinancing.
 
-No package/lock, financial/application, Supabase/migration/live-data, or Phase-6 files changed.
+REQUIRES POLICY:
+- tax filing/status changes;
+- user-selectable investment-return assumptions;
+- Monte Carlo / probabilistic simulation.
 
-## Implemented architecture
+The report also isolates future policy needs for tax/HSA-aware medical behavior and recommendation-bearing refinancing.
 
-- Preserves workflow name `Foundation CI` and job id `verify`.
-- `verify` is always created; no workflow-level path suppression is used.
-- A dependency-free Node classifier uses `git diff --no-renames --name-status`.
-- DOCS_ONLY is limited to root Markdown, `.ai/**/*.md`, and `docs/**/*.md`.
-- Mixed, non-doc, malformed, empty, unsupported-status, classifier-error, invalid-SHA, and manual-dispatch cases fail closed to FULL.
-- Non-doc to docs renames are exposed as delete + add and therefore classify FULL.
-- Classifier tests and classification are observable even on failure; a final enforcement step prevents `continue-on-error` from weakening the job result.
-- AI-state validation runs on both FULL and DOCS_ONLY paths.
-- FULL preserves install -> AI state -> dependency audit -> calculations -> security -> typecheck -> lint -> build.
-- Evidence records event, PR, base/head/tested SHA, run/job, mode/reason, changed paths, stage outcomes, and full validation logs.
-- Evidence is uploaded with `actions/upload-artifact@v4`, `if: always()`, 14-day retention.
-- Because the repository is public, Foundation CI now uses ephemeral GitHub-hosted `windows-latest` with Node 22 and `contents: read`, not the persistent self-hosted runner.
+## Persistence decision
 
-## Direct classifier proof
+R&D product/technical recommendation: EPHEMERAL v1.
 
-21/21 classifier tests PASS, covering allowed Markdown, disallowed workflow/package/script/source/test/Supabase changes, mixed changes, non-doc deletion, non-doc-to-docs rename, malformed/unknown status, empty evidence, classifier error, manual dispatch, invalid SHA, path traversal, malformed paths, and Windows path separators.
+No Scenario Lab Supabase table, migration, cache, localStorage persistence, cross-device save, share link, or profile mutation is required for v1.
 
-## Authoritative FULL validation
+A future persisted design, if separately authorized, should store scenario definitions/provenance and baseline fingerprints rather than a second authoritative household profile.
 
-Foundation CI #708:
-- run `35405979356`
-- job `105795707397`
-- job name `verify`
-- conclusion **SUCCESS**
-- PR head `608332429c2dcf4e7689f3260aaa6b5d852b9dd5`
-- actual tested SHA `bec8b9be648eb89d2367aef3f7eeaa321b553354`
-- classification **FULL**
-- reason `non-doc-change:M:.github/workflows/ci.yml`
+## Baseline / stale model
 
-Validation:
-- classifier tests 21/21 PASS
-- AI-state PASS; 24 task files index-consistent
-- production dependency audit: 0 vulnerabilities
-- calculations 919/919 PASS
-- security 21/21 PASS
-- typecheck PASS
-- lint PASS
-- build PASS
-- final guardrail enforcement PASS
+Each draft binds to:
+- canonical normalized financial basis;
+- Money Priority policy version;
+- planning-assumptions version;
+- tax-policy version;
+- tax year;
+- explicit as-of date;
+- versioned Scenario Lab fingerprint schema.
 
-Durable artifact:
-- id `10572591193`
-- name `foundation-ci-evidence-35405979356-1`
-- size 40,734 bytes
-- digest `sha256:66d25fe46553d73316315208198aa49e7e02ab4166c72267c858cc62734cfe38`
-- expires 2026-10-02
+Every Run/Rerun reloads the authenticated household baseline server-side. Fingerprint mismatch returns stale_baseline and does not silently execute the old draft.
 
-Artifact includes `run-context.txt`, `classification.json`, `changed-paths.tsv`, `stage-outcomes.tsv`, classifier-test log, install log, AI-state log, dependency-audit log, calculations log, security log, typecheck log, lint log, and build log.
+Rebase retains only explicit override intent with valid stable IDs. Deleted entities are never retargeted by display name.
 
-## Validation defects found and closed
+## Policy questions routed, not answered
 
-Run #705 succeeded functionally but exposed two evidence defects: checkout removed evidence initialized too early, and PowerShell nested arrays flattened the stage-outcome table. Both were repaired.
+- hypothetical filing-status eligibility/dependencies;
+- user-selectable return assumptions;
+- Monte Carlo semantics;
+- tax/HSA-aware medical-event behavior;
+- future recommendation-bearing refinance behavior.
 
-Run #706 then failed closed because the new Windows-path regression fixture was over-escaped. The fixture was corrected.
+No new statutory or financial-policy meaning was defined.
 
-Run #708 is the first fully clean acceptance candidate and supersedes #705/#706.
+## Follow-on decomposition
 
-## Remaining Manager gates
+For Manager consideration only; no work is activated by this handoff:
 
-Manager must independently review before merging.
+1. Core Financial Engine Engineer — typed scenario overlay/runner foundation and reconciliation tests.
+2. Application, Data & Integration Engineer — authenticated ephemeral Scenario Lab route/server action/UI using the stable Core contract.
+3. Core/App-Data bounded integration — Home/Vehicle/Windfall/Your Plan/Recommendation Refresh adapters.
+4. Technical & Mathematical Auditor — exact frozen implementation audit.
+5. Financial Policy & Scenario Auditor — independent policy/scenario-preservation audit.
+6. Separate future Regulatory/Policy lanes only for categories classified REQUIRES POLICY or later-deferred expansion.
 
-If accepted:
-1. integrate PR #37;
-2. require exact integration FULL CI;
-3. create a disposable Markdown-only proof PR from the integrated milestone;
-4. prove the same `Foundation CI / verify` succeeds in DOCS_ONLY mode;
-5. prove classifier tests + AI-state + evidence upload run while expensive stages are skipped;
-6. close the disposable proof PR;
-7. activate the bounded public-repository required-`verify` ruleset for `main` and `phase-5-money-priority-engine`;
-8. verify ruleset state;
-9. freeze the integrated workflow target;
-10. route one fresh independent Technical/Workflow audit.
+## Boundaries preserved
 
-FFH-020, FFH-016, PR #5 merge readiness, financial semantics, Supabase/live data, and Phase 6 are unchanged.
+No production code, UI, Supabase schema/migration, live data, financial policy, statutory interpretation, Monte Carlo, FFH-038, Phase 7, or workflow/control-plane upgrade was implemented or recommended by FFH-039.
 
-## Next Activation
+## Exact next action
 
-| Order | Employee / Role | Status | Copy/paste activation prompt |
-|---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Review FFH-034 PR #37 from production checkpoint `608332429c2dcf4e7689f3260aaa6b5d852b9dd5` and authoritative FULL Foundation CI #708 / run `35405979356` / job `105795707397`. Independently reconcile scope, fail-closed classifier behavior, public-runner hardening, artifact evidence, and preserved gates. If accepted, integrate and execute the required integration/DOCS_ONLY/ruleset/fresh-audit sequence from `.ai/tasks/FFH-034.md`. |
-| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
-| 3 | Debt & Liquidity Policy Analyst | IDLE | — |
-| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | IDLE | — |
-| 6 | Application, Data & Integration Engineer | BLOCKED | FFH-020 remains blocked on secure Supabase CLI/auth/protected-backup execution; FFH-016 remains blocked behind Manager-accepted FFH-020. |
-| 7 | Regulatory & Financial Research Analyst | IDLE | — |
-| 8 | Product & Technical R&D Engineer | WAIT | FFH-034 implementation complete; wait for Manager review. |
-| 9 | Technical & Mathematical Auditor | WAIT | Fresh FFH-034 Technical/Workflow audit only after Manager integration + live DOCS_ONLY proof + required-check ruleset activation. |
-| 10 | Financial Policy & Scenario Auditor | WAIT | No FFH-034 policy audit required; final integrated Phase-5 policy audit remains downstream of FFH-020/FFH-016. |
-| 11 | Work Helper / Super Troubleshooter | IDLE | — |
+Manager / Architect reviews the FFH-039 report and independently decides whether to accept the product/technical contract and which bounded follow-on implementation/policy tasks, owners, sequence, and audit gates to authorize.
