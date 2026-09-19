@@ -1005,3 +1005,35 @@ Base: `2587a547450602bf663692320e64a0aa821d0ca2`
 Branch: `ffh/ffh-042-scenario-specialized-adapters`
 
 Core owns pure Home/Vehicle/Windfall/Your Plan/Refresh composition plus deterministic conflict detection and exact reconciliation. No UI/App Router/auth/Supabase/persistence/new-policy work.
+
+
+## FFH-042 accepted / FFH-043 activated — 2026-09-19
+
+Manager independently re-reviewed the FFH-042 R01 remediation and accepted the specialized Scenario Lab Core composition.
+
+Accepted FFH-042 evidence:
+- production/final-validation `f9c6081c8987a7bdb450cc62898e12c8de668ef7`;
+- full Foundation CI `35422840158` / `105843532078` SUCCESS / FULL;
+- handoff `30c6e649e29d4dd692aaea99c8f85e576cda104b`;
+- docs-only continuity CI `35422999975` / `105843962172` SUCCESS with predecessor run `35422840158` verified;
+- integration `768644c1e8baf41eef72fa0e857a0c474a56823e`;
+- tested handoff -> integration comparison: zero file differences.
+
+R01 is bounded and complete: recurring `GoalOverride type:"goal"` now participates in stable goal-ID overlap detection for Home/Vehicle adapter-owned and `relatedGoalId` goals; same-goal `currentAmount` fails closed; unrelated goal override remains allowed.
+
+Manager's required independent reconciliation hand-check remains exact:
+- Home `$67,000` required cash;
+- Vehicle `$10,000` required cash;
+- Windfall `$12,345.67 = $1,900.08 reservations + $4,300 destinations + $6,145.59 residual`.
+
+FFH-042 is CLOSED / ACCEPTED.
+
+Manager now activates FFH-043 — Authenticated Specialized Scenario Lab Wiring.
+Owner: Application, Data & Integration Engineer.
+Execution: STANDARD_CHAT_HIGH / FAST_REFRESH.
+Production base: `768644c1e8baf41eef72fa0e857a0c474a56823e`.
+Branch: `ffh/ffh-043-scenario-specialized-wiring`.
+
+FFH-043 owns only App/Data wiring of the accepted FFH-042 specialized contract into the FFH-041 authenticated ephemeral workspace plus refresh of stable-ID entity options after successful rebase. It may not change Core financial semantics, add persistence/schema/RLS/profile writes, or introduce new policy.
+
+After FFH-043 Manager acceptance/integration, freeze the exact integrated Phase-6 target and activate fresh independent Technical & Mathematical and Financial Policy & Scenario audits against the same frozen checkpoint.
