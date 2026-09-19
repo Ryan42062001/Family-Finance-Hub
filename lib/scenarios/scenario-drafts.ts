@@ -3,10 +3,12 @@ import type {
   ScenarioBaselineDescriptor,
   ScenarioRunDTO,
   SpecializedScenarioRunDTO,
+  SpecializedScenarioSubmission,
 } from "./scenario-app-contract.ts";
-import type {
-  ScenarioOperationEventLink,
-  ScenarioSpecializedIntent,
+import {
+  SPECIALIZED_SCENARIO_DEFINITION_VERSION,
+  type ScenarioOperationEventLink,
+  type ScenarioSpecializedIntent,
 } from "./scenario-specialized-contract.ts";
 import type { MoneyPlanOverride } from "../calculations/money-priority-user-plan.ts";
 
@@ -82,4 +84,77 @@ export function scenarioDraftCanCompare(a: ScenarioDraft, b: ScenarioDraft): boo
     && a.result.status !== "stale_baseline" && b.result.status !== "stale_baseline"
     && a.baseline.fingerprint === b.baseline.fingerprint
     && JSON.stringify(a.baseline.policyBasis) === JSON.stringify(b.baseline.policyBasis));
+}
+
+
+export function setScenarioSpecializedIntent(
+  draft: ScenarioDraft,
+  specialized: ScenarioSpecializedIntent | null,
+): ScenarioDraft {
+  const next = editScenarioDraft(draft, {
+    ...draft.definition,
+    specializedIntent: specialized
+      ? { type: specialized.type, intentId: specialized.eventId }
+      : null,
+  });
+  return {
+    ...next,
+    specialized: specialized ? structuredClone(specialized) : null,
+    specializedResult: null,
+  };
+}
+
+export function setScenarioOperationEventLink(
+  draft: ScenarioDraft,
+  operationId: string,
+  eventId: string,
+): ScenarioDraft {
+  const trimmed = eventId.trim();
+  const remaining = draft.operationEventLinks.filter((link) => link.operationId !== operationId);
+  return {
+    ...draft,
+    operationEventLinks: trimmed ? [...remaining, { operationId, eventId: trimmed }] : remaining,
+    dirty: true,
+    result: null,
+    specializedResult: null,
+  };
+}
+
+export function upsertScenarioPlanOverride(
+  draft: ScenarioDraft,
+  allocationId: string,
+  monthlyAmount: number,
+): ScenarioDraft {
+  const remaining = draft.yourPlanOverrides.filter((override) => override.allocationId !== allocationId);
+  return {
+    ...draft,
+    yourPlanOverrides: [...remaining, { allocationId, monthlyAmount }],
+    dirty: true,
+    result: null,
+    specializedResult: null,
+  };
+}
+
+export function removeScenarioPlanOverride(draft: ScenarioDraft, allocationId: string): ScenarioDraft {
+  return {
+    ...draft,
+    yourPlanOverrides: draft.yourPlanOverrides.filter((override) => override.allocationId !== allocationId),
+    dirty: true,
+    result: null,
+    specializedResult: null,
+  };
+}
+
+export function specializedScenarioSubmission(draft: ScenarioDraft): SpecializedScenarioSubmission {
+  return {
+    definition: {
+      version: SPECIALIZED_SCENARIO_DEFINITION_VERSION,
+      genericDefinition: draft.definition,
+      specialized: draft.specialized,
+      operationEventLinks: draft.operationEventLinks,
+      yourPlanOverrides: draft.yourPlanOverrides,
+    },
+    baselineFingerprint: draft.baseline.fingerprint,
+    baselinePolicyBasis: draft.baseline.policyBasis,
+  };
 }
