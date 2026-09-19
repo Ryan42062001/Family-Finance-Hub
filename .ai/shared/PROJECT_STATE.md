@@ -129,3 +129,6 @@ Phase 6 Scenario Lab remains downstream of an accepted Phase 5 recommendation en
 - Current milestone runtime queries that FFH-023 table in both loader and HSA UI; therefore FFH-016 remains BLOCKED on new bounded deployment task FFH-035 rather than starting with a known schema mismatch.
 - FFH-035 ACTIVE: deploy exactly the accepted FFH-023 legal-spouse authority migration after fresh backup + one-migration dry-run proof.
 - PR #5 remains NOT MERGE READY. Phase 6 remains gated.
+- FFH-035 Stage A ACCEPTED: fresh protected backup complete; dry run lists exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`.
+- FFH-035 Stage B authorized for one linked push of that exact migration only.
+- FFH-016 remains BLOCKED until Manager accepts FFH-035 post-deployment evidence.
