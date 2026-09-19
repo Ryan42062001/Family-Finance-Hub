@@ -134,3 +134,16 @@ Live proof:
 Current assignment: FFH-035 — deploy exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql` after fresh protected backup and single-migration dry-run proof.
 
 FFH-016 remains verification-only and BLOCKED until FFH-035 is accepted.
+
+## FFH-035 Stage B authorization — 2026-09-18
+
+Stage A PASS:
+- linked target healthy;
+- exact table absent pre-deploy;
+- fresh protected backup complete;
+- one-migration dry run PASS.
+
+Authorized live command:
+`npx.cmd --yes supabase@latest db push --linked`
+
+Confirmation must show only `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`. Stop after command and preserve output.

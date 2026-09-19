@@ -800,3 +800,15 @@ FFH-020 verdict: **ACCEPTED**.
 Current milestone runtime already queries the FFH-023 legal-spouse authority table, so FFH-016 remains blocked until that accepted additive migration is deployed. Manager created FFH-035 as the narrow deployment gate for exactly `20260911170000_ffh_023_hsa_legal_spouse_authority.sql`.
 
 Next: complete FFH-035 Stage A backup + one-migration dry run; do not run live FFH-035 DDL until Manager verifies that evidence.
+
+## FFH-035 Stage A accepted / Stage B authorized — 2026-09-18
+
+Manager accepted fresh backup + preflight + one-migration dry-run evidence.
+
+Only pending migration:
+`20260911170000_ffh_023_hsa_legal_spouse_authority.sql`
+
+Stage B authorization:
+`npx.cmd --yes supabase@latest db push --linked`
+
+The CLI confirmation must list that migration and no other. Stop on any error. After success, only read-only verification is authorized pending Manager acceptance.
