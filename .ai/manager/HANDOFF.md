@@ -1095,3 +1095,51 @@ Manager routes FFH-046 to Core Financial Engine Engineer for the smallest author
 TMA-044-01 is not bundled into the blocker; queued as FFH-047 non-blocking App/Data hardening.
 
 After FFH-046 Manager acceptance/integration, freeze a new exact remediated Phase-6 target and run fresh final Technical + Policy re-audits before Phase-6 closure.
+
+
+## FFH-046 accepted / remediated Phase-6 re-audits activated — 2026-09-19
+
+Manager independently accepted FFH-046 and integrated PR #62.
+
+Exact custody:
+- production `3a045c4acae7b32efe68165c021dfc34c1a1209a`;
+- final validation `c5d1b6863707460f046dfd1fc1cf2d0aea82d88c`;
+- FULL Foundation CI `35443929743` / `105899505669` SUCCESS;
+- final handoff `ee59da65a6902ba0586f696b02c0dd575cd434d4`;
+- handoff continuity `35444101087` / `105899954293` SUCCESS;
+- integration/new frozen product target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3`;
+- handoff -> integration compare: zero changed files.
+
+Manager verified:
+- accepted Windfall tax-treatment enum membership at runtime;
+- missing/null known liability is held, not converted to known zero;
+- explicit zero remains valid;
+- unsupported treatment fails closed;
+- authenticated specialized execution inherits the allocator;
+- exact-cent reconciliation holds;
+- downstream no-reuse / retirement-capacity logic remains unchanged.
+
+Fresh independent final re-audits now active on the same exact frozen target:
+- FFH-048 Technical & Mathematical;
+- FFH-049 Financial Policy & Scenario.
+
+Shared packet:
+`.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`
+
+The prior failed target `8f4b1c44...` remains historical evidence and must not be reused. Phase 6 remains OPEN until both fresh verdicts are independently accepted and reconciled by Manager.
+
+## Next Activation
+
+| Order | Employee / Role | Status | Current Task / Gate | Copy/paste activation prompt / next action |
+|---:|---|---|---|---|
+| 1 | Manager / Architect | WAIT | Fresh dual re-audits active | Await both independent verdicts, then reconcile. |
+| 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | No active policy-authoring task | — |
+| 3 | Debt & Liquidity Policy Analyst | IDLE | No active task | — |
+| 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | No active task | — |
+| 5 | Core Financial Engine Engineer | IDLE | FFH-046 CLOSED | No action unless a new audit finding is routed. |
+| 6 | Application, Data & Integration Engineer | WAIT | FFH-047 remains queued/non-blocking | Do not modify frozen target during audits. |
+| 7 | Regulatory & Financial Research Analyst | IDLE | No active research task | — |
+| 8 | Product & Technical R&D Engineer | IDLE | Phase-6 implementation complete | — |
+| 9 | Technical & Mathematical Auditor | ACTIVATE NOW | FFH-048 | Freshly audit exact target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` using the shared re-audit packet; do not rely on FFH-049. |
+| 10 | Financial Policy & Scenario Auditor | ACTIVATE NOW | FFH-049 | Freshly audit exact target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` using the shared re-audit packet; do not rely on FFH-048. |
+| 11 | Work Helper / Super Troubleshooter | IDLE | On-demand only | — |
