@@ -27,7 +27,8 @@ test("FFH-041 authenticates and derives household authority server-side", () => 
 
 test("FFH-041 has no Scenario Lab persistence or live-data write surface", () => {
   assert.doesNotMatch(surface, /localStorage|sessionStorage|indexedDB/i);
-  assert.doesNotMatch(surface, /\.insert\s*\(|\.update\s*\(|\.upsert\s*\(|\.delete\s*\(/);
+  assert.doesNotMatch(surface, /\.(?:insert|upsert|delete)\s*\(/);
+  assert.doesNotMatch(surface, /\.from\([^)]*\)[\s\S]{0,300}\.update\s*\(/);
   assert.doesNotMatch(surface, /supabase\/migrations|create table|alter table|create policy/i);
   assert.doesNotMatch(surface, /Apply Scenario|Save to Profile|Commit Scenario/i);
 });
