@@ -69,7 +69,7 @@ export default async function DashboardPage() {
     <main className="page-shell">
       <section className="hero-card">
         <div><p className="eyebrow">Private workspace</p><h1>{household.name}</h1><p className="muted">A household-level view of what you own, owe, earn, spend, save, and are working toward.</p></div>
-        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit financial profile</Link><form action={logout}><button type="submit">Sign out</button></form></div>
+        <div className="hero-actions"><Link className="secondary-button" href="/scenario-lab">Scenario Lab</Link><Link className="secondary-button" href="/financial-profile">Edit financial profile</Link><form action={logout}><button type="submit">Sign out</button></form></div>
       </section>
 
       {completion < 100 ? <section className="dashboard-notice"><div><strong>Financial profile: {completion}% complete</strong><p>Add missing sections to make dashboard metrics and future recommendations more complete.</p></div><Link className="secondary-button" href="/financial-profile">Finish profile</Link></section> : null}
