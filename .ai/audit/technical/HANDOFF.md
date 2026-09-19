@@ -1,250 +1,105 @@
 # Technical Audit Handoff
 
-## Current handoff — FFH-048 Final Remediated Phase-6 Technical & Mathematical Re-Audit
+## Current — FFH-052 Scenario Lab Null-Preferences Independent Technical Audit
 
-Task ID: FFH-048 — Final Remediated Phase-6 Technical & Mathematical Re-Audit  
+Task: FFH-052 / FFH-026 production release blocker  
 Role: Technical & Mathematical Auditor  
-Execution mode: STANDARD_CHAT_HIGH  
-Refresh mode: Fast Refresh  
-Status: AUDIT COMPLETE  
-Verdict: **PASS WITH NON-BLOCKING FINDINGS**
+Mode: STANDARD_CHAT_HIGH / FAST_REFRESH  
+State: TECHNICAL AUDIT COMPLETE — MANAGER RECONCILIATION REQUIRED
 
-Exact frozen PRODUCT target audited: `9453deca36fe41f5d56e154cc9c8bc9de6f64da3`  
-Manager/control-plane head verified: `ca220330eba659efef9b26fa3acc17ea8b9df34a`  
-Assigned audit branch: `audit/ffh-048-phase6-technical-reaudit-9453deca`  
-Shared packet: `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`  
-Canonical report: `.ai/audit/technical/FFH-048_PHASE6_REAUDIT_9453deca.md`  
-Report commit: `32d74580f13c6730faeb6c78fb00a0f4d0e2695f`
+**Verdict: PASS WITH NON-BLOCKING FINDINGS**  
+CRITICAL 0 / HIGH 0 / MEDIUM 0 / LOW 2
 
-### Independent result
+Frozen PRODUCT audit target:
+`d5f2ed64d856a67bb24dd44aac2e8dbfd988639a`
 
-**PASS WITH NON-BLOCKING FINDINGS**
+Canonical main and audit-branch initial head:
+`e747d27ddc16c97413bc9832fba37e40797e5a01`
 
-Findings:
-- CRITICAL: 0
-- HIGH: 0
-- MEDIUM: 0
-- LOW: 1
+Audit branch:
+`audit/ffh-052-null-preferences-technical-d5f2ed64`
 
-No blocking financial-engine, mathematical, exact-reconciliation, tax-authority, server-authority, stale/rebase, stable-ID, conflict, persistence, HSA/spousal-IRA, or capacity-reuse defect was identified.
+Technical report:
+`.ai/audit/technical/FFH-052_NULL_PREFERENCES_TECHNICAL_AUDIT_d5f2ed64.md`
 
-I did **not** read or rely on FFH-049's verdict or reasoning.
+**Report commit:** `c5248a45339f8a20bd5379706f43893981b285b2`
 
-### FFH-046 tax-authority remediation
+Manager routing: PR #71 comment `5746138914`.
 
-**CLEAR.**
+### Technical result
 
-The authoritative `allocateWindfall()` runtime boundary now:
-- accepts only the existing supported non-null treatment membership;
-- fails unsupported non-null treatment closed;
-- requires explicit finite nonnegative `knownTaxLiability` when treatment is `known_taxable_liability_provided`;
-- treats omitted/null known liability as missing authority, not zero;
-- preserves explicit `0` as a valid known zero;
-- preserves positive known liability arithmetic;
-- preserves null/omitted/uncertain treatment as a conservative tax-review hold.
+The frozen diff changes only:
+- `lib/calculations/money-priority-recommendation-refresh.ts`;
+- `lib/calculations/ffh-041-scenario-lab.test.ts`.
 
-Required direct adversaries all clear.
+The null-safe preference key enumeration fixes the `Object.keys(null)` crash without assigning replacement preferences to the baseline or scenario.
 
-### Authenticated inheritance
+Independent transition logic checks:
+- null→null: no preference-field change;
+- null→populated and populated→null: each populated field is detected;
+- null↔empty: zero field changes, but whole-basis fingerprint retains the distinction;
+- populated field→null: detected.
 
-**CLEAR.**
+The normalized raw snapshot and raw adapter keep genuinely absent preferences null, and the validator rejects an attempt to add generic planning-preference overrides against a null baseline.
 
-FFH-043 authenticated specialized execution:
-- derives household server-side;
-- loads a fresh current baseline;
-- performs stale/policy checks;
-- invokes the accepted specialized runner;
-- receives the same authoritative Windfall allocator result.
+Exact monthly financial hand-check:
+- $5,000 income − $3,500 housing − $200 debt minimum = $1,300;
+- $5,000 income − $4,000 housing − $200 debt minimum = $800;
+- delta = −$500 / −50,000 cents.
 
-Authenticated tests prove missing/null/zero/unsupported/positive/uncertain treatment semantics without a parallel transport calculation.
+The actual generic execution reruns the canonical engine on an immutable hypothetical overlay. Comparison notices include expense and feasibility changes. Missing-data authority is not replaced with zero/default saved preferences by this patch.
 
-### Exact reconciliation
+### Authentication, persistence and household isolation
 
-**CLEAR.**
+Server action resolves authority from auth claims + household membership, loads the fresh household-scoped snapshot and validates stale fingerprint/policy basis before running.
 
-Required exact identities remain true in integer cents/equivalent exact money representation.
+The loader is read-only and applies `household_id` on all financial and preference queries. No write API was found along the invoked page/action/loader/overlay/engine/refresh path, and browser storage is absent.
 
-Examples:
-- generic one-time `$100.01 - $33.34 = $66.67`;
-- cash-funded debt payoff consumes exactly principal once;
-- positive known Windfall:
-  `$12,345.67 = $1,000.01 + $200.00 + $300.03 + $400.04 + $10,445.59`;
-- independent unsupported-treatment hand-check:
-  `$100.05 = $0.01 + $0.02 + $0.03 + $99.99 held`;
-- deployable/allocated/residual are zero on that fail-closed branch.
+Read-only live Supabase verification of project `tsqwvggojeudgspnumze`:
+- ACTIVE_HEALTHY;
+- RLS enabled on relevant financial, preferences and membership tables;
+- read policies call `private.can_read_household(household_id)`;
+- the live helper requires `household_members.household_id = target_household_id` AND `household_members.user_id = auth.uid()`.
 
-No epsilon/tolerance waiver or hidden residual clamp was identified.
+The new regression's saved-profile deep-equality assertion is only an **in-memory** non-mutation check. No authenticated live database before/after or two-household negative probe was performed by this auditor; do not report that as tested.
 
-### Windfall no-reuse / retirement capacity
+### Findings
 
-**CLEAR.**
+- **TMA-052-01 LOW / NON-BLOCKING:** new executable regression covers null→null but not direct null→populated, populated→null and absent↔empty module/DTO comparisons or explicit expense/feasibility notice assertions. Source and independent logic hand-checks clear; add targeted automated regressions for future-proofing.
+- **TMA-052-02 LOW / NON-BLOCKING:** no authenticated production-safe persisted-row before/after and second-household negative runtime evidence was executed. Exact affected source path is read-only, and live RLS structure is correct; obtain runtime smoke evidence under FFH-026 without altering this frozen patch.
 
-Windfall remains a post-engine one-time consumer over:
-- final residual-needs snapshot;
-- cloned already-consumed retirement-capacity ledger.
+No CRITICAL/HIGH/MEDIUM production defect was found.
 
-Existing Cash, Secure, Build, debt principal and legal retirement room are not recreated.
+### Validation custody
 
-Direct evidence:
-- fully satisfied reserve is not funded again;
-- partially satisfied reserve plus Windfall equals the authoritative reserve requirement exactly;
-- retirement requires modeled need plus verified direct destination;
-- legal room alone creates no Windfall contribution;
-- employer match/payroll-only SIMPLE is not a direct Windfall sink;
-- retirement-capacity invariant is checked after Windfall routing.
+Frozen target's FULL Foundation CI:
+- run `35476026916` / #791;
+- verify job `105985308021`;
+- exact head `d5f2ed64d856a67bb24dd44aac2e8dbfd988639a`;
+- SUCCESS / FULL; calculations/security/typecheck/lint/build/dependency audit/state validation/guardrails successful.
 
-### One-engine / generic overlay
+CI is supporting evidence only. Independent evidence includes the exact patch/source review, a separate guard/key-union transition logic hand-check, 50,000-cent financial reconciliation, and read-only live RLS/helper inspection. The repository's test suite was not independently re-executed locally in this audit.
 
-**CLEAR.**
+PR #71 remains DRAFT / OPEN / UNMERGED / NOT MANAGER ACCEPTED. Neither this auditor nor this handoff authorizes production deployment or Private Beta.
 
-Scenario Lab still reruns only the canonical Money Priority Engine.
+The separate Financial Policy & Scenario Auditor's verdict/reasoning was not read or used.
 
-Generic overlays remain:
-- typed/versioned;
-- stable-ID based;
-- runtime validated;
-- protected from statutory/legal field mutation;
-- deterministic;
-- deep-frozen before rerun;
-- recurring/one-time separated.
+### Manager next action
 
-No second financial truth source was found.
-
-### FFH-042 R01
-
-**CLOSED / CLEAR.**
-
-A recurring generic GoalOverride targeting Home/Vehicle adapter-owned/related goal identity fails with `stable_entity_overlap`.
-
-An unrelated stable goal override remains permitted.
-
-Same-event, ambiguous ownership, adapter-owned debt/expense/goal cash and duplicate-plan conflicts remain fail-closed.
-
-### FFH-043 R01
-
-**CLOSED / CLEAR.**
-
-Malformed nested `genericDefinition.baselineReference` is validated before stale dereference.
-
-Seven malformed forms return structured `invalid` for Run/Rebase; no exception or specialized output escapes.
-
-Valid nested reference still executes/rebases; legitimate valid mismatch remains `stale_baseline`.
-
-### Authority / stale / rebase / stable IDs
-
-**CLEAR.**
-
-- household authority is server-derived;
-- client household spoof is non-authoritative;
-- explicit execution loads fresh baseline;
-- outer/nested fingerprint and policy mismatch fail closed;
-- deleted stable IDs return `unresolved` / `missing_entity`;
-- no display-name retargeting;
-- successful rebase returns and installs refreshed bootstrap.
-
-### Home / Vehicle
-
-**CLEAR.**
-
-Home and Vehicle adapters remain direct delegates to accepted evaluators over the final generic engine.
-
-Direct result/trace equality remains covered.
-
-Protected/unrelated earmarked cash is unavailable:
-- Home cash still required/protected: `$67,000`;
-- Vehicle cash required/protected: `$10,000`.
-
-### Your Plan
-
-**CLEAR.**
-
-Your Plan remains the final allocation layer:
-- stable allocation IDs;
-- active/superseded/invalid status;
-- funding gap visible;
-- no silent clamping;
-- no display-name retarget;
-- Windfall retirement contributions are included as additional already-consumed annual legal room.
-
-### HSA / spousal IRA
-
-**CLEAR.**
-
-HSA preserved:
-- married-family original annual room: `$10,750`;
-- shared ordinary representation: `$8,750 / $8,750`;
-- catch-up: `$1,000 / $1,000`;
-- no-op/unrelated scenarios preserve HSA authority;
-- specialized Windfall does not recreate the ledger.
-
-Spousal IRA preserved:
-- exact shared MFJ compensation boundary: `$10,000.01`;
-- no-op and unrelated generic change preserve it;
-- specialized Windfall leaves the final generic ledger immutable.
-
-### No persistence / profile writes
-
-**CLEAR.**
-
-No Scenario Lab:
-- migration/table/RLS;
-- insert/upsert/delete/profile update;
-- localStorage/sessionStorage/IndexedDB;
-- Apply/Save/Commit Scenario path.
-
-Scenario state remains ephemeral/in-memory.
-
-### TMA-048-01 — LOW / NON-BLOCKING
-
-Fresh source inspection found one non-financial UI/status precision issue:
-
-- server specialized rebase correctly returns `unresolved` + `missing_entity` + fresh bootstrap for a deleted stable reference;
-- the client only installs the bootstrap on successful `rebased`;
-- non-unauthorized failures are persisted as broader `invalid`.
-
-The live announcement still reports `unresolved`; missing-entity detail remains visible; execution stays blocked; no name retarget occurs.
-
-Impact is limited to persistent actionability/status precision.
-
-FFH-047 already exists as the queued non-blocking App/Data hardening task for this exact class; this auditor does not activate it.
-
-### Validation evidence
-
-FFH-046 product final-validation:
-- SHA `c5d1b6863707460f046dfd1fc1cf2d0aea82d88c`;
-- Foundation CI `35443929743` / #778;
-- verify job `105899505669`;
-- SUCCESS / FULL;
-- classifier, dependency install/audit, AI-state validation, calculation suite, security suite, typecheck, lint, build, evidence and guardrails all passed.
-
-Final-validation -> frozen target changes only control-plane/documentation evidence.
-
-The audit branch itself will be validated through the single evidence-only PR after this handoff commit. That PR must remain open/unmerged for Manager reconciliation.
-
-### Recommended next action
-
-Manager may ingest FFH-048 only after preserving FFH-049 independence.
-
-Do not expose this report's conclusions to the FFH-049 auditor before that auditor independently submits.
-
-After both final re-audits exist, Manager should reconcile them against exact frozen target:
-
-`9453deca36fe41f5d56e154cc9c8bc9de6f64da3`.
-
-This auditor does not self-close Phase 6 and does not activate Phase 7.
+Reconcile FFH-052 Technical and separate independent Policy findings at **the same exact frozen PR #71 head**. If both gates clear, decide whether to accept/merge and route the remaining FFH-026 production-safe persistence and household-isolation smoke verification. Do not infer readiness of PR #68 or Private Beta from a technical PASS alone.
 
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Ingest completed FFH-048 Technical re-audit of exact frozen product target `9453deca36fe41f5d56e154cc9c8bc9de6f64da3` using shared packet `.ai/audit/FFH-PHASE6_FINAL_REAUDIT_PACKET_9453deca.md`, branch `audit/ffh-048-phase6-technical-reaudit-9453deca`, report `.ai/audit/technical/FFH-048_PHASE6_REAUDIT_9453deca.md` at report commit `32d74580f13c6730faeb6c78fb00a0f4d0e2695f`, and the final handoff/PR/CI evidence returned by the auditor. Preserve FFH-049 independence: do not expose FFH-048 verdict/reasoning before FFH-049 independently submits. After FFH-049 completes, reconcile both final remediated Phase-6 audits, including LOW TMA-048-01 / queued FFH-047. Do not close Phase 6 or activate Phase 7 unless all required gates clear. Return exact reconciliation evidence and the canonical 11-role dashboard. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Reconcile the FFH-052 independent Technical audit of exact PR #71 frozen target `d5f2ed64d856a67bb24dd44aac2e8dbfd988639a` against the separate Policy audit only after independent submission. Technical report `.ai/audit/technical/FFH-052_NULL_PREFERENCES_TECHNICAL_AUDIT_d5f2ed64.md` at `c5248a45339f8a20bd5379706f43893981b285b2`; read this Technical handoff, audit PR, exact final CI, and Manager packet PR #71 comment `5746138914`. Verify unchanged production head, resolve both LOW evidence findings without overstating the in-memory profile assertion as persisted DB proof, keep PR #71 draft/unmerged until acceptance, and keep FFH-026/PR #68 deployment and Private Beta gates separate. Return exact disposition and 11-role dashboard. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
-| 5 | Core Financial Engine Engineer | IDLE | FFH-046 is closed; no further Core remediation is authorized by this Technical audit. |
-| 6 | Application, Data & Integration Engineer | WAIT | FFH-047 remains QUEUED / non-blocking. Do not activate until Manager completes the Phase-6 final re-audit reconciliation or otherwise routes it. |
+| 5 | Core Financial Engine Engineer | IDLE | — |
+| 6 | Application, Data & Integration Engineer | WAIT | FFH-026 production release-readiness lane is gated on the independent FFH-052 dual-audit/Manager acceptance; authorized production-safe runtime smoke evidence remains separate. |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
 | 8 | Product & Technical R&D Engineer | IDLE | — |
-| 9 | Technical & Mathematical Auditor | WAIT | FFH-048 complete after evidence-only PR/CI validation; await Manager reconciliation or a newly frozen target. |
-| 10 | Financial Policy & Scenario Auditor | ACTIVE | FFH-049 remains the separate fresh independent final remediated Phase-6 audit lane. Do not provide FFH-048 conclusions before its submission. |
+| 9 | Technical & Mathematical Auditor | WAIT | FFH-052 Technical audit complete; await Manager disposition or a new frozen target. |
+| 10 | Financial Policy & Scenario Auditor | ACTIVE | Separate independent FFH-052 policy/scenario audit; no Technical conclusions may be used before its submission. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
