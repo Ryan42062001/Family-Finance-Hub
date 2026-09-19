@@ -266,6 +266,7 @@ test("FFH-043 successful explicit rebase refreshes entity options; deleted refer
 
   const deleted = raw();
   deleted.goals = deleted.goals!.filter((goal) => goal.id !== "house-goal");
+  deleted.accounts = deleted.accounts!.filter((account) => account.related_goal_id !== "house-goal");
   deleted.goals!.push({
     id: "replacement-house-goal", name: "House", target_amount: 60000, current_amount: 20000, target_date: "2027-09-19",
     priority: 1, goal_class: "major_life_goal", necessity: "important", deadline_flexibility: "somewhat_flexible",
