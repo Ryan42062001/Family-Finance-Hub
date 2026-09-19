@@ -54,12 +54,114 @@ test("malformed or negative reservation is invalid", () => {
   assert.equal(evaluate({ restrictedAmount: Number.NaN }).result.state, "invalid");
 });
 
+function assertWindfallReconcilesExactly(result: ReturnType<typeof allocateWindfall>) {
+  const cents = (value: number) => Math.round(value * 100);
+  assert.equal(
+    cents(result.grossAmount ?? 0),
+    cents(result.reservedTaxAmount)
+      + cents(result.reservedOtherLiabilityAmount)
+      + cents(result.restrictedAmount)
+      + cents(result.earmarkedAmount)
+      + cents(result.heldForTaxReviewAmount)
+      + cents(result.totalAllocated)
+      + cents(result.remainingUnallocated),
+  );
+}
+
+test("known taxable treatment with omitted liability holds all otherwise-unreserved proceeds", () => {
+  const engine = runMoneyPriorityEngine(raw(), "2026-08-30");
+  const result = allocateWindfall(engine, {
+    amount: 12345.67,
+    source: "bonus",
+    taxTreatment: "known_taxable_liability_provided",
+    knownOtherLiability: 200,
+    restrictedAmount: 300.03,
+    earmarkedAmount: 400.04,
+  });
+  assert.equal(result.state, "more_information_needed");
+  assert.equal(result.reservedTaxAmount, 0);
+  assert.equal(result.heldForTaxReviewAmount, 11445.6);
+  assert.equal(result.deployableAmount, 0);
+  assert.deepEqual(result.allocations, []);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 0);
+  assertWindfallReconcilesExactly(result);
+});
+
+test("known taxable treatment with null liability holds all otherwise-unreserved proceeds", () => {
+  const { result } = evaluate({
+    amount: 10000,
+    taxTreatment: "known_taxable_liability_provided",
+    knownTaxLiability: null,
+  });
+  assert.equal(result.state, "more_information_needed");
+  assert.equal(result.reservedTaxAmount, 0);
+  assert.equal(result.heldForTaxReviewAmount, 10000);
+  assert.equal(result.deployableAmount, 0);
+  assert.deepEqual(result.allocations, []);
+  assertWindfallReconcilesExactly(result);
+});
+
+test("explicit known zero liability is valid and distinct from missing liability", () => {
+  const { result } = evaluate({
+    amount: 10000,
+    taxTreatment: "known_taxable_liability_provided",
+    knownTaxLiability: 0,
+  });
+  assert.equal(result.state, "valid");
+  assert.equal(result.reservedTaxAmount, 0);
+  assert.equal(result.heldForTaxReviewAmount, 0);
+  assert.equal(result.deployableAmount, 10000);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 10000);
+  assertWindfallReconcilesExactly(result);
+});
+
+test("unsupported runtime tax treatment fails closed without allocations", () => {
+  const engine = runMoneyPriorityEngine(raw(), "2026-08-30");
+  const input = {
+    amount: 10000,
+    source: "bonus",
+    taxTreatment: "unsupported-value",
+  } as unknown as WindfallInput;
+  const result = allocateWindfall(engine, input);
+  assert.equal(result.state, "invalid");
+  assert.equal(result.heldForTaxReviewAmount, 10000);
+  assert.equal(result.deployableAmount, 0);
+  assert.deepEqual(result.allocations, []);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 0);
+  assertWindfallReconcilesExactly(result);
+});
+
+test("explicit known positive liability preserves exact reservation and cent reconciliation", () => {
+  const { result } = evaluate({
+    amount: 12345.67,
+    taxTreatment: "known_taxable_liability_provided",
+    knownTaxLiability: 1000.01,
+    knownOtherLiability: 200,
+    restrictedAmount: 300.03,
+    earmarkedAmount: 400.04,
+  });
+  assert.equal(result.state, "valid");
+  assert.equal(result.reservedTaxAmount, 1000.01);
+  assert.equal(result.heldForTaxReviewAmount, 0);
+  assert.equal(result.deployableAmount, 10445.59);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 10445.59);
+  assertWindfallReconcilesExactly(result);
+});
+
 test("uncertain tax treatment estimates no percentage and holds the remainder", () => {
   const { result } = evaluate({ taxTreatment: "uncertain", knownTaxLiability: 1000 });
   assert.equal(result.reservedTaxAmount, 1000);
   assert.equal(result.heldForTaxReviewAmount, 9000);
   assert.equal(result.deployableAmount, 0);
+  assert.deepEqual(result.allocations, []);
+  assert.equal(result.totalAllocated, 0);
+  assert.equal(result.remainingUnallocated, 0);
   assert.equal(result.state, "more_information_needed");
+  assertWindfallReconcilesExactly(result);
 });
 
 for (const source of ["inheritance", "tax_refund", "insurance_proceeds", "asset_sale", "legal_settlement"] as const) {

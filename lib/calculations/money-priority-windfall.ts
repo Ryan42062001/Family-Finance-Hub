@@ -72,6 +72,13 @@ const SOURCES = new Set<WindfallSource>([
   "legal_settlement", "business_distribution", "other",
 ]);
 
+const TAX_TREATMENTS = new Set<WindfallTaxTreatment>([
+  "known_non_taxable",
+  "known_taxable_liability_provided",
+  "uncertain",
+  "not_applicable",
+]);
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -88,6 +95,40 @@ function invalidResult(input: WindfallInput, missingData: string[]): WindfallAll
     reservedTaxAmount: 0, reservedOtherLiabilityAmount: 0, restrictedAmount: 0, earmarkedAmount: 0,
     heldForTaxReviewAmount: 0, deployableAmount: 0, allocations: [], totalAllocated: 0,
     remainingUnallocated: 0, warnings: [], missingData,
+  };
+}
+
+function taxAuthorityFailClosedResult(
+  engine: MoneyPriorityEngineResult,
+  input: WindfallInput,
+  state: "invalid" | "more_information_needed",
+  grossAmount: number,
+  reservedTaxAmount: number,
+  reservedOtherLiabilityAmount: number,
+  restrictedAmount: number,
+  earmarkedAmount: number,
+  message: string,
+): WindfallAllocationResult {
+  const heldForTaxReviewAmount = roundMoney(
+    grossAmount - reservedTaxAmount - reservedOtherLiabilityAmount - restrictedAmount - earmarkedAmount,
+  );
+  return {
+    state,
+    policyVersion: WINDFALL_POLICY_VERSION,
+    priorityEnginePolicyVersion: engine.policyVersion,
+    source: SOURCES.has(input.source) ? input.source : null,
+    grossAmount,
+    reservedTaxAmount,
+    reservedOtherLiabilityAmount,
+    restrictedAmount,
+    earmarkedAmount,
+    heldForTaxReviewAmount,
+    deployableAmount: 0,
+    allocations: [],
+    totalAllocated: 0,
+    remainingUnallocated: 0,
+    warnings: ["No tax percentage was estimated; the otherwise deployable amount is held for tax review."],
+    missingData: [message],
   };
 }
 
@@ -120,6 +161,38 @@ export function allocateWindfall(
     const result = invalidResult(input, ["Known liabilities, restrictions, and earmarks exceed the gross windfall."]);
     return { ...result, priorityEnginePolicyVersion: engine.policyVersion, grossAmount,
       reservedTaxAmount, reservedOtherLiabilityAmount, restrictedAmount, earmarkedAmount };
+  }
+
+  const taxTreatment = input.taxTreatment as unknown;
+  if (taxTreatment !== null && taxTreatment !== undefined
+    && !TAX_TREATMENTS.has(taxTreatment as WindfallTaxTreatment)) {
+    return taxAuthorityFailClosedResult(
+      engine,
+      input,
+      "invalid",
+      grossAmount,
+      reservedTaxAmount,
+      reservedOtherLiabilityAmount,
+      restrictedAmount,
+      earmarkedAmount,
+      "Windfall tax treatment must be a supported explicit classification.",
+    );
+  }
+
+  const missingKnownTaxLiability = input.taxTreatment === "known_taxable_liability_provided"
+    && input.knownTaxLiability == null;
+  if (missingKnownTaxLiability) {
+    return taxAuthorityFailClosedResult(
+      engine,
+      input,
+      "more_information_needed",
+      grossAmount,
+      reservedTaxAmount,
+      reservedOtherLiabilityAmount,
+      restrictedAmount,
+      earmarkedAmount,
+      "Provide the known tax liability amount, including an explicit zero when zero is the known liability, before deploying the remaining proceeds.",
+    );
   }
 
   const warnings: string[] = [];

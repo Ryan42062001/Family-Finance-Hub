@@ -43,7 +43,7 @@ Last refreshed: 2026-09-18
 | FFH-043 | App/Data | CLOSED | production/validation `35036b8a...`; handoff `d1bca71c...`; integration/frozen target `8f4b1c44...` | Manager ACCEPTED after R01; exact merge tree; final dual audits active |
 | FFH-044 | Technical & Mathematical Auditor | CLOSED | frozen target `8f4b1c44...`; report `676db24f...`; handoff `3f193591...` | PASS WITH NON-BLOCKING FINDINGS; TMA-044-01 queued as FFH-047 |
 | FFH-045 | Financial Policy & Scenario Auditor | CLOSED | frozen target `8f4b1c44...`; report `8199ff7e...`; handoff `0d128ca1...` | FAIL — REMEDIATION REQUIRED; FFH-045-P01 routed to FFH-046 |
-| FFH-046 | Core Financial Engine Engineer | ACTIVE | base `8f4b1c44...`; branch `ffh/ffh-046-windfall-tax-authority-fail-closed` | Blocking FFH-045-P01 Windfall tax-authority remediation |
+| FFH-046 | Core Financial Engine Engineer | READY_FOR_MANAGER | production `3a045c4a...`; validation `c5d1b686...`; PR #62 | FULL Foundation CI `35443929743` / job `105899505669` SUCCESS; Manager review/integration next |
 | FFH-047 | Application, Data & Integration Engineer | QUEUED | non-blocking follow-up | Preserve unresolved rebase status/bootstrap UX from TMA-044-01 |
 
 ## Current verified state
@@ -206,3 +206,11 @@ FFH-045 Financial Policy & Scenario:
 Manager confirmation: `allocateWindfall()` can treat missing/null known tax liability as zero under `known_taxable_liability_provided`, and unsupported non-null tax-treatment values bypass the uncertain-tax hold. This can make otherwise-unreserved proceeds deployable without accepted tax authority.
 
 FFH-046 ACTIVE for bounded Core remediation. Phase 6 remains OPEN / REMEDIATION. Phase 7 remains NOT STARTED. After FFH-046 acceptance/integration, Manager will freeze a new remediated target and route fresh final re-audit.
+
+
+- FFH-046 worker remediation is READY_FOR_MANAGER on draft PR #62.
+- Production SHA `3a045c4acae7b32efe68165c021dfc34c1a1209a`; final-validation SHA `c5d1b6863707460f046dfd1fc1cf2d0aea82d88c`.
+- Exact FULL Foundation CI run `35443929743` / job `105899505669` — SUCCESS; calculations, security, typecheck, lint, production build, dependency audit, AI-state validation, and guardrails all pass.
+- FFH-045-P01 is remediated at the authoritative Windfall allocator boundary: unsupported treatment fails closed; missing/null required known liability is held for tax review; explicit zero remains valid; authenticated specialized execution inherits the same behavior.
+- Scope is limited to the Windfall allocator plus direct/authenticated regression tests and FFH-046 evidence. PR #62 remains draft/unmerged.
+- Manager acceptance/integration is required before freezing a new remediated Phase-6 target and routing fresh final dual re-audits.
