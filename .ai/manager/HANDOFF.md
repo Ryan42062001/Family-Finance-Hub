@@ -939,3 +939,29 @@ Manager independently confirmed the source supports the composition model and th
 No new policy lane blocks v1. Tax-filing-status, investment-return and Monte Carlo categories remain excluded pending future policy work.
 
 Next event: integrate FFH-039 acceptance, then activate the Core Scenario Lab foundation task from the exact resulting canonical SHA.
+
+## FFH-040 activated — 2026-09-18
+
+Manager accepted FFH-039 and activated the first Phase-6 production implementation task.
+
+FFH-040 — Scenario Overlay + Runner Foundation
+- owner: Core Financial Engine Engineer;
+- execution: STANDARD_CHAT_HIGH / Fast Refresh;
+- approved production base: `cc8e2c207f16350c1baeab131ffd685c848948ce`;
+- assigned branch: `ffh/ffh-040-scenario-runner-foundation`.
+
+Core scope is intentionally pure-domain only:
+- typed/versioned Scenario Definition;
+- fail-closed runtime validation;
+- authoritative normalized-to-raw reuse;
+- immutable overlay application;
+- canonical `runMoneyPriorityEngine` rerun;
+- generic INCLUDE categories already covered by accepted semantics;
+- recurring/one-time separation;
+- atomic cash-funded debt payoff;
+- unknown-safe behavior;
+- exact reconciliation/no-reuse/determinism tests.
+
+Do not implement UI, App Router/server actions/auth, Supabase/schema/persistence, Home/Vehicle/Windfall/Your Plan Scenario Lab adapters, Recommendation Refresh UI integration, new financial policy, REQUIRES POLICY categories, FFH-038, or Phase 7.
+
+App/Data remains WAIT until Manager accepts FFH-040's stable contract.

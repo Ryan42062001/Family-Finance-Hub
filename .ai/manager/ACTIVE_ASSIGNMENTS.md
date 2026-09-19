@@ -163,3 +163,30 @@ Status: ACCEPTED / awaiting canonical integration of acceptance record
 - Policy / Regulatory roles: IDLE; no v1 blocker. REQUIRES POLICY categories remain excluded.
 - Auditors: IDLE until integrated production implementation is frozen.
 - FFH-038: remains QUEUED / non-blocking and separate.
+
+# Phase-6 implementation wave 1 — FFH-040 — 2026-09-18
+
+Status: ACTIVE
+
+## ACTIVE
+
+### FFH-040 — Scenario Overlay + Runner Foundation
+Owner: Core Financial Engine Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Production base: `cc8e2c207f16350c1baeab131ffd685c848948ce`
+Branch: `ffh/ffh-040-scenario-runner-foundation`
+
+Bounded scope:
+typed Scenario Definition + runtime validation; immutable generic overlays; shared normalized-to-raw conversion; canonical engine rerun; generic INCLUDE categories; exact reconciliation/no-reuse/determinism/unknown-safe tests.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-040 READY_FOR_MANAGER/BLOCKED event.
+- Application, Data & Integration Engineer: WAIT behind accepted Core scenario contract.
+- Product & Technical R&D Engineer: IDLE; FFH-039 complete.
+- Financial Policy / Regulatory roles: IDLE; no v1 policy blocker activated.
+- Technical & Mathematical Auditor: IDLE until a stable integrated implementation target.
+- Financial Policy & Scenario Auditor: IDLE until the same stable integrated target.
+- Work Helper: IDLE / on-demand.
+- FFH-038: QUEUED / non-blocking and not part of FFH-040.
