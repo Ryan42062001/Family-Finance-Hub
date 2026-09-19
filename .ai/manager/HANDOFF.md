@@ -678,3 +678,13 @@ This commit intentionally changes only this allowed Markdown control-plane file.
 - expensive stages must skip.
 
 Do not treat FFH-034-R01 as closed unless that live proof succeeds.
+
+## FFH-034-R01 decisive proof accepted — 2026-09-18
+
+Manager verified Foundation CI #718 / run `35408121204` / verify job `105802006094` on milestone checkpoint `76cf0449d44cf00a1de43161473c057b6bb42641`.
+
+The live Phase-5 PR #5 synchronize event classified only the exact delta `11aaf9c0... -> 76cf0449...` as DOCS_ONLY, located successful predecessor Foundation CI #717 / run `35407991846`, passed AI-state/evidence/final guardrails, and skipped install, dependency audit, calculations, security, typecheck, lint, and build.
+
+Artifact: `10572478765`; digest `sha256:7c360ef822db46e7c4df1df01e0f2e84b656d8f97d9bde369eb906f6e3bdb907`.
+
+FFH-034-R01 is accepted. The only remaining pre-audit gate is user-admin creation of the minimal required-`verify` repository ruleset for `main` and `phase-5-money-priority-engine`. The connected GitHub integration has no admin write action for rulesets. After the user activates it, Manager must verify the live ruleset, freeze the exact workflow target, and activate the fresh Technical/Workflow auditor.
