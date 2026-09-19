@@ -22,6 +22,19 @@ The tenancy foundation was verified using two temporary test identities and two 
 
 Cross-household isolation is a release blocker. Future financial tables must include `household_id`, enable Row Level Security, and receive equivalent positive-ownership and negative-cross-household tests before release.
 
-### Current limitation
+## Phase 5 role-aware remediation verification
 
-This verification proves the database RLS behavior. Automated CI coverage for these assertions should be added before private beta so regressions fail the build automatically.
+The Phase 5 adversarial audit found that generic membership policies allowed the `viewer` role to write. The additive remediation migration establishes this contract:
+
+- owner: household read, financial writes, and household metadata updates;
+- member: household read and financial writes, but no owner-only metadata operation;
+- viewer: read only;
+- non-member: no household access.
+
+`households.created_by` is immutable. Financial UPDATE policies apply the writer predicate in both `USING` and `WITH CHECK`, preventing destination-household reassignment.
+
+Foundation CI runs `npm run test:security`, which verifies the complete migration policy contract for every household financial table. This deterministic test catches policy omissions and accidental fallback to generic membership writes.
+
+### CI limitation and live release check
+
+CI does not have a disposable Supabase project or privileged test credentials, so its contract test does not execute PostgreSQL RLS. The release check must additionally run a rollback-only live transaction covering owner, member, viewer, non-member, and a second household; creator immutability; cross-household references; and household-ID reassignment. Security Advisor and live policy definitions must also be inspected after migration application.

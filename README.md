@@ -53,7 +53,7 @@ Sharing a generic Family Finance Hub link creates a separate private account/wor
 - TypeScript
 - Supabase Auth + Postgres + Row Level Security
 - GitHub Actions CI
-- Vercel planned for deployment
+- Vercel planned for Phase 7 — Deployment & Release Readiness
 
 ## Local setup
 
@@ -86,3 +86,5 @@ npm run build
 ## Active milestone
 
 Phase 5 builds the Money Priority Engine on top of the stable Phase 4 baseline. That work stays isolated on `phase-5-money-priority-engine` until PR #5 is reviewed and merged.
+
+Production deployment and the stable website URL are intentionally deferred to Phase 7 — Deployment & Release Readiness, after the Money Priority Engine and Scenario Lab are accepted. That phase will also add the verified production URL to this README and to the GitHub repository About section before Private Beta.

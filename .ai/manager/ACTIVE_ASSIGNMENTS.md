@@ -1,0 +1,119 @@
+# Family Finance Hub — Active Assignments
+
+Last refreshed: 2026-09-10
+Workflow: V3 overlay + V2 safeguards
+Detailed task authority: `.ai/tasks/FFH-###.md`
+Dashboard: `.ai/tasks/TASK_INDEX.md`
+Integration/readiness queue: `.ai/manager/INTEGRATION_QUEUE.md`
+
+# FFH-PW-003 — Retirement-capacity remediation and HSA integration
+
+Status: ACTIVE
+
+## Completed / accepted in current wave
+
+- FFH-009 — Retirement Policy — ACCEPTED / synthesized as FFH-D006.
+- FFH-010 — App/Data HSA persistence + normalized contract — ACCEPTED at `8f39e7d6e638711a80300786869a407113d3d0c4`, Foundation CI #300 SUCCESS; live migration deployment now routed through FFH-020 and parity through FFH-016 afterward.
+- FFH-011 — App/Data SIMPLE persisted-field contract — ACCEPTED at in-place checkpoint `a89e9ae8637f2b5b09a6b4d4736f6b22d119295a`; CI #348 returned to the 54-failure FFH-012 baseline after removing the incremental FFH-011 SIMPLE regression. Live migration deployment now routed through FFH-020; parity remains FFH-016; Core formula consumption remains FFH-015.
+- FFH-014 — Workflow V2 upgrade — CLOSED / FFH-D007 adopted.
+- FFH-019 — Workflow V3 overlay — CLOSED / Manager accepted; integrated at `11c757141fb17c00c5b37bc702cbd0ed55c38a5c`.
+
+## Current execution
+
+### FFH-012 — HSA legal-capacity calculation
+Owner: Core Financial Engine Engineer
+State: REMEDIATION
+Task: `.ai/tasks/FFH-012.md`
+Isolated candidate: `98f9090b5a231cb12a0f68d3be7e84c2bbf4f546`
+Evidence: CI #308 FAILURE with 54 task-owned HSA-related calculation failures; the same aggregate failure count remains at accepted FFH-011 checkpoint CI #348.
+Next gate: focused D005 owner remediation -> exact validation -> current FFH-012 handoff -> `READY_FOR_MANAGER` / `BLOCKED` / escalation as supported.
+
+### FFH-020 — accepted FFH-010 / FFH-011 live migration deployment
+Owner: Application, Data & Integration Engineer
+State: ACTIVE / DEPLOYMENT-ONLY ENVIRONMENT REMEDIATION
+Task: `.ai/tasks/FFH-020.md`
+Verified target: linked Supabase project `tsqwvggojeudgspnumze`.
+Verified starting blocker: project is healthy, but live migration history ends at `20260903135253 phase_5b_goal_intelligence`; accepted migrations `20260909005000` and `20260909033000`, plus all six required HSA/SIMPLE schema objects, are absent.
+Execution mode: WORK_MODE_HIGH_VALUE because the task requires current Supabase guidance, controlled live migration application, migration/schema/RLS/security evidence, and precise failure handling. Work mode is an accelerator, not a dependency.
+Fallback: ordinary chat uses GitHub + linked Supabase tooling sequentially and follows the same preflight/deploy/verify boundaries.
+Next gate: exact accepted migration deployment -> migration/schema/RLS/advisor evidence -> current App/Data handoff -> `READY_FOR_MANAGER` / `BLOCKED`.
+
+## Blocked
+
+### FFH-016 — live Supabase migration/runtime parity
+Owner: Application, Data & Integration Engineer
+State: BLOCKED / VERIFICATION-ONLY PRE-MERGE GATE
+Task: `.ai/tasks/FFH-016.md`
+Reason: accepted FFH-010/011 migrations are absent from linked project `tsqwvggojeudgspnumze`, so downstream PostgREST/RLS/persistence/reload/runtime/browser tests remain prerequisite-blocked.
+Unlock: Manager accepts FFH-020 live deployment evidence, then explicitly reactivates FFH-016. Do not run a separate FFH-016 worker chat while FFH-020 is active.
+
+## Queued
+
+- FFH-013 — Core spousal-IRA shared compensation ledger — QUEUED behind FFH-012.
+- FFH-015 — narrow R1 SIMPLE Core remediation — QUEUED; FFH-011 dependency is satisfied, but wait for a collision-safe Core slot while FFH-012 is active.
+- FFH-017 — Phase 5C implementation — QUEUED / policy approved; retirement-capacity baseline must stabilize first.
+- FFH-018 — docs-only CI efficiency hardening — QUEUED for Product R&D discovery after current red remediation stabilizes.
+
+# Current role status
+
+Manager / Architect — EVENT-DRIVEN; current blocker-routing event complete after canonical update
+Application, Data & Integration Engineer — ACTIVE on FFH-020; FFH-016 BLOCKED pending deployment acceptance
+Core Financial Engine Engineer — ACTIVE / REMEDIATION on FFH-012
+Retirement & Tax-Advantaged Policy Analyst — IDLE
+Debt & Liquidity Policy Analyst — IDLE
+Goals, Cash Flow & Allocation Policy Analyst — IDLE
+Regulatory & Financial Research Analyst — IDLE
+Product & Technical R&D Engineer — IDLE
+Technical & Mathematical Auditor — IDLE
+Financial Policy & Scenario Auditor — IDLE
+Troubleshooting & Build Specialist — IDLE / ON-DEMAND
+
+# Manager sequencing rules
+
+- Keep active specialist execution to App/Data FFH-020 + Core FFH-012; Manager is event-driven.
+- FFH-020 may deploy only the exact accepted FFH-010 then FFH-011 migrations. Any source change, live drift requiring redesign, hotfix, backfill, unrelated RLS/auth/config change, or migration failure needing repair returns to Manager.
+- FFH-016 remains independently blocked; reactivate it only after Manager verifies/accepts FFH-020 deployment evidence.
+- Do not make App/Data repair Core financial behavior or Core repair live persistence/runtime state outside task authority.
+- Reactivate Manager when FFH-020 or FFH-012 reaches `READY_FOR_MANAGER`, `BLOCKED`, requests escalation, or when explicit user coordination is requested.
+- Two actual same-root owner-remediation failures are required before Troubleshooting escalation; docs-only red reruns do not count.
+- Do not start FFH-013 and FFH-015 concurrently while Core overlap risk is unresolved; choose order after the FFH-012 Manager event.
+- Do not start FFH-017, audits, or FFH-018 now.
+- PR #5 body remains stale and must be refreshed before final merge review, not while core/runtime execution state is still moving.
+
+# Final Phase-5 audit wave — 2026-09-18
+
+Status: ACTIVE
+
+FFH-016 is CLOSED / Manager ACCEPTED. Final integrated audit target is frozen at `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+
+## Active
+
+### FFH-036 — Final Integrated Phase-5 Technical & Mathematical Audit
+Owner: Technical & Mathematical Auditor
+State: ACTIVE
+Execution: STANDARD_CHAT_HIGH
+Branch: `audit/ffh-036-phase5-final-technical-b8e60292`
+Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`
+
+### FFH-037 — Final Integrated Phase-5 Financial Policy & Scenario Audit
+Owner: Financial Policy & Scenario Auditor
+State: ACTIVE
+Execution: STANDARD_CHAT_HIGH
+Branch: `audit/ffh-037-phase5-final-policy-b8e60292`
+Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`
+
+Audits are independent. Do not expose either verdict/reasoning to the other before submission.
+
+PR #5 remains NOT MERGE READY. Manager must reconcile both verdicts before any final merge review. Phase 6 remains gated.
+
+# Final Phase-5 merge review — 2026-09-18
+
+Status: ACTIVE
+
+- FFH-036: CLOSED / ACCEPTED — PASS WITH NON-BLOCKING FINDINGS.
+- FFH-037: CLOSED / ACCEPTED — PASS WITH NON-BLOCKING FINDINGS.
+- FFH-038: QUEUED / NON-BLOCKING post-Phase-5 HSA hardening; do not activate before merge closure.
+- PR #5: FINAL MERGE REVIEW; not yet merged at this checkpoint.
+- Phase 6: WAIT until PR #5 merge and post-merge CI/state reconciliation.
+
+Manager owns the remaining merge/release sequence. No specialist is active unless a blocker is discovered.
