@@ -414,3 +414,33 @@ Manager must first merge this Phase-6 closure control-plane checkpoint, then pin
 - FFH-038 — Post-Phase-5 HSA hardening — QUEUED / non-blocking.
 
 Neither backlog item reopens Phase 5 or Phase 6, and neither blocks FFH-026 activation.
+
+
+# Phase-7 activation — FFH-026 — 2026-09-19
+
+Status: ACTIVE
+
+### FFH-026 — Production Deployment & Release Readiness
+Owner: Application, Data & Integration Engineer
+Execution: WORK_MODE_PREFERRED
+Release candidate: `18ccbacd4265461b01580f5e96214788b15ec5af`
+Assigned branch: `ffh/ffh-026-production-release-readiness`
+
+Required live scope includes Vercel production deployment, secure environment configuration, production Supabase/auth/migration verification, production browser/runtime smoke tests, privacy-safe cross-household isolation checks, rollback proof, stable URL capture, and release evidence.
+
+Do not:
+- redesign product features;
+- weaken auth/RLS/security;
+- expose secrets or real financial data;
+- run unapproved DDL/migration repair;
+- purchase/configure a paid custom domain without explicit user authorization;
+- silently deploy a SHA other than `18ccbacd...`.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-026 READY_FOR_MANAGER/BLOCKED.
+- Core Financial Engine Engineer: IDLE; FFH-038 queued/non-blocking.
+- App/Data: ACTIVE on FFH-026 only; FFH-047 remains queued.
+- Policy/Research/R&D roles: IDLE.
+- Both final Phase-6 auditors: IDLE / closed.
+- Work Helper: IDLE / on-demand.
