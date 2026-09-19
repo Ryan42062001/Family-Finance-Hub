@@ -105,3 +105,15 @@ Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`
 Audits are independent. Do not expose either verdict/reasoning to the other before submission.
 
 PR #5 remains NOT MERGE READY. Manager must reconcile both verdicts before any final merge review. Phase 6 remains gated.
+
+# Final Phase-5 merge review — 2026-09-18
+
+Status: ACTIVE
+
+- FFH-036: CLOSED / ACCEPTED — PASS WITH NON-BLOCKING FINDINGS.
+- FFH-037: CLOSED / ACCEPTED — PASS WITH NON-BLOCKING FINDINGS.
+- FFH-038: QUEUED / NON-BLOCKING post-Phase-5 HSA hardening; do not activate before merge closure.
+- PR #5: FINAL MERGE REVIEW; not yet merged at this checkpoint.
+- Phase 6: WAIT until PR #5 merge and post-merge CI/state reconciliation.
+
+Manager owns the remaining merge/release sequence. No specialist is active unless a blocker is discovered.
