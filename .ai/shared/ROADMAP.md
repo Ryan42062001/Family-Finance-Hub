@@ -233,3 +233,19 @@ Current Phase-5 sequence:
 4. merge PR #5 only if no blocker drift exists;
 5. verify post-merge Foundation CI and reconcile canonical state;
 6. only then consider Phase 6 activation.
+
+## Phase-5 closure / Phase-6 readiness — 2026-09-18
+
+Phase 5 is complete and merged to `main` at `c0a5d87ea96a778066982e28fbb52083e61a3451` after:
+- accepted Phase-5 financial implementation;
+- accepted live Supabase migrations and runtime parity;
+- Financial Engine Reconciliation Gate clearance;
+- fresh independent FFH-036 Technical audit PASS WITH NON-BLOCKING FINDINGS;
+- fresh independent FFH-037 Financial Policy audit PASS WITH NON-BLOCKING FINDINGS;
+- Manager reconciliation of all three LOW findings;
+- required `verify` success on exact final PR head;
+- byte-identical merge-tree verification.
+
+FFH-038 is a queued non-blocking post-Phase-5 hardening task and does not reopen Phase 5.
+
+Phase 6 — Scenario Lab is now **READY FOR MANAGER ACTIVATION / NOT STARTED**. Manager must create/activate the bounded Phase-6 task(s) before any production work begins.
