@@ -10,6 +10,7 @@ const actions = readFileSync(new URL("../../app/financial-profile/hsa/actions.ts
 const authorityMigration = readFileSync(new URL("../../supabase/migrations/20260911170000_ffh_023_hsa_legal_spouse_authority.sql", import.meta.url), "utf8");
 const hsaPage = readFileSync(new URL("../../app/financial-profile/hsa/page.tsx", import.meta.url), "utf8");
 const hypothetical = readFileSync(new URL("../../lib/calculations/money-priority-hypothetical.ts", import.meta.url), "utf8");
+const rawAdapter = readFileSync(new URL("../../lib/calculations/money-priority-raw-adapter.ts", import.meta.url), "utf8");
 
 const tables = ["person_hsa_tax_year_profiles", "person_hsa_month_statuses", "household_hsa_married_allocations"];
 
@@ -114,7 +115,8 @@ test("loader, normalized contract, reruns, and UI preserve explicit legal-spouse
   assert.match(loader, /hsaLegalSpouseAuthorities: hsaLegalSpouseAuthorities\.data/);
   assert.match(snapshot, /hsaLegalSpouseAuthorities\?: Raw\[\] \| null/);
   assert.match(contract, /legalSpouseAuthorities: HsaLegalSpouseAuthority\[\]/);
-  assert.match(hypothetical, /hsaLegalSpouseAuthorities: snapshot\.hsa\.legalSpouseAuthorities\.map/);
+  assert.match(hypothetical, /moneyPrioritySnapshotToRaw\(current\.snapshot\)/);
+  assert.match(rawAdapter, /hsaLegalSpouseAuthorities: snapshot\.hsa\.legalSpouseAuthorities\.map/);
   assert.match(actions, /saveHsaLegalSpouseAuthority/);
   assert.match(actions, /confirmation_source: "explicit_household_confirmation"/);
   assert.match(hsaPage, /Unknown \/ confirm later/);
