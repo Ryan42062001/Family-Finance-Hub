@@ -264,7 +264,7 @@ export function runSpecializedScenario(
     if (!planBasis.engine) {
       const planIssue: ScenarioCompositionIssue = {
         path: "specialized.yourPlanOverrides",
-        code: "stable_entity_overlap",
+        code: "specialized_engine_unavailable",
         message: "Your Plan cannot be evaluated because the Home/Vehicle adapter did not produce an authoritative post-purchase engine result.",
       };
       issues.push(planIssue);
@@ -275,7 +275,16 @@ export function runSpecializedScenario(
       });
       const refresh = assessRecommendationRefresh(planBasis.engine, planBasis.engine, definition.yourPlanOverrides);
       yourPlan = { engineBasis: planBasis.basis, result, refresh };
-      if (result.overrides.invalid.length) status = "invalid";
+      if (result.overrides.invalid.length) {
+        status = "invalid";
+        for (const invalidOverride of [...result.overrides.invalid].sort((a, b) => a.allocationId.localeCompare(b.allocationId))) {
+          issues.push({
+            path: "specialized.yourPlanOverrides." + invalidOverride.allocationId,
+            code: "invalid_plan_override",
+            message: invalidOverride.reason,
+          });
+        }
+      }
     }
   }
 

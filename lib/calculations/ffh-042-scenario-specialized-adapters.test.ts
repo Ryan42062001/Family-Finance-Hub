@@ -319,6 +319,21 @@ test("FFH-042 Windfall is post-engine and starts from the final generic scenario
   assert.equal(directBaseline.allocations.some((item) => item.relatedEntityId === "card"), true);
 });
 
+test("FFH-042 Windfall uncertain-tax semantics remain held for review", () => {
+  const baseline = engine(windfallRaw());
+  const intent = {
+    type: "windfall", eventId: "windfall-uncertain",
+    input: { amount: 10000, source: "inheritance", taxTreatment: "uncertain", knownTaxLiability: 1000 },
+  } as const;
+  const run = runSpecializedScenario(baseline, definition(intent));
+  assert.equal(run.specialized?.type, "windfall");
+  if (run.specialized?.type !== "windfall") return;
+  assert.equal(run.specialized.result.heldForTaxReviewAmount, 9000);
+  assert.equal(run.specialized.result.deployableAmount, 0);
+  assert.equal(run.specialized.result.state, "more_information_needed");
+  assert.equal(run.status, "more_information_needed");
+});
+
 test("FFH-042 Windfall reservations, destinations, and residual reconcile exactly in cents", () => {
   const baseline = engine(windfallRaw());
   const intent = {
@@ -386,6 +401,19 @@ test("FFH-042 duplicate Your Plan allocation IDs fail closed before allocation",
   const run = runSpecializedScenario(baseline, request);
   assert.equal(run.status, "invalid");
   assert.equal(run.yourPlan, null);
+});
+
+test("FFH-042 missing Your Plan allocation IDs are superseded without display-name retargeting", () => {
+  const baseline = engine();
+  const overrides = [{ allocationId: "gone-recommendation::goal::gone-goal", monthlyAmount: 123.45 }];
+  const run = runSpecializedScenario(baseline, definition(null, { yourPlanOverrides: overrides }));
+  assert.ok(run.yourPlan);
+  assert.equal(run.status, "valid");
+  assert.equal(run.yourPlan?.result.overrides.active.length, 0);
+  assert.equal(run.yourPlan?.result.overrides.superseded.length, 1);
+  assert.equal(run.yourPlan?.result.overrides.superseded[0]?.allocationId, overrides[0]!.allocationId);
+  assert.equal(run.yourPlan?.refresh.overrideStatuses[0]?.allocationId, overrides[0]!.allocationId);
+  assert.notEqual(run.yourPlan?.refresh.overrideStatuses[0]?.status, "active");
 });
 
 test("FFH-042 Recommendation Refresh remains authoritative for generic and specialized comparisons", () => {
@@ -482,6 +510,26 @@ test("FFH-042 adapter-owned stable goal cash cannot also be consumed generically
   const conflicts = detectScenarioCompositionConflicts(request);
   assert.equal(conflicts.valid, false);
   assert.ok(conflicts.issues.some((item) => item.code === "stable_entity_overlap"));
+});
+
+test("FFH-042 adapter-owned stable debt and expense IDs cannot be remodeled generically", () => {
+  const intent = {
+    type: "home",
+    eventId: "home-owned-ids",
+    scenario: homeScenario(),
+    ownedStableIds: { debtIds: ["card"], expenseIds: ["housing"] },
+  } as const;
+  const request = definition(intent, {
+    genericDefinition: genericDefinition(intent, {
+      recurringOverrides: [
+        { type: "debt", id: "mortgage-duplicate", debtId: "card", balance: 100000 },
+        { type: "expense", id: "housing-duplicate", expenseId: "housing", monthlyAmount: 3000 },
+      ],
+    }),
+  });
+  const conflicts = detectScenarioCompositionConflicts(request);
+  assert.equal(conflicts.valid, false);
+  assert.equal(conflicts.issues.filter((item) => item.code === "stable_entity_overlap").length, 2);
 });
 
 test("FFH-042 baseline and generic engine remain immutable and equivalent runs/orderings are deterministic", () => {

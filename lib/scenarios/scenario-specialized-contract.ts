@@ -63,7 +63,9 @@ export type ScenarioCompositionIssueCode =
   | "ambiguous_event_ownership"
   | "duplicate_event_representation"
   | "stable_entity_overlap"
-  | "duplicate_plan_override";
+  | "duplicate_plan_override"
+  | "specialized_engine_unavailable"
+  | "invalid_plan_override";
 
 export type ScenarioCompositionIssue = {
   path: string;
