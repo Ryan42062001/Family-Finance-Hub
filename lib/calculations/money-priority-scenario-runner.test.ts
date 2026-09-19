@@ -172,6 +172,7 @@ test("FFH-040 generic INCLUDE recurring categories rerun only through the author
 
 test("FFH-040 independent override ordering and repeated runs are deterministic", () => {
   const baseline = engine();
+  const frozen = structuredClone(baseline);
   const a = { type: "income", id: "income-change", incomeId: "income-a", monthlyTakeHomeAmount: 6800 } as const;
   const b = { type: "synthetic_expense", id: "cost", expenseId: "scenario-cost", name: "Cost", category: "other", monthlyAmount: 101.01, isEssential: false, cashFlowTreatment: "discretionary" } as const;
   const first = runMoneyPriorityScenario(baseline, definition({ recurringOverrides: [a, b] }));
@@ -179,6 +180,18 @@ test("FFH-040 independent override ordering and repeated runs are deterministic"
   const third = runMoneyPriorityScenario(baseline, definition({ recurringOverrides: [a, b] }));
   assert.deepEqual(first, second);
   assert.deepEqual(first, third);
+  assert.deepEqual(baseline, frozen);
+});
+
+test("FFH-040 one-time event ordering cannot change odd-cent output", () => {
+  const baseline = engine();
+  const inflow = { type: "cash_inflow", id: "inflow", amount: 100.01, label: "Known one-time inflow" } as const;
+  const use = { type: "cash_use", id: "use", amount: 33.34, purpose: "generic" } as const;
+  const first = runMoneyPriorityScenario(baseline, definition({ oneTimeEvents: [inflow, use] }));
+  const reversed = runMoneyPriorityScenario(baseline, definition({ oneTimeEvents: [use, inflow] }));
+  assert.deepEqual(first, reversed);
+  assert.equal(first.provenance.overlay?.cash.netCashDeltaCents, 6667);
+  assert.equal(first.scenarioEngineResult?.snapshot.aggregates.liquidCash, baseline.snapshot.aggregates.liquidCash + 66.67);
 });
 
 test("FFH-040 one-time inflow and cash use remain distinct from recurring income", () => {
@@ -328,10 +341,27 @@ test("FFH-040 spousal-IRA shared compensation and odd-cent final allocation rema
   const shared = baseline.retirementCapacityLedger.groups.find((group) => group.id.startsWith("ira:mfj-compensation:"));
   assert.ok(shared);
   assert.equal(shared.originalRemainingAnnualRoom, 10000.01);
-  const run = runMoneyPriorityScenario(baseline, definition());
-  assert.deepEqual(run.scenarioEngineResult, baseline);
-  assert.equal(run.scenarioEngineResult?.retirementCapacityLedger.groups.find((group) => group.id.startsWith("ira:mfj-compensation:"))?.originalRemainingAnnualRoom, 10000.01);
-  assert.ok(run.scenarioEngineResult && retirementCapacityInvariantHolds(run.scenarioEngineResult.retirementCapacityLedger));
+
+  const noOp = runMoneyPriorityScenario(baseline, definition());
+  assert.deepEqual(noOp.scenarioEngineResult, baseline);
+
+  const changed = runMoneyPriorityScenario(baseline, definition({
+    recurringOverrides: [{
+      type: "synthetic_expense", id: "unrelated-cost", expenseId: "scenario-unrelated-cost",
+      name: "Unrelated cost", category: "other", monthlyAmount: 1.01,
+      isEssential: false, cashFlowTreatment: "discretionary",
+    }],
+  }));
+  assert.ok(changed.scenarioEngineResult);
+  assert.equal(
+    changed.scenarioEngineResult.retirementCapacityLedger.groups.find((group) => group.id.startsWith("ira:mfj-compensation:"))?.originalRemainingAnnualRoom,
+    10000.01,
+  );
+  assert.deepEqual(
+    changed.scenarioEngineResult.snapshot.people.map((person) => person.estimatedTaxableCompensationAnnual),
+    baseline.snapshot.people.map((person) => person.estimatedTaxableCompensationAnnual),
+  );
+  assert.ok(retirementCapacityInvariantHolds(changed.scenarioEngineResult.retirementCapacityLedger));
 });
 
 test("FFH-040 missing legal facts remain unknown when affordability inputs change", () => {
