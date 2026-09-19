@@ -6,7 +6,6 @@ import { compareScenariosAction, rebaseScenarioAction, runScenarioAction } from 
 import type {
   ScenarioLabBootstrap,
   ScenarioPairComparisonDTO,
-  ScenarioRunDTO,
 } from "@/lib/scenarios/scenario-app-contract";
 import {
   createScenarioDraft,
