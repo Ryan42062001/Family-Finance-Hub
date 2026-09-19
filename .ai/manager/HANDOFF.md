@@ -758,3 +758,27 @@ FFH-020 remains BLOCKED on its secure Supabase execution environment. FFH-016 re
 | 9 | Technical & Mathematical Auditor | WAIT | FFH-034 audit is complete; final integrated Phase-5 audit remains downstream of FFH-020/FFH-016. |
 | 10 | Financial Policy & Scenario Auditor | WAIT | Final integrated Phase-5 policy audit remains downstream of FFH-020/FFH-016. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+## FFH-020 Stage A accepted / Stage B authorized — 2026-09-18
+
+Manager accepted the completed FFH-020 Stage A recovery.
+
+Evidence:
+- project `tsqwvggojeudgspnumze` independently ACTIVE_HEALTHY;
+- Supabase CLI `2.117.0`;
+- protected pre-change logical backup established outside Git;
+- safe pre-FFH-023 worktree target `945bf8f4403a26812a93a160479cf319096579d5`;
+- foundation identity canonicalized to `0001`;
+- Phase-5B identity canonicalized to `20260903134156`;
+- old aliases `20260829180242` and `20260903135253` removed from migration history;
+- live schema remains unchanged by history repair;
+- exact linked `--include-all --dry-run` lists only Phase 5A -> FFH-010 -> FFH-011 in canonical order;
+- FFH-023 `20260911170000` is excluded by the safe worktree.
+
+Stage B authorization is now limited to:
+`npx.cmd --yes supabase@latest db push --linked --include-all`
+from exact worktree checkpoint `945bf8f4403a26812a93a160479cf319096579d5`.
+
+No other live command is authorized beyond required read-only post-push verification. On any error, stop; do not retry automatically.
+
+FFH-016 remains blocked until Manager accepts Stage B deployment evidence. PR #5 remains NOT MERGE READY. Phase 6 remains gated.

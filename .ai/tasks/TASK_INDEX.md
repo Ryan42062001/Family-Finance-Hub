@@ -17,7 +17,7 @@ Last refreshed: 2026-09-18
 | FFH-017 | Core Engine | CLOSED | final frozen target `c563d011...` | Technical PASS + Policy PASS; zero findings; TMA-017-08/P05 closed; R02-R07/M01/reconciliation/floor/no-reuse preserved |
 | FFH-018 | Product R&D / Engineering | CLOSED | discovery/design accepted | Manager accepted fail-closed always-running verify design; implementation split to FFH-034 |
 | FFH-019 | Manager | CLOSED | `11c75714...` | Workflow V3 adopted |
-| FFH-020 | App/Data | BLOCKED | Stage A pre-write checkpoint | Secure Supabase CLI/auth/protected-backup environment required; no history or DDL write occurred |
+| FFH-020 | App/Data | ACTIVE | Stage A ACCEPTED; safe worktree `945bf8f...` | Stage B authorized for exact three-migration linked push; FFH-023 excluded |
 | FFH-021 | Manager | CLOSED | control-plane | Work Helper / Super Troubleshooter role adopted |
 | FFH-022 | Retirement Policy | ACCEPTED | PR #12 / `07e42e53...` | Legal-marriage authority remains sufficient; no new authority gap |
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
