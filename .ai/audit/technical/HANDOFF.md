@@ -1,20 +1,20 @@
 # Technical Audit Handoff
 
-## Current handoff — FFH-036 Final Integrated Phase-5 Technical & Mathematical Audit
+## Current handoff — FFH-044 Final Integrated Phase-6 Technical & Mathematical Audit
 
-Task ID: FFH-036 — Final Integrated Phase-5 Technical & Mathematical Audit  
+Task ID: FFH-044 — Final Integrated Phase-6 Technical & Mathematical Audit  
 Role: Technical & Mathematical Auditor  
 Execution mode: STANDARD_CHAT_HIGH  
 Refresh mode: Fast Refresh  
 Status: AUDIT COMPLETE  
 Verdict: **PASS WITH NON-BLOCKING FINDINGS**
 
-Exact frozen production target audited: `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`  
-Manager/control-plane head verified: `7e755fd44a7ae60c273b5a1e04016b39fb0cbac7`  
-Assigned audit branch: `audit/ffh-036-phase5-final-technical-b8e60292`  
-Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`  
-Canonical report: `.ai/audit/technical/FFH-036_PHASE5_FINAL_TECHNICAL_AUDIT_b8e60292.md`  
-Report commit: `3ab9fe0a051ae64cb687a8fafcb863bf0587f281`
+Exact frozen production target audited: `8f4b1c443684446cdf9b619bd35336f5873265bc`  
+Manager/control-plane head verified: `27556a3697a6477eb7da2973dde5b71cb6369c0b`  
+Assigned audit branch: `audit/ffh-044-phase6-final-technical-8f4b1c44`  
+Shared packet: `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`  
+Canonical report: `.ai/audit/technical/FFH-044_PHASE6_FINAL_TECHNICAL_AUDIT_8f4b1c44.md`  
+Report commit: `676db24ff11455890afee236492b5cf5f1395376`
 
 ### Independent result
 
@@ -26,123 +26,157 @@ Findings:
 - MEDIUM: 0
 - LOW: 1
 
-No blocking production code, mathematical, accounting-ledger, migration/schema, RLS, or runtime-parity defect was identified.
+No blocking financial-engine, mathematical, exact-reconciliation, server-authority, stale/rebase, stable-ID, conflict, no-reuse, or persistence defect was identified.
 
-I did not inspect or rely on FFH-037's verdict or reasoning.
+I did not inspect or rely on FFH-045's verdict or reasoning.
+
+### Architecture / one-engine result
+
+CLEAR:
+- FFH-039 ephemeral one-engine architecture remains intact;
+- FFH-040 typed generic overlay clones normalized baseline facts and reruns only `runMoneyPriorityEngine`;
+- one shared normalized-to-raw adapter preserves HSA/SIMPLE/spousal-IRA facts;
+- FFH-041 server authority/fingerprint/stale/rebase boundary is preserved;
+- FFH-042 Home/Vehicle/Windfall/Your Plan composition delegates to accepted evaluators;
+- FFH-043 transport/view-model code does not recreate financial calculations.
 
 ### Financial Engine Reconciliation Gate
 
 **CLEAR.**
 
-Independently verified:
-- integer-cent annual/monthly conversion;
-- aggregate retirement request equals routed concrete destinations;
-- shared/group/owner capacity conservation;
-- planner/prepass and actual router use the same authoritative capacity semantics;
-- stable final-cent handling;
-- odd-cent boundaries;
-- exact-limit exhaustion;
-- multiple-account nonmultiplication;
-- input/order invariance;
-- staged Existing Cash -> Secure -> Build -> Windfall no-reuse;
-- unresolved capacity remains visible rather than clamped away.
+Independent exact anchors:
+- generic odd-cent cash: `$100.01 - $33.34 = $66.67`;
+- generic medical example: `$1,000.01 - $500.00 = $500.01`;
+- cash-funded debt payoff: exactly `$4,000` cash and `$4,000` principal;
+- Home protected-cash boundary: legitimate cash `$0`, required/protected `$67,000`;
+- Vehicle protected-cash boundary: available cash `$0`, required/protected `$10,000`;
+- Windfall:
+  `$12,345.67 = $1,900.08 reservations + $4,300.00 allocations + $6,145.59 residual`;
+- Your Plan funding gap:
+  `fundingGap = totalAllocated - monthlyCapacity` when over capacity;
+- HSA shared/family/catch-up capacity is not recreated;
+- spousal-IRA shared MFJ compensation remains exact at `$10,000.01`;
+- conflict detection prevents generic/specialized reuse of the same event/entity.
 
-Exact anchors:
-- HSA partial shared ordinary: `$5,104.17 = $2,552.08 + $2,552.09`;
-- HSA recurring routes: `$364.58 + $364.58 = $729.16`;
-- FFH-013 M01: `$416.67 + $416.66 = $833.33/month`, annual `$9,999.96`, shared residual `$0.05`;
-- R02: $0.06 annual room -> $0.00/month;
-- R03 mixed: `$600 core + $400 retirement + $600 desired excess = $1,600`;
-- R07 partial: `$100 retirement + $50 known BELOW + $100 unresolved residual = $250`.
+No epsilon/tolerance or hidden positive-residual waiver is used.
 
-### Protected finding preservation
+### FFH-042 R01
+
+**CLOSED.**
+
+Recurring `GoalOverride type:"goal"` now participates in stable-ID overlap detection.
+
+A generic override of the Home/Vehicle `relatedGoalId` fails with `stable_entity_overlap`. An unrelated goal override remains valid.
+
+### FFH-043 R01
+
+**CLOSED.**
+
+Malformed nested `genericDefinition.baselineReference` is checked before stale-baseline dereference.
+
+Seven matching-outer-fingerprint malformed forms are covered:
+- missing;
+- null;
+- string;
+- array;
+- missing fingerprint;
+- numeric fingerprint;
+- blank fingerprint.
+
+Run and Rebase return structured `invalid`; no exception or specialized result escapes.
+
+Valid nested input remains valid, and valid mismatched nested fingerprint remains `stale_baseline`.
+
+### Authority / stable IDs / persistence
 
 CLEAR:
-- FFH-012 A/B/C/D;
-- FFH-013 R01/R02/R03/T1/A01-A05/M01/M02;
-- FFH-015 R1;
-- FFH-017 R02-R08;
-- Phase-5A retirement floor;
-- HSA/SIMPLE/workplace-retirement semantics;
-- shared/spousal IRA semantics;
-- staged capacity custody/no-reuse.
+- server derives household from authenticated membership;
+- client household spoof is non-authoritative;
+- each explicit request reloads current baseline;
+- stale outer/nested fingerprint or policy basis fails closed;
+- explicit successful rebase refreshes stable-ID bootstrap;
+- deleted IDs are never display-name retargeted;
+- no Scenario Lab migration/table/RLS/profile write;
+- no localStorage/sessionStorage/IndexedDB persistence;
+- no Apply/Save/Commit Scenario action;
+- baseline + at most two drafts remains the bounded lifecycle.
 
-No previously closed blocking finding was reopened.
+### Home / Vehicle / Windfall / Your Plan
 
-### Live Supabase / runtime parity
+CLEAR:
+- Home adapter deep-equals direct accepted Home evaluator;
+- Vehicle adapter deep-equals direct accepted Vehicle evaluator;
+- Windfall starts from the final generic engine and preserves reservations/allocations/residual exactly;
+- Your Plan reuses exact allocation IDs, preserves active/superseded/invalid states, exposes funding gaps, and does not silently clamp;
+- Windfall retirement allocations enter Your Plan retirement-room analysis as additional consumed capacity.
 
-Linked project: `tsqwvggojeudgspnumze`.
+### HSA / spousal IRA
 
-Independent live checks:
-- status ACTIVE_HEALTHY;
-- PostgreSQL 17.6.1.166;
-- complete required Phase-5 migration history through FFH-023;
-- frozen loader selectors match live columns;
-- HSA/SIMPLE/legal-spouse constraints match frozen migrations;
-- materially relevant public tables have RLS enabled;
-- authenticated household read + owner/member write policies live;
-- private RLS helpers are SECURITY DEFINER with empty search_path and ACL only for postgres/authenticated;
-- security advisor: zero findings;
-- current live synthetic/auth/household/HSA row counts: zero.
+CLEAR:
+- generic overlays preserve canonical HSA person/month/legal-spouse inputs;
+- married-family shared room and owner catch-up are not recreated;
+- specialized Windfall does not mutate the generic retirement ledger;
+- spousal-IRA shared compensation remains `$10,000.01` under unrelated generic + specialized composition;
+- accepted retirement-capacity invariant remains true.
 
-Performance Advisor INFO-only unindexed-FK/unused-index notices are not correctness findings.
+### Exact CI evidence
 
-Direct authenticated browser/PostgREST HTTP capture remains an environment-only remainder because the live project has no persistent auth users/households. No contrary runtime/schema evidence was found.
+FFH-043 R01 production/final-validation:
+- SHA `35036b8aa228306c3c40212877c38f33940f74ce`;
+- Foundation CI run `35425124896` / #769;
+- verify job `105849617675`;
+- SUCCESS / FULL;
+- classifier, install, AI-state, dependency audit, calculations, security, typecheck, lint, build, evidence and guardrails all passed.
 
-### Test / CI evidence
+The production/test tree at that SHA is byte-identical to frozen target `8f4b1c44...`; only `.ai/**` evidence changed afterward.
 
-Production-equivalent full Foundation CI:
-- #691 / run `35395102951`;
-- verify job `105762024059`;
-- 919/919 calculations PASS;
-- 21/21 security PASS;
-- dependency audit/typecheck/lint/build complete successfully.
+FFH-042 R01:
+- SHA `f9c6081c8987a7bdb450cc62898e12c8de668ef7`;
+- Foundation CI run `35422840158` / #761;
+- verify job `105843532078`;
+- SUCCESS / FULL.
 
-Exact frozen-target protected check:
-- #731 / run `35413944471`;
-- verify job `105818774307`;
-- exact head `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`;
-- SUCCESS.
+CI is corroborating evidence, not proof.
 
-CI is corroborating evidence, not the basis of the verdict.
+### TMA-044-01 — LOW / NON-BLOCKING
 
-### TMA-036-01 — LOW / NON-BLOCKING
+The specialized rebase server correctly returns `unresolved` + `missing_entity` + fresh bootstrap when a referenced stable entity was deleted.
 
-`lib/calculations/hsa-test-fixtures.ts::withNormalizedHsaFacts()` can synthesize confirmed canonical HSA month/profile facts from legacy `hsa_eligible` / `hsa_coverage_type` hints.
+In `ScenarioLabWorkspace.tsx::rebaseDraft()`, only a successful `rebased` result installs the bootstrap. Every non-unauthorized failure is persisted in the result card as the broader `invalid` status.
 
-It is still used by two broad cross-stage regression files:
-- `money-priority-final-audit-remediation.test.ts`;
-- `money-priority-fresh-final-remediation.test.ts`.
+The live-region announcement still says `unresolved`, the missing-entity issue remains visible, no scenario runs, and no name retarget occurs.
 
-Risk: indiscriminate reuse can make a synthetic test more affirmative than the production unknown-safe input contract.
+Impact is limited to persistent status/actionability precision:
+- `unresolved` is not retained as a distinct displayed state;
+- current entity options returned with that unresolved response are not installed immediately.
 
-Why non-blocking:
-- test-only; never called by production;
-- direct FFH-012 legal-capacity tests use canonical facts;
-- FFH-028 candidate-cardinality tests build explicit canonical facts and bypass the helper;
-- married-HSA and HSA-uncertainty suites independently exercise shared capacity, cross-stage use, and unresolved facts;
-- no supported production defect follows from the helper.
+Recommended later hardening:
+- preserve `unresolved` as a first-class persistent client rebase status;
+- expose/install the fresh bootstrap while leaving the draft blocked;
+- add a client-level deleted-ID rebase regression.
 
-Recommended later hardening: migrate helper-dependent HSA scenarios to explicit canonical facts or narrow/rename the helper. No final Phase-5 production remediation is required.
+No Phase-6 financial remediation is required.
 
 ### Recommended next action
 
-Manager may ingest this Technical verdict but must preserve audit independence and must not expose this report/reasoning to the active FFH-037 Policy Auditor before FFH-037 submits independently.
+Manager may ingest this Technical audit but must preserve FFH-045 independence. Do not expose FFH-044 verdict/reasoning to the active Financial Policy & Scenario Auditor before that auditor independently submits.
 
-After FFH-037 completes, Manager should reconcile both final audit results against the shared frozen target and decide the Phase-5 merge gate. This Technical auditor does not self-close PR #5 or activate Phase 6.
+After FFH-045 completes, Manager should reconcile both final Phase-6 audits against exact frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+
+This Technical auditor does not self-close Phase 6 and does not activate Phase 7.
 
 ## Next Activation
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Ingest the completed FFH-036 Technical audit of exact frozen target `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9` using shared packet `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`, branch `audit/ffh-036-phase5-final-technical-b8e60292`, and report `.ai/audit/technical/FFH-036_PHASE5_FINAL_TECHNICAL_AUDIT_b8e60292.md` at report commit `3ab9fe0a051ae64cb687a8fafcb863bf0587f281`. Preserve FFH-037 independence: do not expose FFH-036 verdict/reasoning to the active Policy Auditor before its submission. After FFH-037 independently completes, reconcile both final audits, live Supabase state, and PR #5 status. Do not merge PR #5 or activate Phase 6 unless all final gates independently clear. Return exact reconciliation evidence and the canonical 11-role dashboard. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Ingest completed FFH-044 Technical audit of exact frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc` using shared packet `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`, branch `audit/ffh-044-phase6-final-technical-8f4b1c44`, and report `.ai/audit/technical/FFH-044_PHASE6_FINAL_TECHNICAL_AUDIT_8f4b1c44.md` at report commit `676db24ff11455890afee236492b5cf5f1395376`. Preserve FFH-045 independence: do not expose FFH-044 verdict/reasoning to the active Financial Policy & Scenario Auditor before its independent submission. After FFH-045 completes, reconcile both final Phase-6 audits, including LOW TMA-044-01, against the exact frozen target. Do not close Phase 6 or activate Phase 7 unless every required final gate clears. Return exact reconciliation evidence and the canonical 11-role dashboard. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
 | 5 | Core Financial Engine Engineer | IDLE | — |
-| 6 | Application, Data & Integration Engineer | IDLE | FFH-016 is CLOSED / ACCEPTED; no App/Data remediation is authorized unless a final audit finding is routed by Manager. |
+| 6 | Application, Data & Integration Engineer | IDLE | No remediation is authorized unless Manager routes a reconciled final-audit finding. |
 | 7 | Regulatory & Financial Research Analyst | IDLE | — |
-| 8 | Product & Technical R&D Engineer | IDLE | FFH-034 is CLOSED; no new R&D task is justified. |
-| 9 | Technical & Mathematical Auditor | WAIT | FFH-036 is complete; await Manager reconciliation or a new frozen audit/remediation target. |
-| 10 | Financial Policy & Scenario Auditor | ACTIVE | FFH-037 is independently auditing the same frozen target. Do not duplicate the lane or provide it FFH-036 conclusions before submission. |
+| 8 | Product & Technical R&D Engineer | IDLE | FFH-039 contract work is closed; no new R&D activation from this audit. |
+| 9 | Technical & Mathematical Auditor | WAIT | FFH-044 is complete; await Manager reconciliation or a new Manager-frozen target. |
+| 10 | Financial Policy & Scenario Auditor | ACTIVE | FFH-045 is the separate independent final Phase-6 policy/scenario lane. Do not duplicate it or provide FFH-044 conclusions before submission. |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |

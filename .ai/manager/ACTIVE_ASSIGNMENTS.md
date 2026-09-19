@@ -308,3 +308,43 @@ Audit only frozen target `8f4b1c443684446cdf9b619bd35336f5873265bc`.
 - Work Helper: IDLE / on-demand.
 - FFH-038 remains separately QUEUED / non-blocking.
 - Phase 7 remains NOT STARTED.
+
+
+# Phase-6 audit remediation — FFH-046 — 2026-09-19
+
+Status: ACTIVE / REMEDIATION
+
+Frozen failed audit target:
+`8f4b1c443684446cdf9b619bd35336f5873265bc`
+
+## ACTIVE
+
+### FFH-046 — Windfall Tax-Authority Fail-Closed Remediation
+Owner: Core Financial Engine Engineer
+Execution: STANDARD_CHAT_HIGH
+Refresh: FAST_REFRESH
+Production base: `8f4b1c443684446cdf9b619bd35336f5873265bc`
+Branch: `ffh/ffh-046-windfall-tax-authority-fail-closed`
+
+Blocking finding:
+FFH-045-P01 — HIGH. Missing/malformed Windfall tax authority can become deployable cash.
+
+Bounded fix:
+authoritative Windfall allocator validation only, plus direct and Scenario Lab regressions. No new tax policy, UI redesign, persistence/schema/profile writes, FFH-038, FFH-047, or Phase 7.
+
+## QUEUED NON-BLOCKING
+
+FFH-047 — Scenario Rebase Unresolved-State UX Hardening
+Owner: App/Data
+Source: TMA-044-01 LOW.
+
+## WAIT / IDLE
+
+- Manager / Architect: WAIT for FFH-046 READY_FOR_MANAGER/BLOCKED.
+- Technical & Mathematical Auditor: WAIT for a new Manager-frozen remediated target.
+- Financial Policy & Scenario Auditor: WAIT for a new Manager-frozen remediated target.
+- App/Data: WAIT; FFH-047 is queued only.
+- Policy/Regulatory roles: IDLE; FFH-046 requires no new policy.
+- R&D: IDLE.
+- Work Helper: IDLE / on-demand.
+- Phase 7: NOT STARTED.
