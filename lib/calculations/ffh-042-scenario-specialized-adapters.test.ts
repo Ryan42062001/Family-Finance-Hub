@@ -234,7 +234,9 @@ test("FFH-042 Home adapter cannot reuse protected or unrelated earmarked cash", 
   assert.equal(run.specialized?.type, "home");
   if (run.specialized?.type !== "home") return;
   assert.equal(run.specialized.result.cashToClose.relatedGoalEarmarkedCash, 0);
-  assert.ok(run.specialized.result.cashToClose.protectedCashRequired > 0);
+  assert.equal(run.specialized.result.cashToClose.legitimateCashAvailable, 0);
+  assert.equal(run.specialized.result.cashToClose.cashStillRequiredAtClosing, 67000);
+  assert.equal(run.specialized.result.cashToClose.protectedCashRequired, 67000);
   assert.equal(run.specialized.result.purchaseReadiness, "not_recommended");
 });
 
@@ -273,7 +275,9 @@ test("FFH-042 Vehicle adapter cannot reuse protected or unrelated earmarked cash
   assert.equal(run.specialized?.type, "vehicle");
   if (run.specialized?.type !== "vehicle") return;
   assert.equal(run.specialized.result.cash.relatedGoalEarmarkedCash, 0);
-  assert.ok(run.specialized.result.cash.protectedCashRequired > 0);
+  assert.equal(run.specialized.result.cash.availableVehicleCash, 0);
+  assert.equal(run.specialized.result.cash.cashRequired, 10000);
+  assert.equal(run.specialized.result.cash.protectedCashRequired, 10000);
   assert.equal(run.specialized.result.affordability, "not_recommended");
 });
 
@@ -358,6 +362,9 @@ test("FFH-042 Windfall reservations, destinations, and residual reconcile exactl
       + cents(result.remainingUnallocated),
   );
   assert.equal(cents(result.deployableAmount), cents(result.totalAllocated) + cents(result.remainingUnallocated));
+  assert.equal(result.deployableAmount, 10445.59);
+  assert.equal(result.totalAllocated, 4000);
+  assert.equal(result.remainingUnallocated, 6445.59);
 });
 
 test("FFH-042 Your Plan is the exact final allocation layer and exposes funding gaps without clamping", () => {
