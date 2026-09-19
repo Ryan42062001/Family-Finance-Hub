@@ -79,3 +79,29 @@ Troubleshooting & Build Specialist — IDLE / ON-DEMAND
 - Do not start FFH-013 and FFH-015 concurrently while Core overlap risk is unresolved; choose order after the FFH-012 Manager event.
 - Do not start FFH-017, audits, or FFH-018 now.
 - PR #5 body remains stale and must be refreshed before final merge review, not while core/runtime execution state is still moving.
+
+# Final Phase-5 audit wave — 2026-09-18
+
+Status: ACTIVE
+
+FFH-016 is CLOSED / Manager ACCEPTED. Final integrated audit target is frozen at `b8e60292a1f13fb66f0c055f2c3f4e110bd380f9`.
+
+## Active
+
+### FFH-036 — Final Integrated Phase-5 Technical & Mathematical Audit
+Owner: Technical & Mathematical Auditor
+State: ACTIVE
+Execution: STANDARD_CHAT_HIGH
+Branch: `audit/ffh-036-phase5-final-technical-b8e60292`
+Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`
+
+### FFH-037 — Final Integrated Phase-5 Financial Policy & Scenario Audit
+Owner: Financial Policy & Scenario Auditor
+State: ACTIVE
+Execution: STANDARD_CHAT_HIGH
+Branch: `audit/ffh-037-phase5-final-policy-b8e60292`
+Shared packet: `.ai/audit/FFH-PHASE5_FINAL_AUDIT_PACKET_b8e60292.md`
+
+Audits are independent. Do not expose either verdict/reasoning to the other before submission.
+
+PR #5 remains NOT MERGE READY. Manager must reconcile both verdicts before any final merge review. Phase 6 remains gated.
