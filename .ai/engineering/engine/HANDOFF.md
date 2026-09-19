@@ -12,9 +12,9 @@ Pull request: #57 — draft / open / unmerged / mergeable
 Manager / control-plane assignment head: `cd508613330c357a946666527bf22cb16c351593`
 Approved production integration base: `2587a547450602bf663692320e64a0aa821d0ca2`
 
-PRODUCTION_SHA: `feb1bd540c79eb0e3a8ffc32cb78e4fe4380118e`
-FINAL_VALIDATION_SHA: `269f4c49ab55945d074af6a2b1afe5851c74aadf`
-VALIDATED_CI: Foundation CI run `35422348781`, job `105842214259` — SUCCESS
+PRODUCTION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+FINAL_VALIDATION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+VALIDATED_CI: Foundation CI run `35422840158`, job `105843532078` — SUCCESS
 HANDOFF_SHA: This final documentation/control-plane commit; exact SHA is returned after creation
 INTEGRATION_SHA: Not yet established
 MANAGER_VERDICT: PENDING
@@ -50,7 +50,7 @@ It rejects:
 - Vehicle generic acquisition/operating-cost representation of the same event;
 - Windfall generic cash inflow for the same event;
 - ambiguous Home/Vehicle cash or synthetic-expense operations without explicit independent event ownership;
-- adapter-owned stable goal cash overlap;
+- adapter-owned recurring goal override and stable goal cash overlap;
 - adapter-owned stable debt/expense overlap;
 - duplicate Your Plan allocation overrides.
 
@@ -58,8 +58,8 @@ Independent operations with explicit different event IDs remain allowed. No disp
 
 ## Validation
 
-Final Foundation CI `35422348781` / `105842214259`:
-- calculations 961/961 PASS;
+Final Foundation CI `35422840158` / `105843532078`:
+- calculations 963/963 PASS;
 - security 28/28 PASS;
 - AI state PASS;
 - dependency audit PASS / 0 vulnerabilities;
@@ -67,11 +67,11 @@ Final Foundation CI `35422348781` / `105842214259`:
 - lint PASS with 0 errors / 3 inherited warnings;
 - production build PASS.
 
-18 focused FFH-042 tests PASS.
+20 focused FFH-042 tests PASS.
 
-Production code checkpoint `feb1bd54...` independently passed full Foundation CI run `35422118722` / job `105841603163`.
+R01 production/final-validation checkpoint `f9c6081c...` independently passed full Foundation CI run `35422840158` / job `105843532078`.
 
-Only the FFH-042 test file changed between production checkpoint `feb1bd54...` and final validation `269f4c49...`.
+R01 production and final validation are the same exact commit; the bounded remediation changes only the conflict contract and focused FFH-042 test file before this documentation handoff.
 
 ## Equivalence / immutability
 
@@ -155,7 +155,7 @@ READY_FOR_MANAGER
 
 | Order | Employee / Role | Status | Copy/paste activation prompt |
 |---:|---|---|---|
-| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-042 on draft PR #57 / branch `ffh/ffh-042-scenario-specialized-adapters`. Verify production SHA `feb1bd540c79eb0e3a8ffc32cb78e4fe4380118e`, final validation SHA `269f4c49ab55945d074af6a2b1afe5851c74aadf`, Foundation CI `35422348781` / job `105842214259`, Home/Vehicle direct-evaluator equivalence, post-generic Windfall ordering, Your Plan exact-capacity behavior, Recommendation Refresh delegation, explicit event/stable-ID conflict detector, immutability/determinism, HSA/spousal-IRA/no-reuse reconciliation, and full existing-module preservation. Perform the required independent reconciliation hand-check, then accept/integrate or route remediation as warranted. |
+| 1 | Manager / Architect | RECOMMEND TO MANAGER | Continue Family Finance Hub as Manager / Architect under STANDARD_CHAT_HIGH with Fast Refresh. Review FFH-042 on draft PR #57 / branch `ffh/ffh-042-scenario-specialized-adapters`. Verify R01 production/final-validation SHA `f9c6081c8987a7bdb450cc62898e12c8de668ef7`, Foundation CI `35422840158` / job `105843532078`, recurring GoalOverride stable-ID overlap remediation, Home/Vehicle direct-evaluator equivalence, post-generic Windfall ordering, Your Plan exact-capacity behavior, Recommendation Refresh delegation, explicit event/stable-ID conflict detector, immutability/determinism, HSA/spousal-IRA/no-reuse reconciliation, and full existing-module preservation. Perform the required independent reconciliation hand-check, then accept/integrate or route remediation as warranted. |
 | 2 | Retirement & Tax-Advantaged Policy Analyst | IDLE | — |
 | 3 | Debt & Liquidity Policy Analyst | IDLE | — |
 | 4 | Goals, Cash Flow & Allocation Policy Analyst | IDLE | — |
@@ -166,3 +166,26 @@ READY_FOR_MANAGER
 | 9 | Technical & Mathematical Auditor | WAIT | — |
 | 10 | Financial Policy & Scenario Auditor | WAIT | — |
 | 11 | Work Helper / Super Troubleshooter | IDLE | — |
+
+
+## Manager-routed remediation R01
+
+Manager review identified one blocking omission: recurring `GoalOverride` operations (`type: "goal"`) were not checked by `stableOverlap()`.
+
+The bounded fix adds `case "goal"` to the existing stable-goal overlap path. This applies equally to Home and Vehicle because both adapter intents use the shared `ownedIds()` set, which already includes explicit `ownedStableIds.goalIds` and the adapter's `relatedGoalId`.
+
+Direct regression:
+- same-goal Home `currentAmount` override on `house-goal` => `stable_entity_overlap`, invalid before specialized execution;
+- unrelated `college-goal` `currentAmount` override => conflict detector valid, generic engine updates `college-goal` only, Home adapter still runs.
+
+No other production behavior changed.
+
+R01 exact production/final-validation SHA:
+`f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+
+Full Foundation CI:
+`35422840158` / `105843532078` — SUCCESS / FULL.
+
+PR #57 remains draft / open / unmerged / mergeable.
+
+READY_FOR_MANAGER

@@ -10,8 +10,8 @@ PR: #57 — draft / open / unmerged / mergeable
 Approved production integration base: `2587a547450602bf663692320e64a0aa821d0ca2`
 Manager/control-plane assignment head: `cd508613330c357a946666527bf22cb16c351593`
 
-PRODUCTION_SHA: `feb1bd540c79eb0e3a8ffc32cb78e4fe4380118e`
-FINAL_VALIDATION_SHA: `269f4c49ab55945d074af6a2b1afe5851c74aadf`
+PRODUCTION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+FINAL_VALIDATION_SHA: `f9c6081c8987a7bdb450cc62898e12c8de668ef7`
 
 ## Implementation
 
@@ -36,9 +36,9 @@ No accepted evaluator was reimplemented.
 Only the focused test file differs between production and final validation checkpoints.
 
 Final:
-- calculations 961/961 PASS;
+- calculations 963/963 PASS;
 - security 28/28 PASS;
-- 18 focused FFH-042 tests PASS;
+- 20 focused FFH-042 tests PASS;
 - AI state PASS;
 - dependency audit PASS;
 - typecheck PASS;
@@ -60,5 +60,27 @@ Spousal IRA: `$10,000.01` shared compensation remains exact.
 Your Plan funding gap is exact integer-cent allocation minus capacity; no clamp/reallocation.
 
 Worker blocker: NONE.
+
+READY_FOR_MANAGER
+
+
+## R01 — Manager review remediation
+
+Manager found one blocking omission after the original handoff: `stableOverlap()` did not cover recurring `GoalOverride type:"goal"` operations.
+
+Bounded remediation commit:
+`f9c6081c8987a7bdb450cc62898e12c8de668ef7`
+
+Change:
+- add `case "goal"` to the stable goal-ID overlap branch;
+- add same-goal `currentAmount` fail-closed regression;
+- add unrelated-goal `currentAmount` allowed regression.
+
+Full Foundation CI `35422840158` / job `105843532078`: SUCCESS / FULL.
+- calculations 963/963 PASS;
+- security 28/28 PASS;
+- AI state, dependency audit, typecheck, lint, build, and guardrails PASS.
+
+No scope beyond the Manager-routed defect changed.
 
 READY_FOR_MANAGER
