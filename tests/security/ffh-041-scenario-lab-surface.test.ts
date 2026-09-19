@@ -47,7 +47,7 @@ test("FFH-041 UI does not expose protected legal/statutory Scenario Lab editors"
     "estimatedTaxableCompensationAnnual", "taxFilingStatus", "estimatedModifiedAgi",
   ]) {
     assert.doesNotMatch(workspace, new RegExp(protectedToken, "i"));
-    assert.match(coreDefinition, new RegExp(protectedToken.replace(/[A-Z]/g, (m) => `[\\s\\S]*${m}`), "i"));
+    assert.ok(coreDefinition.includes(protectedToken), protectedToken);
   }
   assert.match(coreDefinition, /code: protectedField \? "protected_field"/);
 });
