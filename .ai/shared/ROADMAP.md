@@ -390,3 +390,17 @@ Active independent audits:
 Both use shared packet `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md` and audit the same exact frozen SHA while remaining independent.
 
 Phase 6 remains ACTIVE pending both verdicts and Manager reconciliation. Phase 7 remains PLANNED / NOT STARTED. FFH-038 remains queued non-blocking and outside this audit target.
+
+
+## Phase-6 audit remediation — 2026-09-19
+
+The first frozen final target `8f4b1c443684446cdf9b619bd35336f5873265bc` did not clear both required audit gates.
+
+- FFH-044 Technical & Mathematical: PASS WITH NON-BLOCKING FINDINGS.
+- FFH-045 Financial Policy & Scenario: FAIL — REMEDIATION REQUIRED.
+- Blocking FFH-045-P01 is independently confirmed and routed as FFH-046 to Core Financial Engine.
+- TMA-044-01 LOW is preserved separately in queued FFH-047 App/Data hardening.
+
+FFH-046 is a bounded fail-closed fix to accepted Windfall tax authority, not new tax policy. Phase 6 remains ACTIVE / REMEDIATION. Phase 7 remains gated.
+
+After FFH-046 acceptance/integration, Manager will freeze a new exact Phase-6 target and activate fresh independent final Technical & Mathematical plus Financial Policy & Scenario re-audits.
