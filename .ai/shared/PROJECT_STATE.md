@@ -387,3 +387,15 @@ App/Data R01 changed only `lib/scenarios/scenario-specialized-execution.ts` and 
 Exact R01 production/final-validation SHA `35036b8aa228306c3c40212877c38f33940f74ce`; FULL Foundation CI run `35425124896` / job `105849617675` SUCCESS (calculation and security suites, AI-state, dependency audit, typecheck, lint, build and guardrails). Draft PR #59 remains unmerged. R01 handoff is documentation-only after this tested checkpoint; exact final handoff SHA/continuity CI is reported by worker after branch fast-forward.
 
 Status: READY_FOR_MANAGER for independent R01 re-review, not accepted/integrated. Do not freeze/activate final Phase-6 dual audits until Manager accepts/integrates FFH-043 and independently freezes the integrated target.
+
+
+## Phase-6 final audit freeze — 2026-09-19
+
+- FFH-043: CLOSED / Manager ACCEPTED.
+- Integration/frozen target: `8f4b1c443684446cdf9b619bd35336f5873265bc`.
+- FFH-044: ACTIVE — fresh independent Technical & Mathematical final Phase-6 audit.
+- FFH-045: ACTIVE — fresh independent Financial Policy & Scenario final Phase-6 audit.
+- Shared packet: `.ai/audit/FFH-PHASE6_FINAL_AUDIT_PACKET_8f4b1c44.md`.
+- Later Manager control-plane commits do not alter the frozen implementation.
+- Phase 6 is not closed until both audits are reconciled by Manager.
+- Phase 7 is not started.
