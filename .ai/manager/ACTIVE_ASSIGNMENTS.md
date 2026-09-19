@@ -117,3 +117,14 @@ Status: ACTIVE
 - Phase 6: WAIT until PR #5 merge and post-merge CI/state reconciliation.
 
 Manager owns the remaining merge/release sequence. No specialist is active unless a blocker is discovered.
+
+# Post-Phase-5 state — 2026-09-18
+
+Status: PHASE 5 CLOSED / NO ACTIVE SPECIALIST WORK
+
+- PR #5: MERGED at `c0a5d87ea96a778066982e28fbb52083e61a3451`.
+- FFH-036 / FFH-037: CLOSED / ACCEPTED.
+- FFH-038: QUEUED / NON-BLOCKING; wait for Manager activation after phase transition.
+- FFH-026: QUEUED for Phase 7.
+- Phase 6 Scenario Lab: READY / NOT STARTED.
+- Manager: event-driven; next action is a separate Phase-6 activation decision, not implicit continuation.

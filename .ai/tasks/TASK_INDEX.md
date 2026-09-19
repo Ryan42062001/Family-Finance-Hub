@@ -111,3 +111,12 @@ FFH-017 is CLOSED on final frozen target `c563d011...`. Remaining real Phase-5 m
 - Manager independently inspected all three LOW findings and accepts them as non-blocking. They are preserved in queued FFH-038 rather than modifying audited production before merge.
 - PR #5 enters FINAL MERGE REVIEW. It is not declared merged until Manager refreshes PR metadata/checks, updates the stale description, verifies no blocker drift, merges, and verifies post-merge CI/canonical state.
 - Phase 6 remains gated until Phase-5 merge + post-merge verification complete.
+
+## Phase-5 merge closure — 2026-09-18
+
+- PR #5 merged to `main` at `c0a5d87ea96a778066982e28fbb52083e61a3451`.
+- Final tested PR head: `e9ff7d1e1b90f76e1820a837c41640c5802e69c1`; Foundation CI #735 / run `35416342120` / verify `105825653221` — SUCCESS with predecessor continuity and guardrails PASS.
+- Merge commit tree `259327f12d7385a3f6e3014ab47fee3b4b52ab4e` exactly equals the tested PR-head tree. `main` had no drift and is the first parent of the merge.
+- No automatic post-merge workflow run exists because `.github/workflows/ci.yml` triggers on `pull_request` and `workflow_dispatch`, not `push`.
+- Phase 5 is MERGED / ACCEPTED. FFH-038 remains QUEUED and NON-BLOCKING.
+- Phase 6 may move from gated/planned to READY for Manager activation after this post-merge reconciliation lands on `main`; do not infer that production work has started.
