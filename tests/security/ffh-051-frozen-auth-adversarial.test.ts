@@ -17,7 +17,7 @@ function routeHarness(verifyOtp: (arg: unknown) => Promise<unknown>) {
     .replace(/^import .*;\n/gm, "")
     .replace("function safeNextPath(value: string | null)", "function safeNextPath(value)")
     .replace('const type = url.searchParams.get("type") as EmailOtpType | null;', 'const type = url.searchParams.get("type");')
-    .replace("export async function GET", "async function GET");
+    .replace("export async function GET(request: Request)", "async function GET(request)");
   const GET = runInNewContext(source + "\nGET;", {
     URL,
     Request,
