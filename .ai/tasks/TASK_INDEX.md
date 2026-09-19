@@ -23,7 +23,7 @@ Last refreshed: 2026-09-18
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | ACCEPTED | production `f537b7b...`; integration `ffde8440...` | Final FFH-012 audit confirms Finding A remains closed |
-| FFH-026 | App/Data | ACTIVE | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | Phase 7 production deployment/release readiness; WORK_MODE_PREFERRED |
+| FFH-026 | App/Data | BLOCKED | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | Vercel account authorization unavailable; candidate/Supabase preflight complete |
 | FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical |
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |

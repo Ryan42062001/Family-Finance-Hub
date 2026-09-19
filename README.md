@@ -4,7 +4,13 @@ Family Finance Hub is a private-first household financial planning application d
 
 ## Current status
 
-`main` contains the completed foundation, financial profile, dashboard, and Phase 4 planning tools. **Phase 5 — Money Priority Engine — is actively in development in PR #5 and is not yet part of the stable `main` baseline.**
+Phase 5 — Money Priority Engine — and Phase 6 — Scenario Lab — are closed and accepted. Phase 7 — Production Deployment & Release Readiness — is active under FFH-026.
+
+The exact Manager-approved production release candidate is `18ccbacd4265461b01580f5e96214788b15ec5af`.
+
+Production URL: https://family-finance-hub-ten-brown.vercel.app
+
+The release candidate is deployed and serving on Vercel, but Private Beta remains gated on completion and Manager acceptance of the remaining FFH-026 production smoke and release-readiness evidence.
 
 The stable application currently includes:
 
@@ -36,6 +42,8 @@ The stable application currently includes:
 - Mortgage extra-payment planning
 - Savings-goal projections
 - Retirement contribution pacing
+- Money Priority Engine
+- Authenticated ephemeral Scenario Lab
 - Pure calculation helpers with automated tests in CI
 - Responsive dashboard and planning states for empty or partial profiles
 - Verified cross-household read and update isolation from the secure foundation
@@ -53,7 +61,7 @@ Sharing a generic Family Finance Hub link creates a separate private account/wor
 - TypeScript
 - Supabase Auth + Postgres + Row Level Security
 - GitHub Actions CI
-- Vercel planned for Phase 7 — Deployment & Release Readiness
+- Vercel production deployment
 
 ## Local setup
 
@@ -85,6 +93,4 @@ npm run build
 
 ## Active milestone
 
-Phase 5 builds the Money Priority Engine on top of the stable Phase 4 baseline. That work stays isolated on `phase-5-money-priority-engine` until PR #5 is reviewed and merged.
-
-Production deployment and the stable website URL are intentionally deferred to Phase 7 — Deployment & Release Readiness, after the Money Priority Engine and Scenario Lab are accepted. That phase will also add the verified production URL to this README and to the GitHub repository About section before Private Beta.
+FFH-026 — Production Deployment & Release Readiness — is validating the exact release candidate above in production. The remaining gate is completion and Manager acceptance of production auth/application smoke, rollback evidence, and final release-readiness evidence before Private Beta.
