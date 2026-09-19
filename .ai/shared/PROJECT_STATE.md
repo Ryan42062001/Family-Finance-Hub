@@ -259,3 +259,23 @@ Authoritative Scenario Lab v1 boundary:
 The accepted INCLUDE set is bounded to existing policy/data semantics. Tax filing-status changes, user-selectable return assumptions, and Monte Carlo remain REQUIRES POLICY and are excluded from v1 implementation. Dedicated child/dependent, relocation and refinance experiences remain deferred.
 
 Next: activate the Core scenario overlay/runner foundation from the exact post-acceptance canonical checkpoint. App/Data remains idle until that contract is stable.
+
+## FFH-040 activation — Scenario Overlay + Runner Foundation — 2026-09-18
+
+FFH-039 is canonically CLOSED / ACCEPTED.
+
+Manager now activates FFH-040 as the first Phase-6 production implementation slice.
+
+- owner: Core Financial Engine Engineer;
+- execution: STANDARD_CHAT_HIGH;
+- refresh: FAST_REFRESH;
+- approved production integration base: `cc8e2c207f16350c1baeab131ffd685c848948ce`;
+- branch: `ffh/ffh-040-scenario-runner-foundation`;
+- scope: pure typed Scenario Definition, immutable overlay, authoritative normalized-to-raw reuse, canonical engine rerun, generic INCLUDE categories, unknown-safe validation, deterministic behavior, and exact reconciliation/no-reuse tests;
+- UI/App Router/server action/auth/Supabase/persistence/specialized adapters: NOT AUTHORIZED;
+- new financial policy/statutory meaning: NOT AUTHORIZED;
+- REQUIRES POLICY categories remain excluded from v1.
+
+FFH-040 is a required dependency for the later authenticated App/Data Scenario Lab surface. App/Data remains WAIT until Manager accepts the stable Core contract.
+
+FFH-038 remains QUEUED / NON-BLOCKING and is not part of FFH-040.
