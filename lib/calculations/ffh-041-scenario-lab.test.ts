@@ -180,6 +180,26 @@ test("FFH-041 every explicit run reloads the server baseline exactly once", asyn
   assert.equal(loads, 2);
 });
 
+test("FFH-026 authenticated scenario expense changes capacity without creating preferences or mutating the saved profile", async () => {
+  const savedProfile = raw();
+  savedProfile.preferences = null;
+  savedProfile.income![0].monthly_amount = 5000;
+  savedProfile.expenses![0].monthly_amount = 3500;
+  const savedProfileBeforeRun = structuredClone(savedProfile);
+  const baseline = engine(savedProfile);
+  const payload = submission(savedProfile, {
+    recurringOverrides: [{ type: "expense", id: "housing-change", expenseId: "housing", monthlyAmount: 4000 }],
+  });
+
+  const result = await executeScenarioRun(payload, dependencies(baseline.snapshot, { authenticated: true }));
+
+  assert.equal(result.status, "valid");
+  assert.equal(result.baselineSummary?.feasibility.monthlyPlanCapacity, 1300);
+  assert.equal(result.scenarioSummary?.feasibility.monthlyPlanCapacity, 800);
+  assert.equal(baseline.snapshot.preferences, null);
+  assert.deepEqual(savedProfile, savedProfileBeforeRun);
+});
+
 test("FFH-041 stale baseline fails closed before scenario execution", async () => {
   const original = raw();
   const payload = submission(original, {

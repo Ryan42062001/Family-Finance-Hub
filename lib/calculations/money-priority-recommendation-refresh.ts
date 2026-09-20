@@ -218,7 +218,7 @@ function detectProfileChanges(previous: MoneyPrioritySnapshot, current: MoneyPri
   changes.push(...diffEntityCollection(previous.debts as unknown as Array<Record<string, unknown>>, current.debts as unknown as Array<Record<string, unknown>>, "debt"));
   changes.push(...diffEntityCollection(previous.goals as unknown as Array<Record<string, unknown>>, current.goals as unknown as Array<Record<string, unknown>>, "goal"));
   changes.push(...diffEntityCollection(previous.retirementAccounts as unknown as Array<Record<string, unknown>>, current.retirementAccounts as unknown as Array<Record<string, unknown>>, "retirement"));
-  const before = previous.preferences as unknown as Record<string, unknown>; const after = current.preferences as unknown as Record<string, unknown>;
+  const before = (previous.preferences ?? {}) as unknown as Record<string, unknown>; const after = (current.preferences ?? {}) as unknown as Record<string, unknown>;
   for (const field of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
     if (EXCLUDED_KEYS.has(field) || canonicalEqual(before[field], after[field], field)) continue;
     changes.push({ category: preferenceCategory(field), entityId: null, field, significance: "informational", reason: `Planning preference ${field} changed.`, previousValue: scalar(before[field], field), currentValue: scalar(after[field], field) });
