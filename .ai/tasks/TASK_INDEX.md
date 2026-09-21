@@ -23,7 +23,7 @@ Last refreshed: 2026-09-18
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | ACCEPTED | production `f537b7b...`; integration `ffde8440...` | Final FFH-012 audit confirms Finding A remains closed |
-| FFH-026 | App/Data | BLOCKED | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | Vercel account authorization unavailable; candidate/Supabase preflight complete |
+| FFH-026 | App/Data | BLOCKED | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | F09 exact-source custody blocker: original private 28-request allowlist unavailable; no reconstruction; recover source before F14 regeneration |
 | FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical |
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
@@ -259,3 +259,13 @@ FFH-026 dependencies are satisfied; exact activation base must be pinned after t
 - Execution: WORK_MODE_PREFERRED.
 - Assigned branch: `ffh/ffh-026-production-release-readiness`.
 - FFH-038 and FFH-047 remain QUEUED / non-blocking and do not block deployment readiness.
+
+
+## FFH-026 F09 custody hold — 2026-09-21
+
+- PR #68 Manager comment `5764875357` records the current exact-source custody blocker.
+- The prior private F05–F08 package is known to have contained a 17-A / 11-B / 28-request allowlist, but the exact controlling allowlist artifact is not currently retrievable.
+- F09 remediation must not reconstruct the contract from findings, counts, or the failed redacted transcription.
+- App/Data and Work Helper are BLOCKED on exact-contract/F14 remediation until the original private source artifact is recovered.
+- F10/F11/F12 controls remain preserved; F13 remains `UNVERIFIED`.
+- No production execution, SQL, cleanup, deployment/rollback, or Private Beta action is authorized by this hold.
