@@ -1,0 +1,53 @@
+{
+  "schema": "FFH_026_F09_CUSTODY_HOLD_V1",
+  "recorded_at": "2026-09-21",
+  "task": "FFH-026",
+  "pr": 68,
+  "branch": "ffh/ffh-026-production-release-readiness",
+  "prior_head": "3fece07f1584b078c8bc21900bae36ad790f2b3e",
+  "manager_comment": 5764875357,
+  "status": "BLOCKED",
+  "blocker": "F09_EXACT_PRIVATE_ALLOWLIST_SOURCE_CUSTODY",
+  "controlling_source": {
+    "description": "Original Manager-reviewed private numbered 28-request allowlist from the accepted F05-F08 six-artifact package",
+    "expected_profile_counts": {
+      "A": 17,
+      "B": 11,
+      "total": 28
+    },
+    "exact_source_available": false,
+    "reconstruction_authorized": false
+  },
+  "historical_evidence": {
+    "accepted_private_package_comment": 5755061488,
+    "first_exact_comparison_comment": 5761503196,
+    "second_exact_comparison_comment": 5764641809
+  },
+  "recovery_checks": {
+    "repository_code_search": "NO_EXACT_COPY_FOUND",
+    "pr_comments": "NO_PRIVATE_SOURCE_EMBEDDED",
+    "file_library": "NO_CONTROLLING_SOURCE_FOUND",
+    "connected_google_drive": "NO_MATCH_FOUND",
+    "active_workspace": "NO_CONTROLLING_SOURCE_FOUND",
+    "retained_prior_chat_context": "NO_EXACT_FILENAME_HASH_OR_CONTENT_RECOVERED"
+  },
+  "unblock_condition": "Recover or re-upload the original private source artifact from the prior accepted six-file package. Do not infer or hand-transcribe a replacement from public findings, counts, or failed synthetic/redacted manifests.",
+  "post_recovery_required_actions": [
+    "Mechanically derive the privacy-safe 28-descriptor contract one-for-one from the recovered source.",
+    "Generate the executable synthetic allowlist from that same source.",
+    "Regenerate F14 test, execution, equivalence, and build evidence in one clean pipeline bound to final source/build hashes.",
+    "Preserve current F10/F11/F12 controls.",
+    "Keep F13 UNVERIFIED until separate Chromium-capable review."
+  ],
+  "authority_boundary": {
+    "offline_source_recovery_only": true,
+    "production_installation": false,
+    "authenticated_production_requests": false,
+    "sql": false,
+    "scenario_lab": false,
+    "cleanup": false,
+    "deployment_or_rollback": false,
+    "private_beta": false
+  },
+  "contains_private_values": false
+}
