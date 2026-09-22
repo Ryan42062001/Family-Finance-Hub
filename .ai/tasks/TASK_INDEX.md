@@ -23,7 +23,7 @@ Last refreshed: 2026-09-18
 | FFH-023 | Work Helper | ACCEPTED | production `9140d19c...`; integration `1487b192...` | Historical remediation accepted; superseded by later FFH-025/028 closure wave |
 | FFH-024 | Product R&D | ACCEPTED | research artifact `b8656413...` | Supabase recovery plan accepted; FFH-020 blocked only by execution capability |
 | FFH-025 | Work Helper | ACCEPTED | production `f537b7b...`; integration `ffde8440...` | Final FFH-012 audit confirms Finding A remains closed |
-| FFH-026 | App/Data | BLOCKED | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | F09 exact-source custody blocker: original private 28-request allowlist unavailable; no reconstruction; recover source before F14 regeneration |
+| FFH-026 | App/Data | REMEDIATION | release candidate `18ccbacd...`; branch `ffh/ffh-026-production-release-readiness` | Independent R5 FAIL: F11-01 HIGH response-identity false PASS; F11-02 LOW fetch-init hardening; OFFLINE SYNTHETIC F11-only repair ACTIVE, all production gates BLOCKED; F13 UNVERIFIED |
 | FFH-027 | Manager | CLOSED | PR #16; integration `789ae68d...` | Workflow V3.1 canonical |
 | FFH-028 | Work Helper | ACCEPTED | production `f266c112...`; integration `51c3cd59...` | Final FFH-012 dual audit closes candidate-cardinality Finding D |
 | FFH-029 | Work Helper | ACCEPTED | implementation `5b06448a...`; integration `61ad63ea...` | PR #18 merged; CI-001 CLOSED; full pipeline green |
@@ -269,3 +269,9 @@ FFH-026 dependencies are satisfied; exact activation base must be pinned after t
 - App/Data and Work Helper are BLOCKED on exact-contract/F14 remediation until the original private source artifact is recovered.
 - F10/F11/F12 controls remain preserved; F13 remains `UNVERIFIED`.
 - No production execution, SQL, cleanup, deployment/rollback, or Private Beta action is authorized by this hold.
+
+## FFH-026 R5 independent security audit disposition — 2026-09-21
+
+- PR #68 Manager comment `5770203055` supersedes the historical F09 custody hold above: newly supplied private text enabled the offline R5 derivation; precise historical private-file byte identity/input execution provenance remains unverified.
+- Frozen R5 SHA `d38c59b82d58411997642933bd5e6779b8a37f91e6addc699e5a6711042ce5ff` remains immutable. Fresh independent audit PR #77 at `c66c3b6ee43b4ec6422f9050e98bac906993707f` returned `FAIL — REMEDIATION REQUIRED`: HIGH F11-01 identity/household false-PASS; LOW F11-02 fetch-init hardening. F09 structural/F14 file-integrity evidence preserved, five SDK and four native Node ZIP suites not independently rerun, F13 `UNVERIFIED`.
+- FFH-026 is REMEDIATION: App/Data authorized ONLY for new offline synthetic F11 repair and fresh evidence/independent audit. No production helper, live sessions/GETs, SQL, canaries, Scenario Lab, deployment/rollback, cleanup, PR merge or Private Beta.
