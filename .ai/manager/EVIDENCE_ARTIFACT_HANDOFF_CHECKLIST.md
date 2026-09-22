@@ -72,6 +72,6 @@ When source custody, exact locked package integrity, toolchain, authorized test 
 
 ## 5. Manager closeout and routing
 
-Summarize the exact artifact hash, independently reproduced checks, unreproduced claims, issue severity and required evidence. Record accepted/rejected disposition **only** at the applicable authorized gate. If audit/production remains blocked, say so explicitly. For a meaningful employee handoff, end with the canonical Workflow V3.1 **complete 11-role Next Activation table**, with at most the verified next owner activated and no duplicate execution lane.
+Summarize the exact artifact hash, independently reproduced checks, unreproduced claims, issue severity and required evidence. Record accepted/rejected disposition **only** at the applicable authorized gate. If audit/production remains blocked, say so explicitly. For a meaningful employee handoff, end with the canonical Workflow V3.1 **complete 11-role Next Activation table**, with only Manager-verified, dependency-safe activations and no duplicate execution lane; safe parallel activations remain permitted under Workflow V3.1.
 
 **FFH-026 example only:** Frozen R5 remains immutable; R9 evidence-only is not a rebuilt F11 fix; the 28-request contract, F13 `UNVERIFIED`, separate PR #68/#77 custody and production/release holds are not modified by this template.
