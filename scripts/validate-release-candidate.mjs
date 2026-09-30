@@ -54,7 +54,7 @@ if (existsSync('.github/workflows/ci.yml')) {
     ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
   ]);
   const actionCounts = new Map();
-  for (const line of ci.split('\n').filter(line => /^\s*(?:-\s*)?uses\s*:/.test(line))) {
+  for (const line of ci.split(/\r?\n/).filter(line => /^\s*(?:-\s*)?uses\s*:/.test(line))) {
     const reference = line.replace(/^\s*(?:-\s*)?uses\s*:\s*/, '').replace(/\s+#.*$/, '').trim().replace(/^["']|["']$/g, '');
     const match = /^([^@\s]+)@([0-9a-f]{40})$/.exec(reference);
     check(Boolean(match), `Action must use a full immutable SHA: ${reference}`);
