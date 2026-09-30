@@ -32,14 +32,45 @@ try {
 } catch (error) {
   check(false, `cannot validate npm aliases: ${error.message}`);
 }
+export const phaseLifecycleStates = [
+  'PLANNED',
+  'BUILDING',
+  'PREVIEW_READY',
+  'PUNCH_LIST',
+  'FREEZE_READY',
+  'AUDITING',
+  'REMEDIATING',
+  'CLOSED',
+];
+
+export function validatePhaseAuthority(phase, roadmap) {
+  const phaseFailures = [];
+  const states = new Map();
+  for (const [name, content] of [['current phase', phase], ['roadmap', roadmap]]) {
+    if (!content.includes('FFH-P01')) {
+      phaseFailures.push(`${name} must identify FFH-P01`);
+      continue;
+    }
+    const state = content.match(/\bState:\s*([A-Z_]+)\b/)?.[1];
+    if (!state || !phaseLifecycleStates.includes(state)) {
+      phaseFailures.push(`${name} must use a valid FFH-P01 lifecycle state`);
+    } else {
+      states.set(name, state);
+    }
+    if (!(/production deployment/i.test(content) && /not authoriz|unauthoriz|separate/i.test(content))) {
+      phaseFailures.push(`${name} must preserve separate production authorization`);
+    }
+  }
+  if (states.has('current phase') && states.has('roadmap') && states.get('current phase') !== states.get('roadmap')) {
+    phaseFailures.push('current phase and roadmap must agree on FFH-P01 lifecycle state');
+  }
+  return phaseFailures;
+}
+
 if (existsSync('.ai/CURRENT_PHASE.md') && existsSync('docs/PRODUCT_ROADMAP.md')) {
   const phase = readFileSync('.ai/CURRENT_PHASE.md', 'utf8');
   const roadmap = readFileSync('docs/PRODUCT_ROADMAP.md', 'utf8');
-  for (const [name, content] of [['current phase', phase], ['roadmap', roadmap]]) {
-    check(content.includes('FFH-P01') && /PLANNED/.test(content), `${name} must identify FFH-P01 as PLANNED`);
-    check(!/FFH-P01[^\n]*ACTIVE|State:\s*ACTIVE/.test(content), `${name} must not activate FFH-P01`);
-    check(/production deployment/i.test(content) && /not authoriz|unauthoriz|separate/i.test(content), `${name} must preserve separate production authorization`);
-  }
+  failures.push(...validatePhaseAuthority(phase, roadmap));
 }
 if (existsSync('docs/WORKFLOW.md')) {
   const workflow = readFileSync('docs/WORKFLOW.md', 'utf8');
