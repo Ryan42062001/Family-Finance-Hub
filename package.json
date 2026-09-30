@@ -13,7 +13,7 @@
     "test": "node --experimental-strip-types --test lib/calculations/*.test.ts",
     "test:security": "node --experimental-strip-types --test tests/security/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "ai:validate-state": "node scripts/validate-ai-state.mjs",
+    "ai:validate-state": "node scripts/validate-release-candidate.mjs",
     "verify": "npm run ai:validate-state && npm test && npm run test:security && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
@@ -29,6 +29,7 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.3.3",
+    "js-yaml": "4.3.2",
     "typescript": "^5.9.0"
   }
 }

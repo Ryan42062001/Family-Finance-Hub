@@ -1,118 +1,24 @@
 # Family Finance Hub — Product Roadmap
 
-## Product vision
-Family Finance Hub is a private-first household financial planning application that helps people understand their current finances and decide what to do with their next dollar.
+## Completed product foundation
 
-The product is not intended to be only a transaction tracker. Its long-term differentiators are the Money Priority Engine, Household Financial Roadmap, Paycheck Planner, and Scenario Lab.
+Phases 1–6 established secure household foundation, profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab product baseline. Historical task/PR acceptance does not automatically integrate unresolved branch work.
 
-## Current status
-- Phase 1 — Secure Foundation ✅ Complete
-- Phase 2 — Household Financial Profile ✅ Complete
-- Phase 3 — Dashboard ✅ Complete
-- Phase 4 — Planning Tools ✅ Complete
-- Phase 5 — Money Priority Engine 🚧 Active
-- Phase 6 — Scenario Lab
-- Phase 7 — Deployment & Release Readiness
-- Phase 8 — Private Beta
+## Governance transition
 
-## Phase 1 — Secure Foundation ✅
-- Next.js + TypeScript application
-- Authentication foundation
-- Household-based tenancy model
-- Supabase database and Row Level Security
-- Responsive application shell
-- Environment and secret handling
-- Security regression tests
+Speed Workflow V2.1 replaces the active Workflow V3/V3.1 control plane. Historical records are archived under `.history/workflow-v3-1/` as evidence only.
 
-## Phase 2 — Household Financial Profile ✅
-- Household onboarding
-- Income sources
-- Cash and savings accounts
-- Investment and retirement accounts
-- Debts and mortgages
-- Recurring expenses
-- Financial goals
+## FFH-P01 — Release Blocker Integration & Production Readiness
 
-## Phase 3 — Dashboard ✅
-- Net worth and asset/liability breakdown
-- Monthly cash flow
-- Savings rate
-- Debt overview
-- Goal progress
-- Retirement balances and contribution pace
-- Expense category and essential/discretionary breakdowns
-- Financial profile completion guidance
-- Financial health summary
-- Safe empty and incomplete-data states
-- Tested dashboard calculation helpers
+State: PLANNED. Risk: HIGH. This is one coherent future phase translating unresolved FFH-026, FFH-051, and FFH-052 intent. It is not activated or implemented by this migration.
 
-## Phase 4 — Planning Tools ✅
-- Paycheck planner
-- Emergency-fund calculator
-- Debt payoff calculator
-- Mortgage extra-payment calculator
-- Savings-goal projections
-- Retirement contribution pacing
+- Independently reconcile exact accepted source-level remediation before integrating any historical branch commits; do not infer acceptance from PR closure, comments, or old CI.
+- Reverify email confirmation, auth redirects, cookies, sessions, and origin behavior as security-sensitive. Production host/origin trust is a release gate.
+- Prove deployed two-household RLS negative isolation and that Scenario Lab makes no unauthorized persistence or profile mutation.
+- Keep private source/oracle/custody material private; unresolved FFH-026 fixture, oracle, and dependency-host gates remain unresolved until independently proved.
+- Do not use live production financial/account data in shared evidence. Maintain rollback evidence before production acceptance.
+- Phase activation or merge does not authorize production deployment or Private Beta. Paid custom domain/configuration requires separate Ryan authorization.
 
-Phase 4 calculators reuse pure calculation modules, explain assumptions, handle incomplete data safely, and avoid modifying live household records unless a user explicitly applies a result in a later feature.
+## Downstream
 
-## Phase 5 — Money Priority Engine 🚧
-- Evaluate employer match
-- Evaluate emergency reserves
-- Evaluate high-interest debt
-- Evaluate HSA / IRA / workplace retirement contribution pacing
-- Evaluate short-term household goals
-- Evaluate extra debt payments
-- Explain recommendations and tradeoffs
-
-Phase 5 is the active milestone. It remains isolated on `phase-5-money-priority-engine` until its correctness, audit, migration, and integration gates are satisfied and PR #5 is ready to merge.
-
-## Phase 6 — Scenario Lab
-Examples:
-- Increase retirement contribution rate
-- Max an HSA
-- Make extra mortgage payments
-- Buy a vehicle
-- Lose one income temporarily
-- Receive a raise
-- Change monthly savings
-
-Scenarios must never modify live household data unless the user explicitly applies them.
-
-## Phase 7 — Deployment & Release Readiness
-Before Private Beta, establish a production-ready deployment and a stable public application URL.
-
-Required release-readiness work:
-- Create and verify the Vercel production project and production environment.
-- Configure production environment variables and secrets without committing sensitive values.
-- Verify production Supabase project linkage, authentication callbacks, and required database migrations.
-- Run production smoke tests for sign-up/sign-in, protected routes, household onboarding, dashboard, planning tools, and critical Money Priority Engine flows.
-- Verify Row Level Security and cross-household isolation remain intact in the deployed environment.
-- Establish a stable production URL and decide whether a custom domain is needed before Private Beta.
-- Add the production website URL to the GitHub repository About section and README once it is stable.
-- Maintain a release checklist and rollback path for failed production deployments or migrations.
-
-Private Beta must not begin until the deployed application has a verified stable URL and the release-readiness checks above are satisfied.
-
-## Phase 8 — Private Beta
-- Invite friends and family to create independent households
-- Account recovery
-- Security review
-- Accessibility and mobile polish
-- Feedback collection
-
-## Future considerations
-- Bank and investment account syncing
-- Automated recurring transaction detection
-- Shared household access
-- Read-only advisor/family access
-- AI-generated financial explanations
-- Export and annual review reports
-
-## Product principles
-1. Household privacy is enforced at the database layer.
-2. Recommendations explain why, not just what.
-3. Simple Mode should be approachable for non-finance users.
-4. Advanced Mode should expose assumptions and projections.
-5. No sensitive banking credentials, SSNs, or tax documents are required for the MVP.
-6. Security regressions block releases.
+Private Beta follows separately authorized production readiness and is not authorized. Historical FFH-038/047-style nonblocking cleanup may be reconsidered as future backlog, without reviving old task lanes.
