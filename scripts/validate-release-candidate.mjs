@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import yaml from 'js-yaml';
 
 const expectedAi = ['ARCHITECTURE.md', 'CURRENT_PHASE.md', 'DECISIONS.md', 'PROJECT.md', 'REPO_MAP.md'];
 const failures = [];
@@ -45,25 +46,68 @@ if (existsSync('docs/WORKFLOW.md')) {
   check(workflow.includes('Speed Workflow V2.1') && /historical evidence/i.test(workflow), 'V2.1 must be active and archive historical');
   check(/explicit Ryan merge authorization/i.test(workflow), 'merge must require Product Owner authorization');
 }
+export const expectedActions = new Map([
+  ['actions/checkout', '11d5960a326750d5838078e36cf38b85af677262'],
+  ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
+]);
+
+export function collectUsesValues(value, collected = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectUsesValues(item, collected);
+  } else if (value !== null && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'uses') collected.push(child);
+      collectUsesValues(child, collected);
+    }
+  }
+  return collected;
+}
+
+export function validateActionReferences(ci) {
+  const actionFailures = [];
+  let document;
+  try {
+    document = yaml.load(ci);
+  } catch (error) {
+    return [`cannot parse active CI workflow YAML: ${error.message}`];
+  }
+  if (document === undefined || document === null || typeof document !== 'object') {
+    return ['active CI workflow YAML must contain a mapping or sequence'];
+  }
+  const actionCounts = new Map();
+  for (const reference of collectUsesValues(document)) {
+    if (typeof reference !== 'string') {
+      actionFailures.push(`Action reference must be a string: ${JSON.stringify(reference)}`);
+      continue;
+    }
+    const match = /^([^@\s]+)@([0-9a-f]{40})$/.exec(reference);
+    if (!match) {
+      actionFailures.push(`Action must use a full immutable SHA: ${reference}`);
+      continue;
+    }
+    const [, identity, sha] = match;
+    if (!expectedActions.has(identity)) {
+      actionFailures.push(`unexpected Action identity: ${identity}`);
+      continue;
+    }
+    if (expectedActions.get(identity) !== sha) {
+      actionFailures.push(`unexpected Action pin: ${reference}`);
+      continue;
+    }
+    actionCounts.set(identity, (actionCounts.get(identity) ?? 0) + 1);
+  }
+  for (const identity of expectedActions.keys()) {
+    if (actionCounts.get(identity) !== 2) actionFailures.push(`expected ${identity} pin exactly twice`);
+  }
+  return actionFailures;
+}
+
 if (existsSync('.github/workflows/ci.yml')) {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
   check(!/validate-ai-state|ci-change-mode|deploy|production environment/i.test(ci), 'legacy authority or production deployment in active CI');
   check(ci.includes('validate-release-candidate.mjs'), 'active CI must validate release shape');
-  const expectedActions = new Map([
-    ['actions/checkout', '11d5960a326750d5838078e36cf38b85af677262'],
-    ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
-  ]);
-  const actionCounts = new Map();
-  for (const line of ci.split(/\r?\n/).filter(line => /^\s*(?:-\s*)?uses\s*:/.test(line))) {
-    const reference = line.replace(/^\s*(?:-\s*)?uses\s*:\s*/, '').replace(/\s+#.*$/, '').trim().replace(/^["']|["']$/g, '');
-    const match = /^([^@\s]+)@([0-9a-f]{40})$/.exec(reference);
-    check(Boolean(match), `Action must use a full immutable SHA: ${reference}`);
-    if (!match) continue;
-    const [, identity, sha] = match;
-    check(expectedActions.get(identity) === sha, `unexpected Action identity/pin: ${reference}`);
-    actionCounts.set(identity, (actionCounts.get(identity) ?? 0) + 1);
-  }
-  for (const identity of expectedActions.keys()) check(actionCounts.get(identity) === 2, `expected ${identity} pin in both FAST and FULL jobs`);
+  failures.push(...validateActionReferences(ci));
 }
+
 if (failures.length) { console.error(failures.join('\n')); process.exitCode = 1; }
 else console.log('Speed Workflow V2.1 release shape valid; .history excluded from active-authority scan.');
