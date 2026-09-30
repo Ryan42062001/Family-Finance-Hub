@@ -13,7 +13,7 @@
     "test": "node --experimental-strip-types --test lib/calculations/*.test.ts",
     "test:security": "node --experimental-strip-types --test tests/security/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "ai:validate-state": "node scripts/validate-ai-state.mjs",
+    "ai:validate-state": "node scripts/validate-release-candidate.mjs",
     "verify": "npm run ai:validate-state && npm test && npm run test:security && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
