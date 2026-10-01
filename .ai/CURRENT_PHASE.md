@@ -2,7 +2,7 @@
 
 FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: PREVIEW_READY
+State: PUNCH_LIST
 Risk: HIGH
 Owner: Ryan
 Builder: fresh Primary Builder
@@ -54,3 +54,7 @@ Turn current canonical `main` into one independently auditable release candidate
 - Ryan must explicitly authorize merge of the exact audited target.
 - Merge does not authorize deployment.
 - Post-merge FAST, Closure Sync, and closure FAST are required before CLOSED.
+
+## Active punch list
+
+1. Vercel Preview origin configuration: owner preview of exact candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` returned `{"error":"Authentication origin is not configured."}` on `/dashboard`. Preserve the fail-closed origin boundary. Configure only the Preview environment with the exact authorized Preview origin, rebuild the Preview, and resume owner preview. Supabase hosted-auth configuration remains separately authorized.

@@ -4,7 +4,7 @@ Family Finance Hub is a private-first household financial planning application d
 
 ## Current status
 
-`main` contains the completed Phases 1–6 product baseline: secure household foundation, financial profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab. **FFH-P01 — Release Blocker Integration & Production Readiness — is currently PREVIEW_READY on `phase/ffh-p01-release-readiness`. Production acceptance and Private Beta are not authorized.**
+`main` contains the completed Phases 1–6 product baseline: secure household foundation, financial profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab. **FFH-P01 — Release Blocker Integration & Production Readiness — is currently in PUNCH_LIST on `phase/ffh-p01-release-readiness` after owner preview identified missing Preview-origin configuration. Production acceptance and Private Beta are not authorized.**
 
 The stable application currently includes:
 

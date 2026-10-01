@@ -2,7 +2,7 @@
 
 This document records current, privacy-safe evidence for the FFH-P01 candidate. It does not authorize production deployment, Supabase or auth configuration changes, Private Beta, merge, or use of real household data.
 
-Lifecycle state: `PREVIEW_READY`. Owner preview and all later workflow gates remain pending.
+Lifecycle state: `PUNCH_LIST`. Owner preview was attempted and is blocked by missing Vercel Preview-origin configuration. All later workflow gates remain pending.
 
 ## Gate matrix
 

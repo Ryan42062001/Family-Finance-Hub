@@ -12,7 +12,7 @@ Speed Workflow V2.1 replaced the active Workflow V3/V3.1 control plane through P
 
 ## FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: PREVIEW_READY. Risk: HIGH.
+State: PUNCH_LIST. Risk: HIGH.
 Activation baseline: `241b9d665c68b97e9947996ecc678752d9654d8c`.
 Phase branch: `phase/ffh-p01-release-readiness`.
 
@@ -29,6 +29,9 @@ Phase goals:
 - Refresh stale release-facing documentation only from verified current evidence.
 - Maintain rollback evidence before production acceptance.
 - Production deployment, Supabase/auth mutation, Private Beta, and paid custom domain/configuration remain separate Ryan decisions.
+
+Active punch list:
+- Preview origin configuration blocks owner preview. Repair only the Vercel Preview-scoped `NEXT_PUBLIC_SITE_URL`, preserve the fail-closed security boundary, and do not change Production or Supabase hosted-auth configuration without separate authorization.
 
 ## Downstream
 
