@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { safeInternalDestination } from "@/lib/auth/safe-destination";
+import { trustedRequestUrl } from "@/lib/auth/trusted-origin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
+  const trusted = trustedRequestUrl(request.url);
+  if (!trusted.trusted) {
+    return NextResponse.json({ error: "Authentication origin is not configured." }, { status: 400 });
+  }
+  const url = trusted.url;
   const code = url.searchParams.get("code");
   const next = safeInternalDestination(url, url.searchParams.getAll("next"));
 

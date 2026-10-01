@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { trustedRequestUrl } from "@/lib/auth/trusted-origin";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -39,8 +40,11 @@ export async function updateSession(request: NextRequest) {
     path === "/auth/confirm";
 
   if (!userId && !isPublic) {
-    const url = new URL("/auth/login", request.url);
-    return NextResponse.redirect(url);
+    const trusted = trustedRequestUrl(request.url);
+    if (!trusted.trusted) {
+      return NextResponse.json({ error: "Authentication origin is not configured." }, { status: 400 });
+    }
+    return NextResponse.redirect(new URL("/auth/login", trusted.url.origin));
   }
 
   return response;

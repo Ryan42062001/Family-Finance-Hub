@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { safeInternalDestination, singleBoundedAuthParameter } from "@/lib/auth/safe-destination";
+import { trustedRequestUrl } from "@/lib/auth/trusted-origin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_TOKEN_HASH_LENGTH = 1024;
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
+  const trusted = trustedRequestUrl(request.url);
+  if (!trusted.trusted) {
+    return NextResponse.json({ error: "Authentication origin is not configured." }, { status: 400 });
+  }
+  const url = trusted.url;
   const tokenHash = singleBoundedAuthParameter(url.searchParams.getAll("token_hash"), MAX_TOKEN_HASH_LENGTH);
   const types = url.searchParams.getAll("type");
   const next = safeInternalDestination(url, url.searchParams.getAll("next"));
