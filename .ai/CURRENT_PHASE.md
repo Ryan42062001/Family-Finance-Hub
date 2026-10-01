@@ -2,7 +2,7 @@
 
 FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: BUILDING
+State: PREVIEW_READY
 Risk: HIGH
 Owner: Ryan
 Builder: fresh Primary Builder

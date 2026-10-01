@@ -4,7 +4,7 @@ Family Finance Hub is a private-first household financial planning application d
 
 ## Current status
 
-`main` contains the completed foundation, financial profile, dashboard, and Phase 4 planning tools. **Phase 5 — Money Priority Engine — is actively in development in PR #5 and is not yet part of the stable `main` baseline.**
+`main` contains the completed Phases 1–6 product baseline: secure household foundation, financial profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab. **FFH-P01 — Release Blocker Integration & Production Readiness — is currently PREVIEW_READY on `phase/ffh-p01-release-readiness`. Production acceptance and Private Beta are not authorized.**
 
 The stable application currently includes:
 
@@ -38,7 +38,7 @@ The stable application currently includes:
 - Retirement contribution pacing
 - Pure calculation helpers with automated tests in CI
 - Responsive dashboard and planning states for empty or partial profiles
-- Verified cross-household read and update isolation from the secure foundation
+- Repository-enforced household scoping and RLS contract tests; deployed two-household negative verification remains a separate production-authorization gate
 
 ## Privacy model
 
@@ -53,14 +53,14 @@ Sharing a generic Family Finance Hub link creates a separate private account/wor
 - TypeScript
 - Supabase Auth + Postgres + Row Level Security
 - GitHub Actions CI
-- Vercel planned for Phase 7 — Deployment & Release Readiness
+- Vercel deployment platform
 
 ## Local setup
 
 1. Install Node.js 22 or newer.
 2. Install dependencies with `npm install`.
 3. Copy `.env.example` to `.env.local`.
-4. Add the Supabase project URL and publishable key to `.env.local`.
+4. Add the Supabase project URL, publishable key, and canonical `NEXT_PUBLIC_SITE_URL` origin to `.env.local`.
 5. Start development with `npm run dev`.
 
 Never commit `.env.local`, service-role keys, secret API keys, banking credentials, account numbers, SSNs, or real test financial data.
@@ -69,6 +69,8 @@ Verification:
 
 ```bash
 npm test
+npm run test:security
+npm run typecheck
 npm run lint
 npm run build
 ```
@@ -79,12 +81,11 @@ npm run build
 - `docs/DATABASE_DESIGN.md`
 - `docs/SECURITY_MODEL.md`
 - `docs/SECURITY_TESTS.md`
+- `docs/FFH-P01_RELEASE_READINESS.md`
 - `docs/PHASE_3_DASHBOARD.md`
 - `docs/PHASE_4_PLANNING_TOOLS.md`
 - `docs/PRIORITY_ENGINE.md`
 
 ## Active milestone
 
-Phase 5 builds the Money Priority Engine on top of the stable Phase 4 baseline. That work stays isolated on `phase-5-money-priority-engine` until PR #5 is reviewed and merged.
-
-Production deployment and the stable website URL are intentionally deferred to Phase 7 — Deployment & Release Readiness, after the Money Priority Engine and Scenario Lab are accepted. That phase will also add the verified production URL to this README and to the GitHub repository About section before Private Beta.
+FFH-P01 revalidates the integrated release blockers and assembles privacy-safe production-readiness evidence. The current deployed application URL is <https://family-finance-hub-ten-brown.vercel.app/>, but its existence is not production acceptance, deployment authorization, or Private Beta authorization. Current gate status and the rollback plan are recorded in `docs/FFH-P01_RELEASE_READINESS.md`.

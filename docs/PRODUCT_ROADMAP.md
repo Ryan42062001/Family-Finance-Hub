@@ -12,7 +12,7 @@ Speed Workflow V2.1 replaced the active Workflow V3/V3.1 control plane through P
 
 ## FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: BUILDING. Risk: HIGH.
+State: PREVIEW_READY. Risk: HIGH.
 Activation baseline: `241b9d665c68b97e9947996ecc678752d9654d8c`.
 Phase branch: `phase/ffh-p01-release-readiness`.
 
