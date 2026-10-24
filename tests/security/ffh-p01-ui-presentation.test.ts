@@ -11,6 +11,8 @@ const entities = {
 };
 
 const layout = readFileSync(new URL("../../app/layout.tsx", import.meta.url), "utf8");
+const header = readFileSync(new URL("../../components/AppHeader.tsx", import.meta.url), "utf8");
+const dashboard = readFileSync(new URL("../../app/dashboard/page.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
 const profile = readFileSync(new URL("../../app/financial-profile/page.tsx", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("../../app/scenario-lab/ScenarioLabWorkspace.tsx", import.meta.url), "utf8");
@@ -42,6 +44,15 @@ test("shared shell preserves keyboard, responsive, contrast, and reduced-motion 
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(styles, /@media\(max-width:650px\)/);
+});
+
+test("authenticated navigation owns section switching and sign out without dashboard duplication", () => {
+  for (const label of ["Overview", "Financial profile", "Planning", "Scenario Lab", "Sign out"]) {
+    assert.ok(header.includes(label), label);
+  }
+  assert.match(header, /authenticated \? <form action=\{logout\}>/);
+  assert.doesNotMatch(dashboard, /action=\{logout\}/);
+  assert.doesNotMatch(dashboard, />Edit financial profile</);
 });
 
 test("financial profile refresh preserves every existing CRUD action", () => {

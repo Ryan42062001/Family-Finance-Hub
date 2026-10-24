@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { logout } from "@/app/auth/actions";
+import { createClient } from "@/lib/supabase/server";
 
 const links = [
   ["Overview", "/dashboard"],
@@ -7,7 +9,11 @@ const links = [
   ["Scenario Lab", "/scenario-lab"],
 ] as const;
 
-export default function AppHeader() {
+export default async function AppHeader() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const authenticated = Boolean(data?.claims?.sub);
+
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -17,6 +23,7 @@ export default function AppHeader() {
         </Link>
         <nav className="site-nav" aria-label="Primary navigation">
           {links.map(([name, href]) => <Link key={href} href={href}>{name}</Link>)}
+          {authenticated ? <form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form> : null}
         </nav>
       </div>
     </header>
