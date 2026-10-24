@@ -27,7 +27,7 @@ export default async function ScenarioLabPage() {
     <main className="page-shell scenario-lab-page">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 6 · authenticated workspace</p>
+          <p className="eyebrow">Build · run · review</p>
           <h1>Scenario Lab</h1>
           <p className="muted">
             Test explicit what-if assumptions against your current household plan without changing your saved financial profile.

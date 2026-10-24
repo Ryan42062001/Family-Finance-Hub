@@ -5,7 +5,7 @@ FFH-P01 — Release Blocker Integration & Production Readiness
 State: PUNCH_LIST
 Risk: HIGH
 Owner: Ryan
-Builder: fresh Primary Builder
+Builder: same Primary Builder lane
 Activation baseline: `241b9d665c68b97e9947996ecc678752d9654d8c`
 Phase branch: `phase/ffh-p01-release-readiness`
 
@@ -57,4 +57,5 @@ Turn current canonical `main` into one independently auditable release candidate
 
 ## Active punch list
 
-1. Vercel Preview origin configuration: owner preview of exact candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` returned `{"error":"Authentication origin is not configured."}` on `/dashboard`. Preserve the fail-closed origin boundary. Configure only the Preview environment with the exact authorized Preview origin, rebuild the Preview, and resume owner preview. Supabase hosted-auth configuration remains separately authorized.
+1. Vercel Preview origin configuration: owner preview of exact candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` returned `{"error":"Authentication origin is not configured."}` on `/dashboard`. The bounded Preview-only configuration remediation cleared this finding without weakening the fail-closed origin boundary or changing Production configuration. Preserve that evidence and configuration.
+2. Sitewide owner-requested UI/UX remediation: refresh the existing application surfaces with one cohesive, accessible household-fintech design system; improve dashboard, profile, planning, Scenario Lab, authentication, and onboarding presentation; preserve all calculation, CRUD, household, RLS, and auth-security semantics; return an exact-head Preview for whole-phase owner review. State remains `PUNCH_LIST` pending owner review and an authorized workflow transition.

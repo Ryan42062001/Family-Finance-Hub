@@ -86,13 +86,18 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <div><p className="eyebrow">Phase 2</p><h1>Build your financial profile</h1><p className="muted">Add and maintain the core numbers Family Finance Hub will use for your dashboard and future recommendations.</p></div>
+        <div><p className="eyebrow">Your household data</p><h1>Build your financial profile</h1><p className="muted">Keep the numbers behind your dashboard and planning tools accurate. Changes are saved only when you submit a section.</p></div>
         <Link className="secondary-button" href="/dashboard">Back to dashboard</Link>
       </section>
       {message ? <p className="success-banner">{message}</p> : null}
 
+      <nav className="panel profile-jump-nav" aria-label="Financial profile sections">
+        <p className="eyebrow">Jump to a section</p>
+        <div className="hero-actions"><a className="secondary-button" href="#accounts">Accounts</a><a className="secondary-button" href="#income">Income</a><a className="secondary-button" href="#expenses">Expenses</a><a className="secondary-button" href="#debts">Debts</a><a className="secondary-button" href="#retirement">Retirement</a><a className="secondary-button" href="#goals">Goals</a></div>
+      </nav>
+
       <div className="form-section-grid">
-        <section className="panel">
+        <section className="panel" id="accounts">
           <h2>Cash & accounts</h2>
           <form className="data-form" action={addAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Checking" /></label>
@@ -102,7 +107,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="income">
           <h2>Income</h2>
           <form className="data-form" action={addIncome}>
             <label>Name<input name="name" maxLength={100} required placeholder="Primary job" /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" required /></label><button type="submit">Add income</button>
@@ -110,7 +115,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="expenses">
           <h2>Monthly expenses</h2>
           <form className="data-form" action={addExpense}>
             <label>Name<input name="name" maxLength={100} required placeholder="Groceries" /></label>
@@ -121,7 +126,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Category<select name="category" defaultValue={item.category}><option value="housing">Housing</option><option value="utilities">Utilities</option><option value="groceries">Groceries</option><option value="transportation">Transportation</option><option value="insurance">Insurance</option><option value="healthcare">Healthcare</option><option value="childcare">Childcare</option><option value="subscriptions">Subscriptions</option><option value="personal">Personal</option><option value="giving">Giving</option><option value="other">Other</option></select></label><label>Monthly amount<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><label className="checkbox-label"><input name="is_essential" type="checkbox" defaultChecked={item.is_essential} /> Essential expense</label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="debts">
           <h2>Debts</h2>
           <form className="data-form" action={addDebt}>
             <label>Name<input name="name" maxLength={100} required placeholder="Mortgage" /></label>
@@ -131,7 +136,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{debts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_balance)} · {item.interest_rate ?? 0}%</small></span><RecordActions kind="debt" id={item.id}><form className="data-form edit-form" action={updateDebt}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="debt_type" defaultValue={item.debt_type}><option value="mortgage">Mortgage</option><option value="student_loan">Student loan</option><option value="auto_loan">Auto loan</option><option value="credit_card">Credit card</option><option value="personal_loan">Personal loan</option><option value="medical">Medical</option><option value="other">Other</option></select></label><label>Balance<input name="current_balance" type="number" min="0" step="0.01" defaultValue={item.current_balance} required /></label><label>Interest rate (%)<input name="interest_rate" type="number" min="0" max="100" step="0.0001" defaultValue={item.interest_rate ?? ""} /></label><label>Minimum payment<input name="minimum_payment" type="number" min="0" step="0.01" defaultValue={item.minimum_payment} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="retirement">
           <h2>Retirement</h2>
           <form className="data-form" action={addRetirementAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Work 401(k)" /></label><label>Type<select name="account_type" defaultValue="401k"><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" required /></label><button type="submit">Add retirement account</button>
@@ -139,7 +144,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employee_contribution} required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employer_contribution} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
         </section>
 
-        <section className="panel">
+        <section className="panel" id="goals">
           <h2>Goals</h2>
           <form className="data-form" action={addGoal}>
             <label>Name<input name="name" maxLength={100} required placeholder="Replace vehicle" /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" required /></label><label>Target date<input name="target_date" type="date" /></label><label>Priority<select name="priority" defaultValue="3"><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields /><button type="submit">Add goal</button>

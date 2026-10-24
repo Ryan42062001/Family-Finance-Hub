@@ -56,7 +56,7 @@ export default async function PlanningPage() {
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <div><p className="eyebrow">Phase 4 planning tools</p><h1>Household planning lab</h1><p className="muted">Use saved household data as a starting point, adjust assumptions locally, and compare outcomes without changing your live profile.</p></div>
+        <div><p className="eyebrow">Explore without changing your profile</p><h1>Household planning tools</h1><p className="muted">Start with saved household data, adjust assumptions locally, and compare outcomes without changing your live profile.</p></div>
         <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
       </section>
 

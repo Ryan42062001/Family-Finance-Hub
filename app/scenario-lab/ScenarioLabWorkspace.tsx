@@ -29,6 +29,12 @@ import type {
   ScenarioOneTimeEvent,
   ScenarioRecurringOverride,
 } from "@/lib/scenarios/scenario-definition";
+import {
+  allocationDisplayName,
+  capacityChange,
+  refreshStateLabel,
+  scenarioStatusLabel,
+} from "@/lib/scenarios/scenario-presentation";
 
 type EditorKind =
   | "income"
@@ -363,21 +369,21 @@ function BaselineCard({ bootstrap }: { bootstrap: ScenarioLabBootstrap }) {
     <article className="scenario-result-card">
       <p className="eyebrow">Current baseline</p>
       <h3>Authoritative household plan</h3>
-      <p><strong>Status:</strong> {feasibility.status}</p>
-      <p><strong>Monthly plan capacity:</strong> {money(feasibility.monthlyPlanCapacity)}</p>
+      <span className="status-pill">{scenarioStatusLabel(feasibility.status)}</span>
+      <div className="scenario-capacity"><span>Available for the monthly plan</span><strong>{money(feasibility.monthlyPlanCapacity)}</strong></div>
       <p><strong>Protected monthly need:</strong> {money(feasibility.protectedMonthlyFundingNeed)}</p>
       <p className="muted">As of {bootstrap.baseline.policyBasis.asOfDate} · {bootstrap.baseline.fingerprint.slice(0, 24)}…</p>
     </article>
   );
 }
 
-function ScenarioResultCard({ draft }: { draft: ScenarioDraft }) {
+function ScenarioResultCard({ draft, bootstrap }: { draft: ScenarioDraft; bootstrap: ScenarioLabBootstrap }) {
   if (draft.specializedResult) {
     return (
       <article className="scenario-result-card">
         <p className="eyebrow">Hypothetical specialized scenario</p>
         <h3>{draft.title}</h3>
-        <p><strong>Status:</strong> {draft.specializedResult.status.replaceAll("_", " ")}</p>
+        <span className="status-pill">{scenarioStatusLabel(draft.specializedResult.status)}</span>
         <SpecializedScenarioResult result={draft.specializedResult} />
         <p className="muted">Hypothetical only · never applied to your profile.</p>
       </article>
@@ -389,27 +395,35 @@ function ScenarioResultCard({ draft }: { draft: ScenarioDraft }) {
       <p className="eyebrow">Scenario</p><h3>{draft.title}</h3><p className="muted">Run this draft to compare it with the current baseline.</p>
     </article>
   );
+  const baselineCapacity = result.baselineSummary?.feasibility.monthlyPlanCapacity;
+  const scenarioCapacity = result.scenarioSummary?.feasibility.monthlyPlanCapacity;
+  const change = baselineCapacity !== undefined && scenarioCapacity !== undefined
+    ? capacityChange(baselineCapacity, scenarioCapacity)
+    : null;
   return (
     <article className="scenario-result-card">
       <p className="eyebrow">Hypothetical scenario</p>
       <h3>{draft.title}</h3>
-      <p><strong>Status:</strong> {result.status}</p>
+      <span className="status-pill">{scenarioStatusLabel(result.status)}</span>
       {result.scenarioSummary ? (
         <>
-          <p><strong>Feasibility:</strong> {result.scenarioSummary.feasibility.status}</p>
-          <p><strong>Monthly plan capacity:</strong> {money(result.scenarioSummary.feasibility.monthlyPlanCapacity)}</p>
+          <p><strong>Calculation:</strong> {scenarioStatusLabel(result.scenarioSummary.feasibility.status)}</p>
+          <div className="scenario-capacity"><span>Available under this scenario</span><strong>{money(result.scenarioSummary.feasibility.monthlyPlanCapacity)}</strong></div>
+          {change ? <div className="scenario-delta" aria-label="Capacity change"><span>{change.amount >= 0 ? "+" : ""}{money(change.amount)}</span>{change.percentage === null ? null : <span>{change.percentage >= 0 ? "+" : ""}{change.percentage.toFixed(2)}%</span>}</div> : null}
           <p><strong>Funding gap:</strong> {money(result.scenarioSummary.feasibility.planFundingGap)}</p>
+          {result.status === "more_information_needed" ? <p className="dashboard-notice"><strong>This calculation ran, but the recommendation is incomplete.</strong> Add the missing information below before treating it as ready.</p> : null}
         </>
       ) : null}
       {result.comparison ? (
         <div>
-          <p><strong>Recommendation refresh:</strong> {result.comparison.state}</p>
+          <p><strong>Recommendation review:</strong> {refreshStateLabel(result.comparison.state)}</p>
           {result.comparison.reasons.map((reason) => <p className="muted" key={reason}>{reason}</p>)}
           <p><strong>Recommendation changes:</strong> {result.comparison.recommendationChanges.length}</p>
           <p><strong>Allocation changes:</strong> {result.comparison.allocationChanges.length}</p>
-          {result.comparison.allocationChanges.slice(0, 4).map((change) => (
-            <p key={change.allocationId}>{change.allocationId}: {money(change.previousAmount)} → {money(change.currentAmount)} ({change.unit})</p>
-          ))}
+          <div className="scenario-change-list">{result.comparison.allocationChanges.slice(0, 4).map((allocation) => {
+            const displayName = allocationDisplayName(allocation.allocationId, bootstrap.entities);
+            return <div className="scenario-change" key={allocation.allocationId}><p><strong>{displayName ?? "Allocation change"}</strong></p><p>{money(allocation.previousAmount)} → {money(allocation.currentAmount)} <small>({allocation.unit})</small></p>{displayName ? null : <details><summary>Technical identifier</summary><code>{allocation.allocationId}</code></details>}</div>;
+          })}</div>
           {result.comparison.warningsAdded.length ? <p><strong>Warnings added:</strong> {result.comparison.warningsAdded.join("; ")}</p> : null}
           {result.comparison.missingDataAdded.length ? <p><strong>Missing data added:</strong> {result.comparison.missingDataAdded.join("; ")}</p> : null}
         </div>
@@ -563,7 +577,10 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
             </div>
 
             <AssumptionComposer draft={draft} bootstrap={baseline} onChange={updateDraft} />
-            <SpecializedScenarioControls draft={draft} bootstrap={baseline} onChange={updateDraft} />
+            <details className="scenario-advanced">
+              <summary>Advanced scenarios, allocation overrides, and diagnostics</summary>
+              <div className="scenario-advanced-content"><SpecializedScenarioControls draft={draft} bootstrap={baseline} onChange={updateDraft} /></div>
+            </details>
 
             <div className="scenario-assumptions">
               <h3>Assumptions</h3>
@@ -604,7 +621,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
         <h2>Baseline and scenario results</h2>
         <div className="scenario-comparison-grid">
           <BaselineCard bootstrap={baseline} />
-          {drafts.map((draft) => <ScenarioResultCard key={draft.localId} draft={draft} />)}
+          {drafts.map((draft) => <ScenarioResultCard key={draft.localId} draft={draft} bootstrap={baseline} />)}
         </div>
       </section>
 
@@ -614,7 +631,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
           <h2>{pairComparison.status === "valid" ? "Scenario-to-scenario changes" : "Comparison unavailable"}</h2>
           {pairComparison.comparison ? (
             <>
-              <p><strong>Refresh state:</strong> {pairComparison.comparison.state}</p>
+              <p><strong>Recommendation review:</strong> {refreshStateLabel(pairComparison.comparison.state)}</p>
               {pairComparison.comparison.reasons.map((reason) => <p className="muted" key={reason}>{reason}</p>)}
               <p><strong>Recommendation changes:</strong> {pairComparison.comparison.recommendationChanges.length}</p>
               <p><strong>Allocation deltas:</strong> {pairComparison.comparison.allocationChanges.length}</p>
