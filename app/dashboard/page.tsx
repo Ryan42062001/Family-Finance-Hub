@@ -67,6 +67,39 @@ export default async function DashboardPage() {
 
   return (
     <main className="page-shell">
+      <section className="dashboard-mobile-overview" aria-label="Household overview">
+        <div className="mobile-dashboard-heading"><p className="eyebrow">Household overview</p><h1>{household.name}</h1></div>
+        {completion < 100 ? <Link href="/financial-profile" className="mobile-completion-link">Complete financial profile · {completion}%</Link> : null}
+        <div className="mobile-cashflow-feature">
+          <span>Monthly cash flow</span><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong>
+          <small>{hasCashFlowData ? "After recurring expenses, debt minimums and employee retirement contributions. This is not necessarily all discretionary money." : "Add active income and expenses to calculate cash flow."}</small>
+        </div>
+        <div className="mobile-summary-grid">
+          <div><span>Net worth</span><strong>{money(summary.netWorth)}</strong></div>
+          <div><span>Savings rate</span><strong>{hasCashFlowData ? percent : "—"}</strong></div>
+          <div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div>
+          <div><span>Financial health</span><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><small>{health.status}</small></div>
+        </div>
+        <div className="mobile-overview-actions"><Link href="/financial-profile">Edit profile</Link><Link href="/planning">Planning tools</Link></div>
+        <div className="mobile-dashboard-details">
+          <details><summary><strong>Accounts</strong><span>{accounts.length} saved</span></summary>
+            <div className="mobile-overview-records">{accounts.length ? accounts.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.balance))}</b></p>) : <p className="empty-state">No accounts yet.</p>}<Link href="/financial-profile#accounts">View accounts</Link></div>
+          </details>
+          <details><summary><strong>Expenses</strong><span>{money(summary.monthlyExpenses)}/mo</span></summary>
+            <div className="mobile-overview-records">{expenseCategories.length ? expenseCategories.slice(0,5).map(item => <p key={item.category}><span>{label(item.category)}</span><b>{money(item.amount)}</b></p>) : <p className="empty-state">No expenses yet.</p>}<Link href="/financial-profile#expenses">View expenses</Link></div>
+          </details>
+          <details><summary><strong>Debt</strong><span>{money(totalDebt)}</span></summary>
+            <div className="mobile-overview-records">{debts.length ? debts.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.current_balance))}</b></p>) : <p className="empty-state">No debts recorded.</p>}<Link href="/financial-profile#debts">View debts</Link></div>
+          </details>
+          <details><summary><strong>Retirement accounts</strong><span>{retirement.length} saved</span></summary>
+            <div className="mobile-overview-records">{retirement.length ? retirement.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.balance))}</b></p>) : <p className="empty-state">No retirement accounts yet.</p>}<Link href="/financial-profile#retirement">View retirement</Link></div>
+          </details>
+          <details><summary><strong>Goals</strong><span>{goals.length} saved</span></summary>
+            <div className="mobile-overview-records">{goalProgress.length ? goalProgress.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(item.remaining)} remaining</b></p>) : <p className="empty-state">No goals yet.</p>}<Link href="/financial-profile#goals">View goals</Link></div>
+          </details>
+        </div>
+      </section>
+      <div className="dashboard-desktop-view">
       <section className="hero-card">
         <div><p className="eyebrow">Private workspace</p><h1>{household.name}</h1><p className="muted">A household-level view of what you own, owe, earn, spend, save, and are working toward.</p></div>
       </section>
@@ -118,6 +151,7 @@ export default async function DashboardPage() {
           {goalProgress.length ? <div className="goal-list">{goalProgress.slice(0, 5).map((goal) => <div key={goal.id}><div className="bar-label"><span><strong>{goal.name}</strong><small>Priority {goal.priority}</small></span><strong>{Math.round(goal.progress * 100)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${goal.progress * 100}%` }} /></div><small>{money(goal.currentAmount)} saved · {money(goal.remaining)} remaining</small></div>)}</div> : <p className="empty-state">Add goals to track progress toward the things your household cares about.</p>}
         </article>
       </section>
+      </div>
     </main>
   );
 }
