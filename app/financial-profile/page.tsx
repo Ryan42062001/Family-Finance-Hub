@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ProfileSection from "@/components/ProfileSection";
+import ProfileWorkspace from "@/components/ProfileWorkspace";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -92,12 +93,9 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
       </section>
       {message ? <p className="success-banner">{message}</p> : null}
 
-      <nav className="panel profile-jump-nav" aria-label="Financial profile sections">
-        <p className="eyebrow">Jump to a section</p>
-        <div className="hero-actions"><a className="secondary-button" href="#accounts">Accounts</a><a className="secondary-button" href="#income">Income</a><a className="secondary-button" href="#expenses">Expenses</a><a className="secondary-button" href="#debts">Debts</a><a className="secondary-button" href="#retirement">Retirement</a><a className="secondary-button" href="#goals">Goals</a></div>
-      </nav>
 
-      <div className="form-section-grid">
+
+      <ProfileWorkspace>
         <ProfileSection id="accounts" title="Cash & accounts" count={accounts.data?.length ?? 0} description={money((accounts.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
           <details className="profile-add-disclosure"><summary>Add account</summary><form className="data-form" action={addAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Checking" /></label>
@@ -152,7 +150,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{goals.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_amount)} / {money(item.target_amount)}</small></span><RecordActions kind="goal" id={item.id}><form className="data-form edit-form" action={updateGoal}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" defaultValue={item.target_amount} required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" defaultValue={item.current_amount} required /></label><label>Target date<input name="target_date" type="date" defaultValue={item.target_date ?? ""} /></label><label>Priority<select name="priority" defaultValue={String(item.priority)}><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields defaults={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(goals.data?.length ?? 0) === 0 ? <p className="empty-state">No goals saved yet. Select Add to begin.</p> : null}
         </ProfileSection>
-      </div>
+      </ProfileWorkspace>
     </main>
   );
 }
