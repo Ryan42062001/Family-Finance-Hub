@@ -218,3 +218,142 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
 @media(max-width:360px){
   .scenario-mobile-glance strong{font-size:.99rem}
 }
+
+
+/* Desktop FFH-P01 command center: mobile selectors/disclosures keep their existing breakpoints. */
+@media(min-width:761px){
+  .dashboard-desktop-hero{padding:1.05rem 1.5rem;border-radius:16px;margin-bottom:.7rem}
+  .dashboard-desktop-hero h1{font-size:1.85rem;max-width:none;margin:.1rem 0}
+  .dashboard-desktop-view>.dashboard-notice{padding:.7rem 1rem}
+  .dashboard-metrics{gap:.7rem;margin:.7rem 0}
+  .dashboard-metrics .metric-card{padding:.88rem 1rem;min-width:0}
+  .dashboard-metrics .metric-card strong{font-size:clamp(1.2rem,2.3vw,1.75rem);overflow-wrap:anywhere;margin:.25rem 0}
+  .dashboard-metrics .metric-card span{font-size:.72rem}
+  .dashboard-secondary-details{margin-top:.85rem;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+  .dashboard-secondary-details>summary{list-style:none;cursor:pointer;color:var(--forest-800);font-weight:800;padding:1rem 1.15rem;min-height:52px}
+  .dashboard-secondary-details>summary::-webkit-details-marker{display:none}
+  .dashboard-secondary-details>summary:after{content:"⌄";float:right}
+  .dashboard-secondary-details[open]>summary:after{content:"⌃"}
+  .dashboard-secondary-details>.dashboard-grid{padding:.4rem .9rem 1rem;margin-top:0}
+  .dashboard-secondary-details .dashboard-panel{padding:1rem}
+  .dashboard-secondary-details .dashboard-list b,.dashboard-secondary-details .bar-label>strong{white-space:normal;text-align:right;overflow-wrap:anywhere}
+  .profile-desktop-workspace{display:grid;grid-template-columns:minmax(195px,230px) minmax(0,1fr);gap:1rem;align-items:start}
+  .profile-workspace-navigation{position:sticky;top:90px;margin:0;padding:1.1rem;min-width:0}
+  .profile-workspace-navigation h2{font-size:1.08rem;margin:.25rem 0 .8rem}
+  .profile-workspace-navigation p.muted{font-size:.76rem;margin-top:.9rem}
+  .profile-workspace-links{display:grid;gap:.2rem}
+  .profile-workspace-links a{display:flex;justify-content:space-between;gap:.5rem;align-items:center;padding:.55rem .7rem;min-height:44px;border-radius:9px;font-size:.88rem;font-weight:750}
+  .profile-workspace-links a[aria-current=location]{background:var(--sage-100);color:var(--forest-800)}
+  .profile-workspace-links a:hover{background:var(--surface-soft)}
+  .profile-workspace-panels{grid-template-columns:minmax(0,1fr)}
+  .profile-workspace-panels>.desktop-profile-inactive{display:none}
+  .profile-workspace-panels>.profile-section-panel{padding:.9rem}
+  .profile-section-panel .profile-section-disclosure>summary{padding:.35rem .2rem .85rem}
+  .profile-section-panel .profile-section-heading{flex-wrap:wrap}
+  .profile-section-panel .profile-section-body{padding-top:.25rem}
+  .profile-workspace-panels .record-list{margin-top:.5rem}
+  .profile-workspace-panels .record-row{padding:.75rem .2rem}
+  .profile-workspace-panels .record-row small{overflow-wrap:anywhere}
+  .profile-workspace-panels .record-actions{flex-wrap:wrap}
+  .profile-workspace-panels .edit-panel[open]{width:min(640px,100%);min-width:0}
+  .profile-workspace-panels .data-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .planning-desktop-workspace{display:grid;grid-template-columns:minmax(180px,220px) minmax(0,1fr);gap:1rem;align-items:start}
+  .planning-workspace-selector{padding:1rem;position:sticky;top:90px}
+  .planning-workspace-selector h2{font-size:1.12rem;margin:.4rem 0}
+  .planning-workspace-selector p.muted{font-size:.75rem}
+  .planning-workspace-links{display:grid;gap:.22rem;margin-top:.8rem}
+  .planning-workspace-links button,.planning-workspace-links a{display:flex;align-items:center;min-width:0;min-height:44px;padding:.55rem .7rem;border:0;border-radius:9px;background:transparent;color:var(--forest-800);box-shadow:none;text-align:left;font-size:.87rem;font-weight:750;line-height:1.3}
+  .planning-workspace-links button:hover,.planning-workspace-links a:hover{background:var(--sage-50);transform:none}
+  .planning-workspace-links button[aria-pressed=true]{background:var(--sage-100);box-shadow:inset 3px 0 var(--teal-600)}
+  .planning-workspace-canvas{min-width:0}
+  .planning-workspace-canvas>.mobile-planning-tool{display:none}
+  .planning-workspace-canvas>.mobile-planning-tool.mobile-active-tool{display:block}
+  .planning-workspace-canvas .calculator-pair{grid-template-columns:1fr 1fr;gap:.75rem;margin:0}
+  .planning-workspace-canvas .calculator-pair .panel{padding:1rem;min-width:0}
+  .planning-workspace-canvas .calculator-pair .data-form{grid-template-columns:minmax(0,1fr);padding:.55rem;gap:.55rem}
+  .planning-workspace-canvas .calculator-pair .split-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .planning-workspace-canvas .calculator-pair .split-summary strong{overflow-wrap:anywhere}
+  .planning-workspace-canvas .calculator-pair .progress-track{margin-top:1rem}
+  .planning-workspace-canvas .calculator-pair .calculator-input-disclosure>summary{padding:.25rem .1rem;min-height:34px}
+  .scenario-lab-page>.hero-card{padding:1.2rem 1.6rem}
+  .scenario-lab-page>.hero-card h1{font-size:2rem}
+  .scenario-lab-page>.dashboard-notice{padding:.6rem 1rem}
+  .scenario-toolbar{padding:.5rem 0;align-items:center}
+  .scenario-toolbar h2{font-size:1.25rem}
+  .scenario-overview,.scenario-draft-card{min-width:0}
+  .scenario-overview{padding:1rem}
+  .scenario-overview h2{font-size:1.3rem}
+  .scenario-comparison-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}
+  .scenario-result-card{padding:1rem}
+  .scenario-capacity strong{font-size:clamp(1.35rem,2vw,1.85rem);overflow-wrap:anywhere}
+  .scenario-delta span{font-size:.9rem;padding:.45rem .75rem}
+  .scenario-mobile-glance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.65rem .9rem;margin-bottom:.75rem;border:1px solid var(--line);border-radius:12px;background:var(--sage-50)}
+  .scenario-mobile-glance>div{display:grid;gap:.15rem}
+  .scenario-mobile-glance>div span{color:var(--muted);font-size:.75rem}
+  .scenario-mobile-glance>div strong{font-size:1.3rem;overflow-wrap:anywhere}
+  .scenario-mobile-glance p{grid-column:1/-1;font-size:.88rem;font-weight:750;margin:.1rem 0}
+  .scenario-mobile-glance .scenario-mobile-warning{padding:.65rem;background:var(--amber-100);border-radius:9px}
+  .scenario-draft-card:only-child .scenario-composer{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scenario-assumption-changes{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(min-width:1180px){
+  .scenario-workspace{grid-template-columns:minmax(315px,.82fr) minmax(0,1.6fr);gap:1rem}
+  .scenario-toolbar{grid-column:1/-1}
+  .scenario-drafts{grid-column:1;grid-template-columns:minmax(0,1fr);align-self:start;gap:.7rem}
+  .scenario-draft-card:only-child{grid-column:auto}
+  .scenario-draft-card:only-child .scenario-composer{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scenario-overview{grid-column:2;grid-row:2;align-self:start}
+  .scenario-announcement{grid-column:1/-1}
+  .scenario-workspace>section[aria-label="Scenario-to-scenario comparison"]{grid-column:1/-1}
+}
+@media(min-width:1440px){
+  .dashboard-desktop-view,.scenario-lab-page,.page-shell:has(>.planning-desktop-workspace){max-width:1450px}
+  .scenario-workspace{grid-template-columns:minmax(355px,.76fr) minmax(0,1.7fr)}
+}
+/* The visualization's SVG scales as one container, never as a clipped page-level element. */
+.monthly-flow-panel{margin:.85rem 0;padding:1.1rem;min-width:0}
+.money-flow-head{display:flex;justify-content:space-between;align-items:start;gap:1.5rem}
+.money-flow-head h2{margin:.25rem 0 .3rem}
+.money-flow-head .muted{font-size:.82rem;margin:.2rem 0 .4rem;max-width:75ch}
+.money-flow-total{display:grid;text-align:right;flex:0 0 auto}
+.money-flow-total small{color:var(--muted);font-size:.72rem;font-weight:750}
+.money-flow-total strong{font-size:1.65rem;color:var(--forest-800);font-variant-numeric:tabular-nums}
+.money-flow-canvas{width:100%;min-width:0;overflow:hidden}
+.money-flow-canvas svg{width:100%;height:auto;max-height:450px;display:block}
+.money-flow-svg-heading{font-size:18px;font-weight:750;fill:#64756b}
+.money-flow-svg-label{font-size:15px;font-weight:700;fill:#243d32}
+.money-flow-svg-value{font-size:17px;font-weight:800;fill:#102a24}
+.money-flow-canvas path{transition:opacity .15s;cursor:pointer}
+.money-flow-canvas path:focus-visible{outline:none;filter:drop-shadow(0 0 4px #187b79)}
+.money-flow-dim{opacity:.32}
+.money-flow-explainer{max-width:90ch;margin:.1rem 0 .7rem;color:var(--muted);font-size:.8rem}
+.money-flow-shortfall{margin:.6rem 0;font-size:.86rem}
+.money-flow-detail{min-height:40px;padding:.6rem .8rem;background:var(--sage-50);border-radius:10px;font-size:.84rem;color:var(--forest-800)}
+.money-flow-actions{display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.6rem}
+.money-flow-actions>*{min-height:44px;font-size:.8rem}
+.money-flow-category-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin-top:.6rem}
+.money-flow-category-lists>div{padding:.7rem;border:1px solid var(--line);border-radius:12px;min-width:0}
+.money-flow-category-lists h3{font-size:.95rem;margin:.2rem 0}
+.money-flow-category-lists ul{padding:0;margin:0;list-style:none}
+.money-flow-category-lists li{display:flex;gap:.6rem;justify-content:space-between;border-top:1px solid var(--line);padding:.5rem 0;font-size:.82rem}
+.money-flow-category-lists li strong{white-space:nowrap}
+.money-flow-table-disclosure{margin-top:.7rem}
+.money-flow-table-disclosure>summary{cursor:pointer;font-size:.86rem;font-weight:800;color:var(--forest-800);padding:.55rem}
+.money-flow-table-wrap{max-width:100%;overflow-x:auto}
+.money-flow-table-wrap table{width:100%;border-collapse:collapse;font-size:.83rem}
+.money-flow-table-wrap caption{text-align:left;color:var(--muted);padding:.3rem}
+.money-flow-table-wrap th,.money-flow-table-wrap td{padding:.48rem;text-align:left;border-bottom:1px solid var(--line)}
+.money-flow-table-wrap td{font-variant-numeric:tabular-nums}
+@media(min-width:761px) and (max-width:1050px){
+  .planning-desktop-workspace{grid-template-columns:minmax(160px,180px) minmax(0,1fr)}
+  .planning-workspace-canvas .calculator-pair{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .profile-desktop-workspace{display:block}
+  .profile-workspace-navigation{display:none}
+  .profile-workspace-panels{display:grid;grid-template-columns:1fr}
+  .profile-workspace-panels>.desktop-profile-inactive{display:block}
+  .planning-desktop-workspace{display:block}
+  .planning-workspace-selector{display:none}
+  .planning-workspace-canvas{display:block}
+}
