@@ -156,21 +156,24 @@ test("one root-mounted, nonpassive capture listener guards every native numeric 
   assert.doesNotMatch(handler+component,/localStorage|sessionStorage|\.insert\(|\.update\(/);
 });
 
-test("Financial Profile, Planning, Paycheck, Scenario Lab and onboarding still use native number inputs", () => {
-  const paths=[
+test("native-number pages are globally covered; Paycheck and onboarding preserve their safe input types", () => {
+  const nativeNumericPaths=[
     "../../app/financial-profile/page.tsx",
     "../../components/planning/PlanningCalculators.tsx",
-    "../../components/planning/PaycheckPlanner.tsx",
     "../../components/planning/DebtPayoffCalculator.tsx",
     "../../components/planning/RetirementPacingCalculator.tsx",
     "../../app/scenario-lab/ScenarioLabWorkspace.tsx",
-    "../../app/scenario-lab/AssumptionComposer.tsx",
-    "../../app/onboarding/page.tsx",
+    "../../app/scenario-lab/SpecializedScenarioControls.tsx",
   ];
-  for(const path of paths) {
-    const page=source(path);
-    assert.match(page,/type="number"|type:\s*"number"/,`No numeric input found: ${path}`);
+  for (const path of nativeNumericPaths) {
+    assert.match(source(path), /type="number"/, `Expected native numeric input: ${path}`);
   }
+  const paycheck=source("../../components/planning/PaycheckPlanner.tsx");
+  assert.match(paycheck, /type="text" inputMode="decimal"/,
+    "Paycheck already uses decimal text inputs, which do not have wheel stepping");
+  const onboarding=source("../../app/onboarding/page.tsx");
+  assert.doesNotMatch(onboarding, /type="number"/,
+    "Onboarding currently has no numeric input, and remains covered by the root guard if one is introduced");
 });
 
 test.after(() => {
