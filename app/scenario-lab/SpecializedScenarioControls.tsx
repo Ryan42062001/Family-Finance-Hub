@@ -6,6 +6,7 @@ import type { HomePurchaseScenario } from "@/lib/calculations/home-affordability
 import type { VehiclePurchaseScenario } from "@/lib/calculations/vehicle-affordability";
 import type { WindfallInput, WindfallSource, WindfallTaxTreatment } from "@/lib/calculations/money-priority-windfall";
 import type { ScenarioLabBootstrap } from "@/lib/scenarios/scenario-app-contract";
+import { allocationDisplayName } from "@/lib/scenarios/scenario-presentation";
 import {
   removeScenarioPlanOverride,
   setScenarioOperationEventLink,
@@ -173,19 +174,19 @@ export default function SpecializedScenarioControls({
   }
 
   return (
-    <section className="scenario-specialized-controls" aria-label="Specialized Scenario Lab controls">
+    <section className="scenario-specialized-controls" aria-label="Advanced Scenario Lab controls">
       <fieldset className="scenario-composer">
-        <legend>Specialized scenario module</legend>
+        <legend>Optional advanced event</legend>
         <label>
-          Specialized event
+          Event type
           <select value={specializedType} onChange={(event) => chooseSpecialized(event.target.value)}>
             <option value="none">None</option>
             <option value="home">Home purchase</option>
             <option value="vehicle">Vehicle purchase</option>
-            <option value="windfall">Windfall</option>
+            <option value="windfall">Extra Money (One-Time)</option>
           </select>
         </label>
-        <p className="muted">At most one specialized event can be active. Generic assumptions remain separate and are checked by the accepted FFH-042 conflict detector.</p>
+        <p className="muted">Choose at most one advanced event. Family Finance Hub checks it against your other assumptions so the same money or expense is not counted twice.</p>
 
         {draft.specialized?.type === "home" ? (
           <HomeFields scenario={draft.specialized.scenario} goals={bootstrap.entities.goals} onChange={updateHome} />
@@ -200,41 +201,41 @@ export default function SpecializedScenarioControls({
 
       {draft.specialized ? (
         <fieldset className="scenario-composer">
-          <legend>Generic-event ownership while specialized mode is active</legend>
-          <p className="muted">Cash inflows, cash uses, and synthetic expenses need an explicit independent event ID when they are not part of the specialized event. The server still makes the final conflict decision.</p>
+          <legend>Keep separate one-time changes distinct</legend>
+          <p className="muted">If a one-time cash change is unrelated to the advanced event, give it a short separate reference. Family Finance Hub will still verify that the events do not overlap.</p>
           {[...draft.definition.recurringOverrides, ...draft.definition.oneTimeEvents]
             .filter((operation) => ambiguousOperation(operation.type))
             .map((operation) => {
               const link = draft.operationEventLinks.find((item) => item.operationId === operation.id);
               return (
                 <label key={operation.id}>
-                  Independent event ID for {operation.id}
+                  Separate event reference
                   <input
                     value={link?.eventId ?? ""}
                     onChange={(event) => onChange(setScenarioOperationEventLink(draft, operation.id, event.target.value))}
-                    placeholder="Example: independent-event-1"
+                    placeholder="Example: separate-bonus"
                   />
                 </label>
               );
             })}
           {![...draft.definition.recurringOverrides, ...draft.definition.oneTimeEvents].some((operation) => ambiguousOperation(operation.type))
-            ? <p className="muted">No ambiguous generic cash/expense operations are present.</p>
+            ? <p className="muted">No one-time cash changes need a separate reference.</p>
             : null}
         </fieldset>
       ) : null}
 
       <fieldset className="scenario-composer">
-        <legend>Your Plan allocation overrides</legend>
-        <p className="muted">Run the scenario first to load exact stable allocation IDs for the current scenario result. Overrides change allocation choices only; they never change household facts.</p>
+        <legend>Adjust the monthly plan</legend>
+        <p className="muted">Run the scenario first to load its recommended monthly plan. These adjustments change only this scenario comparison; they never change saved household facts.</p>
         {planOptions.length ? (
           <>
             <label>
-              Allocation
+              Plan item
               <select value={planAllocationId} onChange={(event) => setPlanAllocationId(event.target.value)}>
                 <option value="">Choose allocation…</option>
                 {planOptions.map((allocation) => (
                   <option key={allocation.allocationId} value={allocation.allocationId}>
-                    {allocation.title} · {allocation.category} · {allocation.allocationId}
+                    {allocation.title} · {allocationDisplayName(allocation.allocationId, bootstrap.entities) ?? allocation.category.replaceAll("_", " ")}
                   </option>
                 ))}
               </select>
@@ -245,10 +246,10 @@ export default function SpecializedScenarioControls({
             </label>
             <button type="button" onClick={addPlanOverride}>Add or update Your Plan override</button>
           </>
-        ) : <p className="muted">No current allocation IDs are available yet.</p>}
+        ) : <p className="muted">Run this scenario to see adjustable monthly plan items.</p>}
         {draft.yourPlanOverrides.map((override) => (
           <div className="scenario-assumption-row" key={override.allocationId}>
-            <span>{override.allocationId}: {override.monthlyAmount.toFixed(2)} USD/month</span>
+            <span>{planOptions.find((item) => item.allocationId === override.allocationId)?.title ?? "Plan item"}: {override.monthlyAmount.toFixed(2)} USD/month <details className="scenario-diagnostics"><summary>Technical details</summary><code>{override.allocationId}</code></details></span>
             <button type="button" className="secondary-button" onClick={() => onChange(removeScenarioPlanOverride(draft, override.allocationId))}>Remove override</button>
           </div>
         ))}
@@ -333,9 +334,9 @@ function HomeFields({
       <label>Planned near-term repairs (USD)<input type="number" min="0" step="0.01" value={scenario.plannedNearTermRepairs} onChange={(e) => onChange({ ...scenario, plannedNearTermRepairs: numberOr(e.target.value, 0) })} /></label>
       <label>Current housing cost (USD/month, optional)<input type="number" min="0" step="0.01" value={scenario.currentHousingMonthlyCost ?? ""} onChange={(e) => onChange({ ...scenario, currentHousingMonthlyCost: nullableNumber(e.target.value) })} /></label>
       <label><input type="checkbox" checked={scenario.currentHousingCostDisappears} onChange={(e) => onChange({ ...scenario, currentHousingCostDisappears: e.target.checked })} /> Current housing cost disappears after purchase</label>
-      <label>Related goal stable ID
+      <label>Related financial goal
         <select value={scenario.relatedGoalId ?? ""} onChange={(e) => onChange({ ...scenario, relatedGoalId: e.target.value || null })}>
-          <option value="">None</option>{goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.label} · {goal.id}</option>)}
+          <option value="">None</option>{goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.label}</option>)}
         </select>
       </label>
 
@@ -397,9 +398,9 @@ function VehicleFields({
       <label>Registration/tax change (USD/month, optional)<input type="number" step="0.01" value={scenario.monthlyRegistrationTaxChange ?? ""} onChange={(e) => onChange({ ...scenario, monthlyRegistrationTaxChange: nullableNumber(e.target.value) })} /></label>
       <label>Parking/tolls change (USD/month, optional)<input type="number" step="0.01" value={scenario.monthlyParkingTollsChange ?? ""} onChange={(e) => onChange({ ...scenario, monthlyParkingTollsChange: nullableNumber(e.target.value) })} /></label>
       <label>Core need amount (USD, optional)<input type="number" min="0" step="0.01" value={scenario.coreNeedAmount ?? ""} onChange={(e) => onChange({ ...scenario, coreNeedAmount: nullableNumber(e.target.value) })} /></label>
-      <label>Related goal stable ID
+      <label>Related financial goal
         <select value={scenario.relatedGoalId ?? ""} onChange={(e) => onChange({ ...scenario, relatedGoalId: e.target.value || null })}>
-          <option value="">None</option>{goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.label} · {goal.id}</option>)}
+          <option value="">None</option>{goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.label}</option>)}
         </select>
       </label>
     </>
@@ -411,13 +412,13 @@ function WindfallFields({ input, onChange }: { input: WindfallInput; onChange: (
   const treatments: WindfallTaxTreatment[] = ["known_non_taxable", "known_taxable_liability_provided", "uncertain", "not_applicable"];
   return (
     <>
-      <label>Gross windfall amount (USD)<input type="number" min="0" step="0.01" value={input.amount} onChange={(e) => onChange({ ...input, amount: numberOr(e.target.value, 0) })} /></label>
-      <label>Windfall source<select value={input.source} onChange={(e) => onChange({ ...input, source: e.target.value as WindfallSource })}>{sources.map((source) => <option key={source} value={source}>{source.replaceAll("_", " ")}</option>)}</select></label>
-      <label>Tax treatment<select value={input.taxTreatment ?? "uncertain"} onChange={(e) => onChange({ ...input, taxTreatment: e.target.value as WindfallTaxTreatment })}>{treatments.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
-      <label>Known tax liability (USD, optional)<input type="number" min="0" step="0.01" value={input.knownTaxLiability ?? ""} onChange={(e) => onChange({ ...input, knownTaxLiability: nullableNumber(e.target.value) })} /></label>
+      <label>How much extra money are you receiving? (USD)<input type="number" min="0" step="0.01" value={input.amount} onChange={(e) => onChange({ ...input, amount: numberOr(e.target.value, 0) })} /></label>
+      <label>Where is the money coming from?<select value={input.source} onChange={(e) => onChange({ ...input, source: e.target.value as WindfallSource })}>{sources.map((source) => <option key={source} value={source}>{source.replaceAll("_", " ")}</option>)}</select></label>
+      <label>Tax status<select value={input.taxTreatment ?? "uncertain"} onChange={(e) => onChange({ ...input, taxTreatment: e.target.value as WindfallTaxTreatment })}>{treatments.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
+      <label>Known taxes owed (USD, optional)<input type="number" min="0" step="0.01" value={input.knownTaxLiability ?? ""} onChange={(e) => onChange({ ...input, knownTaxLiability: nullableNumber(e.target.value) })} /></label>
       <label>Known other liability (USD, optional)<input type="number" min="0" step="0.01" value={input.knownOtherLiability ?? ""} onChange={(e) => onChange({ ...input, knownOtherLiability: nullableNumber(e.target.value) })} /></label>
       <label>Restricted amount (USD, optional)<input type="number" min="0" step="0.01" value={input.restrictedAmount ?? ""} onChange={(e) => onChange({ ...input, restrictedAmount: nullableNumber(e.target.value) })} /></label>
-      <label>Earmarked amount (USD, optional)<input type="number" min="0" step="0.01" value={input.earmarkedAmount ?? ""} onChange={(e) => onChange({ ...input, earmarkedAmount: nullableNumber(e.target.value) })} /></label>
+      <label>Money already set aside (USD, optional)<input type="number" min="0" step="0.01" value={input.earmarkedAmount ?? ""} onChange={(e) => onChange({ ...input, earmarkedAmount: nullableNumber(e.target.value) })} /></label>
       <label>Planning note (optional)<input value={input.note ?? ""} onChange={(e) => onChange({ ...input, note: e.target.value || null })} /></label>
     </>
   );

@@ -375,13 +375,13 @@ export function scenarioLabBootstrap(engine: MoneyPriorityEngineResult): Scenari
     baseline,
     baselineSummary: scenarioEngineSummary(engine),
     entities: {
-      people: engine.snapshot.people.map((item) => ({ id: item.id, label: item.displayName })),
-      income: engine.snapshot.income.map((item) => ({ id: item.id, label: item.name })),
-      expenses: engine.snapshot.expenses.map((item) => ({ id: item.id, label: item.name })),
-      debts: engine.snapshot.debts.map((item) => ({ id: item.id, label: item.name })),
-      goals: engine.snapshot.goals.map((item) => ({ id: item.id, label: item.name })),
-      retirementAccounts: engine.snapshot.retirementAccounts.map((item) => ({ id: item.id, label: item.name })),
-      insuranceExposures: engine.snapshot.insuranceExposures.map((item) => ({ id: item.id, label: item.name })),
+      people: engine.snapshot.people.map((item) => ({ id: item.id, label: item.displayName, baseline: { plannedRetirementAge: item.plannedRetirementAge } })),
+      income: engine.snapshot.income.map((item) => ({ id: item.id, label: item.name, baseline: { monthlyTakeHomeAmount: item.monthlyTakeHomeAmount } })),
+      expenses: engine.snapshot.expenses.map((item) => ({ id: item.id, label: item.name, baseline: { monthlyAmount: item.monthlyAmount } })),
+      debts: engine.snapshot.debts.map((item) => ({ id: item.id, label: item.name, baseline: { balance: item.balance, minimumPayment: item.minimumPayment, annualInterestRate: item.annualInterestRate } })),
+      goals: engine.snapshot.goals.map((item) => ({ id: item.id, label: item.name, baseline: { targetAmount: item.targetAmount, currentAmount: item.currentAmount, plannedMonthlyContribution: item.plannedMonthlyContribution } })),
+      retirementAccounts: engine.snapshot.retirementAccounts.map((item) => ({ id: item.id, label: item.name, baseline: { balance: item.balance, monthlyEmployeeContribution: item.monthlyEmployeeContribution, annualContributionTarget: item.annualContributionTarget } })),
+      insuranceExposures: engine.snapshot.insuranceExposures.map((item) => ({ id: item.id, label: item.name, baseline: { deductibleAmount: item.deductibleAmount, familyDeductibleAmount: item.familyDeductibleAmount, outOfPocketMax: item.outOfPocketMax } })),
     },
   };
 }

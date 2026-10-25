@@ -38,9 +38,9 @@ export default async function ScenarioLabPage() {
         </div>
       </section>
 
-      <section className="dashboard-notice" aria-label="Ephemeral Scenario Lab notice">
+      <section className="dashboard-notice" aria-label="Temporary Scenario Lab notice">
         <div>
-          <strong>Ephemeral by design</strong>
+          <strong>Temporary by design</strong>
           <p>
             Drafts and results live only in this browser page. Refreshing or leaving can discard them. Nothing here writes assumptions back to your profile.
           </p>

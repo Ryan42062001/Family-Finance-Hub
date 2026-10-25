@@ -33,6 +33,7 @@ import {
   allocationDisplayName,
   capacityChange,
   refreshStateLabel,
+  scenarioOperationPresentation,
   scenarioStatusLabel,
 } from "@/lib/scenarios/scenario-presentation";
 
@@ -119,25 +120,6 @@ function removeOperation(draft: ScenarioDraft, operationId: string): ScenarioDra
     ...next,
     operationEventLinks: draft.operationEventLinks.filter((link) => link.operationId !== operationId),
   };
-}
-
-function operationSummary(operation: ScenarioRecurringOverride | ScenarioOneTimeEvent): string {
-  switch (operation.type) {
-    case "income": return `Income ${operation.incomeId}`;
-    case "synthetic_income": return `Additional income: ${operation.name}`;
-    case "expense": return `Expense ${operation.expenseId}`;
-    case "synthetic_expense": return `${operation.category}: ${operation.name}`;
-    case "debt": return `Debt ${operation.debtId}`;
-    case "goal": return `Goal ${operation.goalId}`;
-    case "retirement_account": return `Retirement account ${operation.accountId}`;
-    case "person_retirement_age": return `Retirement age for ${operation.personId}`;
-    case "insurance_exposure": return `Insurance exposure ${operation.exposureId}`;
-    case "planning_preferences": return "Planning preferences";
-    case "cash_inflow": return `Cash inflow: ${operation.label}`;
-    case "cash_use": return operation.purpose === "medical" ? "Cash medical expense" : "Generic cash use";
-    case "cash_funded_debt_payoff": return `Cash-funded payoff: ${operation.debtId}`;
-    case "goal_completion": return `Goal completion: ${operation.goalId}`;
-  }
 }
 
 function money(value: number | null | undefined): string {
@@ -372,7 +354,8 @@ function BaselineCard({ bootstrap }: { bootstrap: ScenarioLabBootstrap }) {
       <span className="status-pill">{scenarioStatusLabel(feasibility.status)}</span>
       <div className="scenario-capacity"><span>Available for the monthly plan</span><strong>{money(feasibility.monthlyPlanCapacity)}</strong></div>
       <p><strong>Protected monthly need:</strong> {money(feasibility.protectedMonthlyFundingNeed)}</p>
-      <p className="muted">As of {bootstrap.baseline.policyBasis.asOfDate} · {bootstrap.baseline.fingerprint.slice(0, 24)}…</p>
+      <p className="muted">Current profile as of {bootstrap.baseline.policyBasis.asOfDate}.</p>
+      <details className="scenario-diagnostics"><summary>Technical details</summary><code>{bootstrap.baseline.fingerprint}</code></details>
     </article>
   );
 }
@@ -381,10 +364,10 @@ function ScenarioResultCard({ draft, bootstrap }: { draft: ScenarioDraft; bootst
   if (draft.specializedResult) {
     return (
       <article className="scenario-result-card">
-        <p className="eyebrow">Hypothetical specialized scenario</p>
+        <p className="eyebrow">Hypothetical advanced scenario</p>
         <h3>{draft.title}</h3>
         <span className="status-pill">{scenarioStatusLabel(draft.specializedResult.status)}</span>
-        <SpecializedScenarioResult result={draft.specializedResult} />
+        <SpecializedScenarioResult result={draft.specializedResult} entities={bootstrap.entities} />
         <p className="muted">Hypothetical only · never applied to your profile.</p>
       </article>
     );
@@ -428,7 +411,7 @@ function ScenarioResultCard({ draft, bootstrap }: { draft: ScenarioDraft; bootst
           {result.comparison.missingDataAdded.length ? <p><strong>Missing data added:</strong> {result.comparison.missingDataAdded.join("; ")}</p> : null}
         </div>
       ) : null}
-      {result.issues.length ? <ul>{result.issues.map((item) => <li key={item.path + item.message}>{item.path}: {item.message}</li>)}</ul> : null}
+      {result.issues.length ? <div role="alert"><h4>Check these scenario details</h4><ul>{result.issues.map((item) => <li key={item.path + item.message}>{item.message}<details className="scenario-diagnostics"><summary>Technical details</summary><code>{item.path} · {item.code}</code></details></li>)}</ul></div> : null}
       <p className="muted">Hypothetical only · never applied to your profile.</p>
     </article>
   );
@@ -534,7 +517,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
           },
         });
       }
-      announce(`${draft.title} rebase finished with ${result.status.replaceAll("_", " ")}.`);
+      announce(`${draft.title} update finished: ${scenarioStatusLabel(result.status)}.`);
     });
   }
 
@@ -553,7 +536,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
         <div>
           <p className="eyebrow">Draft lifecycle</p>
           <h2>Build up to two what-if scenarios</h2>
-          <p className="muted">Run only when you choose. Edits stay in memory and never change saved household facts.</p>
+          <p className="muted">Run only when you choose. Draft changes stay on this page and never change saved household facts.</p>
         </div>
         <div className="hero-actions">
           <button type="button" onClick={createDraft} disabled={drafts.length >= 2 || isPending}>Create scenario</button>
@@ -567,13 +550,13 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
           <section className="panel scenario-draft-card" key={draft.localId}>
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">{draft.dirty ? "Unsaved in-memory changes" : "Ephemeral draft"}</p>
+                <p className="eyebrow">{draft.dirty ? "Draft changes not yet run" : "Temporary scenario"}</p>
                 <label>
                   Scenario title
                   <input value={draft.title} onChange={(event) => updateDraft(editScenarioDraft(draft, draft.definition, event.target.value))} />
                 </label>
               </div>
-              <span className="scenario-status">{(draft.specializedResult?.status ?? draft.result?.status)?.replaceAll("_", " ") ?? "not run"}</span>
+              <span className="scenario-status">{scenarioStatusLabel(draft.specializedResult?.status ?? draft.result?.status ?? "not_run")}</span>
             </div>
 
             <AssumptionComposer draft={draft} bootstrap={baseline} onChange={updateDraft} />
@@ -582,22 +565,24 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
               <div className="scenario-advanced-content"><SpecializedScenarioControls draft={draft} bootstrap={baseline} onChange={updateDraft} /></div>
             </details>
 
-            <div className="scenario-assumptions">
+            <div className="scenario-assumptions" aria-label={`${draft.title} assumptions`}>
               <h3>Assumptions</h3>
               {draft.definition.recurringOverrides.length + draft.definition.oneTimeEvents.length === 0
                 ? <p className="muted">No changes yet. A no-op scenario is allowed.</p>
-                : [...draft.definition.recurringOverrides, ...draft.definition.oneTimeEvents].map((operation) => (
-                    <div className="scenario-assumption-row" key={operation.id}>
-                      <span>{operationSummary(operation)}</span>
-                      <button type="button" className="secondary-button" onClick={() => updateDraft(removeOperation(draft, operation.id))}>Remove</button>
-                    </div>
-                  ))}
+                : [...draft.definition.recurringOverrides, ...draft.definition.oneTimeEvents].map((operation) => {
+                    const presentation = scenarioOperationPresentation(operation, baseline.entities);
+                    return <article className="scenario-assumption-card" key={operation.id}>
+                      <div className="scenario-assumption-heading"><div><p className="eyebrow">{presentation.category}</p><h4>{presentation.title}</h4></div><button type="button" className="secondary-button" onClick={() => updateDraft(removeOperation(draft, operation.id))}>Remove</button></div>
+                      {presentation.changes.length ? <div className="scenario-assumption-changes">{presentation.changes.map((change) => <div key={change.label}><span>{change.label}</span><strong>{change.before} → {change.after}</strong>{change.delta ? <small>{change.delta}</small> : null}</div>)}</div> : <p className="muted">This assumption changes non-financial planning details.</p>}
+                      <details className="scenario-diagnostics"><summary>Technical details</summary><code>{presentation.diagnosticIds.join(" · ")}</code></details>
+                    </article>;
+                  })}
             </div>
 
             <div className="hero-actions">
               <button type="button" onClick={() => runDraft(draft)} disabled={isPending}>{draft.result ? "Rerun" : "Run scenario"}</button>
               {draft.result?.status === "stale_baseline" || draft.specializedResult?.status === "stale_baseline"
-                ? <button type="button" className="secondary-button" onClick={() => rebaseDraft(draft)} disabled={isPending}>Rebase explicitly</button>
+                ? <button type="button" className="secondary-button" onClick={() => rebaseDraft(draft)} disabled={isPending}>Update to latest profile</button>
                 : null}
               <button type="button" className="secondary-button" onClick={() => updateDraft(resetScenarioDraft(draft, baseline.baseline))} disabled={isPending}>Reset</button>
               <button type="button" className="secondary-button" onClick={() => {
