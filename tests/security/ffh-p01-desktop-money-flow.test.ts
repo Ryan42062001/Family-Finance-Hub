@@ -111,6 +111,11 @@ test("desktop workspace selectors coexist with protected mobile controls and no 
   assert.match(planning, /className="mobile-planning-selector"/);
   assert.match(planning, /aria-pressed=\{activeTool === id\}/);
   assert.match(scenario, /scenario-mobile-glance/);
+  const desktopNav = read("../../components/DesktopNavLink.tsx");
+  const header = read("../../components/AppHeader.tsx");
+  assert.match(desktopNav, /aria-current=\{selected \? "page"/);
+  assert.match(header, /<DesktopNavLink key=\{href\}/);
+  assert.match(styles, /\.site-nav a\[aria-current=page\]/);
   assert.match(styles, /@media\(max-width:760px\)/);
   assert.match(styles, /\.profile-workspace-panels>\.desktop-profile-inactive\{display:block\}/);
   assert.match(styles, /\.planning-workspace-canvas>\.mobile-planning-tool\.mobile-active-tool\{display:block\}/);
