@@ -42,7 +42,6 @@ export function sankeyRibbon(x0: number, x1: number, y0: number, y1: number, hei
   const bend1 = x0 + (x1 - x0) * 0.55;
   return `M ${x0} ${y0} C ${bend0} ${y0} ${bend1} ${y1} ${x1} ${y1} L ${x1} ${y1 + height} C ${bend1} ${y1 + height} ${bend0} ${y0 + height} ${x0} ${y0 + height} Z`;
 }
-const positive = (n: number) => Number.isFinite(n) && n > 0;
 const floorPx = 2.25;
 const categoryGap = 38;
 const groupGap = 31;
