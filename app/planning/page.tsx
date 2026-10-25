@@ -60,7 +60,7 @@ export default async function PlanningPage() {
         <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
       </section>
 
-      <section className="panel">
+      <section className="panel planning-directory-desktop">
         <p className="eyebrow">All planning tools</p>
         <h2>Choose a calculator</h2>
         <div className="hero-actions">

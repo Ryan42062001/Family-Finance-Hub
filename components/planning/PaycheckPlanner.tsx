@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ResponsiveDisclosure from "@/components/ResponsiveDisclosure";
 import { calculatePaycheckPlan, monthlyAmountToPerPaycheck } from "@/lib/calculations/paycheck-planner";
 import { paycheckInputDisplay } from "@/lib/formatting/financial-presentation";
 
@@ -100,10 +101,10 @@ export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
   };
 
   return (
-    <section className="panel-grid">
-      <article className="panel">
+    <section className="panel-grid calculator-pair">
+      <article className="panel calculator-input-panel">
         <p className="eyebrow">Paycheck planner</p>
-        <h2>Give each paycheck a job</h2>
+        <h2>Give each paycheck a job</h2><ResponsiveDisclosure className="calculator-input-disclosure" summary={<strong>Edit assumptions</strong>}>
         <p className="muted">Saved monthly household data is converted to your selected pay frequency. Displayed inputs are rounded to cents, while untouched profile amounts retain exact conversion precision in the annual plan. Manually edited per-paycheck amounts remain as entered if you change frequency. Changes stay local and never update your saved profile.</p>
         <div className="data-form">
           <label>Pay frequency
@@ -124,7 +125,7 @@ export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
           {numberField("discretionarySpending", "Discretionary spending", discretionarySpending, setDiscretionarySpending)}
           <button type="button" className="secondary-button" onClick={resetProfileDefaults}>Reset profile-based amounts</button>
         </div>
-      </article>
+      </ResponsiveDisclosure></article>
 
       <article className="panel">
         <p className="eyebrow">Paycheck result</p>

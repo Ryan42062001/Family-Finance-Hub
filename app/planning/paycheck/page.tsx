@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MobilePlanningMenu from "@/components/planning/MobilePlanningMenu";
 import { redirect } from "next/navigation";
 import PaycheckPlanner from "@/components/planning/PaycheckPlanner";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +48,8 @@ export default async function PaycheckPlannerPage() {
         </div>
       </section>
 
-      <PaycheckPlanner defaults={defaults} />
+      <MobilePlanningMenu />
+    <PaycheckPlanner defaults={defaults} />
     </main>
   );
 }
