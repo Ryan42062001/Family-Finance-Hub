@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import SpecializedScenarioControls from "./SpecializedScenarioControls";
 import SpecializedScenarioResult from "./SpecializedScenarioResult";
+import ResponsiveDisclosure from "@/components/ResponsiveDisclosure";
 import type {
   ScenarioLabBootstrap,
   ScenarioPairComparisonDTO,
@@ -35,6 +36,7 @@ import {
   refreshStateLabel,
   scenarioOperationPresentation,
   scenarioStatusLabel,
+  scenarioReasonForPeople,
 } from "@/lib/scenarios/scenario-presentation";
 
 type EditorKind =
@@ -400,7 +402,7 @@ function ScenarioResultCard({ draft, bootstrap }: { draft: ScenarioDraft; bootst
       {result.comparison ? (
         <div>
           <p><strong>Recommendation review:</strong> {refreshStateLabel(result.comparison.state)}</p>
-          {result.comparison.reasons.map((reason) => <p className="muted" key={reason}>{reason}</p>)}
+          {result.comparison.reasons.map((reason) => <div key={reason}><p className="muted">{scenarioReasonForPeople(reason)}</p>{scenarioReasonForPeople(reason) !== reason ? <details className="scenario-diagnostics"><summary>Original technical reason</summary><code>{reason}</code></details> : null}</div>)}
           <p><strong>Recommendation changes:</strong> {result.comparison.recommendationChanges.length}</p>
           <p><strong>Allocation changes:</strong> {result.comparison.allocationChanges.length}</p>
           <div className="scenario-change-list">{result.comparison.allocationChanges.slice(0, 4).map((allocation) => {
@@ -559,7 +561,8 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
               <span className="scenario-status">{scenarioStatusLabel(draft.specializedResult?.status ?? draft.result?.status ?? "not_run")}</span>
             </div>
 
-            <AssumptionComposer draft={draft} bootstrap={baseline} onChange={updateDraft} />
+            <ResponsiveDisclosure className="scenario-mobile-assumptions" summary={<strong>Edit what-if assumptions</strong>}>
+              <AssumptionComposer draft={draft} bootstrap={baseline} onChange={updateDraft} />
             <details className="scenario-advanced">
               <summary>Advanced scenarios, allocation overrides, and diagnostics</summary>
               <div className="scenario-advanced-content"><SpecializedScenarioControls draft={draft} bootstrap={baseline} onChange={updateDraft} /></div>
@@ -579,6 +582,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
                   })}
             </div>
 
+            </ResponsiveDisclosure>
             <div className="hero-actions">
               <button type="button" onClick={() => runDraft(draft)} disabled={isPending}>{draft.result ? "Rerun" : "Run scenario"}</button>
               {draft.result?.status === "stale_baseline" || draft.specializedResult?.status === "stale_baseline"
@@ -601,9 +605,26 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
         ))}
       </div>
 
-      <section className="panel">
+      <section className="panel scenario-overview">
         <p className="eyebrow">Comparison</p>
         <h2>Current plan and what-if results</h2>
+        {drafts.map(draft => {
+          const summary = draft.result?.scenarioSummary ?? draft.specializedResult?.genericSummary;
+          if (!summary) return null;
+          const before = baseline.baselineSummary.feasibility.monthlyPlanCapacity;
+          const after = summary.feasibility.monthlyPlanCapacity;
+          if (before === null || after === null) return null;
+          const change = capacityChange(before, after);
+          return <div className="scenario-mobile-glance" key={draft.localId} aria-label={`${draft.title} monthly plan comparison`}>
+            <div><span>Current monthly capacity</span><strong>{money(before)}</strong></div>
+            <div><span>What-if monthly capacity</span><strong>{money(after)}</strong></div>
+            <p><strong>Change:</strong> {change.amount > 0 ? "+" : ""}{money(change.amount)}
+              {change.percentage === null ? " · Percentage unavailable from a zero baseline" : ` · ${change.percentage > 0 ? "+" : ""}${change.percentage.toFixed(2)}%`}
+            </p>
+            {draft.result?.status === "more_information_needed" || draft.specializedResult?.status === "more_information_needed"
+              ? <p className="scenario-mobile-warning" role="alert">The calculation ran, but its recommendations need more information.</p> : null}
+          </div>;
+        })}
         <div className="scenario-comparison-grid">
           <BaselineCard bootstrap={baseline} />
           {drafts.map((draft) => <ScenarioResultCard key={draft.localId} draft={draft} bootstrap={baseline} />)}
@@ -617,7 +638,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
           {pairComparison.comparison ? (
             <>
               <p><strong>Recommendation review:</strong> {refreshStateLabel(pairComparison.comparison.state)}</p>
-              {pairComparison.comparison.reasons.map((reason) => <p className="muted" key={reason}>{reason}</p>)}
+              {pairComparison.comparison.reasons.map((reason) => <div key={reason}><p className="muted">{scenarioReasonForPeople(reason)}</p>{scenarioReasonForPeople(reason) !== reason ? <details className="scenario-diagnostics"><summary>Original technical reason</summary><code>{reason}</code></details> : null}</div>)}
               <p><strong>Recommendation changes:</strong> {pairComparison.comparison.recommendationChanges.length}</p>
               <p><strong>Allocation deltas:</strong> {pairComparison.comparison.allocationChanges.length}</p>
             </>

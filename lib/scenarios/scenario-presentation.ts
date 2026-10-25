@@ -169,3 +169,13 @@ export function scenarioOperationPresentation(operation: ScenarioOperation, enti
   }
   return { title, category, changes: changes.filter((item): item is DisplayChange => item !== null), diagnosticIds: [...new Set(diagnosticIds)] };
 }
+
+// Presentation-only translation. Preserve the engine's original reason for audit
+// evidence; do not change recommendation state, ordering, or financial policy.
+const technicalChangedRecommendationReason =
+  "The current authoritative engine result materially changes recommendation order, state, allocation, destination, or feasibility.";
+export function scenarioReasonForPeople(reason: string): string {
+  return reason === technicalChangedRecommendationReason
+    ? "This what-if change could meaningfully affect which financial goals or payments are recommended and how money is allocated."
+    : reason;
+}
