@@ -349,12 +349,12 @@ function BaselineCard({ bootstrap }: { bootstrap: ScenarioLabBootstrap }) {
   const feasibility = bootstrap.baselineSummary.feasibility;
   return (
     <article className="scenario-result-card">
-      <p className="eyebrow">Current baseline</p>
-      <h3>Authoritative household plan</h3>
+      <p className="eyebrow">Saved household plan</p>
+      <h3>Your current household plan</h3>
       <span className="status-pill">{scenarioStatusLabel(feasibility.status)}</span>
       <div className="scenario-capacity"><span>Available for the monthly plan</span><strong>{money(feasibility.monthlyPlanCapacity)}</strong></div>
       <p><strong>Protected monthly need:</strong> {money(feasibility.protectedMonthlyFundingNeed)}</p>
-      <p className="muted">Current profile as of {bootstrap.baseline.policyBasis.asOfDate}.</p>
+      <p className="muted">Calculated from your saved financial profile as of {bootstrap.baseline.policyBasis.asOfDate}. Your saved amounts have not changed.</p>
       <details className="scenario-diagnostics"><summary>Technical details</summary><code>{bootstrap.baseline.fingerprint}</code></details>
     </article>
   );
@@ -375,7 +375,7 @@ function ScenarioResultCard({ draft, bootstrap }: { draft: ScenarioDraft; bootst
   const result = draft.result;
   if (!result) return (
     <article className="scenario-result-card">
-      <p className="eyebrow">Scenario</p><h3>{draft.title}</h3><p className="muted">Run this draft to compare it with the current baseline.</p>
+      <p className="eyebrow">Scenario</p><h3>{draft.title}</h3><p className="muted">Run this draft to compare it with your saved household plan.</p>
     </article>
   );
   const baselineCapacity = result.baselineSummary?.feasibility.monthlyPlanCapacity;
@@ -545,7 +545,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
       </div>
 
       <div className="scenario-drafts">
-        {drafts.length === 0 ? <p className="empty-state">Create a scenario to begin. Your baseline remains unchanged.</p> : null}
+        {drafts.length === 0 ? <p className="empty-state">Create a scenario to begin. Your saved household plan will remain unchanged.</p> : null}
         {drafts.map((draft) => (
           <section className="panel scenario-draft-card" key={draft.localId}>
             <div className="panel-heading">
@@ -603,7 +603,7 @@ export default function ScenarioLabWorkspace({ bootstrap }: { bootstrap: Scenari
 
       <section className="panel">
         <p className="eyebrow">Comparison</p>
-        <h2>Baseline and scenario results</h2>
+        <h2>Current plan and what-if results</h2>
         <div className="scenario-comparison-grid">
           <BaselineCard bootstrap={baseline} />
           {drafts.map((draft) => <ScenarioResultCard key={draft.localId} draft={draft} bootstrap={baseline} />)}

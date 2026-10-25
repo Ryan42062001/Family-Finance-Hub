@@ -45,7 +45,8 @@ export function allocationDisplayName(allocationId: string, entities: ScenarioLa
   ];
   const entity = options.find((item) => item.id === relatedEntityId);
   if (entity) return `${entity.label} · ${category.replaceAll("_", " ")}`;
-  if (relatedEntityId === "household") return `Household · ${category.replaceAll("_", " ")}`;
+  if (relatedEntityId === "household" && category === "reserve") return "Household reserve (purpose not specified)";
+  if (relatedEntityId === "household") return `Household allocation · ${category.replaceAll("_", " ")}`;
   return null;
 }
 

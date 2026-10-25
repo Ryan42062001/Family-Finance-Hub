@@ -10,6 +10,7 @@ import {
 } from "@/lib/calculations/dashboard-insights";
 import { calculateFinancialSummary } from "@/lib/calculations/financial-summary";
 import { createClient } from "@/lib/supabase/server";
+import { formatSignedCurrency } from "@/lib/formatting/financial-presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -88,12 +89,12 @@ export default async function DashboardPage() {
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Balance sheet</p><h2>Assets & liabilities</h2></div><strong>{money(summary.netWorth)}</strong></div>
           <div className="split-summary"><div><span>Cash / taxable assets</span><strong>{money(accountAssets)}</strong></div><div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div><div><span>Total debt</span><strong>{money(totalDebt)}</strong></div></div>
-          {accounts.length || debts.length ? <div className="dashboard-list">{accounts.filter((row) => row.include_in_net_worth).slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.account_type)}</small></span><b>{money(Number(row.balance))}</b></div>)}{debts.slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.debt_type)} · {row.interest_rate ?? 0}%</small></span><b>-{money(Number(row.current_balance))}</b></div>)}</div> : <p className="empty-state">Add accounts and debts to see your balance sheet.</p>}
+          {accounts.length || debts.length ? <div className="dashboard-list">{accounts.filter((row) => row.include_in_net_worth).slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.account_type)}</small></span><b>{money(Number(row.balance))}</b></div>)}{debts.slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.debt_type)} · {row.interest_rate ?? 0}%</small></span><b>{formatSignedCurrency(-Number(row.current_balance))}</b></div>)}</div> : <p className="empty-state">Add accounts and debts to see your balance sheet.</p>}
         </article>
 
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Monthly plan</p><h2>Cash flow</h2></div><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong></div>
-          <div className="flow-stack"><div><span>Income</span><strong>{money(summary.monthlyIncome)}</strong></div><div><span>Recurring expenses</span><strong>-{money(summary.monthlyExpenses)}</strong></div><div><span>Debt minimums</span><strong>-{money(summary.monthlyDebtPayments)}</strong></div><div><span>Your retirement contributions</span><strong>-{money(retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0))}</strong></div></div>
+          <div className="flow-stack"><div><span>Income</span><strong>{money(summary.monthlyIncome)}</strong></div><div><span>Recurring expenses</span><strong>{formatSignedCurrency(-summary.monthlyExpenses)}</strong></div><div><span>Debt minimums</span><strong>{formatSignedCurrency(-summary.monthlyDebtPayments)}</strong></div><div><span>Your retirement contributions</span><strong>{formatSignedCurrency(-retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0))}</strong></div></div>
           {!hasCashFlowData ? <p className="empty-state">Add at least one active income source and monthly expense to calculate cash flow.</p> : null}
         </article>
 

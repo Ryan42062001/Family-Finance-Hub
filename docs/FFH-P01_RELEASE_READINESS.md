@@ -2,7 +2,7 @@
 
 This document records current, privacy-safe evidence for the FFH-P01 candidate. It does not authorize production deployment, Supabase or auth configuration changes, Private Beta, merge, or use of real household data.
 
-Lifecycle state: `PUNCH_LIST`. Owner preview was attempted and is blocked by missing Vercel Preview-origin configuration. All later workflow gates remain pending.
+Lifecycle state: `PUNCH_LIST`. The original Vercel Preview-origin finding occurred on candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` and is preserved below as historical evidence. A subsequent bounded Preview-only origin configuration remediation resolved the blocking error, and the owner later verified browser-level calculation and CRUD functionality across Dashboard, Financial Profile, Scenario Lab, and Planning. This does **not** establish hosted-auth or production readiness. The current ten-item UI punch-list remediation requires new exact-head FAST and owner-preview verification; all later lifecycle gates remain pending.
 
 ## Gate matrix
 
@@ -18,6 +18,13 @@ Lifecycle state: `PUNCH_LIST`. Owner preview was attempted and is blocked by mis
 | Deployed two-household negative RLS isolation | REQUIRES SEPARATE PRODUCTION AUTHORIZATION / UNVERIFIED | Repository tests do not execute deployed PostgreSQL policies. Run the rollback-only synthetic procedure from `docs/SECURITY_TESTS.md` only after bounded authorization. |
 | FFH-026 historical F09–F14 gates | NOT INHERITED | Historical receipts are evidence only. Current deterministic source gates are rerun here; the historical F11 response-identity issue and F13 browser/runtime gap are not declared closed without current runtime evidence. |
 | Private fixture/oracle/dependency custody | NOT REQUIRED for public deterministic suite | No private bytes or substituted oracle are needed for the current calculation/security suites. Any later production canary requiring private custody needs separate authorization and a privacy-safe receipt. |
+
+## Preview-origin finding and bounded presentation follow-up
+
+- **Historical finding:** Earlier owner preview returned `{"error":"Authentication origin is not configured."}` on `/dashboard` with the Preview origin unconfigured. This was a real blocker at that time.
+- **Subsequent status:** Preview-only origin remediation and owner browser tests confirmed the error cleared; Production environment and Supabase hosted-auth settings were not modified or accepted.
+- **Owner-confirmed application behavior:** Dashboard, Financial Profile CRUD, Scenario Lab, emergency-fund, mortgage, savings goal, retirement, single-debt, avalanche/snowball, and Paycheck Planner calculations were exercised in the browser with synthetic fixtures. This covers application UI interactions, not new-signup confirmation, the first authenticated request, deployed negative two-household isolation, or FFH-026 private evidence.
+- **Current punch-list batch:** Mortgage/goal empty states; zero time saved; negative-zero dashboard deductions; currency-field display; accessible over-budget warning; annual shortfall labels; Scenario Lab plain language; debt payoff sequence interpretation; and this release note. Owner verification of the *new* commit and corresponding READY Preview remains pending.
 
 ## Owner preview procedure
 
