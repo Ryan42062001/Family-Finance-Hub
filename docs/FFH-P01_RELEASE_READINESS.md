@@ -67,3 +67,34 @@ Use test-only household data. On a 320px, 375px, 390px and 430px phone viewport 
 - [ ] Desktop remains a usable two-column layout, with server-side CRUD/authentication and financial calculations unchanged.
 
 Automated source/financial/security checks and a READY Vercel Preview cannot substitute for this owner-operated mobile visual and interactive acceptance. The first authenticated browser request, hosted confirmation, deployed two-household RLS, private FFH-026 artifacts, exact production release, and all independent audit gates remain unresolved and separately authorized.
+
+
+## Desktop command-center / monthly money-flow owner preview (2026-10-24)
+
+Same Primary Builder, same `FFH-P01` / `PUNCH_LIST` / HIGH-risk draft PR #81. This desktop-only follow-up preserves the mobile-first implementation and remains separate from the production and security-evidence gates.
+
+**Money flow:** The Dashboard now passes the existing `calculateFinancialSummary` totals and the already-fetched, household-scoped expense records into an interactive, dependency-free Sankey-style diagram. The new pure `buildMonthlyMoneyFlow` presentation model converts inputs to integer cents and fails closed for mismatched totals, invalid amounts and missing active income/recorded expenses. It separates essential vs discretionary expenses, debt minimums, employee retirement contributions and remaining monthly cash flow. Employer contributions, debts' balance principal, account balances, goals, hypothetical allocations and invented savings transfers are intentionally excluded. For a shortfall, a red source segment is explicitly marked **unfunded gap, not income**; ribbons never have negative width or imply funding priorities. Expense categories expand on demand; a semantically structured table is the textual equivalent.
+
+**Desktop:** Compact household header and one-row net worth, monthly cash flow, savings rate and financial-health summaries. Retirement assets remain in the expanded secondary account/retirement panels. Financial Profile uses a records-first, left-category-selector view with one active section on desktop, on-demand Add/Edit, unchanged Delete and deep-link navigation. Planning selects one active calculator with assumptions and results visible side by side at comfortable widths, while all six tools remain reachable and standalone URLs remain intact. Scenario Lab opens desktop width for left-side scenario editing and side-by-side baseline/hypothetical results, with emphasized dollar/percentage differences and retained warnings/technical disclosures. Desktop content scales to 1024, 1280, 1440 and 1920 widths without requiring new dependencies or schema changes.
+
+**Synthetic reconciliation examples** (no private financial data):
+
+| Example | Income | Essential + discretionary expense | Debt minimums | Employee retirement | Cash flow | Unfunded gap |
+|---|---:|---:|---:|---:|---:|---:|
+| Default | $4,800.00 | $1,700.00 + $1,300.00 | $0.00 | $0.00 | $1,800.00 | $0.00 |
+| With debt and retirement | $4,800.00 | $1,700.00 + $1,300.00 | $400.00 | $300.00 | $1,100.00 | $0.00 |
+| Overcommitted | $2,500.00 | $1,700.00 + $1,300.00 | $0.00 | $0.00 | −$500.00 | $500.00 |
+
+Reconciliation invariant: **essential + discretionary + debt minimums + employee retirement + positive remaining cash flow = recorded income + expressly unfunded shortfall**. The third example does not represent its unfunded gap as received income. All category sums reconcile to the saved expense total. Empty/incomplete sources produce a partial-data state with a Profile link.
+
+### Desktop and mobile owner-acceptance checklist
+
+- [ ] Desktop Dashboard at 1024/1280/1440/1920: household name + four metrics fit prominently, money-flow ribbon widths and values are legible; hover/focus reports the same amount as its accessible table; the optional category breakdown reconciles.
+- [ ] Test the $4,800/$3,000/no-debt example; with $400 debt and $300 employee retirement; and a $500 shortfall. Verify employer contributions are not deducted and a shortfall is never portrayed as positive spendable cash.
+- [ ] Financial Profile: use left-side Accounts/Income/Expenses/Debts/Retirement/Goals selector. Confirm Add and Edit require an explicit save, Cancel/close edit does not write, Delete retains safeguards, and `#expenses` is a working direct link.
+- [ ] Desktop Planning: switch Emergency/Mortgage/Savings and open standalone Retirement/Debt/Paycheck. Check live result updates, existing warnings, zero-state labels and no saved profile mutation.
+- [ ] Desktop Scenario Lab: baseline vs hypothetical both fit horizontally, signed $/percentage change visible, incomplete recommendation visible, diagnostics optional; creation/rerun/reset/duplicate/comparison/discard preserved.
+- [ ] Mobile 320/375/390/430: prior compact Dashboard 2×2, six Profile disclosures, one active Planning calculator, compact Scenario Lab, four labeled safe-area nav tabs and readable warning states unchanged.
+- [ ] Tablet to desktop transitions: no clipped financial numbers, hidden forms inadvertently open, keyboard traps, fixed navigation overlaps, or horizontal overflow.
+
+Automated source tests and Vercel build cannot prove all real authenticated touch/hover/resize interactions. Owner-operated visual and CRUD preview remain required. The unresolved hosted-authentication, first authenticated request, negative two-household RLS, FFH-026 history and production-readiness gates are preserved. Do **not** run FULL PHASE CI, Phase Sync, freeze, independent audit, merge, production changes or Private Beta under this handoff.
