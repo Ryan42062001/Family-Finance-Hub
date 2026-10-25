@@ -11,6 +11,7 @@ import {
 import { calculateFinancialSummary } from "@/lib/calculations/financial-summary";
 import { createClient } from "@/lib/supabase/server";
 import { formatSignedCurrency } from "@/lib/formatting/financial-presentation";
+import MonthlyMoneyFlow from "@/components/dashboard/MonthlyMoneyFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,16 @@ export default async function DashboardPage() {
   const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   const percent = summary.savingsRate === null ? "—" : `${Math.round(summary.savingsRate * 100)}%`;
   const hasCashFlowData = income.some((row) => row.is_active) && expenses.length > 0;
+  const moneyFlowInput = {
+    monthlyIncome: summary.monthlyIncome,
+    monthlyExpenses: summary.monthlyExpenses,
+    monthlyDebtMinimums: summary.monthlyDebtPayments,
+    monthlyEmployeeRetirement: retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0),
+    monthlyCashFlow: summary.monthlyCashFlow,
+    hasActiveIncome: income.some((row) => row.is_active),
+    hasRecordedExpenses: expenses.length > 0,
+    expenses: expenses.map((row) => ({ category: row.category, monthlyAmount: Number(row.monthly_amount), isEssential: row.is_essential })),
+  };
 
   return (
     <main className="page-shell">
@@ -100,36 +111,31 @@ export default async function DashboardPage() {
         </div>
       </section>
       <div className="dashboard-desktop-view">
-      <section className="hero-card">
-        <div><p className="eyebrow">Private workspace</p><h1>{household.name}</h1><p className="muted">A household-level view of what you own, owe, earn, spend, save, and are working toward.</p></div>
+      <section className="hero-card dashboard-desktop-hero">
+        <div><p className="eyebrow">Your household command center</p><h1>{household.name}</h1></div>
+        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link><Link className="secondary-button" href="/planning">Planning tools</Link></div>
       </section>
 
       {completion < 100 ? <section className="dashboard-notice"><div><strong>Financial profile: {completion}% complete</strong><p>Add missing sections to make dashboard metrics and future recommendations more complete.</p></div><Link className="secondary-button" href="/financial-profile">Finish profile</Link></section> : null}
 
-      <section className="health-card">
-        <div><p className="eyebrow">Financial health summary</p><h2>{health.status}</h2><p className="muted">{health.message}</p></div>
-        <div className="health-score"><strong>{health.score === null ? "—" : health.score}</strong><span>{health.score === null ? "More data needed" : "out of 100"}</span></div>
-      </section>
 
       <section className="metric-grid dashboard-metrics">
         <article className="metric-card"><p>Net worth</p><strong>{money(summary.netWorth)}</strong><span>{money(accountAssets + retirementAssets)} assets · {money(totalDebt)} debt</span></article>
         <article className="metric-card"><p>Monthly cash flow</p><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong><span>{hasCashFlowData ? "After expenses, debt minimums, and your retirement contributions" : "Add income and expenses to calculate"}</span></article>
         <article className="metric-card"><p>Savings rate</p><strong>{hasCashFlowData ? percent : "—"}</strong><span>Cash surplus + your retirement contributions</span></article>
-        <article className="metric-card"><p>Retirement</p><strong>{money(retirementAssets)}</strong><span>{money(summary.monthlyRetirementContributions)} contributed / month incl. employer</span></article>
+        <article className="metric-card"><p>Financial health</p><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><span>{health.status} · {health.message}</span></article>
       </section>
 
-      <section className="dashboard-grid">
+      <MonthlyMoneyFlow input={moneyFlowInput} />
+      <details className="dashboard-secondary-details">
+        <summary>Explore accounts, expenses, debt, retirement and goals</summary>
+        <section className="dashboard-grid">
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Balance sheet</p><h2>Assets & liabilities</h2></div><strong>{money(summary.netWorth)}</strong></div>
           <div className="split-summary"><div><span>Cash / taxable assets</span><strong>{money(accountAssets)}</strong></div><div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div><div><span>Total debt</span><strong>{money(totalDebt)}</strong></div></div>
           {accounts.length || debts.length ? <div className="dashboard-list">{accounts.filter((row) => row.include_in_net_worth).slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.account_type)}</small></span><b>{money(Number(row.balance))}</b></div>)}{debts.slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.debt_type)} · {row.interest_rate ?? 0}%</small></span><b>{formatSignedCurrency(-Number(row.current_balance))}</b></div>)}</div> : <p className="empty-state">Add accounts and debts to see your balance sheet.</p>}
         </article>
 
-        <article className="panel dashboard-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Monthly plan</p><h2>Cash flow</h2></div><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong></div>
-          <div className="flow-stack"><div><span>Income</span><strong>{money(summary.monthlyIncome)}</strong></div><div><span>Recurring expenses</span><strong>{formatSignedCurrency(-summary.monthlyExpenses)}</strong></div><div><span>Debt minimums</span><strong>{formatSignedCurrency(-summary.monthlyDebtPayments)}</strong></div><div><span>Your retirement contributions</span><strong>{formatSignedCurrency(-retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0))}</strong></div></div>
-          {!hasCashFlowData ? <p className="empty-state">Add at least one active income source and monthly expense to calculate cash flow.</p> : null}
-        </article>
 
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Spending</p><h2>Expense breakdown</h2></div><strong>{money(summary.monthlyExpenses)}</strong></div>
@@ -151,6 +157,7 @@ export default async function DashboardPage() {
           {goalProgress.length ? <div className="goal-list">{goalProgress.slice(0, 5).map((goal) => <div key={goal.id}><div className="bar-label"><span><strong>{goal.name}</strong><small>Priority {goal.priority}</small></span><strong>{Math.round(goal.progress * 100)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${goal.progress * 100}%` }} /></div><small>{money(goal.currentAmount)} saved · {money(goal.remaining)} remaining</small></div>)}</div> : <p className="empty-state">Add goals to track progress toward the things your household cares about.</p>}
         </article>
       </section>
+      </details>
       </div>
     </main>
   );
