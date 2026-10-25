@@ -79,7 +79,7 @@ export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
     <label>{label}<input type="text" inputMode="decimal" value={inputDrafts[key] ?? paycheckInputDisplay(value)}
       onChange={(event) => {
         const draft = event.target.value;
-        if (!/^(?:\\d*(?:\\.\\d{0,2})?)$/.test(draft)) return;
+        if (!/^(?:\d*(?:\.\d{0,2})?)$/.test(draft)) return;
         setInputDrafts((current) => ({ ...current, [key]: draft }));
         setter(Math.max(0, Number(draft) || 0));
       }}
