@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { logout } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
+import MobileNavigation from "@/components/MobileNavigation";
 
 const links = [
   ["Overview", "/dashboard"],
@@ -25,7 +26,9 @@ export default async function AppHeader() {
           {links.map(([name, href]) => <Link key={href} href={href}>{name}</Link>)}
           {authenticated ? <form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form> : null}
         </nav>
+        {authenticated ? <details className="mobile-account-menu"><summary>Account</summary><div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div></details> : null}
       </div>
+      {authenticated ? <MobileNavigation /> : null}
     </header>
   );
 }

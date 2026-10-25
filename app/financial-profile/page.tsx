@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ProfileSection from "@/components/ProfileSection";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -85,7 +86,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
 
   return (
     <main className="page-shell">
-      <section className="hero-card">
+      <section className="hero-card profile-hero">
         <div><p className="eyebrow">Your household data</p><h1>Build your financial profile</h1><p className="muted">Keep the numbers behind your dashboard and planning tools accurate. Changes are saved only when you submit a section.</p></div>
         <Link className="secondary-button" href="/dashboard">Back to dashboard</Link>
       </section>
@@ -97,60 +98,60 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
       </nav>
 
       <div className="form-section-grid">
-        <section className="panel" id="accounts">
-          <h2>Cash & accounts</h2>
-          <form className="data-form" action={addAccount}>
+        <ProfileSection id="accounts" title="Cash & accounts" count={accounts.data?.length ?? 0} description={money((accounts.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
+          <details className="profile-add-disclosure"><summary>Add account</summary><form className="data-form" action={addAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Checking" /></label>
             <label>Type<select name="account_type" defaultValue="checking"><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label>
             <label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><button type="submit">Add account</button>
-          </form>
+          </form></details>
           <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(accounts.data?.length ?? 0) === 0 ? <p className="empty-state">No accounts saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
 
-        <section className="panel" id="income">
-          <h2>Income</h2>
-          <form className="data-form" action={addIncome}>
+        <ProfileSection id="income" title="Income" count={income.data?.length ?? 0} description={money((income.data ?? []).reduce((sum, item) => sum + Number(item.monthly_amount ?? 0), 0)) + "/month"}>
+          <details className="profile-add-disclosure"><summary>Add income</summary><form className="data-form" action={addIncome}>
             <label>Name<input name="name" maxLength={100} required placeholder="Primary job" /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" required /></label><button type="submit">Add income</button>
-          </form>
+          </form></details>
           <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(income.data?.length ?? 0) === 0 ? <p className="empty-state">No income sources saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
 
-        <section className="panel" id="expenses">
-          <h2>Monthly expenses</h2>
-          <form className="data-form" action={addExpense}>
+        <ProfileSection id="expenses" title="Monthly expenses" count={expenses.data?.length ?? 0} description={money((expenses.data ?? []).reduce((sum, item) => sum + Number(item.monthly_amount ?? 0), 0)) + "/month"}>
+          <details className="profile-add-disclosure"><summary>Add expense</summary><form className="data-form" action={addExpense}>
             <label>Name<input name="name" maxLength={100} required placeholder="Groceries" /></label>
             <label>Category<select name="category" defaultValue="groceries"><option value="housing">Housing</option><option value="utilities">Utilities</option><option value="groceries">Groceries</option><option value="transportation">Transportation</option><option value="insurance">Insurance</option><option value="healthcare">Healthcare</option><option value="childcare">Childcare</option><option value="subscriptions">Subscriptions</option><option value="personal">Personal</option><option value="giving">Giving</option><option value="other">Other</option></select></label>
             <label>Monthly amount<input name="monthly_amount" type="number" min="0" step="0.01" required /></label>
             <label className="checkbox-label"><input name="is_essential" type="checkbox" defaultChecked /> Essential expense</label><button type="submit">Add expense</button>
-          </form>
+          </form></details>
           <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Category<select name="category" defaultValue={item.category}><option value="housing">Housing</option><option value="utilities">Utilities</option><option value="groceries">Groceries</option><option value="transportation">Transportation</option><option value="insurance">Insurance</option><option value="healthcare">Healthcare</option><option value="childcare">Childcare</option><option value="subscriptions">Subscriptions</option><option value="personal">Personal</option><option value="giving">Giving</option><option value="other">Other</option></select></label><label>Monthly amount<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><label className="checkbox-label"><input name="is_essential" type="checkbox" defaultChecked={item.is_essential} /> Essential expense</label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(expenses.data?.length ?? 0) === 0 ? <p className="empty-state">No expenses saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
 
-        <section className="panel" id="debts">
-          <h2>Debts</h2>
-          <form className="data-form" action={addDebt}>
+        <ProfileSection id="debts" title="Debts" count={debts.data?.length ?? 0} description={money((debts.data ?? []).reduce((sum, item) => sum + Number(item.current_balance ?? 0), 0))}>
+          <details className="profile-add-disclosure"><summary>Add debt</summary><form className="data-form" action={addDebt}>
             <label>Name<input name="name" maxLength={100} required placeholder="Mortgage" /></label>
             <label>Type<select name="debt_type" defaultValue="mortgage"><option value="mortgage">Mortgage</option><option value="student_loan">Student loan</option><option value="auto_loan">Auto loan</option><option value="credit_card">Credit card</option><option value="personal_loan">Personal loan</option><option value="medical">Medical</option><option value="other">Other</option></select></label>
             <label>Balance<input name="current_balance" type="number" min="0" step="0.01" required /></label><label>Interest rate (%)<input name="interest_rate" type="number" min="0" max="100" step="0.0001" /></label><label>Minimum payment<input name="minimum_payment" type="number" min="0" step="0.01" required /></label><button type="submit">Add debt</button>
-          </form>
+          </form></details>
           <div className="record-list">{debts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_balance)} · {item.interest_rate ?? 0}%</small></span><RecordActions kind="debt" id={item.id}><form className="data-form edit-form" action={updateDebt}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="debt_type" defaultValue={item.debt_type}><option value="mortgage">Mortgage</option><option value="student_loan">Student loan</option><option value="auto_loan">Auto loan</option><option value="credit_card">Credit card</option><option value="personal_loan">Personal loan</option><option value="medical">Medical</option><option value="other">Other</option></select></label><label>Balance<input name="current_balance" type="number" min="0" step="0.01" defaultValue={item.current_balance} required /></label><label>Interest rate (%)<input name="interest_rate" type="number" min="0" max="100" step="0.0001" defaultValue={item.interest_rate ?? ""} /></label><label>Minimum payment<input name="minimum_payment" type="number" min="0" step="0.01" defaultValue={item.minimum_payment} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(debts.data?.length ?? 0) === 0 ? <p className="empty-state">No debts saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
 
-        <section className="panel" id="retirement">
-          <h2>Retirement</h2>
-          <form className="data-form" action={addRetirementAccount}>
+        <ProfileSection id="retirement" title="Retirement" count={retirement.data?.length ?? 0} description={money((retirement.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
+          <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form" action={addRetirementAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Work 401(k)" /></label><label>Type<select name="account_type" defaultValue="401k"><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" required /></label><button type="submit">Add retirement account</button>
-          </form>
+          </form></details>
           <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employee_contribution} required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employer_contribution} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
 
-        <section className="panel" id="goals">
-          <h2>Goals</h2>
-          <form className="data-form" action={addGoal}>
+        <ProfileSection id="goals" title="Goals" count={goals.data?.length ?? 0} description={money((goals.data ?? []).reduce((sum, item) => sum + Number(item.current_amount ?? 0), 0))}>
+          <details className="profile-add-disclosure"><summary>Add goal</summary><form className="data-form" action={addGoal}>
             <label>Name<input name="name" maxLength={100} required placeholder="Replace vehicle" /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" required /></label><label>Target date<input name="target_date" type="date" /></label><label>Priority<select name="priority" defaultValue="3"><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields /><button type="submit">Add goal</button>
-          </form>
+          </form></details>
           <div className="record-list">{goals.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_amount)} / {money(item.target_amount)}</small></span><RecordActions kind="goal" id={item.id}><form className="data-form edit-form" action={updateGoal}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" defaultValue={item.target_amount} required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" defaultValue={item.current_amount} required /></label><label>Target date<input name="target_date" type="date" defaultValue={item.target_date ?? ""} /></label><label>Priority<select name="priority" defaultValue={String(item.priority)}><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields defaults={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-        </section>
+          {(goals.data?.length ?? 0) === 0 ? <p className="empty-state">No goals saved yet. Select Add to begin.</p> : null}
+        </ProfileSection>
       </div>
     </main>
   );
