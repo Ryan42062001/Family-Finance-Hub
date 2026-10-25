@@ -177,3 +177,44 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
   .mobile-planning-options{grid-template-columns:1fr}
   .calculator-pair .split-summary strong{font-size:.93rem}
 }
+
+
+.scenario-mobile-assumptions>summary{cursor:pointer;list-style:none;min-height:44px;padding:.6rem .8rem;color:var(--forest-800);background:var(--sage-50);border-radius:10px}
+.scenario-mobile-assumptions>summary::-webkit-details-marker{display:none}
+.scenario-mobile-assumptions>summary:after{content:"⌄";float:right}
+.scenario-mobile-assumptions[open]>summary:after{content:"⌃"}
+.scenario-mobile-assumptions[open]>.scenario-composer{margin-top:.6rem}
+.scenario-mobile-glance{display:none}
+@media(max-width:760px){
+  .scenario-workspace{display:flex;flex-direction:column;gap:.7rem}
+  .scenario-overview{order:0;padding:.85rem}
+  .scenario-overview h2{font-size:1.15rem}
+  .scenario-toolbar{order:1;padding:.85rem;gap:.5rem}
+  .scenario-toolbar h2{font-size:1.12rem}
+  .scenario-drafts{order:2;display:grid;gap:.7rem}
+  .scenario-announcement{order:4}
+  .scenario-workspace>section[aria-label="Scenario-to-scenario comparison"]{order:3}
+  .scenario-draft-card{padding:.8rem}
+  .scenario-draft-card .hero-actions{gap:.4rem}
+  .scenario-draft-card .hero-actions button{min-height:44px}
+  .scenario-mobile-glance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;margin:.5rem 0;padding:.65rem;background:var(--sage-50);border:1px solid var(--line);border-radius:12px}
+  .scenario-mobile-glance>div{min-width:0;display:grid;gap:.1rem}
+  .scenario-mobile-glance span{font-size:.72rem;color:var(--muted)}
+  .scenario-mobile-glance strong{font-size:clamp(1.05rem,5vw,1.45rem);overflow-wrap:anywhere}
+  .scenario-mobile-glance p{grid-column:1/-1;margin:.15rem 0;font-size:.84rem}
+  .scenario-mobile-glance .scenario-mobile-warning{padding:.55rem;border:1px solid #efd49f;border-radius:8px;background:var(--amber-100);color:#6d460e}
+  .scenario-comparison-grid{grid-template-columns:1fr;gap:.5rem}
+  .scenario-result-card{padding:.8rem}
+  .scenario-result-card h3{font-size:1.12rem}
+  .scenario-result-card .scenario-capacity{padding:.6rem;margin:.45rem 0}
+  .scenario-result-card .scenario-capacity strong{font-size:1.35rem;overflow-wrap:anywhere}
+  .scenario-result-card .scenario-change{padding:.55rem}
+  .scenario-assumptions{gap:.4rem;margin-top:.45rem}
+  .scenario-assumption-card{padding:.7rem}
+  .scenario-assumption-changes{gap:.35rem}
+  .scenario-mobile-assumptions>.scenario-assumptions{padding-top:.55rem}
+  .scenario-draft-card input,.scenario-draft-card select,.scenario-composer input{min-width:0;max-width:100%}
+}
+@media(max-width:360px){
+  .scenario-mobile-glance strong{font-size:.99rem}
+}
