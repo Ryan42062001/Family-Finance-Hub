@@ -40,3 +40,30 @@ Use synthetic identities and synthetic financial values only. On an authorized p
 ## Rollback plan
 
 Before any separately authorized production promotion, record the exact previous known-good deployment and candidate SHA, snapshot the non-secret auth origin/redirect configuration, and verify that no schema migration is included. If auth, session, or household isolation fails, stop the release and Private Beta, restore the previous Vercel production alias and prior auth origin/redirect configuration, then rerun auth and isolation checks. FFH-P01 performs no schema migration, so database rollback is not part of this candidate. No rollback or production change has been performed by this phase.
+
+## Mobile-first FFH-P01 owner-preview remediation (2026-10-24)
+
+One bounded follow-up to the prior ten-item presentation punch list, under the same `PUNCH_LIST` phase and Draft PR #81. The single newer main policy for Regular Chat execution was integrated as a two-parent merge before mobile implementation. Source-level mobile work covers:
+
+1. **Dashboard:** purpose-built compact mobile summary, prominent calculated monthly cash flow with a non-discretionary caution, a two-column group for net worth, savings rate, retirement and financial health, and expandable account/expense/debt/retirement/goal details. No new money metrics or math.
+2. **Financial Profile:** six native accessible section disclosures with count and financial total, separate on-demand Add form, unchanged independent Edit/Delete forms and server actions; target hash opens a section and scrolls below navigation. Desktop disclosure expands on mount.
+3. **Planning:** six choices, one visible on the main mobile Planning route at a time; separate route links for Retirement, Debt and Paycheck; results visually precede collapsed editable assumptions. All calculators remain temporary and no profile writes were added.
+4. **Scenario Lab:** saved-plan versus hypothetical monthly capacity with signed amount and percentage; uncertain recommendation warnings remain visible; assumption composer and diagnostics are disclosed on demand. Technical recommendation reason is translated only for display; the original is available in Technical details.
+5. **Navigation:** current-page-aware, text-labeled bottom navigation for Home, Profile, Planning and Scenarios, plus separate Account/Sign Out menu; safe-area padding prevents obscuring forms.
+
+The synthetic browser fixtures and previous financial/security guarantees continue to govern the change. In particular, $4,800 monthly income, $3,000 expenses, $1,800 cash flow, $1,000 net worth, and a 37.5% savings rate (without debts or retirement contributions) are expected. Scenario Lab $1,800 → $1,300 must show −$500 (−27.78%) without profile mutations. The $169.23 biweekly paycheck deficit and −$4,400 annual shortfall remain authoritative test examples.
+
+### Owner's final mobile Preview checklist
+
+Use test-only household data. On a 320px, 375px, 390px and 430px phone viewport (plus tablet and desktop) verify:
+
+- [ ] Dashboard shows cash flow immediately, then the compact 2×2 metrics and expandable summaries; no clipped dollar values, misleading "discretionary" claim, or horizontal page scrollbar.
+- [ ] Profile initially shows the six section summaries; tapping a summary reveals existing records, Add is on demand, Edit updates the same record (does not duplicate), and Delete uses existing safeguards.
+- [ ] A direct link to `/financial-profile#expenses` opens Expenses and leaves its heading visible below the sticky header.
+- [ ] Planning switches emergency, mortgage and savings tools without changing saved records; Retirement, Debt and Paycheck routes remain accessible; results precede editable assumptions on phone.
+- [ ] Mortgage/goal zero-input states and the over-budget red bar, explicit warning, cent-level deficit and signed annual shortfall remain correct.
+- [ ] Scenario Lab shows current vs what-if values with the exact delta and percent; incomplete recommendation warnings are visible before expanding technical details; create/run/rerun/reset/duplicate/compare/discard still work.
+- [ ] The four bottom navigation items show their labels and selected state, Account menu permits sign-out, keyboard navigation and safe areas work, and the nav does not cover any controls.
+- [ ] Desktop remains a usable two-column layout, with server-side CRUD/authentication and financial calculations unchanged.
+
+Automated source/financial/security checks and a READY Vercel Preview cannot substitute for this owner-operated mobile visual and interactive acceptance. The first authenticated browser request, hosted confirmation, deployed two-household RLS, private FFH-026 artifacts, exact production release, and all independent audit gates remain unresolved and separately authorized.
