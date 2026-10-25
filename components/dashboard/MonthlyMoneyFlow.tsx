@@ -26,13 +26,11 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
   }
   const positive = flow.branches.filter(b => b.cents > 0);
   const scale = flow.totalCents > 0 ? 208 / flow.totalCents : 0;
-  let sourceOffset = 0, targetOffset = 0;
-  const strips = positive.map(b => {
+  const strips = positive.map((b, index) => {
     const h = b.cents * scale;
-    const y0 = 70 + sourceOffset;
-    const y1 = 70 + targetOffset;
-    sourceOffset += h;
-    targetOffset += h + 24;
+    const prior = positive.slice(0,index).reduce((sum, item) => sum + item.cents * scale, 0);
+    const y0 = 70 + prior;
+    const y1 = 70 + prior + index * 24;
     const path = `M 220 ${y0} C 360 ${y0} 490 ${y1} 610 ${y1} L 610 ${y1+h} C 490 ${y1+h} 360 ${y0+h} 220 ${y0+h} Z`;
     return { ...b, h, y0, y1, path };
   });

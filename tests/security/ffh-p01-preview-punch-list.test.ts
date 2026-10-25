@@ -24,8 +24,12 @@ test("signed currency suppresses negative zero and zero after rounding without c
   assert.equal(formatSignedCurrency(-0.004, 2), "$0.00");
   assert.equal(formatSignedCurrency(-0.01, 2), "-$0.01");
   assert.equal(formatSignedCurrency(NaN), "—");
-  assert.match(dashboard, /formatSignedCurrency\(-summary\.monthlyDebtPayments\)/);
-  assert.match(dashboard, /formatSignedCurrency\(-retirement\.reduce/);
+  // The former duplicated desktop cash-flow list was replaced by the
+  // accessible Sankey reconciliation. The signed-currency utility remains
+  // independently tested above and is still used for debt balances.
+  assert.match(dashboard, /<MonthlyMoneyFlow input=\{moneyFlowInput\} \/>/);
+  assert.match(dashboard, /monthlyDebtMinimums: summary\.monthlyDebtPayments/);
+  assert.match(dashboard, /monthlyEmployeeRetirement: retirement\.reduce/);
   assert.doesNotMatch(dashboard, /<strong>-\{money\(/);
 });
 
