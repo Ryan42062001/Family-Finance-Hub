@@ -16,6 +16,7 @@ export default async function AppHeader() {
   const authenticated = Boolean(data?.claims?.sub);
 
   return (
+    <>
     <header className="site-header">
       <div className="site-header-inner">
         <Link className="brand" href="/dashboard" aria-label="Family Finance Hub dashboard">
@@ -28,7 +29,8 @@ export default async function AppHeader() {
         </nav>
         {authenticated ? <details className="mobile-account-menu"><summary>Account</summary><div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div></details> : null}
       </div>
-      {authenticated ? <MobileNavigation /> : null}
     </header>
+    {authenticated ? <MobileNavigation /> : null}
+    </>
   );
 }
