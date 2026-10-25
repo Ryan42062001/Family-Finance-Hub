@@ -121,6 +121,7 @@ test("mobile safe area, section anchors and 320-430px layout safeguards exist", 
   for (const name of ["Home","Profile","Planning","Scenarios"]) assert.ok(nav.includes(name));
   assert.match(nav, /aria-current=\{active \? "page"/);
   assert.match(header, /<MobileNavigation \/>/);
+  assert.ok(header.indexOf("<MobileNavigation />") > header.indexOf("</header>"), "Fixed nav must be outside the sticky, backdrop-filtered header");
   assert.match(header, /mobile-account-menu/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /max-width:760px/);
