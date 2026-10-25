@@ -46,7 +46,23 @@ export default function PlanningCalculators({ defaults }: { defaults: Defaults }
 
   const field = (label: string, value: number, setter: (value: number) => void, step = "0.01") => <label>{label}<input type="number" min="0" step={step} value={value} onChange={(event) => setter(safeInput(event.target.value))} /></label>;
 
-  return <>
+  return <div className="planning-desktop-workspace">
+    <nav className="panel planning-workspace-selector" aria-label="Desktop planning calculators">
+      <p className="eyebrow">Planning tools</p><h2>Choose a calculator</h2>
+      <p className="muted">Explore hypothetical changes. Saved data stays unchanged.</p>
+      <div className="planning-workspace-links">
+        {([
+          ["emergency-fund", "Emergency fund"],
+          ["mortgage", "Mortgage payoff"],
+          ["savings-goal", "Savings goal"],
+        ] as const).map(([id, label]) => <button type="button" key={id}
+          aria-pressed={activeTool === id} onClick={() => setActiveTool(id)}>{label}</button>)}
+        <Link href="/planning/retirement">Retirement pacing</Link>
+        <Link href="/planning/debt">Debt payoff</Link>
+        <Link href="/planning/paycheck">Paycheck planner</Link>
+      </div>
+    </nav>
+    <div className="planning-workspace-canvas">
     <nav className="mobile-planning-selector" aria-label="Select planning calculator">
       <span className="eyebrow">Choose a calculator</span>
       <div className="mobile-planning-options">
@@ -99,5 +115,6 @@ export default function PlanningCalculators({ defaults }: { defaults: Defaults }
       </div><div className="progress-track"><div className="progress-fill" style={{ width: `${Math.min(100, (goal.progress ?? 0) * 100)}%` }} /></div><p className="muted">Projection assumes no interest or investment growth and a steady monthly contribution.</p></> : <p className="empty-state">Enter a savings goal with a positive target to see your projection.</p>}</article>
     </section>
     </div>
-  </>;
+    </div>
+  </div>;
 }

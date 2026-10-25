@@ -60,18 +60,7 @@ export default async function PlanningPage() {
         <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
       </section>
 
-      <section className="panel planning-directory-desktop">
-        <p className="eyebrow">All planning tools</p>
-        <h2>Choose a calculator</h2>
-        <div className="hero-actions">
-          <a className="secondary-button" href="#emergency-fund">Emergency fund</a>
-          <a className="secondary-button" href="#mortgage">Mortgage payoff</a>
-          <a className="secondary-button" href="#savings-goal">Savings goal</a>
-          <Link className="secondary-button" href="/planning/retirement">Retirement pacing</Link>
-          <Link className="secondary-button" href="/planning/debt">Debt payoff</Link>
-          <Link className="secondary-button" href="/planning/paycheck">Paycheck planner</Link>
-        </div>
-      </section>
+
 
       <PlanningCalculators defaults={defaults} />
     </main>
