@@ -92,9 +92,10 @@ export function layoutMonthlyMoneyFlow(flow: MoneyFlow, expandCategories: boolea
       const remainingPx = h - minimum * categories.length;
       const pixelHeights = categories.map(c => minimum + (remainingPx * c.cents / b.cents));
       let childSourceY = y2;
+      let childTargetY = y2;
       categories.forEach((c, i) => {
         const childH = pixelHeights[i];
-        const childY = y2 + i * categoryGap;
+        const childY = childTargetY;
         const id = `${b.id}:${i}`;
         nodes.push({id, parentId:b.id, label:c.label, cents:c.cents, x:x3, y:childY, height:childH});
         edges.push({
@@ -103,6 +104,7 @@ export function layoutMonthlyMoneyFlow(flow: MoneyFlow, expandCategories: boolea
           path:sankeyRibbon(x2+18, x3, childSourceY, childY, childH),
         });
         childSourceY += childH;
+        childTargetY += childH + categoryGap;
       });
     }
     sourceCursor += h;
