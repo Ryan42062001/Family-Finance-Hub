@@ -357,3 +357,6 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
   .planning-workspace-selector{display:none}
   .planning-workspace-canvas{display:block}
 }
+
+/* Desktop current-page indication; mobile nav retains its own active state. */
+.site-nav a[aria-current=page]{color:#fff;background:rgba(255,255,255,.16);box-shadow:inset 0 -2px #8dd2ba}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { logout } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
 import MobileNavigation from "@/components/MobileNavigation";
+import DesktopNavLink from "@/components/DesktopNavLink";
 
 const links = [
   ["Overview", "/dashboard"],
@@ -24,7 +25,7 @@ export default async function AppHeader() {
           <span><strong>Family Finance Hub</strong><small>Plan together. Move with confidence.</small></span>
         </Link>
         <nav className="site-nav" aria-label="Primary navigation">
-          {links.map(([name, href]) => <Link key={href} href={href}>{name}</Link>)}
+          {links.map(([name, href]) => <DesktopNavLink key={href} href={href} label={name} />)}
           {authenticated ? <form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form> : null}
         </nav>
         {authenticated ? <details className="mobile-account-menu"><summary>Account</summary><div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div></details> : null}
