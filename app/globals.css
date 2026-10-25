@@ -307,7 +307,7 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
   .scenario-workspace>section[aria-label="Scenario-to-scenario comparison"]{grid-column:1/-1}
 }
 @media(min-width:1440px){
-  .dashboard-desktop-view,.scenario-lab-page,.page-shell:has(>.planning-desktop-workspace){max-width:1450px}
+  .page-shell:has(>.dashboard-desktop-view),.scenario-lab-page,.page-shell:has(>.planning-desktop-workspace){width:min(1450px,calc(100% - 3rem));max-width:1450px}
   .scenario-workspace{grid-template-columns:minmax(355px,.76fr) minmax(0,1.7fr)}
 }
 /* The visualization's SVG scales as one container, never as a clipped page-level element. */
