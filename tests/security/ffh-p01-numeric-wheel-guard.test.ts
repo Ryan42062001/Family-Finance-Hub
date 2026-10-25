@@ -59,12 +59,14 @@ function fixture(opts: {
       input.value = String(Number(input.value) + 1);
     }
   };
-  return { input,wheel,env,calls,simulateNativeDefaultStep };
+  const nextWheel = () => { prevented = false; }; // synthetic new wheel event on same focused field
+  return { input,wheel,env,calls,simulateNativeDefaultStep,nextWheel };
 }
 
 test("focused amount cannot step via wheel, even repeatedly after focus, while page scroll works", () => {
   const f = fixture({amount:"1500.25",deltaY:125});
   for (let n=0;n<3;n++) {
+    if (n > 0) f.nextWheel(); // each browser wheel event has fresh defaultPrevented state
     assert.equal(protectFocusedNumberFromWheel(f.wheel,f.env), true);
     assert.equal(f.wheel.defaultPrevented,true);
     f.simulateNativeDefaultStep();
