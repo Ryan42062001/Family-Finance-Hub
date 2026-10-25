@@ -21,7 +21,7 @@ test("signed currency suppresses negative zero and zero after rounding without c
   for (const value of [-0, -0.0001, 0, 0.0001, -0.49, 0.49]) assert.equal(formatSignedCurrency(value), "$0");
   assert.equal(formatSignedCurrency(-1), "-$1");
   assert.equal(formatSignedCurrency(3), "$3");
-  assert.equal(formatSignedCurrency(-0.004, 2), "$0");
+  assert.equal(formatSignedCurrency(-0.004, 2), "$0.00");
   assert.equal(formatSignedCurrency(-0.01, 2), "-$0.01");
   assert.equal(formatSignedCurrency(NaN), "—");
   assert.match(dashboard, /formatSignedCurrency\(-summary\.monthlyDebtPayments\)/);
