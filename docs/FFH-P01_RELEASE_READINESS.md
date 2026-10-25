@@ -98,3 +98,37 @@ Reconciliation invariant: **essential + discretionary + debt minimums + employee
 - [ ] Tablet to desktop transitions: no clipped financial numbers, hidden forms inadvertently open, keyboard traps, fixed navigation overlaps, or horizontal overflow.
 
 Automated source tests and Vercel build cannot prove all real authenticated touch/hover/resize interactions. Owner-operated visual and CRUD preview remain required. The unresolved hosted-authentication, first authenticated request, negative two-household RLS, FFH-026 history and production-readiness gates are preserved. Do **not** run FULL PHASE CI, Phase Sync, freeze, independent audit, merge, production changes or Private Beta under this handoff.
+
+
+## Money-Flow Visualization V2 — owner-review addition (2026-10-24)
+
+**State:** Same FFH-P01 Primary Builder; bounded presentation-only V2 on Draft PR #81, `PUNCH_LIST`, HIGH risk. The already-approved mobile design and prior desktop work are left intact.
+
+**Three-stage Sankey:** Stage 1 recorded monthly income plus a separately identified red **unfunded shortfall** source segment only when commitments exceed income. Stage 2 essential expenses, discretionary expenses, debt minimums, employee retirement contributions, and positive remaining monthly cash flow. Stage 3, shown on explicit expansion, draws proportional curved paths from each expense parent to its **actual positive recorded expense categories**. No invented transfers, expenses, employer deductions or savings allocations. Category ribbons add no additional money and reconcile to each parent.
+
+**Adaptive geometry:** A pure `lib/calculations/monthly-money-flow-layout.ts` view-only layout, separate from the unchanged integer-cent financial model, calculates dimensions from the number of visible parent/child ribbons. The SVG viewBox height is no longer fixed at 440. Parent and child nodes reserve spacing for labels; very small flows receive a visual-only minimum thickness, with the exact amount shown in tooltips and the table. Long category names may be abbreviated visually; their full text remains in keyboard labels and the table. No extra visualization dependencies.
+
+**Interaction/accessibility:** Hover/focus highlights a flow and its family; Enter/Space/click on an expense parent toggles Stage 3; a visible show/hide button works on touch and announces its state. An aria-live detail panel exposes cent-accurate amounts and percentage of **recorded income**; percentages can exceed 100% for deficits, which do not imply funded commitments. Reduced-motion preferences disable transitions. The semantic monthly reconciliation table remains available, now including category rows, parent-child labels, and the unfunded gap when present. On narrow viewports, the existing compact Dashboard remains the primary view.
+
+**Synthetic assertions:**
+
+| Fixture | Recorded income | Expense commitments | Debt minimum | Employee retirement | Remaining cash flow | Shortfall |
+|---|---:|---:|---:|---:|---:|---:|
+| A: two outcomes | $4,800.00 | $3,000.00 essential | $0.00 | $0.00 | $1,800.00 | $0.00 |
+| B: category hierarchy | $5,000.00 | $2,500.00 essential (Housing $1,500, Groceries $700, Utilities $300), $300.00 discretionary (Entertainment) | $200.00 | $500.00 | $1,500.00 | $0.00 |
+| C: unfunded | $2,500.00 | $3,000.00 essential | $0.00 | $0.00 | −$500.00 | $500.00 |
+| D: incomplete | Missing active income | Input incomplete | — | — | Unknown | Not calculated |
+
+Under fixture B, the three essential child paths sum exactly to their $2,500.00 parent and the Entertainment child path sums to the $300.00 discretionary parent. The authoritative overall invariant remains **income + labeled unfunded gap = commitments + positive remaining cash flow**. Widths are proportional to recorded amounts, except a disclosed visual-only minimum for tiny categories.
+
+### V2 visual acceptance: owner-operated Preview
+
+- [ ] **Compact:** at 1024/1280/1440/1920px inspect $4,800 → $3,000/$1,800; two main destinations are compact, clear and labeled $3,000 (62.5%) / $1,800 (37.5%).
+- [ ] **Expanded:** activate Show expense categories and activate an essential/discretionary ribbon; Stage 3 opens as actual curved ribbons to saved categories. Each parent's child amounts sum to the parent, and one-category parents show exactly one category.
+- [ ] **Spacing:** test 10 categories and tiny $0.01 values using synthetic data. Verify labels do not overlap, scale remains readable, and no chart/page horizontal overflow. Check reduced motion and high zoom.
+- [ ] **Keyboard/touch:** Tab to parent/child ribbons, inspect Enter/Space/click, highlight and focus details; visible toggle, live announcements and full-category accessible table are usable without SVG hover.
+- [ ] **Negative:** simulate $2,500 income and $3,000 commitments. Confirm the red $500 **unfunded gap** is not labeled as income or funded savings; no negative width.
+- [ ] **Incomplete:** no active income, zero amount and irreconcilable records show honest empty/partial-data or zero-state messages with no fabricated branches.
+- [ ] **Mobile regression:** recheck 320/375/390/430px Dashboard, Profile, Planning, Scenario Lab, fixed bottom navigation, safe areas and warning states. No unrelated layout changes intended.
+
+Browser interaction and authenticated device screenshots are **not** builder-verified; owner acceptance is still needed. Prior hosted-auth, first authenticated request, two-household isolation, FFH-026 private-evidence and production gates remain unresolved. No FULL PHASE CI, Phase Sync, freeze, independent HIGH-risk audit, merge, production changes or Private Beta authorization under this assignment.
