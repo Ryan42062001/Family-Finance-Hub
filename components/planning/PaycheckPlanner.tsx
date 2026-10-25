@@ -23,7 +23,8 @@ const PAYCHECKS_PER_YEAR: Record<PayFrequency, number> = {
 const money = (value: number) => new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 }).format(value);
 
 export default function PaycheckPlanner({ defaults }: { defaults: Defaults }) {
