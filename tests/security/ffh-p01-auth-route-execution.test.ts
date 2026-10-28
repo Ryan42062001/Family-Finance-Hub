@@ -21,7 +21,8 @@ type Stub = Record<string, unknown>;
 type Route = { GET: (request: Request) => Promise<Response> };
 type RedirectRecord = { destination: string };
 class SyntheticRedirect extends Error {
-  constructor(readonly destination: string) { super("SYNTHETIC_REDIRECT"); }
+  readonly destination: string;
+  constructor(destination: string) { super("SYNTHETIC_REDIRECT"); this.destination = destination; }
 }
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
