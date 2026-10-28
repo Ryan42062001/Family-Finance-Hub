@@ -80,6 +80,41 @@ test("FFH-051-R01 rejects external, separator, control, whitespace and nested re
   }
 });
 
+test("FFH-P01 rejects all percent-encoded ASCII C0 and DEL values in next paths and query strings", () => {
+  const controls = Array.from({length:32}, (_,n)=>"%" + n.toString(16).padStart(2,"0"));
+  controls.push("%7f", "%0A", "%0D", "%1F", "%7F");
+  for (const encoded of controls) {
+    for (const candidate of [
+      "/onboarding/notes" + encoded + "unsafe",
+      "/onboarding?note=before" + encoded + "after",
+      "/onboarding?note=before#section" + encoded,
+    ]) {
+      assert.equal(safeInternalDestination(requestUrl,[candidate]).href,ORIGIN+"/dashboard",candidate);
+    }
+  }
+  for (const doubleEncoded of ["/path%250Aunsafe","/path%250dunsafe","/path%257Funsafe","/path%25250Aunsafe"]) {
+    assert.equal(safeInternalDestination(requestUrl,[doubleEncoded]).href,ORIGIN+"/dashboard",doubleEncoded);
+  }
+});
+
+test("FFH-P01 preserves normal local onboarding/dashboard destinations and already-denied redirect shapes", () => {
+  for (const value of [
+    "/onboarding",
+    "/dashboard",
+    "/onboarding?step=profile#income",
+    "/financial-profile#expenses",
+    "/dashboard?view=monthly%20summary",
+  ]) {
+    assert.equal(safeInternalDestination(requestUrl,[value]).href,new URL(value,ORIGIN).href,value);
+  }
+  for(const value of [
+    "//evil.example", "/%2F%2Fevil.example", "/%5cevil.example",
+    "/%25encoded", "/auth/login?next=//evil.example", "/dashboard\nunsafe",
+    "https://evil.example/dashboard",
+  ]) assert.equal(safeInternalDestination(requestUrl,[value]).href,ORIGIN+"/dashboard",value);
+  assert.equal(safeInternalDestination(requestUrl,["/onboarding","/dashboard"]).href,ORIGIN+"/dashboard");
+});
+
 test("FFH-051-R01 exposes only the exact confirmation route and uses a trusted query-free login redirect", () => {
   assert.match(proxy, /path === "\/auth\/confirm"/);
   assert.doesNotMatch(proxy, /startsWith\("\/auth\/confirm"\)/);
