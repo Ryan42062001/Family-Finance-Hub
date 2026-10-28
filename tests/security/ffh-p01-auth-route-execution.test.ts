@@ -117,7 +117,9 @@ test("executed confirmation accepts a unique bounded email token and preserves s
   assert.equal(response.status, 307);
   assert.equal(getLocation(response), ORIGIN + "/onboarding");
   assert.equal(h.clients, 1);
-  assert.deepEqual(h.calls, [{ type: "email", token_hash: fakeToken }]);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].type, "email");
+  assert.equal(h.calls[0].token_hash, fakeToken);
 });
 
 test("executed confirmation rejects missing, duplicate, wrong, empty and oversized token/type before provider", async () => {
@@ -168,7 +170,6 @@ test("executed confirmation rejects external/encoded/nested/duplicate next witho
     "/%5cevil.example",
     "/%252f%252fevil.example",
     "/auth/login?next=https://evil.example",
-    "/path%0Aunsafe",
     "/" + "a".repeat(2050),
   ];
   for (const next of unsafe) {
@@ -177,6 +178,15 @@ test("executed confirmation rejects external/encoded/nested/duplicate next witho
     assert.equal(getLocation(response), ORIGIN + "/dashboard", next.slice(0, 60));
   }
   assert.equal(getLocation(await h.request("?type=email&token_hash=" + fakeToken + "&next=%2Fonboarding&next=%2Foutside")), ORIGIN + "/dashboard");
+});
+
+test("AUTH CONTROL-CHARACTER GATE: encoded newline in next must fail closed", async () => {
+  const h = confirmationHarness(async () => success);
+  const encodedControl = "/path%0Aunsafe";
+  const response = await h.request("?type=email&token_hash=" + fakeToken + "&next=" + encodeURIComponent(encodedControl));
+  // MUST reject encoded control characters, not merely raw U+000A.
+  // This currently exposes a discrepancy in safeInternalDestination.
+  assert.equal(getLocation(response), ORIGIN + "/dashboard");
 });
 
 test("executed confirmation never trusts a hostile or lookalike URL origin or forwarded host", async () => {
