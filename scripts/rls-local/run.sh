@@ -59,6 +59,24 @@ fi
 if ! npx --yes supabase@2.122.0 start \
   --exclude rest,auth,realtime,storage,functions,studio,mail,analytics,pooler \
   --network-id ffh-p01-rls-loopback >/tmp/ffh-local-cli-private.log 2>&1; then
+  # Classify ONLY a known error family. Never print raw CLI logs: the CLI may
+  # generate/emit local API keys and connection passwords.
+  python3 - <<'PY'
+from pathlib import Path
+s=Path("/tmp/ffh-local-cli-private.log").read_text(errors="replace").lower()
+families=[
+ ("UNKNOWN_CLI_FLAG", ["unknown flag", "unknown shorthand flag", "flag provided but not defined"]),
+ ("CONFIG_INVALID", ["failed to parse config", "invalid config", "invalid configuration"]),
+ ("MIGRATION_SQL_ERROR", ["error applying migration", "failed to apply migration", "failed to execute sql", "migration failed"]),
+ ("IMAGE_PULL_OR_REGISTRY", ["pull access denied", "toomanyrequests", "failed to pull", "manifest unknown", "no such image"]),
+ ("NETWORK_UNREACHABLE", ["network is unreachable", "no route to host", "cannot connect to network", "failed to create endpoint"]),
+ ("CONTAINER_OR_HEALTH", ["unhealthy", "container exited", "failed to start container", "health check"]),
+ ("DOCKER_DAEMON", ["cannot connect to the docker daemon", "docker daemon"]),
+ ("TIMEOUT", ["context deadline exceeded", "timed out", "timeout"]),
+]
+classification=next((label for label,patterns in families if any(x in s for x in patterns)),"UNCLASSIFIED_LOCAL_STARTUP")
+print("LOCAL_STARTUP_CLASS="+classification)
+PY
   echo 'BLOCKED: local Supabase startup/migration failed; no fixtures attempted' >&2
   exit 1
 fi
