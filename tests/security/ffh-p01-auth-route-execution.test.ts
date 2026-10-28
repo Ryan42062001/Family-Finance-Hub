@@ -19,7 +19,6 @@ const GENERIC = ORIGIN + "/auth/login?error=Unable%20to%20confirm%20your%20accou
 const fakeToken = "nonsecret-synthetic-token";
 type Stub = Record<string, unknown>;
 type Route = { GET: (request: Request) => Promise<Response> };
-type RedirectRecord = { destination: string };
 class SyntheticRedirect extends Error {
   readonly destination: string;
   constructor(destination: string) { super("SYNTHETIC_REDIRECT"); this.destination = destination; }
@@ -37,9 +36,9 @@ function executeModule(path: string, mocks: Record<string, Stub>): Record<string
   });
   const failures = (transpiled.diagnostics ?? []).filter(d => d.category === ts.DiagnosticCategory.Error);
   assert.equal(failures.length, 0, "Route transpilation must succeed");
-  const module = { exports: {} as Record<string, unknown> };
+  const loadedModule = { exports: {} as Record<string, unknown> };
   runInNewContext(transpiled.outputText, {
-    module, exports: module.exports,
+    module: loadedModule, exports: loadedModule.exports,
     require: (name: string) => {
       if (!(name in mocks)) throw new Error("Unmocked dependency: " + name);
       return mocks[name];
@@ -47,7 +46,7 @@ function executeModule(path: string, mocks: Record<string, Stub>): Record<string
     Request, Response, URL, FormData,
     process: { env: { NEXT_PUBLIC_SITE_URL: ORIGIN } },
   }, { filename: path });
-  return module.exports;
+  return loadedModule.exports;
 }
 const nextServer = {
   NextResponse: {
@@ -80,12 +79,12 @@ function confirmationHarness(
       return verify(args);
     } } };
   };
-  const module = executeModule("../../app/auth/confirm/route.ts", {
+  const routeModule = executeModule("../../app/auth/confirm/route.ts", {
     "next/server": nextServer, ...realHelpers,
     "@/lib/supabase/server": { createClient },
   }) as unknown as Route;
   const request = (suffix: string, headers?: HeadersInit) =>
-    module.GET(new Request(ORIGIN + "/auth/confirm" + suffix, { headers }));
+    routeModule.GET(new Request(ORIGIN + "/auth/confirm" + suffix, { headers }));
   return { request, calls, get clients() { return clients; } };
 }
 function callbackHarness(
@@ -100,16 +99,15 @@ function callbackHarness(
       return exchange(code);
     } } };
   };
-  const module = executeModule("../../app/auth/callback/route.ts", {
+  const routeModule = executeModule("../../app/auth/callback/route.ts", {
     "next/server": nextServer, ...realHelpers,
     "@/lib/supabase/server": { createClient },
   }) as unknown as Route;
   const request = (suffix: string, headers?: HeadersInit) =>
-    module.GET(new Request(ORIGIN + "/auth/callback" + suffix, { headers }));
-  return { request, calls, get clients() { return clients; }, GET: module.GET };
+    routeModule.GET(new Request(ORIGIN + "/auth/callback" + suffix, { headers }));
+  return { request, calls, get clients() { return clients; }, GET: routeModule.GET };
 }
 const success = { data: { session: { user: { id: "synthetic-user" } } }, error: null };
-const denied = { data: { session: null }, error: { message: "synthetic provider rejects credential" } };
 
 test("executed confirmation accepts a unique bounded email token and preserves safe internal next", async () => {
   const h = confirmationHarness(async () => success);
