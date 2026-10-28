@@ -185,8 +185,79 @@ test("AUTH CONTROL-CHARACTER GATE: encoded newline in next must fail closed", as
   const encodedControl = "/path%0Aunsafe";
   const response = await h.request("?type=email&token_hash=" + fakeToken + "&next=" + encodeURIComponent(encodedControl));
   // MUST reject encoded control characters, not merely raw U+000A.
-  // This currently exposes a discrepancy in safeInternalDestination.
+  // Keep this original regression strict: it must pass via the real validator.
   assert.equal(getLocation(response), ORIGIN + "/dashboard");
+});
+
+// Route-level assertions cover the actual confirm/callback handlers, not just
+// isolated helper calls; all OTP and PKCE outcomes are synthetic fake successes.
+const encodedUnsafeNext = [
+  "/path%0Aunsafe",      // original failing encoded newline
+  "/path%0aunsafe",      // mixed-case newline
+  "/path%0Dunsafe",      // carriage return
+  "/path%0dunsafe",
+  "/path%09unsafe",      // tab
+  "/path%00unsafe",      // NUL
+  "/path%1funsafe",      // last C0 byte
+  "/path%7Funsafe",      // DEL
+  "/path%7funsafe",
+  "/onboarding?note=hi%0Athere",
+  "/onboarding?note=hi%0dthere",
+  "/onboarding?note=%09",
+  "/onboarding?note=%00",
+  "/onboarding?note=%7f",
+  "/onboarding?note=okay#part%0Ahidden",
+  "/path%250Aunsafe",    // extra encoding layer; previous %25 guard remains
+  "/onboarding?note=%250d",
+  "/path%25250Aunsafe",  // multiple encoded percent layers
+];
+
+const validNext = [
+  "/dashboard",
+  "/onboarding",
+  "/onboarding?step=profile#income",
+  "/financial-profile#expenses",
+  "/dashboard?view=monthly%20summary",
+];
+
+test("executed confirmation rejects encoded C0/DEL in paths, queries, fragments and double encodings", async () => {
+  const h=confirmationHarness(async () => success);
+  for (const next of encodedUnsafeNext) {
+    const response=await h.request("?type=email&token_hash="+fakeToken+"&next="+encodeURIComponent(next));
+    assert.equal(response.status,307,next);
+    assert.equal(getLocation(response),ORIGIN+"/dashboard",next);
+  }
+  assert.equal(h.calls.length,encodedUnsafeNext.length);
+  for(const next of validNext) {
+    const response=await h.request("?type=email&token_hash="+fakeToken+"&next="+encodeURIComponent(next));
+    assert.equal(getLocation(response),new URL(next,ORIGIN).href,next);
+  }
+});
+
+test("executed PKCE callback rejects encoded C0/DEL and preserves legitimate local destinations", async () => {
+  const h=callbackHarness(async () => ({error:null}));
+  for (const next of encodedUnsafeNext) {
+    const response=await h.request("?code=synthetic-pkce-code&next="+encodeURIComponent(next));
+    assert.equal(response.status,307,next);
+    assert.equal(getLocation(response),ORIGIN+"/dashboard",next);
+  }
+  assert.equal(h.calls.length,encodedUnsafeNext.length);
+  for(const next of validNext) {
+    const response=await h.request("?code=synthetic-pkce-code&next="+encodeURIComponent(next));
+    assert.equal(getLocation(response),new URL(next,ORIGIN).href,next);
+  }
+});
+
+test("executed confirmation and callback honor duplicate next fallback with encoded-control alternatives", async () => {
+  const confirm=confirmationHarness(async () => success);
+  const callback=callbackHarness(async () => ({error:null}));
+  for (const suffix of [
+    "&next=%2Fonboarding&next=%2Fpath%250Aunsafe",
+    "&next=%2Fpath%250Aunsafe&next=%2Fonboarding",
+  ]) {
+    assert.equal(getLocation(await confirm.request("?type=email&token_hash="+fakeToken+suffix)),ORIGIN+"/dashboard");
+    assert.equal(getLocation(await callback.request("?code=synthetic-pkce-code"+suffix)),ORIGIN+"/dashboard");
+  }
 });
 
 test("executed confirmation never trusts a hostile or lookalike URL origin or forwarded host", async () => {
