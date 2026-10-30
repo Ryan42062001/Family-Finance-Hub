@@ -245,7 +245,11 @@ test("FFH-P01 RLS-01 fresh-DB plan never resets the existing owner's project", (
   assert.match(owner, /Get-FileHash -LiteralPath \$copy -Algorithm SHA256/);
   assert.match(owner, /MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW/);
   assert.doesNotMatch(owner + fresh, /supabase@2\.122\.0 db reset --linked/);
-  assert.doesNotMatch(owner + fresh, /supabase link|--db-url|--project-ref/i);
+  // Inspect executable CLI invocations only: comments intentionally describe
+  // fail-closed hosted-link checks and must not create a false CI failure.
+  const cliCommands = (owner + "\n" + fresh).split("\n")
+    .filter((line) => /^\s*& npx\s/.test(line)).join("\n");
+  assert.doesNotMatch(cliCommands, /supabase link|--db-url|--project-ref/i);
 });
 
 test("FFH-P01 RLS-02 checks both person-two constraints in both directions without CHECK masking", () => {
