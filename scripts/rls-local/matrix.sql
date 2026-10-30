@@ -26,6 +26,7 @@ BEGIN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
+     (SELECT count(*) FROM auth.identities) <> 0 OR
      (SELECT count(*) FROM public.households) <> 0 OR
      (SELECT count(*) FROM public.household_members) <> 0 OR
      (SELECT count(*) FROM public.profiles) <> 0 THEN
@@ -581,6 +582,62 @@ BEGIN
     'INSERT INTO public.household_members(household_id,user_id,role) VALUES(%L,%L,%L)',
     b,a_owner,'member'),'FORBIDDEN',NULL,'membership-insert-forbidden','household_members');
 
+  -- Additional independent foundation role checks: self-profile RLS,
+  -- anonymous/grant-denied behavior, outsider and reverse membership access.
+  PERFORM pg_temp.ffh_probe(a_member,format(
+    'INSERT INTO public.profiles(id,display_name) VALUES(%L,%L)',a_member,'synthetic-member-profile'),
+    'ROWS',1,'profile-member-self-insert','profiles');
+  PERFORM pg_temp.ffh_probe(a_viewer,format(
+    'INSERT INTO public.profiles(id,display_name) VALUES(%L,%L)',a_viewer,'synthetic-viewer-profile'),
+    'ROWS',1,'profile-viewer-self-insert','profiles');
+  PERFORM pg_temp.ffh_probe(outsider,format(
+    'INSERT INTO public.profiles(id,display_name) VALUES(%L,%L)',outsider,'synthetic-outsider-profile'),
+    'ROWS',1,'profile-outsider-self-insert','profiles');
+  PERFORM pg_temp.ffh_probe(a_viewer,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L',a_viewer),
+    'COUNT',1,'profile-viewer-self-select','profiles');
+  PERFORM pg_temp.ffh_probe(outsider,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L',outsider),
+    'COUNT',1,'profile-outsider-self-select','profiles');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L',a_owner),
+    'COUNT',0,'profile-reverse-cross-select','profiles');
+  PERFORM pg_temp.ffh_probe(NULL::uuid,'SELECT count(*) FROM public.profiles',
+    'ANON_SELECT',0,'profile-anon-read','profiles');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'DELETE FROM public.profiles WHERE id=%L',a_owner),
+    'FORBIDDEN',0,'profile-delete-not-policy-authorized','profiles');
+  PERFORM pg_temp.ffh_probe(a_member,format(
+    'SELECT count(*) FROM public.household_members WHERE household_id=%L',a),
+    'COUNT',3,'membership-member-own-read','household_members');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'SELECT count(*) FROM public.household_members WHERE household_id=%L',b),
+    'COUNT',1,'membership-b-owner-own-read','household_members');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'SELECT count(*) FROM public.household_members WHERE household_id=%L',a),
+    'COUNT',0,'membership-b-to-a-denied','household_members');
+  PERFORM pg_temp.ffh_probe(outsider,
+    'SELECT count(*) FROM public.household_members',
+    'COUNT',0,'membership-outsider-denied','household_members');
+  PERFORM pg_temp.ffh_probe(NULL::uuid,
+    'SELECT count(*) FROM public.household_members',
+    'ANON_SELECT',0,'membership-anon-denied','household_members');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'UPDATE public.households SET updated_at=now()+interval ''6 seconds'' WHERE id=%L',b),
+    'DENY',0,'household-a-to-b-update-denied','households');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'UPDATE public.households SET updated_at=now()+interval ''6 seconds'' WHERE id=%L',a),
+    'DENY',0,'household-b-to-a-update-denied','households');
+  PERFORM pg_temp.ffh_probe(outsider,format(
+    'UPDATE public.households SET updated_at=now()+interval ''6 seconds'' WHERE id=%L',a),
+    'DENY',0,'household-outsider-update-denied','households');
+  PERFORM pg_temp.ffh_probe(NULL::uuid,format(
+    'UPDATE public.households SET updated_at=now()+interval ''6 seconds'' WHERE id=%L',b),
+    'ANON_WRITE',0,'household-anon-update-denied','households');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'DELETE FROM public.households WHERE id=%L',a),
+    'FORBIDDEN',0,'household-delete-not-policy-authorized','households');
+
   -- Privileged *fixture-only* membership transition, never authenticated app
   -- membership management. This must instantly remove member read/write.
   DELETE FROM public.household_members WHERE household_id=a AND user_id=a_member;
@@ -627,6 +684,7 @@ DO $zero$
 DECLARE t text; n integer;
 BEGIN
   IF (SELECT count(*) FROM auth.users)<>0 OR
+     (SELECT count(*) FROM auth.identities)<>0 OR
      (SELECT count(*) FROM public.households)<>0 OR
      (SELECT count(*) FROM public.household_members)<>0 OR
      (SELECT count(*) FROM public.profiles)<>0 THEN
