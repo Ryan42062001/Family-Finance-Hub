@@ -314,6 +314,287 @@ function Assert-FfhFreshTree {
 
 # Child-only Docker endpoint for the two authorized local Supabase operations.
 # ProcessStartInfo copies and sanitizes the child's environment, not the parent.
+# Native Windows PowerShell 5.1 compatible source-only Job Object implementation.
+# Its Add-Type compilation and child startup are NOT run by FAST/parser tests.
+function Invoke-FfhNativeJobChild {
+  param([Parameter(Mandatory=$true)][Diagnostics.ProcessStartInfo]$StartInfo)
+  if (-not ('FfhRlsJobRunner' -as [type])) {
+    try {
+      Add-Type -TypeDefinition @'
+// Native Win32 Job Object runner. Compiled only during separately approved
+// owner execution; AST/source tests never execute this class.
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
+
+public static class FfhRlsJobRunner {
+  private const uint CREATE_SUSPENDED = 0x00000004;
+  private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
+  private const uint CREATE_NO_WINDOW = 0x08000000;
+  private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
+  private const uint WAIT_OBJECT_0 = 0;
+  private const uint WAIT_TIMEOUT = 258;
+  private const uint WAIT_FAILED = 0xFFFFFFFF;
+
+  [StructLayout(LayoutKind.Sequential)]
+  private struct STARTUPINFO {
+    public uint cb;
+    public string lpReserved;
+    public string lpDesktop;
+    public string lpTitle;
+    public uint dwX;
+    public uint dwY;
+    public uint dwXSize;
+    public uint dwYSize;
+    public uint dwXCountChars;
+    public uint dwYFillAttribute;
+    public uint dwFlags;
+    public ushort wShowWindow;
+    public ushort cbReserved2;
+    public IntPtr lpReserved2;
+    public IntPtr hStdInput;
+    public IntPtr hStdOutput;
+    public IntPtr hStdError;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct PROCESS_INFORMATION {
+    public IntPtr hProcess;
+    public IntPtr hThread;
+    public uint dwProcessId;
+    public uint dwThreadId;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct JOBOBJECT_BASIC_LIMIT_INFORMATION {
+    public long PerProcessUserTimeLimit;
+    public long PerJobUserTimeLimit;
+    public uint LimitFlags;
+    public UIntPtr MinimumWorkingSetSize;
+    public UIntPtr MaximumWorkingSetSize;
+    public uint ActiveProcessLimit;
+    public UIntPtr Affinity;
+    public uint PriorityClass;
+    public uint SchedulingClass;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct IO_COUNTERS {
+    public ulong ReadOperationCount;
+    public ulong WriteOperationCount;
+    public ulong OtherOperationCount;
+    public ulong ReadTransferCount;
+    public ulong WriteTransferCount;
+    public ulong OtherTransferCount;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
+    public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+    public IO_COUNTERS IoInfo;
+    public UIntPtr ProcessMemoryLimit;
+    public UIntPtr JobMemoryLimit;
+    public UIntPtr PeakProcessMemoryUsed;
+    public UIntPtr PeakJobMemoryUsed;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION {
+    public long TotalUserTime;
+    public long TotalKernelTime;
+    public long ThisPeriodTotalUserTime;
+    public long ThisPeriodTotalKernelTime;
+    public uint TotalPageFaultCount;
+    public uint TotalProcesses;
+    public uint ActiveProcesses;
+    public uint TotalTerminatedProcesses;
+  }
+
+  [DllImport("kernel32.dll", EntryPoint="CreateJobObjectW", ExactSpelling=true, CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern IntPtr CreateJobObjectW(IntPtr attributes, string name);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool SetInformationJobObject(IntPtr job, int infoClass, IntPtr limits, uint length);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool QueryInformationJobObject(IntPtr job, int infoClass,
+    out JOBOBJECT_BASIC_ACCOUNTING_INFORMATION information, uint length, IntPtr returnedLength);
+  [DllImport("kernel32.dll", EntryPoint="CreateProcessW", ExactSpelling=true, CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern bool CreateProcessW(string application, StringBuilder commandLine,
+    IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint flags,
+    IntPtr environment, string workingDirectory, ref STARTUPINFO startup, out PROCESS_INFORMATION process);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern uint ResumeThread(IntPtr thread);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool TerminateProcess(IntPtr process, uint exitCode);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool CloseHandle(IntPtr handle);
+
+  private static bool EnableKillOnClose(IntPtr job) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    int bytes = Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
+    IntPtr memory = Marshal.AllocHGlobal(bytes);
+    try {
+      Marshal.StructureToPtr(limits, memory, false);
+      return SetInformationJobObject(job, 9, memory, (uint)bytes);
+    } finally {
+      Marshal.FreeHGlobal(memory);
+    }
+  }
+
+  private static IntPtr BuildChildEnvironment(StringDictionary variables) {
+    SortedDictionary<string,string> sorted = new SortedDictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+    foreach (DictionaryEntry pair in variables) {
+      string name = Convert.ToString(pair.Key);
+      string value = Convert.ToString(pair.Value) ?? "";
+      if (String.IsNullOrEmpty(name) || name.IndexOf('=') >= 0 ||
+          name.IndexOf('\0') >= 0 || value.IndexOf('\0') >= 0)
+        throw new InvalidOperationException("invalid child environment");
+      sorted[name] = value;
+    }
+    StringBuilder block = new StringBuilder();
+    foreach (KeyValuePair<string,string> entry in sorted) {
+      block.Append(entry.Key).Append('=').Append(entry.Value).Append('\0');
+    }
+    block.Append('\0');
+    return Marshal.StringToHGlobalUni(block.ToString());
+  }
+
+  private static bool JobEmpty(IntPtr job) {
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting;
+    if (!QueryInformationJobObject(job, 1, out accounting,
+        (uint)Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION)), IntPtr.Zero))
+      return false;
+    return accounting.ActiveProcesses == 0;
+  }
+
+  private static bool WaitForJobEmpty(IntPtr job, int milliseconds) {
+    Stopwatch timer = Stopwatch.StartNew();
+    do {
+      if (JobEmpty(job)) return true;
+      Thread.Sleep(50);
+    } while (timer.ElapsedMilliseconds < milliseconds);
+    return JobEmpty(job);
+  }
+
+  private static bool TerminateAndConfirmJob(IntPtr job, int verificationMilliseconds) {
+    // TerminateJobObject targets only processes admitted through our job handle.
+    // Even if TerminateJobObject returns failure, verify the actual active count.
+    TerminateJobObject(job, 1);
+    return WaitForJobEmpty(job, verificationMilliseconds);
+  }
+
+  private static bool TerminateSuspendedRoot(IntPtr process) {
+    // Assignment failure occurs BEFORE ResumeThread: no CLI descendants started.
+    TerminateProcess(process, 1);
+    return WaitForSingleObject(process, 5000) == WAIT_OBJECT_0;
+  }
+
+  public static string Run(string application, string arguments, string workingDirectory,
+    StringDictionary childEnvironment, int executionMilliseconds, int verificationMilliseconds) {
+    IntPtr job = IntPtr.Zero;
+    IntPtr environment = IntPtr.Zero;
+    PROCESS_INFORMATION owned = new PROCESS_INFORMATION();
+    bool created = false;
+    bool assigned = false;
+    try {
+      job = CreateJobObjectW(IntPtr.Zero, null);
+      if (job == IntPtr.Zero || !EnableKillOnClose(job))
+        return "BLOCKED_PROCESS_START_FAILED";
+
+      environment = BuildChildEnvironment(childEnvironment);
+      STARTUPINFO startup = new STARTUPINFO();
+      startup.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
+      StringBuilder command = new StringBuilder("\"" + application + "\" " + arguments);
+      // The wrapper is SUSPENDED until it is inside the kill-on-close job.
+      // No CLI/Node descendants can start during job assignment.
+      if (!CreateProcessW(application, command, IntPtr.Zero, IntPtr.Zero, false,
+          CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW,
+          environment, workingDirectory, ref startup, out owned))
+        return "BLOCKED_PROCESS_START_FAILED";
+      created = true;
+
+      if (!AssignProcessToJobObject(job, owned.hProcess)) {
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      assigned = true;
+      if (ResumeThread(owned.hThread) == WAIT_FAILED) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+
+      uint wait = WaitForSingleObject(owned.hProcess, (uint)executionMilliseconds);
+      if (wait == WAIT_TIMEOUT) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_TIMEOUT_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      if (wait != WAIT_OBJECT_0) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+
+      uint exitCode;
+      if (!GetExitCodeProcess(owned.hProcess, out exitCode)) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      // cmd.exe's exit is insufficient: npx/Node descendants must also exit.
+      if (!WaitForJobEmpty(job, verificationMilliseconds)) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      return exitCode == 0 ? "EXIT_ZERO" : "BLOCKED_NONZERO_EXIT";
+    } catch {
+      if (assigned)
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_RUNNER_FAILURE_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      if (created)
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      return "BLOCKED_PROCESS_START_FAILED";
+    } finally {
+      // KILL_ON_JOB_CLOSE is a final safety net, NOT confirmation of death.
+      // Never publish PID, child environment, command line or native errors.
+      if (owned.hThread != IntPtr.Zero) CloseHandle(owned.hThread);
+      if (owned.hProcess != IntPtr.Zero) CloseHandle(owned.hProcess);
+      if (environment != IntPtr.Zero) Marshal.FreeHGlobal(environment);
+      if (job != IntPtr.Zero) CloseHandle(job);
+    }
+  }
+}
+'@ -ErrorAction Stop
+    } catch {
+      throw 'BLOCKED_PROCESS_START_FAILED: native Windows Job Object runner unavailable'
+    }
+  }
+  try {
+    # Win32 CreateProcessW begins SUSPENDED; AssignProcessToJobObject happens
+    # BEFORE ResumeThread. Verification polls actual job ActiveProcesses.
+    return [FfhRlsJobRunner]::Run(
+      $StartInfo.FileName, $StartInfo.Arguments, $StartInfo.WorkingDirectory,
+      $StartInfo.EnvironmentVariables, 900000, 10000
+    )
+  } catch {
+    throw 'BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING'
+  }
+}
+
 function Invoke-FfhPinnedLocalSupabase {
   param([Parameter(Mandatory=$true)][ValidateSet('Start','Reset')][string]$Operation)
   Assert-FfhNoRemoteConfiguration
@@ -349,21 +630,36 @@ function Invoke-FfhPinnedLocalSupabase {
     throw 'BLOCKED: conflicting child Docker endpoint or TLS context'
   }
   $parentDockerHost = [Environment]::GetEnvironmentVariable('DOCKER_HOST','Process')
-  $child = $null
   try {
-    $child = [Diagnostics.Process]::Start($startInfo)
-    if ($null -eq $child) { throw 'BLOCKED: local Supabase child did not start' }
-    if (-not $child.WaitForExit(900000)) {
-      $child.Kill()
-      throw 'BLOCKED: local Supabase child timed out; no retry or cleanup authorized'
-    }
-    if ($child.ExitCode -ne 0) {
-      throw 'BLOCKED: pinned local Supabase command failed (private output suppressed)'
+    $outcome = Invoke-FfhNativeJobChild -StartInfo $startInfo
+    switch -CaseSensitive ($outcome) {
+      'EXIT_ZERO' { break }
+      'BLOCKED_NONZERO_EXIT' {
+        throw 'BLOCKED_NONZERO_EXIT: pinned local Supabase CLI returned nonzero'
+      }
+      'BLOCKED_PROCESS_START_FAILED' {
+        throw 'BLOCKED_PROCESS_START_FAILED: no CLI process permitted to continue'
+      }
+      'BLOCKED_TIMEOUT_TREE_TERMINATED' {
+        throw 'BLOCKED_TIMEOUT_TREE_TERMINATED: do not retry or authorize Gate B'
+      }
+      'BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED' {
+        throw 'BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED: no retry'
+      }
+      'BLOCKED_WAIT_FAILURE_TREE_TERMINATED' {
+        throw 'BLOCKED_WAIT_FAILURE_TREE_TERMINATED: no retry'
+      }
+      'BLOCKED_RUNNER_FAILURE_TREE_TERMINATED' {
+        throw 'BLOCKED_RUNNER_FAILURE_TREE_TERMINATED: no retry'
+      }
+      default {
+        # Unknown outcome or inconclusive kill/verification is never a PASS.
+        throw 'BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING: no retry, Gate B, reset or cleanup'
+      }
     }
   }
   finally {
     [Environment]::SetEnvironmentVariable('DOCKER_HOST',$parentDockerHost,'Process')
-    if ($null -ne $child) { $child.Dispose() }
   }
   Assert-FfhDockerEnvironment
 }

@@ -106,8 +106,10 @@ test("RLS-01A child environment models success/failure restoration and no hostil
     assert.deepEqual(parent,{PATH:"safe",CUSTOM:"keep"});
     assert.equal(exit===0 ? "PASS":"BLOCK",exit===0?"PASS":"BLOCK");
   }
-  assert.match(guard,/if \(\$child\.ExitCode -ne 0\)/);
-  assert.match(guard,/WaitForExit\(900000\)/);
+  assert.match(guard,/switch -CaseSensitive \(\$outcome\)/);
+  assert.match(guard,/\$StartInfo\.EnvironmentVariables, 900000, 10000/);
+  assert.match(guard,/BLOCKED_NONZERO_EXIT/);
+  assert.match(guard,/BLOCKED_TIMEOUT_TREE_TERMINATED/);
 });
 
 function rootOrder(source:string):void {
