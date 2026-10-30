@@ -102,11 +102,16 @@ test("RLS-01 locality: both owner entrypoints check daemon before first dangerou
     assert.ok(firstDaemonOperation > localityAt);
   }
   // Recheck before fresh local start, destructive reset and Docker-local SQL.
-  const start = positions(prepare, [
-    "[void](Assert-FfhLocalDockerDesktop)\n  & npx --yes supabase@2.122.0 db start",
-    "[void](Assert-FfhLocalDockerDesktop)\n  & npx --yes supabase@2.122.0 db reset --local --no-seed",
-    "[void](Assert-FfhLocalDockerDesktop)\n  $readOnly = @(",
-  ]);
+  const startPatterns = [
+    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+& npx --yes supabase@2\.122\.0 db start/,
+    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+& npx --yes supabase@2\.122\.0 db reset --local --no-seed/,
+    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$readOnly = @\(/,
+  ];
+  const start = startPatterns.map((pattern) => {
+    const matched = pattern.exec(prepare);
+    assert.ok(matched, "missing guard-before-operation source: " + pattern);
+    return matched.index;
+  });
   assert.ok(start[0] < start[1] && start[1] < start[2]);
   assert.match(execute, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$preflightOutput = @\(/);
   assert.match(execute, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/matrix\.sql'\)/);
