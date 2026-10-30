@@ -5,6 +5,43 @@ This document records current, privacy-safe evidence for the FFH-P01 candidate. 
 Lifecycle state: `PUNCH_LIST`. The original Vercel Preview-origin finding occurred on candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` and is preserved below as historical evidence. A subsequent bounded Preview-only origin configuration remediation resolved the blocking error, and the owner later verified browser-level calculation and CRUD functionality across Dashboard, Financial Profile, Scenario Lab, and Planning. That statement describes the original evidence checkpoint; newer owner-operated hosted-auth evidence and subsequent UI candidates are reconciled in the dated addendum below. Production readiness and later lifecycle gates are still pending.
 
 
+## FFH-P01 RLS-01/02/03 targeted source remediation (2026-10-29)
+
+**Authority:** [Manager comment #6514412128](https://github.com/Ryan42062001/Family-Finance-Hub/pull/81#issuecomment-6514412128), accepting the independent **FAIL** of the immutable audit target f22a96a2c6194347ffc26f501b1789afa99bb1fc. Same Regular Chat Builder, original draft PR #81, same branch. **SOURCE-ONLY changes; no SQL, Docker command, database reset, owner fixture test, or cleanup executed in this work.**
+
+**Historical owner-observed evidence — preserved without promotion:** The original e6b09df6c60fcb7bf2b2184d7763e1f607f5b test failed at MATRIX_UNAUTHORIZED_WRITE category=foreign-exact-select family=accounts (harness scalar-count defect), then the owner separately observed ZERO_RESIDUE_PASS tables=18 using read-only SQL. The owner later observed **909 receipt assertions with MATRIX_ROLLBACK_COMPLETE and MATRIX_ZERO_RESIDUE_PASS** on source f22a96a2c6194347ffc26f501b1789afa99bb1fc. Independent review found no demonstrated household disclosure but classified source/run evidence **FAIL** due to missing applied-byte provenance, second-spouse FK negatives and authenticated bootstrap positive. These 909 receipts belong only to that prior SHA, not this amended matrix. Production/hosted parity and independent current-candidate enforcement remain OPEN.
+
+### Source-only corrections and proof boundaries
+
+| Finding | Prepared source change | Still unverified |
+| --- | --- | --- |
+| RLS-01 MEDIUM — migration provenance | New scripts/rls-local/source-provenance.ps1 checks exact 40-character HEAD, original branch, whole-checkout clean status, nonlinked repository, each Git object against immutable HEAD, and SHA-256 of **all 15 canonical migration file bytes** plus SQL harness/runner/owner scripts, canonical CI and governance references. New scripts/rls-local/prepare-fresh-owner.ps1 is a separately gated **new** directory/project builder; it copies all 15 SHA-256-matched migrations from the clean checkout, writes a candidate-specific local config (repo has **no** committed Supabase config), uses CLI 2.122.0 for local db start and local-only db reset --no-seed of that **new** project, checks the unique fresh local container is healthy and 54332 bound only to 127.0.0.1 or ::1, executes read-only preflight, and writes a private-local SHA-256 manifest/config/application receipt. Revised run-owner.ps1 revalidates source, manifest, config, copied migrations, live port and local preflight before any matrix fixture. Never resets existing FFH-RLS-Test. | Fresh initialization/application and the manifest verification **NOT RUN**. A posthoc source hash cannot prove that the earlier 909-run database used those bytes; fresh creation with witnessed receipt improves provenance but is still not independent cryptographic database attestation. |
+| RLS-02 MEDIUM — missing spouse-second FKs | Two distinct exact SQLSTATE 23503 / CONSTRAINT_NAME negatives added for **household_hsa_married_allocations_person_two_fkey** and **household_hsa_legal_spouse_authorities_person_two_fkey**, in both A-to-B and B-to-A directions. The inserted person-one always belongs to the owner household, second person is foreign; specially ordered fixture UUIDs ensure person_one_id is strictly less than person_two_id even for the legal-spouse CHECK. Positive owner/member controls and original person-one negatives remain intact. | **4 new FK denial receipts are planned, NOT executed**. Other SQLSTATEs, CHECK violations and first-person FK failures cannot substitute for person-two success. |
+| RLS-03 LOW — authenticated bootstrap | Both genuine creator household INSERTs now use an effective non-bypass authenticated SQL role and exactly matching synthetic auth.uid(); returns correct household IDs, verifies exactly ONE trigger-created owner membership per household, and safely restores local role/claim context. Forged-creator denial and rollback remain unchanged. | Source strengthened existing creator-bootstrap receipt; **0 new receipt labels**. Runtime enforcement NOT rechecked. |
+
+**Expected amended matrix arithmetic (source projection ONLY):** Prior independent-auditor breakdown 39 owner/member CRUD bundles + 728 cross-principal assertions + 52 viewer cases + 26 reassignment cases + 18 named FK negatives + 46 foundation/revocation = 909. RLS-02 adds 2 named second-person FK tests × 2 directions = **4**. RLS-03 improves an already counted receipt, does not add a new one. Projected total **913 = 39 + 728 + 52 + 26 + 22 + 46**; never claim 913 actual PASS before a newly authorized runtime test.
+
+### Separate, future Windows PowerShell gates — DO NOT RUN NOW
+
+Only **after a targeted independent read-only source re-audit** and separate explicit Owner/Manager GO for the exact next SHA, from a clean checked-out original repository branch on the owner's personal laptop:
+
+Gate A — future **fresh, isolated, disposable** local database/migration application authorization (fresh parent directory must already exist; source must be clean; required destination path must NOT exist):
+
+    $head = '<MANAGER_APPROVED_40_CHAR_COMMIT_SHA>'
+    $root = Join-Path $HOME ('FFH-P01-RLS-Fresh-' + $head.Substring(0,12))
+    powershell -NoProfile -File .\scripts\rls-local\prepare-fresh-owner.ps1 -ExpectedHead $head -FreshRoot $root -ExplicitAuthorization FFH-P01-FRESH-LOCAL-GO
+
+This creates a unique source-SHA-specific Supabase project with config and copies in a brand-new, non-repository folder. It performs local-only db start and local db reset --no-seed against **that fresh project only** and records 15-file SHA-256 hashes and a distinct config/application receipt. No alternative hosted link or legacy FFH-RLS-Test project is selected. If any mismatch occurs, STOP and request bounded Manager guidance; no automatic retry or cross-project cleanup. Local CLI stdout/stderr is suppressed to avoid leaking generated keys. No owner disk/config actions are authorized by writing this plan.
+
+Gate B — separate future **single synthetic matrix run** authorization after receipt review:
+
+    powershell -NoProfile -File .\scripts\rls-local\run-owner.ps1 -ExpectedHead $head -FreshRoot $root -ExplicitAuthorization FFH-P01-RLS-EXECUTION-GO
+
+The matrix retains all 13 financial families, all previous role/action cases, non-bypass identity checks, valid positives, failed-action error classification, cross-household unchanged-row checks, explicit ROLLBACK and post-rollback zero-residue witness. If any case fails, STOP; no retry or manual deletion without another authorization. Any later teardown must identify **only** the SHA-specific fresh project, preserve privacy-safe receipts and receive separate scope; the owner's original local database remains untouched.
+
+**Standing holds:** FFH-P01 remains HIGH / PUNCH_LIST / BLOCKED. Static CI is no replacement for SQL execution. Only a new authorized local run plus independent evidence review can assess amended 913 receipts; deployed Production/RLS parity, FFH-026 F11/F13, cookie/auth adversarial paths, rollback readiness and full HIGH-risk independent phase audit remain unresolved. No Phase Sync, FULL PHASE CI, freeze, phase audit activation, merge, Production traffic/deployment/rollback, Private Beta or paid resource.
+
+
 ## FFH-P01 anonymous SELECT assertion remediation — source only (2026-10-29)
 
 **Authority and immutable starting target:** [Manager review #6514154645](https://github.com/Ryan42062001/Family-Finance-Hub/pull/81#issuecomment-6514154645), prior accepted SHA `e6b09df6fc60fcb7bf2b2bf44c27d26ef9d34de1`; same Primary Builder, original Draft PR #81, HIGH / PUNCH_LIST / BLOCKED. This is a focused, nonexecuted source assertion fix, NOT permission to run the owner-local test again.
