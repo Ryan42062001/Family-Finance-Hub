@@ -18,8 +18,11 @@ param(
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
 Assert-FfhNoRemoteConfiguration
+# Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
+[void](Assert-FfhLocalDockerDesktop)
 $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
 $root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
+Assert-FfhFreshTree -FreshRoot $root
 if (-not (Test-Path -LiteralPath $root -PathType Container)) {
   throw 'BLOCKED: approved fresh isolated project folder absent; do not use old DB'
 }
@@ -84,12 +87,16 @@ if (Test-Path -LiteralPath (Join-Path $root 'supabase/.temp/project-ref')) {
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   throw 'BLOCKED: Docker unavailable'
 }
+Assert-FfhFreshTree -FreshRoot $root
+[void](Assert-FfhLocalDockerDesktop)
 [void](Assert-FfhDbLoopback -Container $container)
 Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK MANIFEST=SHA256_MATCH"
 
 # Revalidate catalog and effective role/claim preflight over Docker-local stdin
 # before ANY synthetic identities/transactions are attempted. No DB URL,
 # database password, provider token, hosted Auth or service-role session.
+Assert-FfhFreshTree -FreshRoot $root
+[void](Assert-FfhLocalDockerDesktop)
 $preflightOutput = @(
   Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
     & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
@@ -104,6 +111,8 @@ Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 # Expected SQL errors use PL/pgSQL subtransactions. If psql returns nonzero,
 # the session closes and PostgreSQL rolls back; never retry or manually clean
 # without new approval. A matrix PASS remains OWNER-OBSERVED only.
+Assert-FfhFreshTree -FreshRoot $root
+[void](Assert-FfhLocalDockerDesktop)
 Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') -Raw -Encoding UTF8 |
   & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
 if ($LASTEXITCODE -ne 0) {
