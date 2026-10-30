@@ -709,26 +709,26 @@ public static class FfhRlsJobRunner {
         return "BLOCKED_PROCESS_START_FAILED";
       job = CreateJobObjectW(IntPtr.Zero, null);
       if (job == IntPtr.Zero || !EnableKillOnClose(job))
-        return "BLOCKED_PROCESS_START_FAILED";
+        return "BLOCKED_VERSION_JOB_SETUP_FAILED";
       SECURITY_ATTRIBUTES attrs = new SECURITY_ATTRIBUTES();
       attrs.nLength = (uint)Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
       attrs.bInheritHandle = true;
       if (!CreatePipe(out pipeRead, out pipeWrite, ref attrs, 0) ||
           !SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0))
-        return "BLOCKED_PROCESS_START_FAILED";
+        return "BLOCKED_VERSION_PIPE_SETUP_FAILED";
       nul = CreateFileW("NUL", GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE, ref attrs, OPEN_EXISTING, 0, IntPtr.Zero);
-      if (nul == new IntPtr(-1)) { nul = IntPtr.Zero; return "BLOCKED_PROCESS_START_FAILED"; }
+      if (nul == new IntPtr(-1)) { nul = IntPtr.Zero; return "BLOCKED_VERSION_NUL_SETUP_FAILED"; }
 
       environment = BuildChildEnvironment(childEnvironment);
       // STARTUPINFOEX allowlists only stdout pipe and stdin/stderr NUL.
       // Avoid inheriting unrelated host/runner handles with bInheritHandles=true.
       IntPtr listSize = IntPtr.Zero;
       InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref listSize);
-      if (listSize == IntPtr.Zero) return "BLOCKED_PROCESS_START_FAILED";
+      if (listSize == IntPtr.Zero) return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
       attributes = Marshal.AllocHGlobal(listSize);
       if (!InitializeProcThreadAttributeList(attributes, 1, 0, ref listSize))
-        return "BLOCKED_PROCESS_START_FAILED";
+        return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
       attributesInitialized = true;
       handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
       Marshal.WriteIntPtr(handles, 0, pipeWrite);
@@ -736,7 +736,7 @@ public static class FfhRlsJobRunner {
       if (!UpdateProcThreadAttribute(attributes, 0,
           new IntPtr((long)PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handles,
           new IntPtr(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
-        return "BLOCKED_PROCESS_START_FAILED";
+        return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
       STARTUPINFOEX startup = new STARTUPINFOEX();
       startup.StartupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFOEX));
       startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -756,18 +756,18 @@ public static class FfhRlsJobRunner {
       // Close only the parent's extra writer. The child inherited its own.
       if (!CloseHandle(pipeWrite))
         return TerminateSuspendedRoot(owned.hProcess)
-          ? "BLOCKED_PROCESS_START_FAILED"
+          ? "BLOCKED_VERSION_SUSPENDED_ROOT_TERMINATED"
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
       pipeWrite = IntPtr.Zero;
       if (!AssignProcessToJobObject(job, owned.hProcess)) {
         return TerminateSuspendedRoot(owned.hProcess)
-          ? "BLOCKED_PROCESS_START_FAILED"
+          ? "BLOCKED_VERSION_SUSPENDED_ROOT_TERMINATED"
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
       }
       assigned = true;
       if (ResumeThread(owned.hThread) == WAIT_FAILED) {
         return TerminateAndConfirmJob(job, verificationMilliseconds)
-          ? "BLOCKED_PROCESS_START_FAILED"
+          ? "BLOCKED_VERSION_RESUME_FAILED_TREE_TERMINATED"
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
       }
       Stopwatch overall = Stopwatch.StartNew();
@@ -817,9 +817,9 @@ public static class FfhRlsJobRunner {
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
       if (created)
         return TerminateSuspendedRoot(owned.hProcess)
-          ? "BLOCKED_PROCESS_START_FAILED"
+          ? "BLOCKED_VERSION_SUSPENDED_ROOT_TERMINATED"
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
-      return "BLOCKED_PROCESS_START_FAILED";
+      return "BLOCKED_VERSION_PRESTART_FAILURE";
     } finally {
       // No stdout contents, command line, PIDs, native errors or environment
       // are exposed. KILL_ON_JOB_CLOSE is only a fallback, NEVER death proof.

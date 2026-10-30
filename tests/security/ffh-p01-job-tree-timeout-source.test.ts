@@ -10,6 +10,13 @@ const owner = readFileSync("scripts/rls-local/run-owner.ps1","utf8").replace(/\r
 const full = shared+prepare+owner;
 
 function enforceContainmentContract(source: string) {
+  // Target ONLY the historical Start/Reset Run(), not the new independent
+  // version runner with similar job mechanics. Mutations must not be hidden
+  // by a second intact implementation earlier in the same source file.
+  const start = source.indexOf("public static string Run(");
+  const end = source.indexOf("\n  }\n}", start);
+  assert.ok(start >= 0 && end > start, "original Start/Reset Run() missing");
+  const originalRun = source.slice(start, end + 5);
   const ordered = [
     "CreateJobObjectW(IntPtr.Zero, null)",
     "EnableKillOnClose(job)",
@@ -20,13 +27,13 @@ function enforceContainmentContract(source: string) {
     "ResumeThread(owned.hThread)",
     "WaitForSingleObject(owned.hProcess, (uint)executionMilliseconds)",
   ];
-  const positions = ordered.map(k=>source.indexOf(k));
+  const positions = ordered.map(k=>originalRun.indexOf(k));
   assert.ok(positions.every(i=>i>=0),"missing job containment prerequisite");
   assert.ok(positions.every((i,n)=>n===0||i>positions[n-1]),"child must be suspended and assigned before resuming");
   assert.match(source,/JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000/);
   assert.match(source,/limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/);
   assert.match(source,/SetInformationJobObject\(job, 9, memory, \(uint\)bytes\)/);
-  assert.match(source,/if \(!AssignProcessToJobObject\(job, owned.hProcess\)\) \{\s+return TerminateSuspendedRoot/);
+  assert.match(originalRun,/if \(!AssignProcessToJobObject\(job, owned.hProcess\)\) \{\s+return TerminateSuspendedRoot/);
   assert.match(source,/CloseHandle\(job\)/);
 }
 
@@ -54,12 +61,20 @@ test("RLS-01A-01 no unmanaged wrapper-only Kill, broad taskkill, or process-name
 });
 
 test("RLS-01A-01 mutation rejects removing suspension or job assignment boundary",()=>{
+  const mutateOriginal=(needle:string,replacement:string)=>{
+    const at=shared.indexOf("public static string Run(");
+    assert.ok(at>=0);
+    const prefix=shared.slice(0,at);
+    const tail=shared.slice(at);
+    assert.ok(tail.includes(needle));
+    return prefix+tail.replace(needle,replacement);
+  };
   const mutations=[
-    shared.replace("CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT", "CREATE_UNICODE_ENVIRONMENT"),
-    shared.replace("AssignProcessToJobObject(job, owned.hProcess)", "true /* unsafe skip */"),
+    mutateOriginal("CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT", "CREATE_UNICODE_ENVIRONMENT"),
+    mutateOriginal("AssignProcessToJobObject(job, owned.hProcess)", "true /* unsafe skip */"),
     shared.replace("limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;",
                    "limits.BasicLimitInformation.LimitFlags = 0;"),
-    shared.replace("ResumeThread(owned.hThread)", "UnsafeResumeWithoutJob(owned.hThread)"),
+    mutateOriginal("ResumeThread(owned.hThread)", "UnsafeResumeWithoutJob(owned.hThread)"),
   ];
   for (const m of mutations){
     assert.notEqual(m,shared);

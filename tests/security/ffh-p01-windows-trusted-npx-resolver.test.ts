@@ -89,15 +89,16 @@ function Case {
  $script:Files[$script:Ps1]=$true
  $script:Files[$script:Shell]=$true
  $script:ReparseBlocked=$Reparse
- $blocked=$false;$value=$null
+ $blocked=$false;$value=$null;$reason='none'
  try{$value=Resolve-FfhTrustedNpxCmd}
  catch{
-  if($_.Exception.Message -notmatch '^BLOCKED:'){throw ('Unexpected exception in '+$Label+': '+$_.Exception.Message)}
+  if($_.Exception.Message -notmatch '^BLOCKED:'){throw ('Unexpected exception in '+$Label+': '+$_.Exception.GetType().Name)}
   $blocked=$true
+  $reason=$_.Exception.Message # Synthetic classification only; no paths/creds.
  }
  if($Accept){
   if($blocked -or $null -eq $value -or $value.Name -cne 'npx.cmd' -or
-     $value.Source -cne $script:Npx){throw ('Trusted npx was not accepted: '+$Label)}
+     $value.Source -cne $script:Npx){throw ('Trusted npx was not accepted: '+$Label+' reason='+$reason)}
  } elseif(-not $blocked){throw ('Untrusted npx accepted: '+$Label)}
  [Console]::Out.WriteLine('WINPS51_TRUSTED_NPX_PASS '+$Label)
 }
