@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const guard = readFileSync("scripts/rls-local/source-provenance.ps1","utf8");
-const prepare = readFileSync("scripts/rls-local/prepare-fresh-owner.ps1","utf8");
+const prepare = readFileSync("scripts/rls-local/prepare-fresh-owner.ps1","utf8").replace(/\r\n/g,"\n");
 const runOwner = readFileSync("scripts/rls-local/run-owner.ps1","utf8");
 const pipe = "npipe:////./pipe/dockerDesktopLinuxEngine";
 
