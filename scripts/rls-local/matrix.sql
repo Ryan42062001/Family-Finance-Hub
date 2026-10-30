@@ -52,11 +52,11 @@ BEGIN
        NOT has_table_privilege('authenticated',format('public.%I',t),'DELETE') THEN
       RAISE EXCEPTION 'MATRIX_POSITIVE_ROLE_GRANT_MISSING table=%',t;
     END IF;
-    IF has_table_privilege('anon',format('public.%I',t),'SELECT') OR
-       has_table_privilege('anon',format('public.%I',t),'INSERT') OR
-       has_table_privilege('anon',format('public.%I',t),'UPDATE') OR
-       has_table_privilege('anon',format('public.%I',t),'DELETE') THEN
-      RAISE EXCEPTION 'MATRIX_UNEXPECTED_ANON_GRANT table=%',t;
+    -- Supabase default grants may differ by table. Anon must have NO
+    -- enabling RLS policy, but a grant is not itself a data disclosure.
+    IF EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname='public'
+      AND p.tablename=t AND ('anon'=ANY(p.roles) OR 'public'=ANY(p.roles))) THEN
+      RAISE EXCEPTION 'MATRIX_UNEXPECTED_ANON_RLS_POLICY table=%',t;
     END IF;
   END LOOP;
   FOREACH t IN ARRAY ARRAY['profiles','households','household_members'] LOOP
@@ -167,8 +167,10 @@ BEGIN
     IF mode IN ('RLS','DENY') AND error_state='42501'
        AND error_message ILIKE '%row-level security%' THEN
       denied := true;
-    ELSIF mode='GRANT' AND error_state='42501'
-       AND error_message ILIKE '%permission denied%' THEN
+    ELSIF mode IN ('GRANT','FORBIDDEN','ANON_SELECT','ANON_WRITE','ANON_INSERT')
+       AND error_state='42501'
+       AND (error_message ILIKE '%permission denied%'
+            OR (mode <> 'GRANT' AND error_message ILIKE '%row-level security%')) THEN
       denied := true;
     ELSIF mode='FK' AND error_state='23503'
        AND error_constraint=wanted_constraint THEN
@@ -186,11 +188,11 @@ BEGIN
     IF denied OR observed IS DISTINCT FROM expected THEN
       RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',category,family;
     END IF;
-  ELSIF mode IN ('RLS','GRANT','FK','IMMUTABLE') THEN
+  ELSIF mode IN ('RLS','GRANT','FORBIDDEN','ANON_INSERT','FK','IMMUTABLE') THEN
     IF NOT denied THEN
       RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',category,family;
     END IF;
-  ELSIF mode='DENY' THEN
+  ELSIF mode IN ('DENY','ANON_SELECT','ANON_WRITE') THEN
     IF NOT denied AND observed IS DISTINCT FROM 0 THEN
       RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_WRITE category=% family=%',category,family;
     END IF;
@@ -370,23 +372,23 @@ BEGIN
       -- Both exact known-ID and broad household enumeration must disclose 0.
       PERFORM pg_temp.ffh_probe(principal.user_id,
         format('SELECT count(*) FROM public.%I WHERE %I=%L AND household_id=%L',family,pk,baseline_id,hh),
-        CASE WHEN principal.user_id IS NULL THEN 'GRANT' ELSE 'COUNT' END,0,
+        CASE WHEN principal.user_id IS NULL THEN 'ANON_SELECT' ELSE 'COUNT' END,0,
         'foreign-exact-select',family);
       PERFORM pg_temp.ffh_probe(principal.user_id,
         format('SELECT count(*) FROM public.%I WHERE household_id=%L',family,hh),
-        CASE WHEN principal.user_id IS NULL THEN 'GRANT' ELSE 'COUNT' END,0,
+        CASE WHEN principal.user_id IS NULL THEN 'ANON_SELECT' ELSE 'COUNT' END,0,
         'foreign-broad-select',family);
       sql_insert := pg_temp.ffh_fixture_sql(family,hh,p1,p2,4);
       PERFORM pg_temp.ffh_probe(principal.user_id,sql_insert,
-        CASE WHEN principal.user_id IS NULL THEN 'GRANT' ELSE 'RLS' END,NULL,
+        CASE WHEN principal.user_id IS NULL THEN 'ANON_INSERT' ELSE 'RLS' END,NULL,
         'foreign-insert',family);
       PERFORM pg_temp.ffh_probe(principal.user_id,
         format('UPDATE public.%I SET updated_at=now()+interval ''3 seconds'' WHERE %I=%L AND household_id=%L',family,pk,baseline_id,hh),
-        CASE WHEN principal.user_id IS NULL THEN 'GRANT' ELSE 'DENY' END,0,
+        CASE WHEN principal.user_id IS NULL THEN 'ANON_WRITE' ELSE 'DENY' END,0,
         'foreign-update',family);
       PERFORM pg_temp.ffh_probe(principal.user_id,
         format('DELETE FROM public.%I WHERE %I=%L AND household_id=%L',family,pk,baseline_id,hh),
-        CASE WHEN principal.user_id IS NULL THEN 'GRANT' ELSE 'DENY' END,0,
+        CASE WHEN principal.user_id IS NULL THEN 'ANON_WRITE' ELSE 'DENY' END,0,
         'foreign-delete',family);
       -- Observe through the actual owner role; then compare every whole-row
       -- digest with the original fixture, not just a count or missing UI row.
@@ -532,7 +534,7 @@ BEGIN
     'SELECT count(*) FROM public.households WHERE id IN (%L,%L)',a,b),'COUNT',0,
     'household-outsider-read','households');
   PERFORM pg_temp.ffh_probe(NULL::uuid,
-    'SELECT count(*) FROM public.households','GRANT',NULL,'household-anon-read','households');
+    'SELECT count(*) FROM public.households','ANON_SELECT',0,'household-anon-read','households');
   PERFORM pg_temp.ffh_probe(a_owner,format(
     'UPDATE public.households SET updated_at=now()+interval ''3 seconds'' WHERE id=%L',a),
     'ROWS',1,'household-owner-update','households');
@@ -556,13 +558,13 @@ BEGIN
     'COUNT',0,'membership-cross-read','household_members');
   PERFORM pg_temp.ffh_probe(a_owner,format(
     'DELETE FROM public.household_members WHERE household_id=%L',a),
-    'GRANT',NULL,'membership-delete-not-granted','household_members');
+    'FORBIDDEN',NULL,'membership-delete-forbidden','household_members');
   PERFORM pg_temp.ffh_probe(a_owner,format(
     'UPDATE public.household_members SET role=%L WHERE household_id=%L AND user_id=%L',
-    'owner',a,a_viewer),'GRANT',NULL,'membership-update-not-granted','household_members');
+    'owner',a,a_viewer),'FORBIDDEN',NULL,'membership-update-forbidden','household_members');
   PERFORM pg_temp.ffh_probe(a_owner,format(
     'INSERT INTO public.household_members(household_id,user_id,role) VALUES(%L,%L,%L)',
-    b,a_owner,'member'),'GRANT',NULL,'membership-insert-not-granted','household_members');
+    b,a_owner,'member'),'FORBIDDEN',NULL,'membership-insert-forbidden','household_members');
 
   -- Privileged *fixture-only* membership transition, never authenticated app
   -- membership management. This must instantly remove member read/write.
@@ -607,7 +609,7 @@ ROLLBACK;
 -- Read-only post-rollback zero-residue witness; the execution guard required
 -- an entirely empty baseline, so counts must be zero again.
 DO $zero$
-DECLARE t text;
+DECLARE t text; n integer;
 BEGIN
   IF (SELECT count(*) FROM auth.users)<>0 OR
      (SELECT count(*) FROM public.households)<>0 OR
@@ -622,8 +624,8 @@ BEGIN
     'person_hsa_month_statuses','household_hsa_married_allocations',
     'household_hsa_legal_spouse_authorities'
   ] LOOP
-    EXECUTE format('SELECT count(*) FROM public.%I',t) INTO STRICT t;
-    IF t::integer<>0 THEN RAISE EXCEPTION 'MATRIX_ROLLBACK_RESIDUE_FOUND family=%',t; END IF;
+    EXECUTE format('SELECT count(*) FROM public.%I',t) INTO n;
+    IF n<>0 THEN RAISE EXCEPTION 'MATRIX_ROLLBACK_RESIDUE_FOUND family=%',t; END IF;
   END LOOP;
 END
 $zero$;
