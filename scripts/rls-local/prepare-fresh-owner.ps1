@@ -17,6 +17,44 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
+
+# Isolated Windows PowerShell 5.1 native version probe. Native stderr notices
+# may appear as NativeCommandError with the caller's ErrorActionPreference=Stop.
+# Scope Continue to THIS native call only; never mask a nonzero native exit,
+# ambiguous/missing stdout, launch failure, or a different Supabase version.
+# Tests AST-extract only this function and supply harmless native emitters.
+function Assert-FfhExactNativeVersion {
+  param(
+    [Parameter(Mandatory=$true)][string]$Executable,
+    [Parameter(Mandatory=$true)][string[]]$Arguments
+  )
+  if (-not [IO.Path]::IsPathRooted($Executable) -or
+      -not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
+    throw 'BLOCKED: pinned CLI version launcher unavailable'
+  }
+  try {
+    $result = & {
+      # This assignment affects only the child scriptblock scope. The owner
+      # entrypoint's global ErrorActionPreference=Stop remains unchanged.
+      $ErrorActionPreference = 'Continue'
+      $stdoutLines = @(& $Executable @Arguments 2>$null)
+      $nativeExitCode = $LASTEXITCODE # Capture immediately after native call.
+      [pscustomobject]@{
+        ExitCode = $nativeExitCode
+        Stdout = @($stdoutLines)
+      }
+    }
+  } catch {
+    throw 'BLOCKED: pinned CLI version probe invocation failed'
+  }
+  if (@($result).Count -ne 1 -or $null -eq $result -or
+      $null -eq $result.ExitCode -or $result.ExitCode -ne 0 -or
+      @($result.Stdout).Count -ne 1 -or
+      ([string]$result.Stdout[0]).Trim() -cne '2.122.0') {
+    throw 'BLOCKED: exact CLI 2.122.0 unavailable'
+  }
+}
+
 Assert-FfhNoRemoteConfiguration
 # Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
 [void](Assert-FfhLocalDockerDesktop)
@@ -40,11 +78,15 @@ $otherContainers = @(& $dockerBinding.Executable --host $dockerBinding.Endpoint 
 if ($LASTEXITCODE -ne 0 -or $otherContainers -ccontains $containerName) {
   throw 'BLOCKED: fresh project container name already exists'
 }
-$version = @(& npx --yes supabase@2.122.0 --version 2>$null)
-if ($LASTEXITCODE -ne 0 -or $version.Count -ne 1 -or
-    ([string]$version[0]).Trim() -cne '2.122.0') {
-  throw 'BLOCKED: exact CLI 2.122.0 unavailable'
+# Resolve a single native launcher rather than an npx.ps1 or alias. Execute
+# by its absolute validated path; the exact package/version arguments are fixed.
+$npxVersionLaunchers = @(Get-Command npx.cmd -CommandType Application -All -ErrorAction SilentlyContinue)
+if ($npxVersionLaunchers.Count -ne 1 -or
+    $npxVersionLaunchers[0].CommandType -ne [Management.Automation.CommandTypes]::Application -or
+    [IO.Path]::GetFileName([string]$npxVersionLaunchers[0].Source) -cne 'npx.cmd') {
+  throw 'BLOCKED: pinned CLI version launcher unavailable or ambiguous'
 }
+Assert-FfhExactNativeVersion -Executable ([string]$npxVersionLaunchers[0].Source) -Arguments @('--yes','supabase@2.122.0','--version')
 # All provenance hashes are computed from clean immutable repository files;
 # the 15 migration FILE BYTES are copied without alteration into a different,
 # brand-new config project. Do not point the CLI at the repository or legacy
