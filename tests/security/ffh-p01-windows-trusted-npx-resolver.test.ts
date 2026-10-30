@@ -38,7 +38,8 @@ $script:Node=Join-Path $script:Install 'node.exe'
 $script:Shell=Join-Path $script:Install 'npx'
 $script:Ps1=Join-Path $script:Install 'npx.ps1'
 $script:Evil=Join-Path $env:TEMP 'npx.cmd'
-$script:Files=@{}
+$script:HasNpx=$true
+$script:HasNode=$true
 $script:ReparseBlocked=$false
 $script:Native=@()
 $script:Exact=@()
@@ -67,7 +68,10 @@ function Get-Command {
 function Test-Path {
  param([string]$LiteralPath,[string]$PathType)
  if($PathType -cne 'Leaf'){throw 'MOCK_PATH_TYPE'}
- return $script:Files.ContainsKey($LiteralPath)
+ if($LiteralPath -ceq $script:Npx){return $script:HasNpx}
+ if($LiteralPath -ceq $script:Node){return $script:HasNode}
+ if($LiteralPath -ceq $script:Ps1 -or $LiteralPath -ceq $script:Shell){return $true}
+ throw 'BLOCKED: synthetic trusted sibling path mismatch'
 }
 function Assert-FfhNoReparsePath {
  param([string]$Path)
@@ -83,11 +87,8 @@ function Case {
  param([string]$Label,[object[]]$Native,[object[]]$Exact,[object[]]$Bare,
   [bool]$Accept,[bool]$HasNpx=$true,[bool]$HasNode=$true,[bool]$Reparse=$false)
  $script:Native=$Native;$script:Exact=$Exact;$script:Bare=$Bare
- $script:Files=@{}
- if($HasNpx){$script:Files[$script:Npx]=$true}
- if($HasNode){$script:Files[$script:Node]=$true}
- $script:Files[$script:Ps1]=$true
- $script:Files[$script:Shell]=$true
+ $script:HasNpx=$HasNpx
+ $script:HasNode=$HasNode
  $script:ReparseBlocked=$Reparse
  $blocked=$false;$value=$null;$reason='none'
  try{$value=Resolve-FfhTrustedNpxCmd}

@@ -602,11 +602,6 @@ public static class FfhRlsJobRunner {
   private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
   private const uint PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
   private const uint HANDLE_FLAG_INHERIT = 0x00000001;
-  private const uint GENERIC_READ = 0x80000000;
-  private const uint GENERIC_WRITE = 0x40000000;
-  private const uint FILE_SHARE_READ = 0x00000001;
-  private const uint FILE_SHARE_WRITE = 0x00000002;
-  private const uint OPEN_EXISTING = 3;
   private const int ERROR_BROKEN_PIPE = 109;
   private const int ERROR_NO_DATA = 232;
   private const int MAX_VERSION_OUTPUT_BYTES = 256;
@@ -648,13 +643,9 @@ public static class FfhRlsJobRunner {
   [DllImport("kernel32.dll", SetLastError=true)]
   private static extern bool ReadFile(IntPtr file, [Out] byte[] buffer, uint bytes,
     out uint read, IntPtr overlapped);
-  [DllImport("kernel32.dll", EntryPoint="CreateFileW", ExactSpelling=true,
-    CharSet=CharSet.Unicode, SetLastError=true)]
-  private static extern IntPtr CreateFileW(string name, uint access, uint sharing,
-    ref SECURITY_ATTRIBUTES attributes, uint creation, uint flags, IntPtr template);
 
   private static bool DrainVersionPipe(IntPtr reader, List<byte> captured, ref bool overflow,
-    out bool empty) {
+    out bool empty, bool discard = false) {
     empty = true;
     // PeekNamedPipe makes each subsequent ReadFile bounded to available bytes;
     // there is no blocking pipe read or waiting for a descendant to close stdout.
@@ -671,10 +662,12 @@ public static class FfhRlsJobRunner {
       uint got;
       if (!ReadFile(reader, data, count, out got, IntPtr.Zero) || got == 0)
         return false;
-      if (captured.Count + got > MAX_VERSION_OUTPUT_BYTES) {
-        overflow = true;
-      } else if (!overflow) {
-        for (int k=0; k<got; k++) captured.Add(data[k]);
+      if (!discard) {
+        if (captured.Count + got > MAX_VERSION_OUTPUT_BYTES) {
+          overflow = true;
+        } else if (!overflow) {
+          for (int k=0; k<got; k++) captured.Add(data[k]);
+        }
       }
       empty = false;
     }
@@ -701,7 +694,10 @@ public static class FfhRlsJobRunner {
     IntPtr environment = IntPtr.Zero;
     IntPtr pipeRead = IntPtr.Zero;
     IntPtr pipeWrite = IntPtr.Zero;
-    IntPtr nul = IntPtr.Zero;
+    IntPtr stderrRead = IntPtr.Zero;
+    IntPtr stderrWrite = IntPtr.Zero;
+    IntPtr stdinRead = IntPtr.Zero;
+    IntPtr stdinWrite = IntPtr.Zero;
     IntPtr attributes = IntPtr.Zero;
     IntPtr handles = IntPtr.Zero;
     bool attributesInitialized = false;
@@ -709,7 +705,9 @@ public static class FfhRlsJobRunner {
     bool created = false;
     bool assigned = false;
     List<byte> captured = new List<byte>();
+    List<byte> stderrDiscard = new List<byte>();
     bool overflow = false;
+    bool stderrOverflow = false;
     try {
       if (executionMilliseconds <= 0 || verificationMilliseconds <= 0)
         return "BLOCKED_PROCESS_START_FAILED";
@@ -720,15 +718,20 @@ public static class FfhRlsJobRunner {
       attrs.nLength = (uint)Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
       attrs.bInheritHandle = true;
       if (!CreatePipe(out pipeRead, out pipeWrite, ref attrs, 0) ||
-          !SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0))
+          !SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0) ||
+          !CreatePipe(out stderrRead, out stderrWrite, ref attrs, 0) ||
+          !SetHandleInformation(stderrRead, HANDLE_FLAG_INHERIT, 0) ||
+          !CreatePipe(out stdinRead, out stdinWrite, ref attrs, 0) ||
+          !SetHandleInformation(stdinWrite, HANDLE_FLAG_INHERIT, 0))
         return "BLOCKED_VERSION_PIPE_SETUP_FAILED";
-      nul = CreateFileW("NUL", GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE, ref attrs, OPEN_EXISTING, 0, IntPtr.Zero);
-      if (nul == new IntPtr(-1)) { nul = IntPtr.Zero; return "BLOCKED_VERSION_NUL_SETUP_FAILED"; }
+      // All three inherited standard handles are genuine anonymous PIPE handles.
+      // Windows restricted PROC_THREAD_ATTRIBUTE_HANDLE_LIST rejects CHAR (NUL)
+      // handles with ERROR_INVALID_PARAMETER; stdin writer is closed before
+      // resume, so the child's stdin read immediately receives EOF.
 
       environment = BuildChildEnvironment(childEnvironment);
-      // STARTUPINFOEX allowlists only stdout pipe and stdin/stderr NUL.
-      // Avoid inheriting unrelated host/runner handles with bInheritHandles=true.
+      // STARTUPINFOEX allowlists only owned stdin/stdout/stderr pipe handles.
+      // No ambient host/runner handles can be inherited by the child.
       IntPtr listSize = IntPtr.Zero;
       InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref listSize);
       if (listSize == IntPtr.Zero) return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
@@ -736,18 +739,19 @@ public static class FfhRlsJobRunner {
       if (!InitializeProcThreadAttributeList(attributes, 1, 0, ref listSize))
         return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
       attributesInitialized = true;
-      handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
+      handles = Marshal.AllocHGlobal(IntPtr.Size * 3);
       Marshal.WriteIntPtr(handles, 0, pipeWrite);
-      Marshal.WriteIntPtr(handles, IntPtr.Size, nul);
+      Marshal.WriteIntPtr(handles, IntPtr.Size, stderrWrite);
+      Marshal.WriteIntPtr(handles, IntPtr.Size * 2, stdinRead);
       if (!UpdateProcThreadAttribute(attributes, 0,
           new IntPtr((long)PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handles,
-          new IntPtr(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
+          new IntPtr(IntPtr.Size * 3), IntPtr.Zero, IntPtr.Zero))
         return "BLOCKED_VERSION_HANDLE_ALLOWLIST_FAILED";
       STARTUPINFOEX startup = new STARTUPINFOEX();
       startup.StartupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFOEX));
       startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-      startup.StartupInfo.hStdInput = nul;
-      startup.StartupInfo.hStdError = nul;
+      startup.StartupInfo.hStdInput = stdinRead;
+      startup.StartupInfo.hStdError = stderrWrite;
       startup.StartupInfo.hStdOutput = pipeWrite;
       startup.lpAttributeList = attributes;
       StringBuilder command = new StringBuilder("\"" + application + "\" " + arguments);
@@ -764,12 +768,17 @@ public static class FfhRlsJobRunner {
         return "BLOCKED_VERSION_CREATEPROCESS_FAILED";
       }
       created = true;
-      // Close only the parent's extra writer. The child inherited its own.
-      if (!CloseHandle(pipeWrite))
+      // Parent closes ONLY its extra child-side handles. Every child handle
+      // was inherited from the explicit three-pipe allowlist during CREATE.
+      bool closedChildEnds = true;
+      if (CloseHandle(pipeWrite)) pipeWrite = IntPtr.Zero; else closedChildEnds = false;
+      if (CloseHandle(stderrWrite)) stderrWrite = IntPtr.Zero; else closedChildEnds = false;
+      if (CloseHandle(stdinRead)) stdinRead = IntPtr.Zero; else closedChildEnds = false;
+      if (CloseHandle(stdinWrite)) stdinWrite = IntPtr.Zero; else closedChildEnds = false;
+      if (!closedChildEnds)
         return TerminateSuspendedRoot(owned.hProcess)
           ? "BLOCKED_VERSION_SUSPENDED_ROOT_TERMINATED"
           : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
-      pipeWrite = IntPtr.Zero;
       if (!AssignProcessToJobObject(job, owned.hProcess)) {
         return TerminateSuspendedRoot(owned.hProcess)
           ? "BLOCKED_VERSION_SUSPENDED_ROOT_TERMINATED"
@@ -785,7 +794,10 @@ public static class FfhRlsJobRunner {
       Stopwatch afterRoot = null;
       while (true) {
         bool drained;
-        if (!DrainVersionPipe(pipeRead, captured, ref overflow, out drained)) {
+        bool stderrDrained;
+        if (!DrainVersionPipe(pipeRead, captured, ref overflow, out drained) ||
+            !DrainVersionPipe(stderrRead, stderrDiscard, ref stderrOverflow,
+              out stderrDrained, true)) {
           return TerminateAndConfirmJob(job, verificationMilliseconds)
             ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
             : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
@@ -798,7 +810,7 @@ public static class FfhRlsJobRunner {
         }
         if (wait == WAIT_OBJECT_0 && afterRoot == null)
           afterRoot = Stopwatch.StartNew();
-        if (wait == WAIT_OBJECT_0 && JobEmpty(job) && drained) {
+        if (wait == WAIT_OBJECT_0 && JobEmpty(job) && drained && stderrDrained) {
           uint exitCode;
           if (!GetExitCodeProcess(owned.hProcess, out exitCode)) {
             return TerminateAndConfirmJob(job, verificationMilliseconds)
@@ -838,7 +850,10 @@ public static class FfhRlsJobRunner {
       if (owned.hProcess != IntPtr.Zero) CloseHandle(owned.hProcess);
       if (pipeWrite != IntPtr.Zero) CloseHandle(pipeWrite);
       if (pipeRead != IntPtr.Zero) CloseHandle(pipeRead);
-      if (nul != IntPtr.Zero) CloseHandle(nul);
+      if (stderrWrite != IntPtr.Zero) CloseHandle(stderrWrite);
+      if (stderrRead != IntPtr.Zero) CloseHandle(stderrRead);
+      if (stdinRead != IntPtr.Zero) CloseHandle(stdinRead);
+      if (stdinWrite != IntPtr.Zero) CloseHandle(stdinWrite);
       if (attributesInitialized) DeleteProcThreadAttributeList(attributes);
       if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
       if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
