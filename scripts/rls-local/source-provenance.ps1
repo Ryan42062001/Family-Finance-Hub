@@ -135,7 +135,7 @@ function Assert-FfhDbLoopback {
   if ($LASTEXITCODE -ne 0 -or -not $raw) {
     throw 'BLOCKED: only expected disposable container may be accessed'
   }
-  $d = @($raw | ConvertFrom-Json)
+  $d = @(($raw -join "`n" | ConvertFrom-Json))
   if ($d.Count -ne 1 -or -not $d[0].State.Running -or
       $d[0].State.Health.Status -cne 'healthy') {
     throw 'BLOCKED: fresh local database not running/healthy'
