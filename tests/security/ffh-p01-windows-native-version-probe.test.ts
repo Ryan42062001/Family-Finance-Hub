@@ -65,6 +65,20 @@ function Check {
 $p=New-Info -Command 'echo 2.122.0 & echo npm notice 1>&2 & exit /b 0'
 $outcome=Invoke-FfhNativeJobChild -StartInfo $p -VersionProbe
 if($outcome -cne 'EXIT_ZERO'){throw ('Version wrapper failed: '+$outcome)}
+# Native Win32 ABI offsets/sizes: STARTUPINFOW has separate dwYCountChars
+# and dwFillAttribute. Verify the actual embedded C# layout after Add-Type.
+$flags=[Reflection.BindingFlags]::NonPublic
+$si=[FfhRlsJobRunner].GetNestedType('STARTUPINFO',$flags)
+$siex=[FfhRlsJobRunner].GetNestedType('STARTUPINFOEX',$flags)
+if($null -eq $si -or $null -eq $siex){throw 'Missing native interop structs'}
+$sizeSI=[Runtime.InteropServices.Marshal]::SizeOf($si)
+$sizeSIEX=[Runtime.InteropServices.Marshal]::SizeOf($siex)
+$expectedSI=if([IntPtr]::Size -eq 8){104}else{68}
+$expectedSIEX=if([IntPtr]::Size -eq 8){112}else{72}
+if($sizeSI -ne $expectedSI -or $sizeSIEX -ne $expectedSIEX){
+ throw ('Wrong STARTUPINFOW layout sizes '+$sizeSI+'/'+$sizeSIEX)
+}
+[Console]::Out.WriteLine('WINPS51_NVP_NATIVE_LAYOUT=PASS')
 [Console]::Out.WriteLine('WINPS51_NVP_NATIVE_PASS benign_stderr_exact_version')
 Check 'clean_exact_version' 'echo 2.122.0 & exit /b 0' 'EXIT_ZERO'
 Check 'nonzero_with_stderr' 'echo 2.122.0 & echo npm notice 1>&2 & exit /b 7' 'BLOCKED_NONZERO_EXIT'
@@ -87,11 +101,14 @@ test("RLS-NVP-01 WinPS5.1 actually compiles native Job Object and exercises safe
  const receipts=result.stdout.split(/\r?\n/);
  for(const label of cases)assert.equal(receipts.filter(x=>x==="WINPS51_NVP_NATIVE_PASS "+label).length,1,label);
  assert.equal(receipts.filter(x=>x==="WINPS51_NVP_NATIVE_CONTAINMENT=PASS").length,1);
+ assert.equal(receipts.filter(x=>x==="WINPS51_NVP_NATIVE_LAYOUT=PASS").length,1);
 });
 
 test("RLS-NVP-01 source enforces bounded owned pipe and exact version/exit with closed handles",()=>{
  for(const frag of [
   "public static string RunVersion(", "CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT",
+  "public uint dwXCountChars;", "public uint dwYCountChars;",
+  "public uint dwFillAttribute;",
   "AssignProcessToJobObject(job, owned.hProcess)", "ResumeThread(owned.hThread)",
   "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE", "PROC_THREAD_ATTRIBUTE_HANDLE_LIST",
   "EXTENDED_STARTUPINFO_PRESENT", "SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0)",

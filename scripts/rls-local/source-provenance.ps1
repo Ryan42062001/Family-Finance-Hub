@@ -512,7 +512,8 @@ public static class FfhRlsJobRunner {
     public uint dwXSize;
     public uint dwYSize;
     public uint dwXCountChars;
-    public uint dwYFillAttribute;
+    public uint dwYCountChars;
+    public uint dwFillAttribute;
     public uint dwFlags;
     public ushort wShowWindow;
     public ushort cbReserved2;
