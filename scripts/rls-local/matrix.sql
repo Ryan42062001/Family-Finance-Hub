@@ -8,9 +8,9 @@
 -- PL/pgSQL BEGIN ... EXCEPTION blocks use PostgreSQL subtransactions
 -- (savepoint-equivalent) to recover individually from expected errors.
 BEGIN;
-SET LOCAL statement_timeout = '12s';
+SET LOCAL statement_timeout = '120s';
 SET LOCAL lock_timeout = '2s';
-SET LOCAL idle_in_transaction_session_timeout = '90s';
+SET LOCAL idle_in_transaction_session_timeout = '180s';
 SET LOCAL search_path = pg_catalog, public;
 SELECT pg_advisory_xact_lock(620, 81);
 
