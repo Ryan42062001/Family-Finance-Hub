@@ -285,7 +285,13 @@ function Assert-FfhLocalDockerDesktop {
 
 function Assert-FfhNoReparsePath {
   param([Parameter(Mandatory=$true)][string]$Path)
-  $cursor = [IO.Path]::GetFullPath($Path).TrimEnd('\','/')
+  $absolute = [IO.Path]::GetFullPath($Path)
+  $driveRoot = [IO.Path]::GetPathRoot($absolute)
+  $cursor = if ($absolute.Equals($driveRoot,[StringComparison]::OrdinalIgnoreCase)) {
+    $absolute
+  } else {
+    $absolute.TrimEnd('\','/')
+  }
   while (-not [string]::IsNullOrEmpty($cursor)) {
     if (-not (Test-Path -LiteralPath $cursor)) {
       throw 'BLOCKED: fresh-root path/ancestor absent'
