@@ -278,6 +278,12 @@ DECLARE
   a uuid := gen_random_uuid();
   b uuid := gen_random_uuid();
   pa1 uuid; pa2 uuid; pb1 uuid; pb2 uuid;
+  -- Deterministically ordered test IDs for RLS-02; local one < foreign two
+  -- in BOTH A -> B and B -> A cases, so the legal-spouse CHECK cannot mask FK.
+  a_spouse_first uuid := '00000000-0000-4000-8000-000000000101';
+  b_spouse_second uuid := '00000000-0000-4000-8000-000000000202';
+  b_spouse_first uuid := '00000000-0000-4000-8000-000000000301';
+  a_spouse_second uuid := '00000000-0000-4000-8000-000000000402';
   p1 uuid; p2 uuid;
   family text; hh uuid; who uuid; scope_name text;
   row_id uuid; baseline_id uuid; base_digest text; now_digest text;
@@ -301,12 +307,45 @@ BEGIN
     (a_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (b_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (outsider,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  -- RLS-03: actual creator bootstrap as non-bypass authenticated caller,
+  -- not a privileged INSERT whose trigger alone checks auth.uid().
+  EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',a_owner::text,true);
-  INSERT INTO public.households(id,name,created_by) VALUES(a,'ffh-local-household-a',a_owner);
-  PERFORM set_config('request.jwt.claim.sub',b_owner::text,true);
-  INSERT INTO public.households(id,name,created_by) VALUES(b,'ffh-local-household-b',b_owner);
+  IF current_user <> 'authenticated' OR session_user <> 'postgres'
+     OR auth.uid() IS DISTINCT FROM a_owner
+     OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_A_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(a,'ffh-local-household-a',a_owner)
+    RETURNING id INTO row_id;
+  IF row_id IS DISTINCT FROM a THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_INSERT_A_FAIL';
+  END IF;
+  EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
-  IF (SELECT count(*) FROM public.household_members WHERE household_id=a AND user_id=a_owner AND role='owner') <> 1 OR
+
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM set_config('request.jwt.claim.sub',b_owner::text,true);
+  IF current_user <> 'authenticated' OR session_user <> 'postgres'
+     OR auth.uid() IS DISTINCT FROM b_owner
+     OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_B_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(b,'ffh-local-household-b',b_owner)
+    RETURNING id INTO row_id;
+  IF row_id IS DISTINCT FROM b THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_INSERT_B_FAIL';
+  END IF;
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claim.sub','',true);
+  IF current_user <> 'postgres' OR auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_ROLE_RESTORE_FAIL';
+  END IF;
+  -- Exactly ONE owner membership per household, automatically created by
+  -- the SECURITY DEFINER trigger. No privileged second owner INSERT.
+  IF (SELECT count(*) FROM public.household_members WHERE household_id=a) <> 1 OR
+     (SELECT count(*) FROM public.household_members WHERE household_id=b) <> 1 OR
+     (SELECT count(*) FROM public.household_members WHERE household_id=a AND user_id=a_owner AND role='owner') <> 1 OR
      (SELECT count(*) FROM public.household_members WHERE household_id=b AND user_id=b_owner AND role='owner') <> 1 THEN
     RAISE EXCEPTION 'MATRIX_CREATOR_MEMBERSHIP_TRIGGER_FAIL';
   END IF;
@@ -320,6 +359,17 @@ BEGIN
   INSERT INTO public.household_people(household_id,display_name) VALUES(b,'synthetic-b-person-2') RETURNING id INTO pb2;
   SELECT least(pa1,pa2),greatest(pa1,pa2) INTO pa1,pa2;
   SELECT least(pb1,pb2),greatest(pb1,pb2) INTO pb1,pb2;
+  -- RLS-02 synthetic local/foreign spouse references: each first person
+  -- belongs to the household being inserted; each second person belongs to
+  -- the OTHER household. All IDs are fixture-only and transaction-scoped.
+  IF NOT (a_spouse_first < b_spouse_second AND b_spouse_first < a_spouse_second) THEN
+    RAISE EXCEPTION 'MATRIX_SPOUSE_PAIR_ORDER_INVALID';
+  END IF;
+  INSERT INTO public.household_people(id,household_id,display_name) VALUES
+    (a_spouse_first,a,'synthetic-a-fk-first'),
+    (b_spouse_second,b,'synthetic-b-fk-second'),
+    (b_spouse_first,b,'synthetic-b-fk-first'),
+    (a_spouse_second,a,'synthetic-a-fk-second');
   -- HSA month statuses require a same-household tax-year parent profile.
   EXECUTE pg_temp.ffh_fixture_sql('person_hsa_tax_year_profiles',a,pa1,pa2,0) INTO row_id;
   INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES('person_hsa_tax_year_profiles','A',row_id);
@@ -522,6 +572,33 @@ BEGIN
       'INSERT INTO public.household_hsa_legal_spouse_authorities(household_id,tax_year,person_one_id,person_two_id) VALUES(%L,2033,%L,%L)',
       principal.own_house,principal.foreign_person1,principal.foreign_person2),'FK',NULL,'cross-fk','household_hsa_legal_spouse_authorities',
       'household_hsa_legal_spouse_authorities_person_one_fkey');
+  END LOOP;
+
+  -- RLS-02: four distinct second-spouse negative FK receipts, two families
+  -- times both directions. Existing person-one negatives above remain intact.
+  -- SQLSTATE 23503 and the EXACT person_two constraint are mandatory; the
+  -- legal-spouse ordering CHECK is satisfied before any probe executes.
+  FOR principal IN SELECT * FROM (VALUES
+    (a_owner,a,a_spouse_first,b_spouse_second,'A_TO_B'),
+    (b_owner,b,b_spouse_first,a_spouse_second,'B_TO_A')
+  ) AS p(user_id,own_house,valid_local_one,foreign_second,route) LOOP
+    IF NOT (principal.valid_local_one < principal.foreign_second) OR
+       (SELECT count(*) FROM public.household_people
+        WHERE id=principal.valid_local_one AND household_id=principal.own_house) <> 1 OR
+       (SELECT count(*) FROM public.household_people
+        WHERE id=principal.foreign_second AND household_id<>principal.own_house) <> 1 THEN
+      RAISE EXCEPTION 'MATRIX_SPOUSE_SECOND_FK_FIXTURE_INVALID';
+    END IF;
+    PERFORM pg_temp.ffh_probe(principal.user_id,format(
+      'INSERT INTO public.household_hsa_married_allocations(household_id,tax_year,person_one_id,person_two_id,person_one_ordinary_amount,person_two_ordinary_amount) VALUES(%L,2034,%L,%L,1,1)',
+      principal.own_house,principal.valid_local_one,principal.foreign_second),
+      'FK',NULL,'cross-fk-spouse-two','household_hsa_married_allocations',
+      'household_hsa_married_allocations_person_two_fkey');
+    PERFORM pg_temp.ffh_probe(principal.user_id,format(
+      'INSERT INTO public.household_hsa_legal_spouse_authorities(household_id,tax_year,person_one_id,person_two_id) VALUES(%L,2034,%L,%L)',
+      principal.own_house,principal.valid_local_one,principal.foreign_second),
+      'FK',NULL,'cross-fk-spouse-two','household_hsa_legal_spouse_authorities',
+      'household_hsa_legal_spouse_authorities_person_two_fkey');
   END LOOP;
 
   -- Foundation: profiles are self-scoped; memberships are same-household
