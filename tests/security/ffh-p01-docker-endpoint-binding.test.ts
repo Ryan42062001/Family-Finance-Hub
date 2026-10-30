@@ -125,6 +125,9 @@ function rootOrder(source:string):void {
   assert.ok(pos.every(x=>x>=0),"missing staged creation/verification step");
   assert.ok(pos.every((x,i)=>i===0||x>pos[i-1]),"unsafe directory creation before verification");
   assert.doesNotMatch(source,/New-Item[^\n]*'supabase\/migrations'[^\n]*-Force/);
+  assert.match(source,/New-Item -ItemType Directory -Path \$root -ErrorAction Stop \| Out-Null\s+Assert-FfhNoReparsePath -Path \$root/);
+  assert.match(source,/New-Item -ItemType Directory -Path \$supabaseDir -ErrorAction Stop \| Out-Null\s+Assert-FfhNoReparsePath -Path \$supabaseDir/);
+  assert.match(source,/New-Item -ItemType Directory -Path \$migrationsDir -ErrorAction Stop \| Out-Null\s+Assert-FfhNoReparsePath -Path \$migrationsDir/);
 }
 test("RLS-01B root then supabase then migrations are created one-by-one after validation",()=>{
   rootOrder(prepare);
