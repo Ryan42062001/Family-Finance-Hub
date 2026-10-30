@@ -52,7 +52,11 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/run-owner.ps1',
     'scripts/rls-local/prepare-fresh-owner.ps1',
     'scripts/rls-local/source-provenance.ps1',
-    'scripts/rls-local/run.sh'
+    'scripts/rls-local/run.sh',
+    '.github/workflows/ci.yml',
+    'scripts/validate-release-candidate.mjs',
+    'AGENTS.md',
+    'docs/WORKFLOW.md'
   )
   $files = @($migrationNames) + $otherNames
   $hashRows = @(
