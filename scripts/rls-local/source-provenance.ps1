@@ -205,6 +205,13 @@ function Assert-FfhLocalDockerDesktop {
   if (-not $dockerCli -or [IO.Path]::GetFileName($dockerCli.Source) -cne 'docker.exe') {
     throw 'BLOCKED: native Windows docker.exe unavailable'
   }
+  # The scripts invoke "docker" directly. Verify PowerShell would resolve
+  # that word to the SAME application, not a function/alias/wrapper.
+  $resolved = Get-Command docker -ErrorAction SilentlyContinue
+  if (-not $resolved -or $resolved.CommandType -ne [Management.Automation.CommandTypes]::Application -or
+      $resolved.Source -cne $dockerCli.Source) {
+    throw 'BLOCKED: docker command alias/function/wrapper may redirect daemon'
+  }
   # Never change global context. Validate its name only to avoid CLI injection.
   $selected = @(& $dockerCli.Source context show 2>$null)
   if ($LASTEXITCODE -ne 0 -or $selected.Count -ne 1) {
@@ -280,6 +287,23 @@ function Assert-FfhLocalDockerDesktop {
       ([string]$end[0]).Trim() -cne $contextName) {
     throw 'BLOCKED: Docker context changed after daemon verification'
   }
+  $rawEnd = @(& $dockerCli.Source context inspect $contextName 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $rawEnd.Count -eq 0) {
+    throw 'BLOCKED: Docker endpoint changed or disappeared'
+  }
+  try {
+    $finalContexts = @((($rawEnd -join [Environment]::NewLine) | ConvertFrom-Json))
+  } catch {
+    throw 'BLOCKED: Docker endpoint JSON changed or malformed'
+  }
+  if ($finalContexts.Count -ne 1 -or $finalContexts[0].Name -cne $contextName -or
+      $finalContexts[0].Endpoints.docker.Host -cne $endpoint -or
+      $finalContexts[0].Endpoints.docker.SkipTLSVerify -eq $true -or
+      ($null -ne $finalContexts[0].TLSMaterial -and
+       @($finalContexts[0].TLSMaterial.PSObject.Properties).Count -gt 0)) {
+    throw 'BLOCKED: Docker endpoint or TLS selection changed after verification'
+  }
+  Assert-FfhDockerEnvironment
   return $true
 }
 
