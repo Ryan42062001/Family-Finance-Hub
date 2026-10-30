@@ -71,8 +71,8 @@ $flags=[Reflection.BindingFlags]::NonPublic
 $si=[FfhRlsJobRunner].GetNestedType('STARTUPINFO',$flags)
 $siex=[FfhRlsJobRunner].GetNestedType('STARTUPINFOEX',$flags)
 if($null -eq $si -or $null -eq $siex){throw 'Missing native interop structs'}
-$sizeSI=[Runtime.InteropServices.Marshal]::SizeOf($si)
-$sizeSIEX=[Runtime.InteropServices.Marshal]::SizeOf($siex)
+$sizeSI=[Runtime.InteropServices.Marshal]::SizeOf([Activator]::CreateInstance($si))
+$sizeSIEX=[Runtime.InteropServices.Marshal]::SizeOf([Activator]::CreateInstance($siex))
 $expectedSI=if([IntPtr]::Size -eq 8){104}else{68}
 $expectedSIEX=if([IntPtr]::Size -eq 8){112}else{72}
 if($sizeSI -ne $expectedSI -or $sizeSIEX -ne $expectedSIEX){
