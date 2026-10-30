@@ -122,18 +122,18 @@ function Assert-FfhFreshRoot {
   )
   $root = [IO.Path]::GetFullPath($FreshRoot).TrimEnd('\','/')
   $repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\','/')
-  $home = [IO.Path]::GetFullPath($HOME).TrimEnd('\','/')
-  $profile = [IO.Path]::GetFullPath([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)).TrimEnd('\','/')
+  $userHomePath = [IO.Path]::GetFullPath($HOME).TrimEnd('\','/')
+  $userProfilePath = [IO.Path]::GetFullPath([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)).TrimEnd('\','/')
   $expectedName = 'FFH-P01-RLS-Fresh-' + $ExpectedHead.Substring(0,12)
-  if ($home -cnotmatch '^[a-zA-Z]:\\' -or
-      -not $home.Equals($profile,[StringComparison]::OrdinalIgnoreCase) -or
-      -not (Split-Path $root -Parent).Equals($home,[StringComparison]::OrdinalIgnoreCase)) {
+  if ($userHomePath -cnotmatch '^[a-zA-Z]:\\' -or
+      -not $userHomePath.Equals($userProfilePath,[StringComparison]::OrdinalIgnoreCase) -or
+      -not (Split-Path $root -Parent).Equals($userHomePath,[StringComparison]::OrdinalIgnoreCase)) {
     throw 'BLOCKED: fresh project must be direct child of local Windows profile'
   }
-  if (([IO.DriveInfo]::new($home.Substring(0,3))).DriveType -ne [IO.DriveType]::Fixed) {
+  if (([IO.DriveInfo]::new($userHomePath.Substring(0,3))).DriveType -ne [IO.DriveType]::Fixed) {
     throw 'BLOCKED: fresh root parent must be local fixed drive'
   }
-  Assert-FfhNoReparsePath -Path $home
+  Assert-FfhNoReparsePath -Path $userHomePath
   if (Test-Path -LiteralPath $root) { Assert-FfhFreshTree -FreshRoot $root }
   if ((Split-Path $root -Leaf) -cne $expectedName -or
       $root.Equals($repo,[StringComparison]::OrdinalIgnoreCase) -or
@@ -674,10 +674,10 @@ function Invoke-FfhPinnedLocalSupabase {
   if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
     throw 'BLOCKED: native Windows command processor unavailable'
   }
-  $args = if ($Operation -ceq 'Start') { 'db start' } else { 'db reset --local --no-seed' }
+  $supabaseCliArguments = if ($Operation -ceq 'Start') { 'db start' } else { 'db reset --local --no-seed' }
   $startInfo = [Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = $cmdPath
-  $startInfo.Arguments = '/d /s /c ""' + $npxCli.Source + '" --yes supabase@2.122.0 ' + $args + ' 1>NUL 2>NUL"'
+  $startInfo.Arguments = '/d /s /c ""' + $npxCli.Source + '" --yes supabase@2.122.0 ' + $supabaseCliArguments + ' 1>NUL 2>NUL"'
   $startInfo.WorkingDirectory = (Get-Location).Path
   $startInfo.UseShellExecute = $false
   $startInfo.CreateNoWindow = $true

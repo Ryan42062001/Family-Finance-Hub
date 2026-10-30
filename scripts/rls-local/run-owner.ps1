@@ -57,9 +57,9 @@ if (@($receipt.source_sha256).Count -ne @($source.all_files).Count -or
   throw 'BLOCKED: source SHA-256 manifest incomplete'
 }
 foreach ($expected in $source.all_files) {
-  $matches = @($receipt.source_sha256 | Where-Object { $_.path -ceq $expected.path })
-  if ($matches.Count -ne 1 -or $matches[0].sha256 -cne $expected.sha256 -or
-      $matches[0].git_blob -cne $expected.git_blob) {
+  $matchingReceiptRows = @($receipt.source_sha256 | Where-Object { $_.path -ceq $expected.path })
+  if ($matchingReceiptRows.Count -ne 1 -or $matchingReceiptRows[0].sha256 -cne $expected.sha256 -or
+      $matchingReceiptRows[0].git_blob -cne $expected.git_blob) {
     throw 'BLOCKED: manifest source bytes do not match immutable checkout'
   }
 }

@@ -118,7 +118,7 @@ test("RLS-01 locality: owner entrypoints verify locality and pin the direct daem
 
 test("RLS-01 locality: fresh root is fixed-drive direct-child of profile with no reparse chain", () => {
   for (const snippet of [
-    "Assert-FfhNoReparsePath -Path $home",
+    "Assert-FfhNoReparsePath -Path $userHomePath",
     "Assert-FfhFreshTree -FreshRoot $root",
     "[IO.DriveType]::Fixed",
     "[IO.FileAttributes]::ReparsePoint",
