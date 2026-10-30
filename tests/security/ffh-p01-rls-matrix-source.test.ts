@@ -211,6 +211,10 @@ test("FFH-P01 RLS-01 pins all migration blobs and whole checkout to immutable HE
     "scripts/rls-local/prepare-fresh-owner.ps1",
     "scripts/rls-local/source-provenance.ps1",
     "scripts/rls-local/run.sh",
+    ".github/workflows/ci.yml",
+    "scripts/validate-release-candidate.mjs",
+    "AGENTS.md",
+    "docs/WORKFLOW.md",
   ]) assert.ok(provenance.includes(path), "missing provenance path " + path);
   assert.match(provenance, /supabase\/\.temp\/project-ref/);
   assert.match(provenance, /SUPABASE_ACCESS_TOKEN/);
