@@ -380,8 +380,98 @@ function Assert-FfhFreshTree {
 # ProcessStartInfo copies and sanitizes the child's environment, not the parent.
 # Native Windows PowerShell 5.1 compatible source-only Job Object implementation.
 # Its Add-Type compilation and child startup are NOT run by FAST/parser tests.
+# Shared Windows Node.js MSI trust anchor for VERSION and db Start/Reset.
+# Only C:\Program Files\nodejs\npx.cmd (under the verified OS ProgramFiles)
+# is eligible. NVM/Volta/user-space shims need a separate Manager-approved
+# trust anchor; we DO NOT silently trust the first PATH match.
+function Resolve-FfhTrustedNpxCmd {
+  if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+    throw 'BLOCKED: native Node launcher requires Windows'
+  }
+  $osProgramFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+  $envProgramFiles = [string]$env:ProgramFiles
+  if ([string]::IsNullOrWhiteSpace($osProgramFiles) -or
+      [string]::IsNullOrWhiteSpace($envProgramFiles) -or
+      $osProgramFiles -cnotmatch '^[A-Za-z]:\\' -or
+      -not ([IO.Path]::GetFullPath($osProgramFiles).TrimEnd('\')).Equals(
+        [IO.Path]::GetFullPath($envProgramFiles).TrimEnd('\'),
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: trusted Node ProgramFiles anchor unavailable'
+  }
+  $nodeDirectory = Join-Path $osProgramFiles 'nodejs'
+  $trustedNpx = Join-Path $nodeDirectory 'npx.cmd'
+  $trustedNode = Join-Path $nodeDirectory 'node.exe'
+  $trustedNpxScript = Join-Path $nodeDirectory 'npx.ps1'
+  $trustedNpxShell = Join-Path $nodeDirectory 'npx'
+  if ($trustedNpx -match '[&|<>^%!"()\r\n]' -or
+      -not (Test-Path -LiteralPath $trustedNpx -PathType Leaf) -or
+      -not (Test-Path -LiteralPath $trustedNode -PathType Leaf)) {
+    throw 'BLOCKED: trusted Node MSI launcher missing or shell-unsafe'
+  }
+  # No path-segment junction, symlink, or file reparse redirection to an
+  # unrelated user-writable shim. This does not claim cryptographic integrity.
+  Assert-FfhNoReparsePath -Path $nodeDirectory
+  Assert-FfhNoReparsePath -Path $trustedNpx
+  Assert-FfhNoReparsePath -Path $trustedNode
+
+  $nativeCandidates = @(Get-Command npx.cmd -CommandType Application -All -ErrorAction SilentlyContinue)
+  $exactCandidates = @(Get-Command npx.cmd -All -ErrorAction SilentlyContinue)
+  $bareCandidates = @(Get-Command npx -All -ErrorAction SilentlyContinue)
+  if ($nativeCandidates.Count -ne 1 -or $exactCandidates.Count -ne 1 -or
+      $bareCandidates.Count -lt 1 -or $bareCandidates.Count -gt 3) {
+    throw 'BLOCKED: native npx.cmd missing or command precedence ambiguous'
+  }
+  foreach ($entry in @($nativeCandidates) + @($exactCandidates)) {
+    if ($null -eq $entry -or
+        $entry.CommandType -ne [Management.Automation.CommandTypes]::Application -or
+        [string]$entry.Name -cne 'npx.cmd' -or
+        -not ([string]$entry.Source).Equals($trustedNpx,[StringComparison]::OrdinalIgnoreCase) -or
+        -not ([string]$entry.Path).Equals($trustedNpx,[StringComparison]::OrdinalIgnoreCase) -or
+        -not ([string]$entry.Definition).Equals($trustedNpx,[StringComparison]::OrdinalIgnoreCase)) {
+      throw 'BLOCKED: npx.cmd executable identity or installation path untrusted'
+    }
+  }
+  $seen = @{}
+  $cmdCount = 0
+  foreach ($entry in $bareCandidates) {
+    if ($null -eq $entry) { throw 'BLOCKED: npx command discovery invalid' }
+    $name = [string]$entry.Name
+    $expected = $null
+    $type = $entry.CommandType
+    if ($name -ceq 'npx.cmd' -and
+        $type -eq [Management.Automation.CommandTypes]::Application) {
+      $expected = $trustedNpx
+      $cmdCount++
+    } elseif ($name -ceq 'npx.ps1' -and
+        $type -eq [Management.Automation.CommandTypes]::ExternalScript) {
+      # Standard Node Windows installers include this *unexecuted* sibling.
+      $expected = $trustedNpxScript
+    } elseif ($name -ceq 'npx' -and
+        $type -eq [Management.Automation.CommandTypes]::Application) {
+      # Standard Node may include an extensionless POSIX-shell sibling.
+      $expected = $trustedNpxShell
+    } else {
+      throw 'BLOCKED: alias, function, cmdlet or PATH-shadow npx command'
+    }
+    if ($seen.ContainsKey($name) -or
+        -not ([string]$entry.Path).Equals($expected,[StringComparison]::OrdinalIgnoreCase) -or
+        -not ([string]$entry.Definition).Equals($expected,[StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath $expected -PathType Leaf)) {
+      throw 'BLOCKED: npx PATH precedence, duplicate or wrapper mismatch'
+    }
+    $seen[$name] = $true
+  }
+  if ($cmdCount -ne 1) {
+    throw 'BLOCKED: exact native npx.cmd not found in bare-name discovery'
+  }
+  return $nativeCandidates[0]
+}
+
 function Invoke-FfhNativeJobChild {
-  param([Parameter(Mandatory=$true)][Diagnostics.ProcessStartInfo]$StartInfo)
+  param(
+    [Parameter(Mandatory=$true)][Diagnostics.ProcessStartInfo]$StartInfo,
+    [switch]$VersionProbe
+  )
   if (-not ('FfhRlsJobRunner' -as [type])) {
     try {
       Add-Type -TypeDefinition @'
@@ -499,6 +589,252 @@ public static class FfhRlsJobRunner {
   private static extern bool TerminateProcess(IntPtr process, uint exitCode);
   [DllImport("kernel32.dll", SetLastError=true)]
   private static extern bool CloseHandle(IntPtr handle);
+  // Version probe only: bounded, non-blocking read of an owned anonymous pipe.
+  // Stdout stays in memory; stderr/stdin are inherited NUL handles. No output
+  // is ever returned except a privacy-safe classification token.
+  private const uint STARTF_USESTDHANDLES = 0x00000100;
+  private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+  private const uint PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002;
+  private const uint HANDLE_FLAG_INHERIT = 0x00000001;
+  private const uint GENERIC_READ = 0x80000000;
+  private const uint GENERIC_WRITE = 0x40000000;
+  private const uint FILE_SHARE_READ = 0x00000001;
+  private const uint FILE_SHARE_WRITE = 0x00000002;
+  private const uint OPEN_EXISTING = 3;
+  private const int ERROR_BROKEN_PIPE = 109;
+  private const int ERROR_NO_DATA = 232;
+  private const int MAX_VERSION_OUTPUT_BYTES = 256;
+
+  [StructLayout(LayoutKind.Sequential)]
+  private struct STARTUPINFOEX {
+    public STARTUPINFO StartupInfo;
+    public IntPtr lpAttributeList;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  private struct SECURITY_ATTRIBUTES {
+    public uint nLength;
+    public IntPtr lpSecurityDescriptor;
+    [MarshalAs(UnmanagedType.Bool)]
+    public bool bInheritHandle;
+  }
+  [DllImport("kernel32.dll", EntryPoint="CreateProcessW", ExactSpelling=true,
+    CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern bool CreateProcessWEx(string application, StringBuilder commandLine,
+    IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint flags,
+    IntPtr environment, string workingDirectory, ref STARTUPINFOEX startup,
+    out PROCESS_INFORMATION process);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool InitializeProcThreadAttributeList(IntPtr list, int count, int flags,
+    ref IntPtr size);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool UpdateProcThreadAttribute(IntPtr list, uint flags,
+    IntPtr attribute, IntPtr value, IntPtr size, IntPtr previous, IntPtr returned);
+  [DllImport("kernel32.dll")]
+  private static extern void DeleteProcThreadAttributeList(IntPtr list);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool CreatePipe(out IntPtr reader, out IntPtr writer,
+    ref SECURITY_ATTRIBUTES attributes, uint size);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool PeekNamedPipe(IntPtr pipe, IntPtr buffer, uint size,
+    IntPtr bytesRead, out uint available, IntPtr bytesLeft);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool ReadFile(IntPtr file, [Out] byte[] buffer, uint bytes,
+    out uint read, IntPtr overlapped);
+  [DllImport("kernel32.dll", EntryPoint="CreateFileW", ExactSpelling=true,
+    CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern IntPtr CreateFileW(string name, uint access, uint sharing,
+    ref SECURITY_ATTRIBUTES attributes, uint creation, uint flags, IntPtr template);
+
+  private static bool DrainVersionPipe(IntPtr reader, List<byte> captured, ref bool overflow,
+    out bool empty) {
+    empty = true;
+    // PeekNamedPipe makes each subsequent ReadFile bounded to available bytes;
+    // there is no blocking pipe read or waiting for a descendant to close stdout.
+    for (int i=0; i<64; i++) {
+      uint available;
+      if (!PeekNamedPipe(reader, IntPtr.Zero, 0, IntPtr.Zero, out available, IntPtr.Zero)) {
+        int error = Marshal.GetLastWin32Error();
+        return error == ERROR_BROKEN_PIPE || error == ERROR_NO_DATA;
+      }
+      if (available == 0) return true;
+      empty = false;
+      uint count = Math.Min(available, (uint)4096);
+      byte[] data = new byte[(int)count];
+      uint got;
+      if (!ReadFile(reader, data, count, out got, IntPtr.Zero) || got == 0)
+        return false;
+      if (captured.Count + got > MAX_VERSION_OUTPUT_BYTES) {
+        overflow = true;
+      } else if (!overflow) {
+        for (int k=0; k<got; k++) captured.Add(data[k]);
+      }
+      empty = false;
+    }
+    return true;
+  }
+
+  private static bool IsExactVersionOutput(List<byte> data, bool overflow) {
+    if (overflow || data.Count == 0) return false;
+    // Restrict the only acceptable stdout to a single ASCII version line.
+    foreach (byte ch in data) if (ch > 127 || ch == 0) return false;
+    string output = Encoding.ASCII.GetString(data.ToArray()).Replace("\r\n", "\n");
+    if (output.EndsWith("\n", StringComparison.Ordinal))
+      output = output.Substring(0, output.Length-1);
+    if (output.IndexOf('\n') >= 0 || output.IndexOf('\r') >= 0) return false;
+    return output.Trim(' ', '\t') == "2.122.0";
+  }
+
+  // Reuses the SAME private Job Object limits and accounting helpers as Run.
+  // No change to the proven-source Start/Reset Run implementation.
+  // This is an isolated new native VERSION path with stdout capture.
+  public static string RunVersion(string application, string arguments, string workingDirectory,
+    StringDictionary childEnvironment, int executionMilliseconds, int verificationMilliseconds) {
+    IntPtr job = IntPtr.Zero;
+    IntPtr environment = IntPtr.Zero;
+    IntPtr pipeRead = IntPtr.Zero;
+    IntPtr pipeWrite = IntPtr.Zero;
+    IntPtr nul = IntPtr.Zero;
+    IntPtr attributes = IntPtr.Zero;
+    IntPtr handles = IntPtr.Zero;
+    bool attributesInitialized = false;
+    PROCESS_INFORMATION owned = new PROCESS_INFORMATION();
+    bool created = false;
+    bool assigned = false;
+    List<byte> captured = new List<byte>();
+    bool overflow = false;
+    try {
+      if (executionMilliseconds <= 0 || verificationMilliseconds <= 0)
+        return "BLOCKED_PROCESS_START_FAILED";
+      job = CreateJobObjectW(IntPtr.Zero, null);
+      if (job == IntPtr.Zero || !EnableKillOnClose(job))
+        return "BLOCKED_PROCESS_START_FAILED";
+      SECURITY_ATTRIBUTES attrs = new SECURITY_ATTRIBUTES();
+      attrs.nLength = (uint)Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+      attrs.bInheritHandle = true;
+      if (!CreatePipe(out pipeRead, out pipeWrite, ref attrs, 0) ||
+          !SetHandleInformation(pipeRead, HANDLE_FLAG_INHERIT, 0))
+        return "BLOCKED_PROCESS_START_FAILED";
+      nul = CreateFileW("NUL", GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, ref attrs, OPEN_EXISTING, 0, IntPtr.Zero);
+      if (nul == new IntPtr(-1)) { nul = IntPtr.Zero; return "BLOCKED_PROCESS_START_FAILED"; }
+
+      environment = BuildChildEnvironment(childEnvironment);
+      // STARTUPINFOEX allowlists only stdout pipe and stdin/stderr NUL.
+      // Avoid inheriting unrelated host/runner handles with bInheritHandles=true.
+      IntPtr listSize = IntPtr.Zero;
+      InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref listSize);
+      if (listSize == IntPtr.Zero) return "BLOCKED_PROCESS_START_FAILED";
+      attributes = Marshal.AllocHGlobal(listSize);
+      if (!InitializeProcThreadAttributeList(attributes, 1, 0, ref listSize))
+        return "BLOCKED_PROCESS_START_FAILED";
+      attributesInitialized = true;
+      handles = Marshal.AllocHGlobal(IntPtr.Size * 2);
+      Marshal.WriteIntPtr(handles, 0, pipeWrite);
+      Marshal.WriteIntPtr(handles, IntPtr.Size, nul);
+      if (!UpdateProcThreadAttribute(attributes, 0,
+          new IntPtr((long)PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handles,
+          new IntPtr(IntPtr.Size * 2), IntPtr.Zero, IntPtr.Zero))
+        return "BLOCKED_PROCESS_START_FAILED";
+      STARTUPINFOEX startup = new STARTUPINFOEX();
+      startup.StartupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFOEX));
+      startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+      startup.StartupInfo.hStdInput = nul;
+      startup.StartupInfo.hStdError = nul;
+      startup.StartupInfo.hStdOutput = pipeWrite;
+      startup.lpAttributeList = attributes;
+      StringBuilder command = new StringBuilder("\"" + application + "\" " + arguments);
+      // CREATE_SUSPENDED is essential: assign the real owned process handle
+      // to the kill-on-close job BEFORE any cmd/npx/Node descendant can start.
+      if (!CreateProcessWEx(application, command, IntPtr.Zero, IntPtr.Zero, true,
+          CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW |
+          EXTENDED_STARTUPINFO_PRESENT,
+          environment, workingDirectory, ref startup, out owned))
+        return "BLOCKED_PROCESS_START_FAILED";
+      created = true;
+      // Close only the parent's extra writer. The child inherited its own.
+      if (!CloseHandle(pipeWrite))
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      pipeWrite = IntPtr.Zero;
+      if (!AssignProcessToJobObject(job, owned.hProcess)) {
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      assigned = true;
+      if (ResumeThread(owned.hThread) == WAIT_FAILED) {
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      }
+      Stopwatch overall = Stopwatch.StartNew();
+      Stopwatch afterRoot = null;
+      while (true) {
+        bool drained;
+        if (!DrainVersionPipe(pipeRead, captured, ref overflow, out drained)) {
+          return TerminateAndConfirmJob(job, verificationMilliseconds)
+            ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
+            : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+        }
+        uint wait = WaitForSingleObject(owned.hProcess, 0);
+        if (wait == WAIT_FAILED || (wait != WAIT_OBJECT_0 && wait != WAIT_TIMEOUT)) {
+          return TerminateAndConfirmJob(job, verificationMilliseconds)
+            ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
+            : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+        }
+        if (wait == WAIT_OBJECT_0 && afterRoot == null)
+          afterRoot = Stopwatch.StartNew();
+        if (wait == WAIT_OBJECT_0 && JobEmpty(job) && drained) {
+          uint exitCode;
+          if (!GetExitCodeProcess(owned.hProcess, out exitCode)) {
+            return TerminateAndConfirmJob(job, verificationMilliseconds)
+              ? "BLOCKED_WAIT_FAILURE_TREE_TERMINATED"
+              : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+          }
+          if (exitCode != 0) return "BLOCKED_NONZERO_EXIT";
+          return IsExactVersionOutput(captured, overflow)
+            ? "EXIT_ZERO" : "BLOCKED_VERSION_OUTPUT_INVALID";
+        }
+        if (afterRoot != null && afterRoot.ElapsedMilliseconds >= verificationMilliseconds) {
+          return TerminateAndConfirmJob(job, verificationMilliseconds)
+            ? "BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED"
+            : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+        }
+        if (overall.ElapsedMilliseconds >= executionMilliseconds) {
+          return TerminateAndConfirmJob(job, verificationMilliseconds)
+            ? "BLOCKED_TIMEOUT_TREE_TERMINATED"
+            : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+        }
+        Thread.Sleep(25);
+      }
+    } catch {
+      if (assigned)
+        return TerminateAndConfirmJob(job, verificationMilliseconds)
+          ? "BLOCKED_RUNNER_FAILURE_TREE_TERMINATED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      if (created)
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_PROCESS_START_FAILED"
+          : "BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING";
+      return "BLOCKED_PROCESS_START_FAILED";
+    } finally {
+      // No stdout contents, command line, PIDs, native errors or environment
+      // are exposed. KILL_ON_JOB_CLOSE is only a fallback, NEVER death proof.
+      if (owned.hThread != IntPtr.Zero) CloseHandle(owned.hThread);
+      if (owned.hProcess != IntPtr.Zero) CloseHandle(owned.hProcess);
+      if (pipeWrite != IntPtr.Zero) CloseHandle(pipeWrite);
+      if (pipeRead != IntPtr.Zero) CloseHandle(pipeRead);
+      if (nul != IntPtr.Zero) CloseHandle(nul);
+      if (attributesInitialized) DeleteProcThreadAttributeList(attributes);
+      if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
+      if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
+      if (environment != IntPtr.Zero) Marshal.FreeHGlobal(environment);
+      if (job != IntPtr.Zero) CloseHandle(job);
+    }
+  }
 
   private static bool EnableKillOnClose(IntPtr job) {
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
@@ -648,6 +984,14 @@ public static class FfhRlsJobRunner {
     }
   }
   try {
+    if ($VersionProbe) {
+      # 60s wall-clock job budget + 10s bounded descendant verification.
+      # The native runner returns only redacted outcome classifications.
+      return [FfhRlsJobRunner]::RunVersion(
+        $StartInfo.FileName, $StartInfo.Arguments, $StartInfo.WorkingDirectory,
+        $StartInfo.EnvironmentVariables, 60000, 10000
+      )
+    }
     # Win32 CreateProcessW begins SUSPENDED; AssignProcessToJobObject happens
     # BEFORE ResumeThread. Verification polls actual job ActiveProcesses.
     return [FfhRlsJobRunner]::Run(
@@ -664,12 +1008,7 @@ function Invoke-FfhPinnedLocalSupabase {
   Assert-FfhNoRemoteConfiguration
   $dockerBinding = Assert-FfhLocalDockerDesktop
   Assert-FfhDockerEnvironment
-  $npxCli = Get-Command npx.cmd -CommandType Application -ErrorAction SilentlyContinue
-  if (-not $npxCli -or [IO.Path]::GetFileName($npxCli.Source) -cne 'npx.cmd' -or
-      -not (Test-Path -LiteralPath $npxCli.Source -PathType Leaf) -or
-      $npxCli.Source -match '[&|<>^%!"\r\n]') {
-    throw 'BLOCKED: native npx.cmd launcher unavailable or unsafe for child invocation'
-  }
+  $npxCli = Resolve-FfhTrustedNpxCmd
   $cmdPath = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
   if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
     throw 'BLOCKED: native Windows command processor unavailable'

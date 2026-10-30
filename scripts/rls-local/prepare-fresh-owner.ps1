@@ -24,35 +24,51 @@ $ErrorActionPreference = 'Stop'
 # ambiguous/missing stdout, launch failure, or a different Supabase version.
 # Tests AST-extract only this function and supply harmless native emitters.
 function Assert-FfhExactNativeVersion {
-  param(
-    [Parameter(Mandatory=$true)][string]$Executable,
-    [Parameter(Mandatory=$true)][string[]]$Arguments
-  )
-  if (-not [IO.Path]::IsPathRooted($Executable) -or
-      -not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
-    throw 'BLOCKED: pinned CLI version launcher unavailable'
+  param([Parameter(Mandatory=$true)][string]$DockerEndpoint)
+  # The same trusted ProgramFiles/nodejs npx.cmd resolution is used by the
+  # Job Object Start/Reset launcher. No PATH-selected or unpinned executable.
+  Assert-FfhDockerEndpointValue -Endpoint $DockerEndpoint
+  Assert-FfhDockerEnvironment
+  $npxCli = Resolve-FfhTrustedNpxCmd
+  $cmdPath = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
+  if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
+    throw 'BLOCKED_PROCESS_START_FAILED: native Windows command processor unavailable'
   }
-  try {
-    $result = & {
-      # This assignment affects only the child scriptblock scope. The owner
-      # entrypoint's global ErrorActionPreference=Stop remains unchanged.
-      $ErrorActionPreference = 'Continue'
-      $stdoutLines = @(& $Executable @Arguments 2>$null)
-      $nativeExitCode = $LASTEXITCODE # Capture immediately after native call.
-      [pscustomobject]@{
-        ExitCode = $nativeExitCode
-        Stdout = @($stdoutLines)
-      }
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $cmdPath
+  # Version only: stdout MUST go to the owned Job Object pipe, NOT NUL.
+  # Stderr is inherited NUL, never captured or exposed to shared evidence.
+  $startInfo.Arguments = '/d /s /c ""' + $npxCli.Source + '" --yes supabase@2.122.0 --version"'
+  $startInfo.WorkingDirectory = (Get-Location).Path
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  foreach ($key in @($startInfo.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $startInfo.EnvironmentVariables.Remove([string]$key)
     }
-  } catch {
-    throw 'BLOCKED: pinned CLI version probe invocation failed'
   }
-  if (@($result).Count -ne 1 -or $null -eq $result -or
-      $null -eq $result.ExitCode -or $result.ExitCode -ne 0 -or
-      @($result.Stdout).Count -ne 1 -or
-      ([string]$result.Stdout[0]).Trim() -cne '2.122.0') {
-    throw 'BLOCKED: exact CLI 2.122.0 unavailable'
+  $startInfo.EnvironmentVariables['DOCKER_HOST'] = $DockerEndpoint
+  if ($startInfo.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
+      $startInfo.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
+      $startInfo.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
+      $startInfo.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: conflicting version-probe Docker environment'
   }
+  $outcome = Invoke-FfhNativeJobChild -StartInfo $startInfo -VersionProbe
+  switch -CaseSensitive ($outcome) {
+    'EXIT_ZERO' { break }
+    'BLOCKED_NONZERO_EXIT' { throw 'BLOCKED_NONZERO_EXIT: native CLI version probe failed' }
+    'BLOCKED_VERSION_OUTPUT_INVALID' { throw 'BLOCKED_VERSION_OUTPUT_INVALID: exact 2.122.0 version unavailable' }
+    'BLOCKED_PROCESS_START_FAILED' { throw 'BLOCKED_PROCESS_START_FAILED: version launcher not started' }
+    'BLOCKED_TIMEOUT_TREE_TERMINATED' { throw 'BLOCKED_TIMEOUT_TREE_TERMINATED: version probe timed out; no retry' }
+    'BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED' { throw 'BLOCKED_DESCENDANTS_AFTER_EXIT_TREE_TERMINATED: version probe descendants remained' }
+    'BLOCKED_WAIT_FAILURE_TREE_TERMINATED' { throw 'BLOCKED_WAIT_FAILURE_TREE_TERMINATED: no retry' }
+    'BLOCKED_RUNNER_FAILURE_TREE_TERMINATED' { throw 'BLOCKED_RUNNER_FAILURE_TREE_TERMINATED: no retry' }
+    default {
+      throw 'BLOCKED_INDETERMINATE_CHILD_MAY_STILL_BE_RUNNING: no retry, Gate B, reset or cleanup'
+    }
+  }
+  Assert-FfhDockerEnvironment
 }
 
 Assert-FfhNoRemoteConfiguration
@@ -78,15 +94,9 @@ $otherContainers = @(& $dockerBinding.Executable --host $dockerBinding.Endpoint 
 if ($LASTEXITCODE -ne 0 -or $otherContainers -ccontains $containerName) {
   throw 'BLOCKED: fresh project container name already exists'
 }
-# Resolve a single native launcher rather than an npx.ps1 or alias. Execute
-# by its absolute validated path; the exact package/version arguments are fixed.
-$npxVersionLaunchers = @(Get-Command npx.cmd -CommandType Application -All -ErrorAction SilentlyContinue)
-if ($npxVersionLaunchers.Count -ne 1 -or
-    $npxVersionLaunchers[0].CommandType -ne [Management.Automation.CommandTypes]::Application -or
-    [IO.Path]::GetFileName([string]$npxVersionLaunchers[0].Source) -cne 'npx.cmd') {
-  throw 'BLOCKED: pinned CLI version launcher unavailable or ambiguous'
-}
-Assert-FfhExactNativeVersion -Executable ([string]$npxVersionLaunchers[0].Source) -Arguments @('--yes','supabase@2.122.0','--version')
+# Source-verifiable 60-second owned Job Object version probe; no synchronous
+# unbounded npx call, no creation of the SHA-specific DB project before PASS.
+Assert-FfhExactNativeVersion -DockerEndpoint $dockerBinding.Endpoint
 # All provenance hashes are computed from clean immutable repository files;
 # the 15 migration FILE BYTES are copied without alteration into a different,
 # brand-new config project. Do not point the CLI at the repository or legacy
