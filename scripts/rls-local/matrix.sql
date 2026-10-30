@@ -188,11 +188,11 @@ BEGIN
     IF denied OR observed IS DISTINCT FROM expected THEN
       RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',category,family;
     END IF;
-  ELSIF mode IN ('RLS','GRANT','FORBIDDEN','ANON_INSERT','FK','IMMUTABLE') THEN
+  ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE') THEN
     IF NOT denied THEN
       RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',category,family;
     END IF;
-  ELSIF mode IN ('DENY','ANON_SELECT','ANON_WRITE') THEN
+  ELSIF mode IN ('DENY','FORBIDDEN','ANON_SELECT','ANON_WRITE') THEN
     IF NOT denied AND observed IS DISTINCT FROM 0 THEN
       RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_WRITE category=% family=%',category,family;
     END IF;
@@ -256,6 +256,7 @@ $digest$;
 -- One transaction, fixture-only and no external Auth API. If any assertion
 -- fails, psql ON_ERROR_STOP terminates; closing the session rolls back.
 DO $matrix$
+<<matrix_block>>
 DECLARE
   a_owner uuid := gen_random_uuid();
   a_member uuid := gen_random_uuid();
@@ -332,7 +333,7 @@ BEGIN
         row_id := p1;
       ELSIF family='person_hsa_tax_year_profiles' THEN
         SELECT f.row_id INTO row_id FROM pg_temp.ffh_rls_baselines f
-        WHERE f.family=family AND f.scope=scope_name;
+        WHERE f.family=matrix_block.family AND f.scope=scope_name;
       ELSE
         EXECUTE pg_temp.ffh_fixture_sql(family,hh,p1,p2,0) INTO row_id;
       END IF;
@@ -342,7 +343,7 @@ BEGIN
         INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES(family,scope_name,row_id);
       END IF;
       UPDATE pg_temp.ffh_rls_baselines f SET digest=pg_temp.ffh_digest(family,row_id)
-      WHERE f.family=family AND f.scope=scope_name;
+      WHERE f.family=matrix_block.family AND f.scope=scope_name;
     END LOOP;
   END LOOP;
   IF (SELECT count(*) FROM pg_temp.ffh_rls_baselines) <> 26 THEN
@@ -368,7 +369,7 @@ BEGIN
       family := family_names[checked];
       pk := CASE WHEN family='household_financial_preferences' THEN 'household_id' ELSE 'id' END;
       SELECT f.row_id,f.digest INTO baseline_id,base_digest
-      FROM pg_temp.ffh_rls_baselines f WHERE f.family=family AND f.scope=target_scope;
+      FROM pg_temp.ffh_rls_baselines f WHERE f.family=matrix_block.family AND f.scope=target_scope;
       -- Both exact known-ID and broad household enumeration must disclose 0.
       PERFORM pg_temp.ffh_probe(principal.user_id,
         format('SELECT count(*) FROM public.%I WHERE %I=%L AND household_id=%L',family,pk,baseline_id,hh),
@@ -406,8 +407,8 @@ BEGIN
   -- Viewer can read A but cannot mutate even its own household.
   FOREACH family IN ARRAY family_names LOOP
     pk := CASE WHEN family='household_financial_preferences' THEN 'household_id' ELSE 'id' END;
-    SELECT row_id,digest INTO baseline_id,base_digest
-    FROM pg_temp.ffh_rls_baselines WHERE family=family AND scope='A';
+    SELECT f.row_id,f.digest INTO baseline_id,base_digest
+    FROM pg_temp.ffh_rls_baselines f WHERE f.family=matrix_block.family AND f.scope='A';
     PERFORM pg_temp.ffh_probe(a_viewer,
       format('SELECT count(*) FROM public.%I WHERE %I=%L AND household_id=%L',family,pk,baseline_id,a),
       'COUNT',1,'viewer-own-read',family);
@@ -428,8 +429,8 @@ BEGIN
   -- UPDATE USING/WITH CHECK, and A's original row remains byte-equivalent.
   FOREACH family IN ARRAY family_names LOOP
     IF family='household_financial_preferences' THEN CONTINUE; END IF;
-    SELECT row_id,digest INTO baseline_id,base_digest FROM pg_temp.ffh_rls_baselines
-    WHERE family=family AND scope='A';
+    SELECT f.row_id,f.digest INTO baseline_id,base_digest FROM pg_temp.ffh_rls_baselines f
+    WHERE f.family=matrix_block.family AND f.scope='A';
     PERFORM pg_temp.ffh_probe(a_owner,
       format('UPDATE public.%I SET household_id=%L WHERE id=%L AND household_id=%L',family,b,baseline_id,a),
       'DENY',0,'reassignment-a-to-b-denied',family);
@@ -439,14 +440,28 @@ BEGIN
   END LOOP;
   -- Preferences PK is household_id, so moving to B's existing PK must not
   -- pass; this is tested as a separate controlled policy/PK case.
-  SELECT row_id,digest INTO baseline_id,base_digest FROM pg_temp.ffh_rls_baselines
-  WHERE family='household_financial_preferences' AND scope='A';
+  SELECT f.row_id,f.digest INTO baseline_id,base_digest FROM pg_temp.ffh_rls_baselines f
+  WHERE f.family='household_financial_preferences' AND f.scope='A';
   PERFORM pg_temp.ffh_probe(a_owner,
     format('UPDATE public.household_financial_preferences SET household_id=%L WHERE household_id=%L',b,a),
     'DENY',0,'reassignment-preferences-denied','household_financial_preferences');
   IF pg_temp.ffh_digest('household_financial_preferences',baseline_id) IS DISTINCT FROM base_digest THEN
     RAISE EXCEPTION 'MATRIX_PREFERENCES_REASSIGNMENT_CHANGED_SOURCE';
   END IF;
+
+  -- Cross reassign in reverse (B owner -> A), with B row unchanged.
+  FOREACH family IN ARRAY family_names LOOP
+    SELECT f.row_id,f.digest INTO baseline_id,base_digest
+    FROM pg_temp.ffh_rls_baselines f
+    WHERE f.family=matrix_block.family AND f.scope='B';
+    pk := CASE WHEN family='household_financial_preferences' THEN 'household_id' ELSE 'id' END;
+    PERFORM pg_temp.ffh_probe(b_owner,format(
+      'UPDATE public.%I SET household_id=%L WHERE %I=%L AND household_id=%L',
+      family,a,pk,baseline_id,b),'DENY',0,'reassignment-b-to-a-denied',family);
+    IF pg_temp.ffh_digest(family,baseline_id) IS DISTINCT FROM base_digest THEN
+      RAISE EXCEPTION 'MATRIX_REVERSE_REASSIGNMENT_CHANGED_SOURCE family=%',family;
+    END IF;
+  END LOOP;
 
   -- Same-household parent references are already exercised by successful HSA
   -- and other positive fixtures; explicit mismatched composite FK probes
@@ -455,8 +470,8 @@ BEGIN
     (a_owner,a,pb1,pb2,'A'),
     (b_owner,b,pa1,pa2,'B')
   ) AS p(user_id,own_house,foreign_person1,foreign_person2,own_scope) LOOP
-    SELECT row_id INTO baseline_id FROM pg_temp.ffh_rls_baselines
-    WHERE family='goals' AND scope=CASE WHEN principal.own_scope='A' THEN 'B' ELSE 'A' END;
+    SELECT f.row_id INTO baseline_id FROM pg_temp.ffh_rls_baselines f
+    WHERE f.family='goals' AND f.scope=CASE WHEN principal.own_scope='A' THEN 'B' ELSE 'A' END;
     PERFORM pg_temp.ffh_probe(principal.user_id,format(
       'INSERT INTO public.person_hsa_tax_year_profiles(household_id,person_id,tax_year) VALUES(%L,%L,2033)',
       principal.own_house,principal.foreign_person1),'FK',NULL,'cross-fk','person_hsa_tax_year_profiles',
@@ -477,8 +492,8 @@ BEGIN
       'INSERT INTO public.accounts(household_id,name,account_type,cash_purpose,related_goal_id) VALUES(%L,%L,%L,%L,%L)',
       principal.own_house,'synthetic-cross-fk','checking','earmarked_goal',baseline_id),'FK',NULL,'cross-fk','accounts',
       'accounts_related_goal_household_fkey');
-    SELECT row_id INTO baseline_id FROM pg_temp.ffh_rls_baselines
-    WHERE family='debts' AND scope=CASE WHEN principal.own_scope='A' THEN 'B' ELSE 'A' END;
+    SELECT f.row_id INTO baseline_id FROM pg_temp.ffh_rls_baselines f
+    WHERE f.family='debts' AND f.scope=CASE WHEN principal.own_scope='A' THEN 'B' ELSE 'A' END;
     PERFORM pg_temp.ffh_probe(principal.user_id,format(
       'INSERT INTO public.accounts(household_id,name,account_type,cash_purpose,related_debt_id) VALUES(%L,%L,%L,%L,%L)',
       principal.own_house,'synthetic-cross-fk','checking','debt_backed_reserve',baseline_id),'FK',NULL,'cross-fk','accounts',
