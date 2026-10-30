@@ -18,6 +18,8 @@ param(
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
 Assert-FfhNoRemoteConfiguration
+# Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
+[void](Assert-FfhLocalDockerDesktop)
 $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
 $root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
 $projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
@@ -33,6 +35,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue) -or
     -not (Get-Command npx -ErrorAction SilentlyContinue)) {
   throw 'BLOCKED: Docker and pinned Supabase CLI launcher required'
 }
+[void](Assert-FfhLocalDockerDesktop)
 $otherContainers = @(& docker ps -a --format '{{.Names}}')
 if ($LASTEXITCODE -ne 0 -or $otherContainers -ccontains $containerName) {
   throw 'BLOCKED: fresh project container name already exists'
@@ -47,7 +50,9 @@ if ($LASTEXITCODE -ne 0 -or $version.Count -ne 1 -or
 # brand-new config project. Do not point the CLI at the repository or legacy
 # owner's separately initialized FFH-RLS-Test folder.
 New-Item -ItemType Directory -Path (Join-Path $root 'supabase/migrations') -Force | Out-Null
+Assert-FfhFreshTree -FreshRoot $root
 foreach ($file in $source.migration_files) {
+  Assert-FfhFreshTree -FreshRoot $root
   $original = Join-Path $source.repo $file.path
   $dest = Join-Path $root ($file.path -replace '/','\')
   Copy-Item -LiteralPath $original -Destination $dest -ErrorAction Stop
@@ -85,6 +90,8 @@ $receiptPath = Join-Path $root 'ffh-p01-local-provenance.json'
 # local CLI commands are suppressed because they can contain generated keys.
 Push-Location $root
 try {
+  Assert-FfhFreshTree -FreshRoot $root
+  [void](Assert-FfhLocalDockerDesktop)
   & npx --yes supabase@2.122.0 db start *> $null
   if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: fresh local DB startup failed' }
   [void](Assert-FfhDbLoopback -Container $containerName)
@@ -93,6 +100,8 @@ try {
   }
   # Reset applies the copied 15 migration files ONLY to this new, unique
   # localhost project. Does not address or reset old FFH-RLS-Test database.
+  Assert-FfhFreshTree -FreshRoot $root
+  [void](Assert-FfhLocalDockerDesktop)
   & npx --yes supabase@2.122.0 db reset --local --no-seed *> $null
   if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: fresh-local migration application failed' }
   [void](Assert-FfhDbLoopback -Container $containerName)
@@ -109,6 +118,8 @@ try {
   }
   # Read-only, source-SHA-bound catalog/role receipt after applying migrations.
   # Capture output only in memory; never print raw private SQL or service keys.
+  Assert-FfhFreshTree -FreshRoot $root
+  [void](Assert-FfhLocalDockerDesktop)
   $readOnly = @(
     Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
       & docker exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
