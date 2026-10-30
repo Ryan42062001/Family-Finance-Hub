@@ -122,7 +122,19 @@ function Assert-FfhFreshRoot {
   )
   $root = [IO.Path]::GetFullPath($FreshRoot).TrimEnd('\','/')
   $repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\','/')
+  $home = [IO.Path]::GetFullPath($HOME).TrimEnd('\','/')
+  $profile = [IO.Path]::GetFullPath([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)).TrimEnd('\','/')
   $expectedName = 'FFH-P01-RLS-Fresh-' + $ExpectedHead.Substring(0,12)
+  if ($home -cnotmatch '^[a-zA-Z]:\\' -or
+      -not $home.Equals($profile,[StringComparison]::OrdinalIgnoreCase) -or
+      -not (Split-Path $root -Parent).Equals($home,[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: fresh project must be direct child of local Windows profile'
+  }
+  if (([IO.DriveInfo]::new($home.Substring(0,3))).DriveType -ne [IO.DriveType]::Fixed) {
+    throw 'BLOCKED: fresh root parent must be local fixed drive'
+  }
+  Assert-FfhNoReparsePath -Path $home
+  if (Test-Path -LiteralPath $root) { Assert-FfhFreshTree -FreshRoot $root }
   if ((Split-Path $root -Leaf) -cne $expectedName -or
       $root.Equals($repo,[StringComparison]::OrdinalIgnoreCase) -or
       $root.StartsWith($repo + [IO.Path]::DirectorySeparatorChar,
@@ -133,8 +145,185 @@ function Assert-FfhFreshRoot {
   return $root
 }
 
+# RLS-01: validate the effective Docker daemon, not the context name.
+# The initial context show/inspect calls query read-only local CLI metadata.
+# No daemon access is allowed until the endpoint URI passes this guard.
+function Assert-FfhDockerEndpointValue {
+  param([Parameter(Mandatory=$true)][string]$Endpoint)
+  if ($Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: not the local Windows Docker Desktop Linux named pipe'
+  }
+}
+
+function Assert-FfhDockerEnvironment {
+  # Reject endpoint/context/TLS variables even if explicitly empty.
+  $blocked = @(
+    'DOCKER_HOST','DOCKER_CONTEXT','DOCKER_CONFIG','DOCKER_TLS',
+    'DOCKER_TLS_VERIFY','DOCKER_CERT_PATH','DOCKER_TLS_CERTDIR',
+    'DOCKER_SSH_COMMAND','DOCKER_API_VERSION','DOCKER_CUSTOM_HEADERS',
+    'DOCKER_MACHINE_NAME','DOCKER_MACHINE_HOST','DOCKER_MACHINE_CERT_PATH',
+    'DOCKER_MACHINE_TLS_VERIFY','DOCKER_ENDPOINT','DOCKER_SOCKET',
+    'DOCKER_REMOTE'
+  )
+  $envNames = @([Environment]::GetEnvironmentVariables().Keys |
+    ForEach-Object { [string]$_ })
+  foreach ($name in $envNames) {
+    if ($blocked -contains $name -or
+        $name -match '^(?i:DOCKER_(HOST|CONTEXT|CONFIG|TLS.*|CERT.*|SSH.*|MACHINE.*|ENDPOINT.*|SOCKET.*|REMOTE.*))
+  param([Parameter(Mandatory=$true)][string]$Container)
+  $raw = & docker inspect $Container 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $raw) {
+    throw 'BLOCKED: only expected disposable container may be accessed'
+  }
+  $d = @(($raw -join "`n" | ConvertFrom-Json))
+  if ($d.Count -ne 1 -or -not $d[0].State.Running -or
+      $d[0].State.Health.Status -cne 'healthy') {
+    throw 'BLOCKED: fresh local database not running/healthy'
+  }
+  $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
+  if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
+  foreach ($binding in $bindings) {
+    if ($binding.HostPort -cne '54332' -or
+        $binding.HostIp -cnotin @('127.0.0.1','::1')) {
+      throw 'BLOCKED: DB not loopback-only on fresh port 54332'
+    }
+  }
+  return $true
+}
+) {
+      throw "BLOCKED: Docker endpoint/environment override present ($name)"
+    }
+  }
+}
+
+function Assert-FfhLocalDockerDesktop {
+  Assert-FfhDockerEnvironment
+  if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+    throw 'BLOCKED: locality guard requires native Windows host'
+  }
+  $dockerCli = Get-Command docker -CommandType Application -ErrorAction SilentlyContinue
+  if (-not $dockerCli -or [IO.Path]::GetFileName($dockerCli.Source) -cne 'docker.exe') {
+    throw 'BLOCKED: native Windows docker.exe unavailable'
+  }
+  # Never change global context. Validate its name only to avoid CLI injection.
+  $selected = @(& $dockerCli.Source context show 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $selected.Count -ne 1) {
+    throw 'BLOCKED: effective Docker context ambiguous'
+  }
+  $contextName = ([string]$selected[0]).Trim()
+  if ($contextName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}
+  param([Parameter(Mandatory=$true)][string]$Container)
+  $raw = & docker inspect $Container 2>$null
+  if ($LASTEXITCODE -ne 0 -or -not $raw) {
+    throw 'BLOCKED: only expected disposable container may be accessed'
+  }
+  $d = @(($raw -join "`n" | ConvertFrom-Json))
+  if ($d.Count -ne 1 -or -not $d[0].State.Running -or
+      $d[0].State.Health.Status -cne 'healthy') {
+    throw 'BLOCKED: fresh local database not running/healthy'
+  }
+  $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
+  if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
+  foreach ($binding in $bindings) {
+    if ($binding.HostPort -cne '54332' -or
+        $binding.HostIp -cnotin @('127.0.0.1','::1')) {
+      throw 'BLOCKED: DB not loopback-only on fresh port 54332'
+    }
+  }
+  return $true
+}
+) {
+    throw 'BLOCKED: selected Docker context malformed'
+  }
+  $raw = @(& $dockerCli.Source context inspect $contextName 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $raw.Count -eq 0) {
+    throw 'BLOCKED: Docker context metadata unavailable'
+  }
+  try {
+    $contexts = @((($raw -join [Environment]::NewLine) | ConvertFrom-Json))
+  } catch {
+    throw 'BLOCKED: Docker context metadata malformed'
+  }
+  if ($contexts.Count -ne 1 -or $contexts[0].Name -cne $contextName -or
+      -not $contexts[0].Endpoints -or -not $contexts[0].Endpoints.docker) {
+    throw 'BLOCKED: Docker context endpoint missing or ambiguous'
+  }
+  $endpoint = [string]$contexts[0].Endpoints.docker.Host
+  if ([string]::IsNullOrWhiteSpace($endpoint)) {
+    throw 'BLOCKED: effective Docker endpoint missing'
+  }
+  Assert-FfhDockerEndpointValue -Endpoint $endpoint
+  if ($contexts[0].Endpoints.docker.SkipTLSVerify -eq $true -or
+      ($null -ne $contexts[0].TLSMaterial -and
+       @($contexts[0].TLSMaterial.PSObject.Properties).Count -gt 0)) {
+    throw 'BLOCKED: TLS context material incompatible with local named pipe'
+  }
+  $again = @(& $dockerCli.Source context show 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $again.Count -ne 1 -or
+      ([string]$again[0]).Trim() -cne $contextName) {
+    throw 'BLOCKED: Docker context changed before daemon verification'
+  }
+  # First daemon-touching command comes AFTER verified named-pipe endpoint.
+  $server = @(& $dockerCli.Source info --format '{{.OSType}}|{{.OperatingSystem}}|{{.Name}}' 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $server.Count -ne 1) {
+    throw 'BLOCKED: Docker Desktop Linux daemon could not be verified'
+  }
+  $parts = ([string]$server[0]).Split('|')
+  if ($parts.Count -ne 3 -or $parts[0] -cne 'linux' -or
+      $parts[1] -notmatch '^Docker Desktop(?:\b|$)' -or
+      $parts[2] -cne 'docker-desktop') {
+    throw 'BLOCKED: wrong Docker daemon OS/product/server'
+  }
+  Assert-FfhDockerEnvironment
+  $end = @(& $dockerCli.Source context show 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $end.Count -ne 1 -or
+      ([string]$end[0]).Trim() -cne $contextName) {
+    throw 'BLOCKED: Docker context changed after daemon verification'
+  }
+  return $true
+}
+
+function Assert-FfhNoReparsePath {
+  param([Parameter(Mandatory=$true)][string]$Path)
+  $cursor = [IO.Path]::GetFullPath($Path).TrimEnd('\','/')
+  while (-not [string]::IsNullOrEmpty($cursor)) {
+    if (-not (Test-Path -LiteralPath $cursor)) {
+      throw 'BLOCKED: fresh-root path/ancestor absent'
+    }
+    $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+      throw 'BLOCKED: filesystem symlink/junction/reparse point forbidden'
+    }
+    $parent = Split-Path -Path $cursor -Parent
+    if ([string]::IsNullOrEmpty($parent) -or $parent -eq $cursor) { break }
+    $cursor = $parent
+  }
+}
+
+function Assert-FfhFreshTree {
+  param([Parameter(Mandatory=$true)][string]$FreshRoot)
+  $paths = @(
+    '', 'supabase', 'supabase/migrations', 'supabase/.temp',
+    'supabase/config.toml','ffh-p01-local-provenance.json',
+    'ffh-p01-local-provenance.sha256'
+  )
+  foreach ($relative in $paths) {
+    $target = if ($relative) { Join-Path $FreshRoot $relative } else { $FreshRoot }
+    if (Test-Path -LiteralPath $target) {
+      Assert-FfhNoReparsePath -Path $target
+    }
+  }
+  $migrations = Join-Path $FreshRoot 'supabase/migrations'
+  if (Test-Path -LiteralPath $migrations -PathType Container) {
+    foreach ($file in @(Get-ChildItem -LiteralPath $migrations -Force -ErrorAction Stop)) {
+      Assert-FfhNoReparsePath -Path $file.FullName
+    }
+  }
+}
+
 function Assert-FfhDbLoopback {
   param([Parameter(Mandatory=$true)][string]$Container)
+  [void](Assert-FfhLocalDockerDesktop)
   $raw = & docker inspect $Container 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $raw) {
     throw 'BLOCKED: only expected disposable container may be accessed'
