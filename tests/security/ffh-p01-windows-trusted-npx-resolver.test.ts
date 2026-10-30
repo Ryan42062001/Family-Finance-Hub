@@ -80,7 +80,7 @@ function Assert-FfhNoReparsePath {
  if($script:ReparseBlocked){throw 'BLOCKED: mock untrusted reparse'}
 }
 $good=App 'npx.cmd' $script:Npx
-$ps1=ScriptApp 'npx.ps1' $script:Ps1
+$ps1Candidate=ScriptApp 'npx.ps1' $script:Ps1
 $shell=App 'npx' $script:Shell
 $bad=App 'npx.cmd' $script:Evil
 function Case {
@@ -104,8 +104,8 @@ function Case {
  [Console]::Out.WriteLine('WINPS51_TRUSTED_NPX_PASS '+$Label)
 }
 Case 'standard_installer' @($good) @($good) @($good) $true
-Case 'standard_installer_ps1_sibling' @($good) @($good) @($ps1,$good) $true
-Case 'standard_installer_both_siblings' @($good) @($good) @($ps1,$good,$shell) $true
+Case 'standard_installer_ps1_sibling' @($good) @($good) @($ps1Candidate,$good) $true
+Case 'standard_installer_both_siblings' @($good) @($good) @($ps1Candidate,$good,$shell) $true
 Case 'alias_shadow' @($good) @($good) @((Hostile 'Alias' 'npx'),$good) $false
 Case 'function_shadow' @($good) @($good) @((Hostile 'Function' 'npx'),$good) $false
 Case 'cmdlet_shadow' @($good) @($good) @((Hostile 'Cmdlet' 'npx'),$good) $false
@@ -113,7 +113,7 @@ Case 'foreign_script_shadow' @($good) @($good) @((ScriptApp 'npx.ps1' $script:Ev
 Case 'foreign_path_before' @($bad,$good) @($bad,$good) @($bad,$good) $false
 Case 'foreign_path_after' @($good,$bad) @($good,$bad) @($good,$bad) $false
 Case 'duplicate_npx_cmd' @($good,$good) @($good,$good) @($good) $false
-Case 'missing_npx_cmd' @() @() @($ps1) $false
+Case 'missing_npx_cmd' @() @() @($ps1Candidate) $false
 Case 'missing_node_exe' @($good) @($good) @($good) $false $true $false
 Case 'forged_source' @((App 'npx.cmd' $script:Evil -Path $script:Npx -Definition $script:Npx)) @($good) @($good) $false
 Case 'forged_definition' @((App 'npx.cmd' $script:Npx -Definition $script:Evil)) @($good) @($good) $false

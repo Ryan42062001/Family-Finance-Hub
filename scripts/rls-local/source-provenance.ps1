@@ -501,7 +501,7 @@ public static class FfhRlsJobRunner {
   private const uint WAIT_TIMEOUT = 258;
   private const uint WAIT_FAILED = 0xFFFFFFFF;
 
-  [StructLayout(LayoutKind.Sequential)]
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
   private struct STARTUPINFO {
     public uint cb;
     public string lpReserved;
@@ -606,7 +606,7 @@ public static class FfhRlsJobRunner {
   private const int ERROR_NO_DATA = 232;
   private const int MAX_VERSION_OUTPUT_BYTES = 256;
 
-  [StructLayout(LayoutKind.Sequential)]
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
   private struct STARTUPINFOEX {
     public STARTUPINFO StartupInfo;
     public IntPtr lpAttributeList;
