@@ -229,7 +229,7 @@ function Assert-FfhLocalDockerDesktop {
     throw 'BLOCKED: Docker context changed before daemon verification'
   }
   # First daemon-touching command comes AFTER verified named-pipe endpoint.
-  $server = @(& $dockerCli.Source info --format '{{.OSType}}|{{.OperatingSystem}}|{{.Name}}' 2>$null)
+  $server = @(& $dockerCli.Source --host $endpoint info --format '{{.OSType}}|{{.OperatingSystem}}|{{.Name}}' 2>$null)
   if ($LASTEXITCODE -ne 0 -or $server.Count -ne 1) {
     throw 'BLOCKED: Docker Desktop Linux daemon could not be verified'
   }
@@ -262,7 +262,10 @@ function Assert-FfhLocalDockerDesktop {
     throw 'BLOCKED: Docker endpoint or TLS selection changed after verification'
   }
   Assert-FfhDockerEnvironment
-  return $true
+  return [pscustomobject]@{
+    Executable = [string]$dockerCli.Source
+    Endpoint = $endpoint
+  }
 }
 
 function Assert-FfhNoReparsePath {
@@ -309,15 +312,72 @@ function Assert-FfhFreshTree {
   }
 }
 
+# Child-only Docker endpoint for the two authorized local Supabase operations.
+# ProcessStartInfo copies and sanitizes the child's environment, not the parent.
+function Invoke-FfhPinnedLocalSupabase {
+  param([Parameter(Mandatory=$true)][ValidateSet('Start','Reset')][string]$Operation)
+  Assert-FfhNoRemoteConfiguration
+  $dockerBinding = Assert-FfhLocalDockerDesktop
+  Assert-FfhDockerEnvironment
+  $npxCli = Get-Command npx.cmd -CommandType Application -ErrorAction SilentlyContinue
+  if (-not $npxCli -or [IO.Path]::GetFileName($npxCli.Source) -cne 'npx.cmd' -or
+      -not (Test-Path -LiteralPath $npxCli.Source -PathType Leaf) -or
+      $npxCli.Source -match '[&|<>^%!"\r\n]') {
+    throw 'BLOCKED: native npx.cmd launcher unavailable or unsafe for child invocation'
+  }
+  $cmdPath = Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
+  if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
+    throw 'BLOCKED: native Windows command processor unavailable'
+  }
+  $args = if ($Operation -ceq 'Start') { 'db start' } else { 'db reset --local --no-seed' }
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $cmdPath
+  $startInfo.Arguments = '/d /s /c ""' + $npxCli.Source + '" --yes supabase@2.122.0 ' + $args + ' 1>NUL 2>NUL"'
+  $startInfo.WorkingDirectory = (Get-Location).Path
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  foreach ($key in @($startInfo.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $startInfo.EnvironmentVariables.Remove([string]$key)
+    }
+  }
+  $startInfo.EnvironmentVariables['DOCKER_HOST'] = $dockerBinding.Endpoint
+  if ($startInfo.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
+      $startInfo.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
+      $startInfo.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
+      $startInfo.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: conflicting child Docker endpoint or TLS context'
+  }
+  $parentDockerHost = [Environment]::GetEnvironmentVariable('DOCKER_HOST','Process')
+  $child = $null
+  try {
+    $child = [Diagnostics.Process]::Start($startInfo)
+    if ($null -eq $child) { throw 'BLOCKED: local Supabase child did not start' }
+    if (-not $child.WaitForExit(900000)) {
+      $child.Kill()
+      throw 'BLOCKED: local Supabase child timed out; no retry or cleanup authorized'
+    }
+    if ($child.ExitCode -ne 0) {
+      throw 'BLOCKED: pinned local Supabase command failed (private output suppressed)'
+    }
+  }
+  finally {
+    [Environment]::SetEnvironmentVariable('DOCKER_HOST',$parentDockerHost,'Process')
+    if ($null -ne $child) { $child.Dispose() }
+  }
+  Assert-FfhDockerEnvironment
+}
+
 function Assert-FfhDbLoopback {
   param([Parameter(Mandatory=$true)][string]$Container)
-  [void](Assert-FfhLocalDockerDesktop)
-  $raw = & docker inspect $Container 2>$null
+  $dockerBinding = Assert-FfhLocalDockerDesktop
+  $raw = & $dockerBinding.Executable --host $dockerBinding.Endpoint inspect $Container 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $raw) {
     throw 'BLOCKED: only expected disposable container may be accessed'
   }
   $d = @(($raw -join "`n" | ConvertFrom-Json))
-  if ($d.Count -ne 1 -or -not $d[0].State.Running -or
+  if ($d.Count -ne 1 -or [string]$d[0].Name -cne ('/' + $Container) -or
+      -not $d[0].State.Running -or
       $d[0].State.Health.Status -cne 'healthy') {
     throw 'BLOCKED: fresh local database not running/healthy'
   }

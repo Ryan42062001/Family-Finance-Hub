@@ -43,10 +43,10 @@ function assertNoInjectedInspection(source: string): void {
     assert.doesNotMatch(region, /\$bindings\s*=\s*@\(/);
   }
   assert.equal((source.match(/function Assert-FfhDbLoopback \{/g) ?? []).length, 1);
-  assert.equal((source.match(/\$raw\s*=\s*&\s*docker\s+inspect\s+\$Container\b/g) ?? []).length, 1);
+  assert.equal((source.match(/\$raw\s*=\s*&\s*\$dockerBinding\.Executable\s+--host\s+\$dockerBinding\.Endpoint\s+inspect\s+\$Container\b/g) ?? []).length, 1);
   assert.equal((source.match(/NetworkSettings\.Ports\.'5432\/tcp'/g) ?? []).length, 1);
   assert.equal((source.match(/param\(\[Parameter\(Mandatory=\$true\)\]\[string\]\$Container\)/g) ?? []).length, 1);
-  assert.match(loopback, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$raw = & docker inspect \$Container/);
+  assert.match(loopback, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$raw = & \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect \$Container/);
   assert.match(loopback, /\$binding\.HostPort -cne '54332'/);
   assert.match(loopback, /\$binding\.HostIp -cnotin @\('127\.0\.0\.1','::1'\)/);
 }

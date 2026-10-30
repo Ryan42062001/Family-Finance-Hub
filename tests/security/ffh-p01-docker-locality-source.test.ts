@@ -94,31 +94,24 @@ function positions(source: string, needles: string[]) {
   });
 }
 
-test("RLS-01 locality: both owner entrypoints check daemon before first dangerous command", () => {
+test("RLS-01 locality: owner entrypoints verify locality and pin the direct daemon operations", () => {
   for (const source of [prepare, execute]) {
     const [importAt, localityAt] = positions(source, [
       '. "$PSScriptRoot/source-provenance.ps1"',
       "[void](Assert-FfhLocalDockerDesktop)",
     ]);
     assert.ok(importAt < localityAt);
-    const firstDaemonOperation = source.search(/& docker (?:ps|inspect|exec)|& npx --yes supabase@2\.122\.0/);
+    const firstDaemonOperation = source.search(/& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint (?:ps|exec)/);
     assert.ok(firstDaemonOperation > localityAt);
+    assert.doesNotMatch(source, /& docker (?:ps|inspect|exec)/);
   }
-  // Recheck before fresh local start, destructive reset and Docker-local SQL.
-  const startPatterns = [
-    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+& npx --yes supabase@2\.122\.0 db start/,
-    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+& npx --yes supabase@2\.122\.0 db reset --local --no-seed/,
-    /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$readOnly = @\(/,
-  ];
-  const start = startPatterns.map((pattern) => {
-    const matched = pattern.exec(prepare);
-    assert.ok(matched, "missing guard-before-operation source: " + pattern);
-    return matched.index;
-  });
-  assert.ok(start[0] < start[1] && start[1] < start[2]);
-  assert.match(execute, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$preflightOutput = @\(/);
-  assert.match(execute, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/matrix\.sql'\)/);
-  assert.match(shared, /function Assert-FfhDbLoopback \{[\s\S]*?\[void\]\(Assert-FfhLocalDockerDesktop\)\s+\$raw = & docker inspect/);
+  assert.match(shared, /\$dockerCli\.Source --host \$endpoint info --format/);
+  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Start/);
+  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Reset/);
+  assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$readOnly = @\(/);
+  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$preflightOutput = @\(/);
+  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/matrix\.sql'\)/);
+  assert.match(shared, /function Assert-FfhDbLoopback \{[\s\S]*?\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$raw = & \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect/);
 });
 
 test("RLS-01 locality: fresh root is fixed-drive direct-child of profile with no reparse chain", () => {

@@ -96,10 +96,10 @@ Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 POR
 # before ANY synthetic identities/transactions are attempted. No DB URL,
 # database password, provider token, hosted Auth or service-role session.
 Assert-FfhFreshTree -FreshRoot $root
-[void](Assert-FfhLocalDockerDesktop)
+$dockerBinding = Assert-FfhLocalDockerDesktop
 $preflightOutput = @(
   Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
-    & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
+    & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
 )
 if ($LASTEXITCODE -ne 0 -or
     -not (($preflightOutput | Out-String) -match 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1')) {
@@ -112,9 +112,9 @@ Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 # the session closes and PostgreSQL rolls back; never retry or manually clean
 # without new approval. A matrix PASS remains OWNER-OBSERVED only.
 Assert-FfhFreshTree -FreshRoot $root
-[void](Assert-FfhLocalDockerDesktop)
+$dockerBinding = Assert-FfhLocalDockerDesktop
 Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') -Raw -Encoding UTF8 |
-  & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
+  & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
 if ($LASTEXITCODE -ne 0) {
   throw 'BLOCKED: matrix failed; preserve only privacy-safe receipt; no retry/reset'
 }

@@ -227,8 +227,10 @@ test("FFH-P01 RLS-01 fresh-DB plan never resets the existing owner's project", (
   assert.match(fresh, /Assert-FfhFreshRoot/);
   assert.match(fresh, /if \(Test-Path -LiteralPath \$root\)/);
   assert.match(fresh, /Get-FileHash -LiteralPath \$dest -Algorithm SHA256/);
-  assert.match(fresh, /supabase@2\.122\.0 db start/);
-  assert.match(fresh, /supabase@2\.122\.0 db reset --local --no-seed/);
+  assert.match(fresh, /Invoke-FfhPinnedLocalSupabase -Operation Start/);
+  assert.match(fresh, /Invoke-FfhPinnedLocalSupabase -Operation Reset/);
+  assert.match(provenance, /--yes supabase@2\.122\.0/);
+  assert.match(provenance, /db reset --local --no-seed/);
   assert.match(fresh, /Assert-FfhDbLoopback -Container \$containerName/);
   assert.match(fresh, /OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS/);
   assert.match(fresh, /ffh-p01-local-provenance\.sha256/);

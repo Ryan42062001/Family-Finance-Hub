@@ -35,8 +35,8 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue) -or
     -not (Get-Command npx -ErrorAction SilentlyContinue)) {
   throw 'BLOCKED: Docker and pinned Supabase CLI launcher required'
 }
-[void](Assert-FfhLocalDockerDesktop)
-$otherContainers = @(& docker ps -a --format '{{.Names}}')
+$dockerBinding = Assert-FfhLocalDockerDesktop
+$otherContainers = @(& $dockerBinding.Executable --host $dockerBinding.Endpoint ps -a --format '{{.Names}}')
 if ($LASTEXITCODE -ne 0 -or $otherContainers -ccontains $containerName) {
   throw 'BLOCKED: fresh project container name already exists'
 }
@@ -49,7 +49,22 @@ if ($LASTEXITCODE -ne 0 -or $version.Count -ne 1 -or
 # the 15 migration FILE BYTES are copied without alteration into a different,
 # brand-new config project. Do not point the CLI at the repository or legacy
 # owner's separately initialized FFH-RLS-Test folder.
-New-Item -ItemType Directory -Path (Join-Path $root 'supabase/migrations') -Force | Out-Null
+# No recursive creation: verify the new root before writing any child path.
+Assert-FfhNoReparsePath -Path $parent
+New-Item -ItemType Directory -Path $root -ErrorAction Stop | Out-Null
+Assert-FfhNoReparsePath -Path $root
+Assert-FfhFreshTree -FreshRoot $root
+$supabaseDir = Join-Path $root 'supabase'
+if (Test-Path -LiteralPath $supabaseDir) { throw 'BLOCKED: unexpected fresh supabase path exists' }
+Assert-FfhNoReparsePath -Path $root
+New-Item -ItemType Directory -Path $supabaseDir -ErrorAction Stop | Out-Null
+Assert-FfhNoReparsePath -Path $supabaseDir
+Assert-FfhFreshTree -FreshRoot $root
+$migrationsDir = Join-Path $supabaseDir 'migrations'
+if (Test-Path -LiteralPath $migrationsDir) { throw 'BLOCKED: unexpected migrations path exists' }
+Assert-FfhNoReparsePath -Path $supabaseDir
+New-Item -ItemType Directory -Path $migrationsDir -ErrorAction Stop | Out-Null
+Assert-FfhNoReparsePath -Path $migrationsDir
 Assert-FfhFreshTree -FreshRoot $root
 foreach ($file in $source.migration_files) {
   Assert-FfhFreshTree -FreshRoot $root
@@ -92,8 +107,7 @@ Push-Location $root
 try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
-  & npx --yes supabase@2.122.0 db start *> $null
-  if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: fresh local DB startup failed' }
+  Invoke-FfhPinnedLocalSupabase -Operation Start
   [void](Assert-FfhDbLoopback -Container $containerName)
   if (Test-Path -LiteralPath 'supabase/.temp/project-ref') {
     throw 'BLOCKED: hosted Supabase link detected after fresh local startup'
@@ -102,8 +116,7 @@ try {
   # localhost project. Does not address or reset old FFH-RLS-Test database.
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
-  & npx --yes supabase@2.122.0 db reset --local --no-seed *> $null
-  if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: fresh-local migration application failed' }
+  Invoke-FfhPinnedLocalSupabase -Operation Reset
   [void](Assert-FfhDbLoopback -Container $containerName)
   foreach ($file in $source.migration_files) {
     $dest = Join-Path $root ($file.path -replace '/','\')
@@ -119,10 +132,10 @@ try {
   # Read-only, source-SHA-bound catalog/role receipt after applying migrations.
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
-  [void](Assert-FfhLocalDockerDesktop)
+  $dockerBinding = Assert-FfhLocalDockerDesktop
   $readOnly = @(
     Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
-      & docker exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
+      & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
   )
   if ($LASTEXITCODE -ne 0 -or
       -not (($readOnly | Out-String) -match 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1')) {
