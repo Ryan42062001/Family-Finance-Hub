@@ -169,28 +169,7 @@ function Assert-FfhDockerEnvironment {
     ForEach-Object { [string]$_ })
   foreach ($name in $envNames) {
     if ($blocked -contains $name -or
-        $name -match '^(?i:DOCKER_(HOST|CONTEXT|CONFIG|TLS.*|CERT.*|SSH.*|MACHINE.*|ENDPOINT.*|SOCKET.*|REMOTE.*))
-  param([Parameter(Mandatory=$true)][string]$Container)
-  $raw = & docker inspect $Container 2>$null
-  if ($LASTEXITCODE -ne 0 -or -not $raw) {
-    throw 'BLOCKED: only expected disposable container may be accessed'
-  }
-  $d = @(($raw -join "`n" | ConvertFrom-Json))
-  if ($d.Count -ne 1 -or -not $d[0].State.Running -or
-      $d[0].State.Health.Status -cne 'healthy') {
-    throw 'BLOCKED: fresh local database not running/healthy'
-  }
-  $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
-  if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
-  foreach ($binding in $bindings) {
-    if ($binding.HostPort -cne '54332' -or
-        $binding.HostIp -cnotin @('127.0.0.1','::1')) {
-      throw 'BLOCKED: DB not loopback-only on fresh port 54332'
-    }
-  }
-  return $true
-}
-) {
+        $name -match '^(?i:DOCKER_(HOST|CONTEXT|CONFIG|TLS.*|CERT.*|SSH.*|MACHINE.*|ENDPOINT.*|SOCKET.*|REMOTE.*))$') {
       throw "BLOCKED: Docker endpoint/environment override present ($name)"
     }
   }
@@ -218,28 +197,7 @@ function Assert-FfhLocalDockerDesktop {
     throw 'BLOCKED: effective Docker context ambiguous'
   }
   $contextName = ([string]$selected[0]).Trim()
-  if ($contextName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}
-  param([Parameter(Mandatory=$true)][string]$Container)
-  $raw = & docker inspect $Container 2>$null
-  if ($LASTEXITCODE -ne 0 -or -not $raw) {
-    throw 'BLOCKED: only expected disposable container may be accessed'
-  }
-  $d = @(($raw -join "`n" | ConvertFrom-Json))
-  if ($d.Count -ne 1 -or -not $d[0].State.Running -or
-      $d[0].State.Health.Status -cne 'healthy') {
-    throw 'BLOCKED: fresh local database not running/healthy'
-  }
-  $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
-  if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
-  foreach ($binding in $bindings) {
-    if ($binding.HostPort -cne '54332' -or
-        $binding.HostIp -cnotin @('127.0.0.1','::1')) {
-      throw 'BLOCKED: DB not loopback-only on fresh port 54332'
-    }
-  }
-  return $true
-}
-) {
+  if ($contextName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$') {
     throw 'BLOCKED: selected Docker context malformed'
   }
   $raw = @(& $dockerCli.Source context inspect $contextName 2>$null)
