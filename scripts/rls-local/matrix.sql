@@ -134,7 +134,7 @@ $fixture$;
 -- A grant failure must be an actual permission error, not a CHECK/FK error.
 CREATE FUNCTION pg_temp.ffh_probe(
   who uuid, stmt text, mode text, expected integer,
-  category text, family text, wanted_constraint text DEFAULT NULL
+  probe_category text, probe_family text, wanted_constraint text DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql AS $probe$
 DECLARE observed integer;
         error_state text;
@@ -180,27 +180,27 @@ BEGIN
        AND error_message ILIKE '%created_by is immutable%' THEN
       denied := true;
     ELSE
-      RAISE EXCEPTION 'MATRIX_WRONG_ERROR category=% family=% state=%',category,family,error_state;
+      RAISE EXCEPTION 'MATRIX_WRONG_ERROR category=% family=% state=%',probe_category,probe_family,error_state;
     END IF;
   END;
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
   IF mode IN ('COUNT','ROWS') THEN
     IF denied OR observed IS DISTINCT FROM expected THEN
-      RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',category,family;
+      RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',probe_category,probe_family;
     END IF;
   ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE') THEN
     IF NOT denied THEN
-      RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',category,family;
+      RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',probe_category,probe_family;
     END IF;
   ELSIF mode IN ('DENY','FORBIDDEN','ANON_SELECT','ANON_WRITE') THEN
     IF NOT denied AND observed IS DISTINCT FROM 0 THEN
-      RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_WRITE category=% family=%',category,family;
+      RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_WRITE category=% family=%',probe_category,probe_family;
     END IF;
   ELSE
-    RAISE EXCEPTION 'MATRIX_INVALID_EXPECTATION category=%',category;
+    RAISE EXCEPTION 'MATRIX_INVALID_EXPECTATION category=%',probe_category;
   END IF;
-  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES(category,family);
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES(probe_category,probe_family);
 END
 $probe$;
 
@@ -339,11 +339,11 @@ BEGIN
         EXECUTE pg_temp.ffh_fixture_sql(family,hh,p1,p2,0) INTO row_id;
       END IF;
       IF family NOT IN ('household_people','person_hsa_tax_year_profiles') THEN
-        INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES(family,scope_name,row_id);
+        INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES(matrix_block.family,scope_name,matrix_block.row_id);
       ELSIF family='household_people' THEN
-        INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES(family,scope_name,row_id);
+        INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES(matrix_block.family,scope_name,matrix_block.row_id);
       END IF;
-      UPDATE pg_temp.ffh_rls_baselines f SET digest=pg_temp.ffh_digest(family,row_id)
+      UPDATE pg_temp.ffh_rls_baselines f SET digest=pg_temp.ffh_digest(matrix_block.family,matrix_block.row_id)
       WHERE f.family=matrix_block.family AND f.scope=scope_name;
     END LOOP;
   END LOOP;
