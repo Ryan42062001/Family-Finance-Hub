@@ -154,9 +154,13 @@ BEGIN
     RAISE EXCEPTION 'MATRIX_EFFECTIVE_ROLE_OR_CLAIM_MISMATCH';
   END IF;
   BEGIN
-    IF mode='COUNT' THEN
+    -- Both COUNT and ANON_SELECT execute SELECT count(*) queries. Fetch the
+    -- aggregate scalar (0 for no visible rows), never SQL ROW_COUNT (1 for
+    -- the aggregate result row even when its value is zero).
+    IF mode IN ('COUNT','ANON_SELECT') THEN
       EXECUTE stmt INTO observed;
     ELSE
+      -- DML result semantics are deliberately unchanged.
       EXECUTE stmt;
       GET DIAGNOSTICS observed = ROW_COUNT;
     END IF;
@@ -193,7 +197,14 @@ BEGIN
     IF NOT denied THEN
       RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',probe_category,probe_family;
     END IF;
-  ELSIF mode IN ('DENY','FORBIDDEN','ANON_SELECT','ANON_WRITE') THEN
+  ELSIF mode='ANON_SELECT' THEN
+    -- A 42501 permission/RLS denial is acceptable; an allowed aggregate
+    -- SELECT must independently demonstrate zero visible protected rows.
+    -- NULL or any nonzero count fails closed as an unauthorized read.
+    IF NOT denied AND observed IS DISTINCT FROM 0 THEN
+      RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_READ category=% family=%',probe_category,probe_family;
+    END IF;
+  ELSIF mode IN ('DENY','FORBIDDEN','ANON_WRITE') THEN
     IF NOT denied AND observed IS DISTINCT FROM 0 THEN
       RAISE EXCEPTION 'MATRIX_UNAUTHORIZED_WRITE category=% family=%',probe_category,probe_family;
     END IF;
