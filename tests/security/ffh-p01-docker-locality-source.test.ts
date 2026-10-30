@@ -42,6 +42,9 @@ test("RLS-01 locality: verified native Windows Docker Desktop Linux named pipe i
   assert.equal(projectedDaemon(localPipe, {}, desktop), "ALLOW");
   assert.match(shared, /PlatformID\]::Win32NT/);
   assert.match(shared, /Get-Command docker -CommandType Application/);
+  assert.match(shared, /\$resolved = Get-Command docker -ErrorAction SilentlyContinue/);
+  assert.match(shared, /docker command alias\/function\/wrapper may redirect daemon/);
+  assert.match(shared, /Docker endpoint or TLS selection changed after verification/);
   assert.match(shared, /docker\.exe/);
   assert.match(shared, /context show/);
   assert.match(shared, /context inspect \$contextName/);
