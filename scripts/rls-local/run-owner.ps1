@@ -1,80 +1,112 @@
-# FFH-P01 SOURCE-ONLY owner-operated procedure. DO NOT EXECUTE without a
-# separate, fresh Manager/Owner authorization for disposable local SQL writes.
-# Never use this against hosted Supabase or a nonempty database.
+# FFH-P01 FUTURE OWNER-ONLY MATRIX EXECUTION (not authorized by source work).
+# Requires a separate GO after targeted independent source re-audit AND fresh
+# candidate-database setup through prepare-fresh-owner.ps1 at the SAME HEAD.
+# Never runs on or resets the older FFH-RLS-Test container/project.
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$true)]
   [ValidatePattern('^[a-f0-9]{40}$')]
-  [string] $ExpectedHead,
+  [string]$ExpectedHead,
+
+  [Parameter(Mandatory=$true)]
+  [string]$FreshRoot,
 
   [Parameter(Mandatory=$true)]
   [ValidateSet('FFH-P01-RLS-EXECUTION-GO')]
-  [string] $ExplicitAuthorization,
-
-  [string] $Container = 'supabase_db_FFH-RLS-Test'
+  [string]$ExplicitAuthorization
 )
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/source-provenance.ps1"
+Assert-FfhNoRemoteConfiguration
+$source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
+$root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
+if (-not (Test-Path -LiteralPath $root -PathType Container)) {
+  throw 'BLOCKED: approved fresh isolated project folder absent; do not use old DB'
+}
+$projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+$container = 'supabase_db_' + $projectId
+$receiptPath = Join-Path $root 'ffh-p01-local-provenance.json'
+$receiptHashPath = Join-Path $root 'ffh-p01-local-provenance.sha256'
+if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $receiptHashPath -PathType Leaf)) {
+  throw 'BLOCKED: fresh migration application SHA-256 receipt missing'
+}
+$receiptHash = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$savedReceiptHash = ([IO.File]::ReadAllText($receiptHashPath)).Trim()
+if ($receiptHash -cne $savedReceiptHash) {
+  throw 'BLOCKED: locally saved application receipt changed after preparation'
+}
+$receipt = Get-Content -LiteralPath $receiptPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($receipt.source_sha -cne $ExpectedHead -or
+    $receipt.cli_version -cne '2.122.0' -or
+    $receipt.project_id -cne $projectId -or
+    $receipt.db_container -cne $container -or
+    $receipt.db_port -ne 54332 -or
+    $receipt.migration_count -ne 15 -or
+    $receipt.migration_application -cne 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS') {
+  throw 'BLOCKED: new local DB initialization receipt invalid or wrong HEAD'
+}
+# Manifest covers all 15 migration files, SQL preflight/matrix, both owner
+# procedures, shared hash guard and existing run.sh. Verify every immutable
+# source row again, and verify all COPIED migration bytes remain unchanged.
+if (@($receipt.source_sha256).Count -ne @($source.all_files).Count -or
+    @($receipt.source_sha256 | Where-Object { $_.path -like 'supabase/migrations/*.sql' }).Count -ne 15) {
+  throw 'BLOCKED: source SHA-256 manifest incomplete'
+}
+foreach ($expected in $source.all_files) {
+  $matches = @($receipt.source_sha256 | Where-Object { $_.path -ceq $expected.path })
+  if ($matches.Count -ne 1 -or $matches[0].sha256 -cne $expected.sha256 -or
+      $matches[0].git_blob -cne $expected.git_blob) {
+    throw 'BLOCKED: manifest source bytes do not match immutable checkout'
+  }
+}
+$migrationsDir = Join-Path $root 'supabase/migrations'
+if (@(Get-ChildItem -LiteralPath $migrationsDir -File -Filter '*.sql').Count -ne 15) {
+  throw 'BLOCKED: fresh migration snapshot file count changed'
+}
+foreach ($expected in $source.migration_files) {
+  $copy = Join-Path $root ($expected.path -replace '/','\')
+  if (-not (Test-Path -LiteralPath $copy -PathType Leaf) -or
+      (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expected.sha256) {
+    throw 'BLOCKED: frozen migration bytes or copied snapshot mismatch'
+  }
+}
+$configPath = Join-Path $root 'supabase/config.toml'
+if (-not (Test-Path -LiteralPath $configPath -PathType Leaf) -or
+    (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne
+      $receipt.config_sha256 -or
+    [IO.File]::ReadAllText($configPath) -cne (Get-FfhFreshConfig -ExpectedHead $ExpectedHead)) {
+  throw 'BLOCKED: fresh local-only configuration differs from SHA-bound template'
+}
+if (Test-Path -LiteralPath (Join-Path $root 'supabase/.temp/project-ref')) {
+  throw 'BLOCKED: hosted Supabase project link present; do not run'
+}
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+  throw 'BLOCKED: Docker unavailable'
+}
+[void](Assert-FfhDbLoopback -Container $container)
+Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK MANIFEST=SHA256_MATCH"
 
-if ($Container -cne 'supabase_db_FFH-RLS-Test') {
-  throw 'BLOCKED: only the owner-identified disposable local DB is allowed'
+# Revalidate catalog and effective role/claim preflight over Docker-local stdin
+# before ANY synthetic identities/transactions are attempted. No DB URL,
+# database password, provider token, hosted Auth or service-role session.
+$preflightOutput = @(
+  Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
+    & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
+)
+if ($LASTEXITCODE -ne 0 -or
+    -not (($preflightOutput | Out-String) -match 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1')) {
+  throw 'BLOCKED: current local PostgreSQL preflight failed; no matrix attempted'
 }
-foreach ($name in @('SUPABASE_ACCESS_TOKEN','SUPABASE_DB_PASSWORD','DATABASE_URL',
-                    'SUPABASE_URL','SUPABASE_PROJECT_ID','PGHOST','PGSERVICE')) {
-  if ([Environment]::GetEnvironmentVariable($name)) {
-    throw "BLOCKED: remote connection variable present ($name)"
-  }
+Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
+
+# All synthetic fixture operations are BEGIN/ROLLBACK protected in matrix.sql.
+# Expected SQL errors use PL/pgSQL subtransactions. If psql returns nonzero,
+# the session closes and PostgreSQL rolls back; never retry or manually clean
+# without new approval. A matrix PASS remains OWNER-OBSERVED only.
+Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') -Raw -Encoding UTF8 |
+  & docker exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
+if ($LASTEXITCODE -ne 0) {
+  throw 'BLOCKED: matrix failed; preserve only privacy-safe receipt; no retry/reset'
 }
-if (-not (Get-Command git -ErrorAction SilentlyContinue) -or
-    -not (Get-Command docker -ErrorAction SilentlyContinue)) {
-  throw 'BLOCKED: git and Docker CLI are required'
-}
-$root = (git rev-parse --show-toplevel 2>$null)
-if ($LASTEXITCODE -ne 0 -or -not $root) { throw 'BLOCKED: no Git repository' }
-$root = $root.Trim()
-Push-Location $root
-try {
-  $branch = (git branch --show-current).Trim()
-  $head = (git rev-parse HEAD).Trim()
-  if ($branch -cne 'phase/ffh-p01-release-readiness' -or $head -cne $ExpectedHead) {
-    throw 'BLOCKED: branch/immutable HEAD mismatch'
-  }
-  git diff --quiet HEAD -- scripts/rls-local/preflight.sql scripts/rls-local/matrix.sql
-  if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: uncommitted SQL file change' }
-  if (Test-Path 'supabase/.temp/project-ref') {
-    throw 'BLOCKED: Supabase project link present in this checkout'
-  }
-  $data = docker inspect $Container 2>$null | ConvertFrom-Json
-  if ($LASTEXITCODE -ne 0 -or @($data).Count -ne 1) {
-    throw 'BLOCKED: expected local Docker container was not found'
-  }
-  $db = @($data)[0]
-  if (-not $db.State.Running -or $db.State.Health.Status -ne 'healthy') {
-    throw 'BLOCKED: local PostgreSQL is not healthy'
-  }
-  $bindings = @($db.NetworkSettings.Ports.'5432/tcp')
-  if ($bindings.Count -eq 0) { throw 'BLOCKED: no verified localhost DB port' }
-  foreach ($binding in $bindings) {
-    if ($binding.HostIp -cnotin @('127.0.0.1','::1') -or
-        $binding.HostPort -cne '54322') {
-      throw 'BLOCKED: PostgreSQL is not bound exclusively to localhost:54322'
-    }
-  }
-  Write-Output "LOCAL_OWNER_GUARD=PASS SHA=$head DB=DOCKER_LOOPBACK_ONLY"
-  # Postgres preflight is read-only. If it fails, absolutely NO fixture SQL.
-  # Run over Docker's stdin (NOT through a URL, key, JWT or hosted client).
-  Get-Content 'scripts/rls-local/preflight.sql' -Raw -Encoding UTF8 |
-    docker exec -i $Container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
-  if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: PostgreSQL preflight failed; matrix not attempted' }
-  Write-Output 'LOCAL_PREFLIGHT=PASS'
-  # The SQL owns BEGIN/ROLLBACK and separate zero-residue validation.
-  # Any SQL error causes psql ON_ERROR_STOP and connection rollback; do NOT retry.
-  Get-Content 'scripts/rls-local/matrix.sql' -Raw -Encoding UTF8 |
-    docker exec -i $Container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
-  if ($LASTEXITCODE -ne 0) {
-    throw 'BLOCKED: matrix failed; stop, preserve privacy-safe receipt, no retry or manual cleanup'
-  }
-  Write-Output 'OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW'
-}
-finally {
-  Pop-Location
-}
+Write-Output 'OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW'
