@@ -24,8 +24,11 @@ function requireHost(contents: string): void {
 test("RLS-01A six direct daemon invocations use native validated executable and --host", () => {
   for (const src of [guard,prepare,runOwner]) requireHost(src);
   assert.equal([guard,prepare,runOwner].flatMap(daemonOperations).length,6);
-  assert.match(guard,/Get-Command docker -CommandType Application/);
-  assert.match(guard,/\$resolved\.Source -cne \$dockerCli\.Source/);
+  assert.match(guard,/function Resolve-FfhNativeDockerDesktopExecutable \{/);
+  assert.match(guard,/Get-Command -Name 'docker.exe' -CommandType Application -All/);
+  assert.match(guard,/Get-Command -Name 'docker.exe' -All/);
+  assert.match(guard,/Get-Command -Name 'docker' -All/);
+  assert.match(guard,/\$dockerCli = Resolve-FfhNativeDockerDesktopExecutable/);
   assert.match(guard,/Executable = \[string\]\$dockerCli\.Source/);
   assert.match(guard,/Endpoint = \$endpoint/);
   assert.match(guard,/\$dockerCli\.Source --host \$endpoint info/);

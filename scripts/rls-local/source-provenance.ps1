@@ -175,22 +175,86 @@ function Assert-FfhDockerEnvironment {
   }
 }
 
+# Pure command-discovery and path validation. This function NEVER invokes Docker.
+# Its exact-name and bare-name -All lookups are deliberately treated as arrays:
+# Windows PowerShell 5.1 may return both docker.exe and its legitimate
+# extensionless sibling from Docker Desktop's trusted resources/bin directory.
+function Resolve-FfhNativeDockerDesktopExecutable {
+  $programFiles = [string]$env:ProgramFiles
+  $systemProgramFiles = [Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles)
+  if ([string]::IsNullOrWhiteSpace($programFiles) -or
+      [string]::IsNullOrWhiteSpace($systemProgramFiles) -or
+      $programFiles -notmatch '^[A-Za-z]:\\' -or
+      -not ([IO.Path]::GetFullPath($programFiles).TrimEnd('\')).Equals(
+        [IO.Path]::GetFullPath($systemProgramFiles).TrimEnd('\'),
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: trusted Windows ProgramFiles path unavailable'
+  }
+  $trustedDir = Join-Path $systemProgramFiles 'Docker\Docker\resources\bin'
+  $trustedExe = Join-Path $trustedDir 'docker.exe'
+  $trustedSibling = Join-Path $trustedDir 'docker'
+
+  # The application-only lookup must return EXACTLY ONE native docker.exe.
+  # The unfiltered exact-name lookup additionally detects alias/function or
+  # script shadowing that -CommandType Application would otherwise hide.
+  $native = @(Get-Command -Name 'docker.exe' -CommandType Application -All -ErrorAction SilentlyContinue)
+  $exactAll = @(Get-Command -Name 'docker.exe' -All -ErrorAction SilentlyContinue)
+  $bareAll = @(Get-Command -Name 'docker' -All -ErrorAction SilentlyContinue)
+  if ($native.Count -ne 1 -or $exactAll.Count -ne 1 -or
+      $bareAll.Count -lt 1 -or $bareAll.Count -gt 2) {
+    throw 'BLOCKED: native Windows docker.exe resolution missing or ambiguous'
+  }
+
+  $trustedExeCount = 0
+  $trustedSiblingCount = 0
+  foreach ($entry in @($native) + @($exactAll) + @($bareAll)) {
+    if ($null -eq $entry -or
+        $entry.CommandType -ne [Management.Automation.CommandTypes]::Application) {
+      throw 'BLOCKED: docker command alias/function/wrapper may redirect daemon'
+    }
+    $entryName = [string]$entry.Name
+    $entrySource = [string]$entry.Source
+    $entryPath = [string]$entry.Path
+    $entryDefinition = [string]$entry.Definition
+    $expectedPath = if ($entryName -ceq 'docker.exe') { $trustedExe }
+      elseif ($entryName -ceq 'docker') { $trustedSibling }
+      else { throw 'BLOCKED: unexpected Docker command name' }
+    if (-not $entrySource.Equals($expectedPath,[StringComparison]::OrdinalIgnoreCase) -or
+        -not $entryPath.Equals($expectedPath,[StringComparison]::OrdinalIgnoreCase) -or
+        -not $entryDefinition.Equals($expectedPath,[StringComparison]::OrdinalIgnoreCase)) {
+      throw 'BLOCKED: Docker executable path or identity not trusted'
+    }
+  }
+  # Independently require both exact-name resolutions to be the same trusted
+  # application; no alias or lower-priority duplicate docker.exe is permitted.
+  if ([string]$native[0].Name -cne 'docker.exe' -or
+      [string]$exactAll[0].Name -cne 'docker.exe' -or
+      -not ([string]$native[0].Source).Equals([string]$exactAll[0].Source,
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: exact docker.exe executable identity ambiguous'
+  }
+  foreach ($entry in $bareAll) {
+    if ([string]$entry.Name -ceq 'docker.exe') { $trustedExeCount++ }
+    elseif ([string]$entry.Name -ceq 'docker') { $trustedSiblingCount++ }
+  }
+  if ($trustedExeCount -ne 1 -or $trustedSiblingCount -gt 1 -or
+      [string]$bareAll[0].Name -cne 'docker.exe' -or
+      -not ([string]$bareAll[0].Source).Equals($trustedExe,[StringComparison]::OrdinalIgnoreCase) -or
+      -not (Test-Path -LiteralPath $trustedExe -PathType Leaf)) {
+    throw 'BLOCKED: trusted docker.exe missing or PATH precedence unsafe'
+  }
+  # Never execute the sibling; return the single verified native app object.
+  return $native[0]
+}
+
 function Assert-FfhLocalDockerDesktop {
   Assert-FfhDockerEnvironment
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'BLOCKED: locality guard requires native Windows host'
   }
-  $dockerCli = Get-Command docker -CommandType Application -ErrorAction SilentlyContinue
-  if (-not $dockerCli -or [IO.Path]::GetFileName($dockerCli.Source) -cne 'docker.exe') {
-    throw 'BLOCKED: native Windows docker.exe unavailable'
-  }
-  # The scripts invoke "docker" directly. Verify PowerShell would resolve
-  # that word to the SAME application, not a function/alias/wrapper.
-  $resolved = Get-Command docker -ErrorAction SilentlyContinue
-  if (-not $resolved -or $resolved.CommandType -ne [Management.Automation.CommandTypes]::Application -or
-      $resolved.Source -cne $dockerCli.Source) {
-    throw 'BLOCKED: docker command alias/function/wrapper may redirect daemon'
-  }
+  # Resolve the exact native executable once; all later daemon/context calls
+  # remain absolute-path bound and cannot inherit bare docker resolution.
+  $dockerCli = Resolve-FfhNativeDockerDesktopExecutable
   # Never change global context. Validate its name only to avoid CLI injection.
   $selected = @(& $dockerCli.Source context show 2>$null)
   if ($LASTEXITCODE -ne 0 -or $selected.Count -ne 1) {

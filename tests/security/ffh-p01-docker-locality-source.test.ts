@@ -41,8 +41,10 @@ const desktop = { osType: "linux", product: "Docker Desktop", name: "docker-desk
 test("RLS-01 locality: verified native Windows Docker Desktop Linux named pipe is accepted in model", () => {
   assert.equal(projectedDaemon(localPipe, {}, desktop), "ALLOW");
   assert.match(shared, /PlatformID\]::Win32NT/);
-  assert.match(shared, /Get-Command docker -CommandType Application/);
-  assert.match(shared, /\$resolved = Get-Command docker -ErrorAction SilentlyContinue/);
+  assert.match(shared, /function Resolve-FfhNativeDockerDesktopExecutable \{/);
+  assert.match(shared, /Get-Command -Name 'docker.exe' -CommandType Application -All/);
+  assert.match(shared, /Get-Command -Name 'docker' -All/);
+  assert.match(shared, /\$dockerCli = Resolve-FfhNativeDockerDesktopExecutable/);
   assert.match(shared, /docker command alias\/function\/wrapper may redirect daemon/);
   assert.match(shared, /Docker endpoint or TLS selection changed after verification/);
   assert.match(shared, /docker\.exe/);
