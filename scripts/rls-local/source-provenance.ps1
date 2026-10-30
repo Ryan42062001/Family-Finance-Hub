@@ -453,11 +453,17 @@ function Resolve-FfhTrustedNpxCmd {
     } else {
       throw 'BLOCKED: alias, function, cmdlet or PATH-shadow npx command'
     }
-    if ($seen.ContainsKey($name) -or
-        -not ([string]$entry.Path).Equals($expected,[StringComparison]::OrdinalIgnoreCase) -or
-        -not ([string]$entry.Definition).Equals($expected,[StringComparison]::OrdinalIgnoreCase) -or
-        -not (Test-Path -LiteralPath $expected -PathType Leaf)) {
-      throw 'BLOCKED: npx PATH precedence, duplicate or wrapper mismatch'
+    if ($seen.ContainsKey($name)) {
+      throw 'BLOCKED: duplicate native npx discovery name'
+    }
+    if (-not ([string]$entry.Path).Equals($expected,[StringComparison]::OrdinalIgnoreCase)) {
+      throw 'BLOCKED: native npx sibling path untrusted'
+    }
+    if (-not ([string]$entry.Definition).Equals($expected,[StringComparison]::OrdinalIgnoreCase)) {
+      throw 'BLOCKED: native npx sibling definition untrusted'
+    }
+    if (-not (Test-Path -LiteralPath $expected -PathType Leaf)) {
+      throw 'BLOCKED: expected native npx sibling missing'
     }
     $seen[$name] = $true
   }
@@ -750,8 +756,13 @@ public static class FfhRlsJobRunner {
       if (!CreateProcessWEx(application, command, IntPtr.Zero, IntPtr.Zero, true,
           CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW |
           EXTENDED_STARTUPINFO_PRESENT,
-          environment, workingDirectory, ref startup, out owned))
-        return "BLOCKED_PROCESS_START_FAILED";
+          environment, workingDirectory, ref startup, out owned)) {
+        int code = Marshal.GetLastWin32Error();
+        if (code == 87) return "BLOCKED_VERSION_CREATEPROCESS_INVALID_PARAMETER";
+        if (code == 5) return "BLOCKED_VERSION_CREATEPROCESS_ACCESS_DENIED";
+        if (code == 2 || code == 3) return "BLOCKED_PROCESS_START_FAILED";
+        return "BLOCKED_VERSION_CREATEPROCESS_FAILED";
+      }
       created = true;
       // Close only the parent's extra writer. The child inherited its own.
       if (!CloseHandle(pipeWrite))
