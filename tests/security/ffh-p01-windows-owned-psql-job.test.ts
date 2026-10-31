@@ -87,7 +87,10 @@ Check 'launcher_missing' ($reader+' && '+$pass) 'BLOCKED_SQL_PROCESS_START_FAILE
 Check 'root_timeout' 'powershell.exe -NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 5' 'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED' 700 1200
 Check 'grandchild_timeout' 'cmd.exe /d /c powershell.exe -NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 7' 'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED' 700 1200
 Check 'stderr_saturation' ($reader+' && for /l %i in (1,1,2000) do @echo harmless_NOTICE 1>&2 & '+$pass+' & exit /b 0') 'EXIT_ZERO' 15000 1200
-Check 'stdout_saturation' ($reader+' && for /l %i in (1,1,2500) do @echo 0123456789abcdef0123456789abcdef & '+$pass+' & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED' 15000 1200
+# Echo >64 KiB from the EXACT owned stdin pipe using stock Windows more,
+# rather than relying on cmd.exe FOR parser differences. The 190 KiB echo
+# exercises the writer and stdout drainer concurrently without a deadlock.
+Check 'stdout_saturation' ('more & '+$pass+' & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED' 15000 1200 $false $script:Cmd ([Text.Encoding]::ASCII.GetBytes(('A'*190000)))
 Check 'large_stdin_timeout' 'powershell.exe -NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 7' 'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED' 800 1600 $false $script:Cmd ([Text.Encoding]::ASCII.GetBytes(('F'*190000)))
 $matrixPass='echo MATRIX_ASSERTIONS_PASS=913 & echo MATRIX_ROLLBACK_COMPLETE & echo MATRIX_ZERO_RESIDUE_PASS'
 Check 'matrix_success' ($reader+' && '+$matrixPass+' & exit /b 0') 'EXIT_ZERO' 7000 1200 $true
