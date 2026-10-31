@@ -59,6 +59,8 @@ function Check {
  $script:Launcher=$Launcher
  $blocked=$false
  $reason='none'
+ $script:ObservedNativeExit='NOT_EXECUTED'
+ $script:ObservedNativeType='NOT_EXECUTED'
  $receiptOutput=@()
  $nativeCapture={
   # This is the exact local native stderr scope pattern of the two owner
@@ -67,6 +69,8 @@ function Check {
   $LASTEXITCODE = $null
   $stdout=@(& $script:Launcher '/d' '/c' $script:Command 2>$null)
   $nativeExit=$LASTEXITCODE  # Immediate, before ANY other native calls.
+  $script:ObservedNativeExit=if($null -eq $nativeExit){'NULL'}else{[string]$nativeExit}
+  $script:ObservedNativeType=if($null -eq $nativeExit){'NULL'}else{$nativeExit.GetType().FullName}
   [pscustomobject]@{ ExitCode=$nativeExit; Stdout=@($stdout) }
  }
  try{
@@ -78,7 +82,7 @@ function Check {
   $blocked=$true
   $reason=$_.Exception.Message # Generic BLOCKED category only, no native details.
  }
- if($ExpectedPass -eq $blocked){throw ('Wrong preflight disposition '+$Label+' classification='+$reason)}
+ if($ExpectedPass -eq $blocked){throw ('Wrong preflight disposition '+$Label+' classification='+$reason+' exit='+$script:ObservedNativeExit+' type='+$script:ObservedNativeType)}
  if($receiptOutput.Count -ne 0){throw ('Raw preflight stdout escaped helper in '+$Label)}
  if($ErrorActionPreference -cne 'Stop'){throw ('Native stderr scope escaped in '+$Label)}
  [Console]::Out.WriteLine('WINPS51_PSQL_PREFLIGHT_PASS '+$Label)
