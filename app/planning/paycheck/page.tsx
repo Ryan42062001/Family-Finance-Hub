@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MobilePlanningMenu from "@/components/planning/MobilePlanningMenu";
 import { redirect } from "next/navigation";
 import PaycheckPlanner from "@/components/planning/PaycheckPlanner";
 import { createClient } from "@/lib/supabase/server";
@@ -37,7 +38,7 @@ export default async function PaycheckPlannerPage() {
     <main className="page-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 4 planning tools</p>
+          <p className="eyebrow">Planning tool</p>
           <h1>Paycheck planner</h1>
           <p className="muted">Turn monthly household data into a paycheck plan using your actual pay frequency, then decide how much of the remaining cash goes toward savings, debt, goals, and spending.</p>
         </div>
@@ -47,7 +48,8 @@ export default async function PaycheckPlannerPage() {
         </div>
       </section>
 
-      <PaycheckPlanner defaults={defaults} />
+      <MobilePlanningMenu />
+    <PaycheckPlanner defaults={defaults} />
     </main>
   );
 }

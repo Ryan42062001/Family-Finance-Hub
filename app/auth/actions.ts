@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { trustedRequestUrl } from "@/lib/auth/trusted-origin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function login(formData: FormData) {
@@ -22,14 +23,18 @@ export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const headerStore = await headers();
-  const origin = headerStore.get("origin") ?? "http://localhost:3000";
+  const origin = headerStore.get("origin") ?? "";
+  const trusted = trustedRequestUrl(`${origin}/auth/callback`);
+  if (!trusted.trusted) {
+    redirect("/auth/sign-up?error=Authentication%20origin%20is%20not%20configured.");
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: trusted.url.href,
     },
   });
 

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { logout } from "@/app/auth/actions";
 import {
   calculateFinancialHealth,
   calculateGoalProgress,
@@ -11,6 +10,8 @@ import {
 } from "@/lib/calculations/dashboard-insights";
 import { calculateFinancialSummary } from "@/lib/calculations/financial-summary";
 import { createClient } from "@/lib/supabase/server";
+import { formatSignedCurrency } from "@/lib/formatting/financial-presentation";
+import MonthlyMoneyFlow from "@/components/dashboard/MonthlyMoneyFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -64,40 +65,77 @@ export default async function DashboardPage() {
   const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   const percent = summary.savingsRate === null ? "—" : `${Math.round(summary.savingsRate * 100)}%`;
   const hasCashFlowData = income.some((row) => row.is_active) && expenses.length > 0;
+  const moneyFlowInput = {
+    monthlyIncome: summary.monthlyIncome,
+    monthlyExpenses: summary.monthlyExpenses,
+    monthlyDebtMinimums: summary.monthlyDebtPayments,
+    monthlyEmployeeRetirement: retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0),
+    monthlyCashFlow: summary.monthlyCashFlow,
+    hasActiveIncome: income.some((row) => row.is_active),
+    hasRecordedExpenses: expenses.length > 0,
+    expenses: expenses.map((row) => ({ category: row.category, monthlyAmount: Number(row.monthly_amount), isEssential: row.is_essential })),
+  };
 
   return (
     <main className="page-shell">
-      <section className="hero-card">
-        <div><p className="eyebrow">Private workspace</p><h1>{household.name}</h1><p className="muted">A household-level view of what you own, owe, earn, spend, save, and are working toward.</p></div>
-        <div className="hero-actions"><Link className="secondary-button" href="/scenario-lab">Scenario Lab</Link><Link className="secondary-button" href="/financial-profile">Edit financial profile</Link><form action={logout}><button type="submit">Sign out</button></form></div>
+      <section className="dashboard-mobile-overview" aria-label="Household overview">
+        <div className="mobile-dashboard-heading"><p className="eyebrow">Household overview</p><h1>{household.name}</h1></div>
+        {completion < 100 ? <Link href="/financial-profile" className="mobile-completion-link">Complete financial profile · {completion}%</Link> : null}
+        <div className="mobile-cashflow-feature">
+          <span>Monthly cash flow</span><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong>
+          <small>{hasCashFlowData ? "After recurring expenses, debt minimums and employee retirement contributions. This is not necessarily all discretionary money." : "Add active income and expenses to calculate cash flow."}</small>
+        </div>
+        <div className="mobile-summary-grid">
+          <div><span>Net worth</span><strong>{money(summary.netWorth)}</strong></div>
+          <div><span>Savings rate</span><strong>{hasCashFlowData ? percent : "—"}</strong></div>
+          <div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div>
+          <div><span>Financial health</span><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><small>{health.status}</small></div>
+        </div>
+        <div className="mobile-overview-actions"><Link href="/financial-profile">Edit profile</Link><Link href="/planning">Planning tools</Link></div>
+        <div className="mobile-dashboard-details">
+          <details><summary><strong>Accounts</strong><span>{accounts.length} saved</span></summary>
+            <div className="mobile-overview-records">{accounts.length ? accounts.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.balance))}</b></p>) : <p className="empty-state">No accounts yet.</p>}<Link href="/financial-profile#accounts">View accounts</Link></div>
+          </details>
+          <details><summary><strong>Expenses</strong><span>{money(summary.monthlyExpenses)}/mo</span></summary>
+            <div className="mobile-overview-records">{expenseCategories.length ? expenseCategories.slice(0,5).map(item => <p key={item.category}><span>{label(item.category)}</span><b>{money(item.amount)}</b></p>) : <p className="empty-state">No expenses yet.</p>}<Link href="/financial-profile#expenses">View expenses</Link></div>
+          </details>
+          <details><summary><strong>Debt</strong><span>{money(totalDebt)}</span></summary>
+            <div className="mobile-overview-records">{debts.length ? debts.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.current_balance))}</b></p>) : <p className="empty-state">No debts recorded.</p>}<Link href="/financial-profile#debts">View debts</Link></div>
+          </details>
+          <details><summary><strong>Retirement accounts</strong><span>{retirement.length} saved</span></summary>
+            <div className="mobile-overview-records">{retirement.length ? retirement.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.balance))}</b></p>) : <p className="empty-state">No retirement accounts yet.</p>}<Link href="/financial-profile#retirement">View retirement</Link></div>
+          </details>
+          <details><summary><strong>Goals</strong><span>{goals.length} saved</span></summary>
+            <div className="mobile-overview-records">{goalProgress.length ? goalProgress.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(item.remaining)} remaining</b></p>) : <p className="empty-state">No goals yet.</p>}<Link href="/financial-profile#goals">View goals</Link></div>
+          </details>
+        </div>
+      </section>
+      <div className="dashboard-desktop-view">
+      <section className="hero-card dashboard-desktop-hero">
+        <div><p className="eyebrow">Your household command center</p><h1>{household.name}</h1></div>
+        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link><Link className="secondary-button" href="/planning">Planning tools</Link></div>
       </section>
 
       {completion < 100 ? <section className="dashboard-notice"><div><strong>Financial profile: {completion}% complete</strong><p>Add missing sections to make dashboard metrics and future recommendations more complete.</p></div><Link className="secondary-button" href="/financial-profile">Finish profile</Link></section> : null}
 
-      <section className="health-card">
-        <div><p className="eyebrow">Financial health summary</p><h2>{health.status}</h2><p className="muted">{health.message}</p></div>
-        <div className="health-score"><strong>{health.score === null ? "—" : health.score}</strong><span>{health.score === null ? "More data needed" : "out of 100"}</span></div>
-      </section>
 
       <section className="metric-grid dashboard-metrics">
         <article className="metric-card"><p>Net worth</p><strong>{money(summary.netWorth)}</strong><span>{money(accountAssets + retirementAssets)} assets · {money(totalDebt)} debt</span></article>
         <article className="metric-card"><p>Monthly cash flow</p><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong><span>{hasCashFlowData ? "After expenses, debt minimums, and your retirement contributions" : "Add income and expenses to calculate"}</span></article>
         <article className="metric-card"><p>Savings rate</p><strong>{hasCashFlowData ? percent : "—"}</strong><span>Cash surplus + your retirement contributions</span></article>
-        <article className="metric-card"><p>Retirement</p><strong>{money(retirementAssets)}</strong><span>{money(summary.monthlyRetirementContributions)} contributed / month incl. employer</span></article>
+        <article className="metric-card"><p>Financial health</p><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><span>{health.status} · {health.message}</span></article>
       </section>
 
-      <section className="dashboard-grid">
+      <MonthlyMoneyFlow input={moneyFlowInput} />
+      <details className="dashboard-secondary-details">
+        <summary>Explore accounts, expenses, debt, retirement and goals</summary>
+        <section className="dashboard-grid">
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Balance sheet</p><h2>Assets & liabilities</h2></div><strong>{money(summary.netWorth)}</strong></div>
           <div className="split-summary"><div><span>Cash / taxable assets</span><strong>{money(accountAssets)}</strong></div><div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div><div><span>Total debt</span><strong>{money(totalDebt)}</strong></div></div>
-          {accounts.length || debts.length ? <div className="dashboard-list">{accounts.filter((row) => row.include_in_net_worth).slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.account_type)}</small></span><b>{money(Number(row.balance))}</b></div>)}{debts.slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.debt_type)} · {row.interest_rate ?? 0}%</small></span><b>-{money(Number(row.current_balance))}</b></div>)}</div> : <p className="empty-state">Add accounts and debts to see your balance sheet.</p>}
+          {accounts.length || debts.length ? <div className="dashboard-list">{accounts.filter((row) => row.include_in_net_worth).slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.account_type)}</small></span><b>{money(Number(row.balance))}</b></div>)}{debts.slice(0, 4).map((row) => <div key={row.id}><span><strong>{row.name}</strong><small>{label(row.debt_type)} · {row.interest_rate ?? 0}%</small></span><b>{formatSignedCurrency(-Number(row.current_balance))}</b></div>)}</div> : <p className="empty-state">Add accounts and debts to see your balance sheet.</p>}
         </article>
 
-        <article className="panel dashboard-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Monthly plan</p><h2>Cash flow</h2></div><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong></div>
-          <div className="flow-stack"><div><span>Income</span><strong>{money(summary.monthlyIncome)}</strong></div><div><span>Recurring expenses</span><strong>-{money(summary.monthlyExpenses)}</strong></div><div><span>Debt minimums</span><strong>-{money(summary.monthlyDebtPayments)}</strong></div><div><span>Your retirement contributions</span><strong>-{money(retirement.reduce((sum, row) => sum + Number(row.monthly_employee_contribution), 0))}</strong></div></div>
-          {!hasCashFlowData ? <p className="empty-state">Add at least one active income source and monthly expense to calculate cash flow.</p> : null}
-        </article>
 
         <article className="panel dashboard-panel">
           <div className="panel-heading"><div><p className="eyebrow">Spending</p><h2>Expense breakdown</h2></div><strong>{money(summary.monthlyExpenses)}</strong></div>
@@ -119,6 +157,8 @@ export default async function DashboardPage() {
           {goalProgress.length ? <div className="goal-list">{goalProgress.slice(0, 5).map((goal) => <div key={goal.id}><div className="bar-label"><span><strong>{goal.name}</strong><small>Priority {goal.priority}</small></span><strong>{Math.round(goal.progress * 100)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${goal.progress * 100}%` }} /></div><small>{money(goal.currentAmount)} saved · {money(goal.remaining)} remaining</small></div>)}</div> : <p className="empty-state">Add goals to track progress toward the things your household cares about.</p>}
         </article>
       </section>
+      </details>
+      </div>
     </main>
   );
 }

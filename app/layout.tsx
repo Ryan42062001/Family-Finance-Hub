@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import AppHeader from "@/components/AppHeader";
+import NumericInputWheelGuard from "@/components/NumericInputWheelGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +11,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <a className="skip-link" href="#main-content">Skip to main content</a>
+        <NumericInputWheelGuard />
+        <AppHeader />
+        <div id="main-content">{children}</div>
+      </body>
     </html>
   );
 }

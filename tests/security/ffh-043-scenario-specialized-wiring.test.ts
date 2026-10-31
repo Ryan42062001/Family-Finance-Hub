@@ -27,12 +27,12 @@ test("FFH-043 has no specialized persistence, profile-write, schema, or browser-
   assert.doesNotMatch(surface, /Apply Scenario|Save to Profile|Commit Scenario/i);
 });
 
-test("FFH-043 exposes accepted Home, Vehicle, Windfall and Your Plan controls with explicit units", () => {
+test("FFH-043 exposes accepted Home, Vehicle, Extra Money and Your Plan controls with explicit units", () => {
   for (const label of [
-    "Home purchase", "Vehicle purchase", "Windfall", "Purchase price (USD)",
+    "Home purchase", "Vehicle purchase", "Extra Money (One-Time)", "Purchase price (USD)",
     "Mortgage interest rate (percent)", "Cash down payment (USD)",
-    "Gross windfall amount (USD)", "Known tax liability (USD, optional)",
-    "Your Plan amount (USD/month)", "Related goal stable ID", "Independent event ID",
+    "How much extra money are you receiving? (USD)", "Known taxes owed (USD, optional)",
+    "Your Plan amount (USD/month)", "Related financial goal", "Separate event reference",
   ]) assert.ok(controls.includes(label), label);
 });
 
@@ -45,10 +45,10 @@ test("FFH-043 rebase refreshes bootstrap entity options rather than retargeting 
 
 test("FFH-043 preserves structured conflict and Your Plan statuses in accessible result presentation", () => {
   assert.match(result, /role="alert"/);
-  assert.match(result, /Scenario composition conflicts/);
-  assert.match(result, /Active:/);
-  assert.match(result, /Superseded:/);
-  assert.match(result, /Invalid:/);
+  assert.match(result, /Some scenario assumptions overlap/);
+  assert.match(result, /label="Applied"/);
+  assert.match(result, /label="No longer applicable"/);
+  assert.match(result, /label="Could not apply"/);
   assert.match(workspace, /aria-live="polite"/);
   assert.doesNotMatch(surface, /draggable|onDrag|<table/i);
 });
