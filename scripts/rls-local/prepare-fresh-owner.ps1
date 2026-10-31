@@ -185,13 +185,17 @@ try {
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
   $dockerBinding = Assert-FfhLocalDockerDesktop
-  $readOnly = @(
-    Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
-      & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
-  )
-  if ($LASTEXITCODE -ne 0 -or
-      -not (($readOnly | Out-String) -match 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1')) {
-    throw 'BLOCKED: fresh local catalog/role preflight failed'
+  Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture {
+    # Only THIS native preflight invocation relaxes PowerShell's 5.1 native
+    # stderr-as-error promotion. All other owner/global error handling stays Stop.
+    $ErrorActionPreference = 'Continue'
+    $LASTEXITCODE = $null
+    $preflightStdout = @(
+      Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
+        & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
+    )
+    $preflightExitCode = $LASTEXITCODE # Must be read IMMEDIATELY after native pipeline.
+    [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
   }
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
   [IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),

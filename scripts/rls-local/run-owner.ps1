@@ -97,13 +97,17 @@ Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 POR
 # database password, provider token, hosted Auth or service-role session.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
-$preflightOutput = @(
-  Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 |
-    & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>&1
-)
-if ($LASTEXITCODE -ne 0 -or
-    -not (($preflightOutput | Out-String) -match 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1')) {
-  throw 'BLOCKED: current local PostgreSQL preflight failed; no matrix attempted'
+Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture {
+  # Only THIS read-only preflight uses scoped Continue to prevent a benign
+  # PostgreSQL NOTICE from becoming NativeCommandError under WinPS5.1 Stop.
+  $ErrorActionPreference = 'Continue'
+  $LASTEXITCODE = $null
+  $preflightStdout = @(
+    Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
+      & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
+  )
+  $preflightExitCode = $LASTEXITCODE # Capture immediately after the native pipeline.
+  [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
 }
 Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 
