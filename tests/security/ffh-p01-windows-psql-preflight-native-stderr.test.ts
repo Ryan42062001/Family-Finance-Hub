@@ -53,6 +53,8 @@ if(-not (Test-Path -LiteralPath $script:Cmd -PathType Leaf) -or
 }
 $script:Command=''
 $script:Launcher=$script:Cmd
+$script:GlobalNativeExitSentinel=4271
+$global:LASTEXITCODE=$script:GlobalNativeExitSentinel
 function Check {
  param([string]$Label,[string]$Command,[bool]$ExpectedPass,[string]$Launcher=$script:Cmd)
  $script:Command=$Command
@@ -66,9 +68,17 @@ function Check {
   # This is the exact local native stderr scope pattern of the two owner
   # callsites, but the executable is harmless Windows cmd.exe, never Docker.
   $ErrorActionPreference = 'Continue'
-  $LASTEXITCODE = $null
-  $stdout=@(& $script:Launcher '/d' '/c' $script:Command 2>$null)
-  $nativeExit=$LASTEXITCODE  # Immediate, before ANY other native calls.
+  $priorNativeExitVar=Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+  $hadPriorNativeExit=$null -ne $priorNativeExitVar
+  $priorNativeExit=if($hadPriorNativeExit){$priorNativeExitVar.Value}else{$null}
+  try{
+   $global:LASTEXITCODE=$null
+   $stdout=@(& $script:Launcher '/d' '/c' $script:Command 2>$null)
+   $nativeExit=$global:LASTEXITCODE  # Immediate after native command.
+  }finally{
+   if($hadPriorNativeExit){$global:LASTEXITCODE=$priorNativeExit}
+   else{Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue}
+  }
   $script:ObservedNativeExit=if($null -eq $nativeExit){'NULL'}else{[string]$nativeExit}
   $script:ObservedNativeType=if($null -eq $nativeExit){'NULL'}else{$nativeExit.GetType().FullName}
   [pscustomobject]@{ ExitCode=$nativeExit; Stdout=@($stdout) }
@@ -85,6 +95,9 @@ function Check {
  if($ExpectedPass -eq $blocked){throw ('Wrong preflight disposition '+$Label+' classification='+$reason+' exit='+$script:ObservedNativeExit+' type='+$script:ObservedNativeType)}
  if($receiptOutput.Count -ne 0){throw ('Raw preflight stdout escaped helper in '+$Label)}
  if($ErrorActionPreference -cne 'Stop'){throw ('Native stderr scope escaped in '+$Label)}
+ if($global:LASTEXITCODE -ne $script:GlobalNativeExitSentinel){
+  throw ('Native global LASTEXITCODE not restored in '+$Label)
+ }
  [Console]::Out.WriteLine('WINPS51_PSQL_PREFLIGHT_PASS '+$Label)
 }
 Check 'notice_then_valid_final' ('echo('+$script:Marker+'&echo(NOTICE: PREFLIGHT_SOURCE_MIGRATIONS=15 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3 1>&2&exit /b 0') $true
@@ -136,10 +149,12 @@ test("FFH-P01 both preflight owner callsites preserve isolated stderr, ON_ERROR_
   assert.match(content,/^\$ErrorActionPreference = 'Stop'$/m,name);
   assert.match(content,/Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
   assert.match(content,/\$ErrorActionPreference = 'Continue'/);
-  assert.match(content,/\$LASTEXITCODE = \$null/);
+  assert.match(content,/\$global:LASTEXITCODE = \$null/);
+  assert.match(content,/Get-Variable -Name LASTEXITCODE -Scope Global/);
+  assert.match(content,/Remove-Variable -Name LASTEXITCODE -Scope Global/);
   assert.match(content,/Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/preflight\.sql'\) -Raw -Encoding UTF8 -ErrorAction Stop/);
   assert.match(content,/\& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint exec -i \$container(?:Name)? psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>\$null/);
-  assert.match(content,/^\s*\$preflightExitCode = \$LASTEXITCODE/m);
+  assert.match(content,/^\s*\$preflightExitCode = \$global:LASTEXITCODE/m);
   assert.match(content,/\[pscustomobject\]@\{ ExitCode = \$preflightExitCode; Stdout = @\(\$preflightStdout\) \}/);
   assert.doesNotMatch(content,/exec -i \$container(?:Name)? psql[^\n]*2>&1/);
   assert.match(content,/\bAssert-FfhLocalDockerDesktop\b/);

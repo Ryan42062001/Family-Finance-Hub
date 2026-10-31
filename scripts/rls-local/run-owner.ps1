@@ -101,12 +101,27 @@ Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture {
   # Only THIS read-only preflight uses scoped Continue to prevent a benign
   # PostgreSQL NOTICE from becoming NativeCommandError under WinPS5.1 Stop.
   $ErrorActionPreference = 'Continue'
-  $LASTEXITCODE = $null
-  $preflightStdout = @(
+  # Native commands update the global automatic LASTEXITCODE in WinPS5.1.
+  # An unqualified local assignment SHADOWS it and falsely yields null.
+  # Preserve the caller's prior global status while using a fresh sentinel.
+  $priorNativeExitVar = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+  $hadPriorNativeExit = $null -ne $priorNativeExitVar
+  $priorNativeExit = if ($hadPriorNativeExit) { $priorNativeExitVar.Value } else { $null }
+  try {
+    $global:LASTEXITCODE = $null
+    $preflightStdout = @(
     Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
       & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
-  )
-  $preflightExitCode = $LASTEXITCODE # Capture immediately after the native pipeline.
+    )
+    $preflightExitCode = $global:LASTEXITCODE # Immediately after native pipeline.
+  } finally {
+    if ($hadPriorNativeExit) {
+      $global:LASTEXITCODE = $priorNativeExit
+    } else {
+      Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+    }
+  }
+
   [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
 }
 Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'

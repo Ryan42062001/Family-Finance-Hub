@@ -189,12 +189,27 @@ try {
     # Only THIS native preflight invocation relaxes PowerShell's 5.1 native
     # stderr-as-error promotion. All other owner/global error handling stays Stop.
     $ErrorActionPreference = 'Continue'
-    $LASTEXITCODE = $null
-    $preflightStdout = @(
+    # Native commands update the global automatic LASTEXITCODE in WinPS5.1.
+    # An unqualified local assignment SHADOWS it and falsely yields null.
+    # Preserve the caller's prior global status while using a fresh sentinel.
+    $priorNativeExitVar = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+    $hadPriorNativeExit = $null -ne $priorNativeExitVar
+    $priorNativeExit = if ($hadPriorNativeExit) { $priorNativeExitVar.Value } else { $null }
+    try {
+      $global:LASTEXITCODE = $null
+      $preflightStdout = @(
       Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
         & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
-    )
-    $preflightExitCode = $LASTEXITCODE # Must be read IMMEDIATELY after native pipeline.
+      )
+      $preflightExitCode = $global:LASTEXITCODE # Immediately after native pipeline.
+    } finally {
+      if ($hadPriorNativeExit) {
+        $global:LASTEXITCODE = $priorNativeExit
+      } else {
+        Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
+      }
+    }
+
     [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
   }
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
