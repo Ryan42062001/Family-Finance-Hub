@@ -37,7 +37,7 @@ $script:Missing=Join-Path $env:TEMP 'FFH-PF-01-NO-SYNTHETIC-NATIVE.exe'
 if(-not (Test-Path -LiteralPath $script:Cmd -PathType Leaf) -or
     (Test-Path -LiteralPath $script:Missing)){throw 'BLOCKED: invalid synthetic preconditions'}
 $script:Mark='PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
-$script:Sql=[Text.Encoding]::ASCII.GetBytes("FFH_PF_OWNED_STDIN`r`n")
+$script:Sql=[Text.Encoding]::ASCII.GetBytes(('FFH_PF_OWNED_STDIN'+[char]13+[char]10))
 $global:LASTEXITCODE=47281
 function StartInfo([string]$Command,[string]$Exe=$script:Cmd) {
  $s=[Diagnostics.ProcessStartInfo]::new()
@@ -76,7 +76,7 @@ Check 'wrong_marker' ($reader+' && echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=1
 Check 'missing_marker' ($reader+' && echo NO_MARKER & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED'
 Check 'duplicate_marker' ($reader+' && '+$pass+' & '+$pass+' & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED'
 Check 'not_last_marker' ($reader+' && '+$pass+' & echo EXTRA_AFTER & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED'
-Check 'stdin_wrong' ($reader+' && '+$pass+' & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED' 7000 1200 $false $script:Cmd ([Text.Encoding]::ASCII.GetBytes("WRONG`r`n"))
+Check 'stdin_wrong' ($reader+' && '+$pass+' & exit /b 0') 'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED' 7000 1200 $false $script:Cmd ([Text.Encoding]::ASCII.GetBytes(('WRONG'+[char]13+[char]10)))
 Check 'launcher_missing' ($reader+' && '+$pass) 'BLOCKED_SQL_PROCESS_START_FAILED' 1500 600 $false $script:Missing
 Check 'root_timeout' 'powershell.exe -NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 5' 'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED' 700 1200
 Check 'grandchild_timeout' 'cmd.exe /d /c powershell.exe -NoLogo -NoProfile -NonInteractive -Command Start-Sleep -Seconds 7' 'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED' 700 1200

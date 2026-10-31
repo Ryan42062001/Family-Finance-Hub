@@ -21,9 +21,19 @@ function requireHost(contents: string): void {
   }
 }
 
-test("RLS-01A six direct daemon invocations use native validated executable and --host", () => {
+test("RLS-01A six trusted daemon boundaries include three centrally pinned Job Object SQL operations", () => {
   for (const src of [guard,prepare,runOwner]) requireHost(src);
-  assert.equal([guard,prepare,runOwner].flatMap(daemonOperations).length,6);
+  // Three direct read-only/inspection calls and three delegated SQL client
+  // operations. Each delegated invocation has one central explicit --host
+  // boundary with the same independently verified Linux named pipe.
+  assert.equal([guard,prepare,runOwner].flatMap(daemonOperations).length,3);
+  const delegated=[...prepare.matchAll(/Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$containerName/g),
+    ...runOwner.matchAll(/Invoke-FfhOwnedLocalPsql -Mode (?:Preflight|Matrix) -Container \$container/g)];
+  assert.equal(delegated.length,3);
+  assert.match(guard,/\$start\.Arguments = '--host ' \+ \$verified\.Endpoint/);
+  assert.match(guard,/exec -i ' \+ \$Container/);
+  assert.match(guard,/\$verified = Assert-FfhLocalDockerDesktop/);
+  assert.match(guard,/npipe:\/{4}\.\/pipe\/dockerDesktopLinuxEngine/);
   assert.match(guard,/function Resolve-FfhNativeDockerDesktopExecutable \{/);
   assert.match(guard,/Get-Command -Name 'docker.exe' -CommandType Application -All/);
   assert.match(guard,/Get-Command -Name 'docker.exe' -All/);
@@ -34,8 +44,8 @@ test("RLS-01A six direct daemon invocations use native validated executable and 
   assert.match(guard,/\$dockerCli\.Source --host \$endpoint info/);
   assert.match(guard,/\$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect \$Container/);
   assert.match(prepare,/--host \$dockerBinding\.Endpoint ps -a/);
-  assert.match(prepare,/--host \$dockerBinding\.Endpoint exec -i \$containerName/);
-  assert.equal((runOwner.match(/--host \$dockerBinding\.Endpoint exec -i \$container/g)??[]).length,2);
+  assert.match(prepare,/Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$containerName/);
+  assert.equal((runOwner.match(/Invoke-FfhOwnedLocalPsql -Mode (?:Preflight|Matrix) -Container \$container/g)??[]).length,2);
 });
 
 test("RLS-01A each daemon command fails mutation regression if --host is removed", () => {

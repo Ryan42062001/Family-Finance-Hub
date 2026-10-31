@@ -1397,61 +1397,7 @@ function Invoke-FfhOwnedLocalPsql {
   )
   Assert-FfhNoRemoteConfiguration
   Assert-FfhDockerEnvironment
-  if ($Container -cnotmatch '^supabase_db_ffh_p01_rls_fresh_[a-f0-9]{12}
-  param(
-    [Parameter(Mandatory=$true)][scriptblock]$NativeCapture
-  )
-  $results = $null
-  try {
-    # Never disclose native error records or mixed output from the invocation.
-    $results = @(& $NativeCapture 2>$null)
-  } catch {
-    throw 'BLOCKED: local PostgreSQL preflight native invocation failed'
-  }
-  if ($null -eq $results -or $results.Count -ne 1 -or
-      $null -eq $results[0]) {
-    throw 'BLOCKED: local PostgreSQL preflight result absent or ambiguous'
-  }
-  $result = $results[0]
-  $fields = @($result.PSObject.Properties.Name)
-  if ($fields -cnotcontains 'ExitCode' -or $fields -cnotcontains 'Stdout' -or
-      $null -eq $result.ExitCode -or
-      $result.ExitCode -isnot [int] -or $result.ExitCode -ne 0) {
-    throw 'BLOCKED: local PostgreSQL preflight process failed or indeterminate'
-  }
-  if ($null -eq $result.Stdout) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker missing'
-  }
-  $expected = 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
-  $allLines = New-Object 'System.Collections.Generic.List[string]'
-  foreach ($piece in @($result.Stdout)) {
-    if ($null -eq $piece -or $piece -isnot [string]) {
-      throw 'BLOCKED: local PostgreSQL preflight stdout invalid'
-    }
-    $normalized = $piece.Replace("`r`n","`n").Replace("`r","`n")
-    foreach ($line in $normalized.Split([char]"`n")) {
-      [void]$allLines.Add($line)
-    }
-  }
-  $markerCount = 0
-  $lastNonempty = $null
-  foreach ($line in $allLines) {
-    if (-not [string]::IsNullOrWhiteSpace($line)) {
-      $lastNonempty = $line
-    }
-    if ($line.Contains('PREFLIGHT_PASS')) {
-      if ($line -cne $expected) {
-        throw 'BLOCKED: local PostgreSQL preflight marker incorrect or ambiguous'
-      }
-      $markerCount++
-    }
-  }
-  if ($markerCount -ne 1 -or $lastNonempty -cne $expected) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker absent or duplicated'
-  }
-  # Do not return raw stdout, stderr or the native capture object.
-}
- -or
+  if ($Container -cnotmatch '^supabase_db_ffh_p01_rls_fresh_[a-f0-9]{12}$' -or
       [string]$DockerBinding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
       [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
       -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
