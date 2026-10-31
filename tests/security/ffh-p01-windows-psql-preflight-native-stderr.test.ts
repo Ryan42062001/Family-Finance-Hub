@@ -58,6 +58,7 @@ function Check {
  $script:Command=$Command
  $script:Launcher=$Launcher
  $blocked=$false
+ $reason='none'
  $receiptOutput=@()
  $nativeCapture={
   # This is the exact local native stderr scope pattern of the two owner
@@ -75,23 +76,24 @@ function Check {
    throw ('Unexpected preflight exception for '+$Label)
   }
   $blocked=$true
+  $reason=$_.Exception.Message # Generic BLOCKED category only, no native details.
  }
- if($ExpectedPass -eq $blocked){throw ('Wrong preflight disposition '+$Label)}
+ if($ExpectedPass -eq $blocked){throw ('Wrong preflight disposition '+$Label+' classification='+$reason)}
  if($receiptOutput.Count -ne 0){throw ('Raw preflight stdout escaped helper in '+$Label)}
  if($ErrorActionPreference -cne 'Stop'){throw ('Native stderr scope escaped in '+$Label)}
  [Console]::Out.WriteLine('WINPS51_PSQL_PREFLIGHT_PASS '+$Label)
 }
-Check 'notice_then_valid_final' ('echo '+$script:Marker+' & echo NOTICE: PREFLIGHT_SOURCE_MIGRATIONS=15 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3 1>&2 & exit /b 0') $true
-Check 'valid_final_only' ('echo '+$script:Marker+' & exit /b 0') $true
-Check 'nonzero_with_notice' ('echo '+$script:Marker+' & echo NOTICE: partial preflight 1>&2 & exit /b 7') $false
-Check 'wrong_roles' 'echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=1 NO_FIXTURES=1 & exit /b 0' $false
-Check 'missing_final' 'echo PREFLIGHT_SOURCE_MIGRATIONS=15 & exit /b 0' $false
-Check 'incomplete_final' 'echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 & exit /b 0' $false
-Check 'duplicate_final' ('echo '+$script:Marker+' & echo '+$script:Marker+' & exit /b 0') $false
-Check 'wrong_then_valid' ('echo PREFLIGHT_PASS LOCAL_ONLY=0 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1 & echo '+$script:Marker+' & exit /b 0') $false
-Check 'valid_then_extra_output' ('echo '+$script:Marker+' & echo UNEXPECTED_AFTER_MARKER & exit /b 0') $false
-Check 'marker_only_on_stderr' ('echo '+$script:Marker+' 1>&2 & exit /b 0') $false
-Check 'failed_launcher' ('echo '+$script:Marker+' & exit /b 0') $false $script:Missing
+Check 'notice_then_valid_final' ('echo('+$script:Marker+'&echo(NOTICE: PREFLIGHT_SOURCE_MIGRATIONS=15 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3 1>&2&exit /b 0') $true
+Check 'valid_final_only' ('echo('+$script:Marker+'&exit /b 0') $true
+Check 'nonzero_with_notice' ('echo('+$script:Marker+'&echo(NOTICE: partial preflight 1>&2&exit /b 7') $false
+Check 'wrong_roles' 'echo(PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=1 NO_FIXTURES=1&exit /b 0' $false
+Check 'missing_final' 'echo(PREFLIGHT_SOURCE_MIGRATIONS=15&exit /b 0' $false
+Check 'incomplete_final' 'echo(PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15&exit /b 0' $false
+Check 'duplicate_final' ('echo('+$script:Marker+'&echo('+$script:Marker+'&exit /b 0') $false
+Check 'wrong_then_valid' ('echo(PREFLIGHT_PASS LOCAL_ONLY=0 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1&echo('+$script:Marker+'&exit /b 0') $false
+Check 'valid_then_extra_output' ('echo('+$script:Marker+'&echo(UNEXPECTED_AFTER_MARKER&exit /b 0') $false
+Check 'marker_only_on_stderr' ('echo('+$script:Marker+' 1>&2&exit /b 0') $false
+Check 'failed_launcher' ('echo('+$script:Marker+'&exit /b 0') $false $script:Missing
 
 # Additional indeterminate/throw behavior uses harmless in-memory capture only.
 $blocked=$false

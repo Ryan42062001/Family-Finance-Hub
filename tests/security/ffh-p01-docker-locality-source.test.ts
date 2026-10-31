@@ -110,8 +110,8 @@ test("RLS-01 locality: owner entrypoints verify locality and pin the direct daem
   assert.match(shared, /\$dockerCli\.Source --host \$endpoint info --format/);
   assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Start/);
   assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Reset/);
-  assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$readOnly = @\(/);
-  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$preflightOutput = @\(/);
+  assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
+  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
   assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/matrix\.sql'\)/);
   assert.match(shared, /function Assert-FfhDbLoopback \{[\s\S]*?\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$raw = & \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect/);
 });
