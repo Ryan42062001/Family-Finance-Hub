@@ -69,6 +69,12 @@ function Check {
 }
 $reader='findstr /x /c:FFH_PF_OWNED_STDIN >NUL'
 $pass='echo '+$script:Mark
+# Compile and test the REAL embedded C# through the isolated wrapper's
+# Add-Type path first; neither the owner source nor Docker is executed.
+$smokeInfo=StartInfo -Command ($reader+' && '+$pass+' & exit /b 0')
+$smoke=Invoke-FfhNativeJobChild -StartInfo $smokeInfo -SqlMode -SqlBytes $script:Sql
+if($smoke -cne 'EXIT_ZERO'){throw ('Native SQL wrapper startup failed: '+$smoke)}
+[Console]::Out.WriteLine('WINPS51_SQL_JOB_WRAPPER=PASS')
 Check 'notice_stdin_success' ($reader+' && echo synthetic_NOTICE 1>&2 & '+$pass+' & exit /b 0') 'EXIT_ZERO'
 Check 'clean_stdin_success' ($reader+' && '+$pass+' & exit /b 0') 'EXIT_ZERO'
 Check 'nonzero' ($reader+' && '+$pass+' & exit /b 7') 'BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED'
@@ -106,6 +112,7 @@ test("RLS-PF-01 WinPS5.1 real native owned-stdin Job Object synthetic tests",()=
  const receipts=out.stdout.split(/\r?\n/);
  for(const label of labels)assert.equal(receipts.filter(x=>x==="WINPS51_SQL_JOB_PASS "+label).length,1,label);
  assert.equal(receipts.filter(x=>x==="WINPS51_SQL_JOB_GLOBAL_STOP=PASS").length,1);
+ assert.equal(receipts.filter(x=>x==="WINPS51_SQL_JOB_WRAPPER=PASS").length,1);
 });
 
 test("RLS-PF-01 bounded native source preserves prior VERSION/START/RESET and both Gate preflights",()=>{
