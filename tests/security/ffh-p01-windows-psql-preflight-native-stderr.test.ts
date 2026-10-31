@@ -142,31 +142,31 @@ test("FFH-P01 real Windows PowerShell 5.1 tolerates benign native NOTICE but req
  assert.equal(rows.filter(x=>x==="WINPS51_PSQL_PREFLIGHT_GLOBAL_STOP=PASS").length,1);
 });
 
-test("FFH-P01 both preflight owner callsites preserve isolated stderr, ON_ERROR_STOP and immediate exit capture",()=>{
- for(const [name,content,container] of [
-  ["Gate A",prepare,"containerName"],["Gate B",matrix,"container"]
- ]){
-  assert.match(content,/^\$ErrorActionPreference = 'Stop'$/m,name);
-  assert.match(content,/Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
-  assert.match(content,/\$ErrorActionPreference = 'Continue'/);
-  assert.match(content,/\$global:LASTEXITCODE = \$null/);
-  assert.match(content,/Get-Variable -Name LASTEXITCODE -Scope Global/);
-  assert.match(content,/Remove-Variable -Name LASTEXITCODE -Scope Global/);
-  assert.match(content,/Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/preflight\.sql'\) -Raw -Encoding UTF8 -ErrorAction Stop/);
-  assert.match(content,/\& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint exec -i \$container(?:Name)? psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>\$null/);
-  assert.match(content,/^\s*\$preflightExitCode = \$global:LASTEXITCODE/m);
-  assert.match(content,/\[pscustomobject\]@\{ ExitCode = \$preflightExitCode; Stdout = @\(\$preflightStdout\) \}/);
-  assert.doesNotMatch(content,/exec -i \$container(?:Name)? psql[^\n]*2>&1/);
-  assert.match(content,/\bAssert-FfhLocalDockerDesktop\b/);
-  assert.ok(content.includes("exec -i $"+container+" psql"),name);
- }
- assert.match(guard,/function Assert-FfhReadOnlyPsqlPreflightReceipt \{/);
- assert.match(guard,/\$result\.ExitCode -isnot \[int\] -or \$result\.ExitCode -ne 0/);
- assert.match(guard,/PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1/);
- assert.match(guard,/\$markerCount -ne 1 -or \$lastNonempty -cne \$expected/);
- assert.doesNotMatch(guard,/Write-Output[^\n]*\$result\.Stdout/);
- assert.match(prepare,/OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS/);
- assert.match(matrix,/FRESH_LOCAL_PREFLIGHT=PASS/);
+test("FFH-P01 Gate A and Gate B source switch to the same bounded trusted Docker SQL-by-stdin runner",()=>{
+  for(const [name,content,id] of [
+    ["Gate A",prepare,"containerName"],["Gate B",matrix,"container"]
+  ]){
+    assert.match(content,/^\$ErrorActionPreference = 'Stop'$/m,name);
+    assert.match(content,/Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$container(?:Name)?/);
+    assert.match(content,/Join-Path \$source\.repo 'scripts\/rls-local\/preflight\.sql'/);
+    assert.match(content,/\-DockerBinding \$dockerBinding/);
+    assert.doesNotMatch(content,/\& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint exec -i/);
+    assert.ok(content.includes("-Container $"+id),name);
+  }
+  assert.match(matrix,/Invoke-FfhOwnedLocalPsql -Mode Matrix -Container \$container/);
+  assert.match(guard,/function Invoke-FfhOwnedLocalPsql \{/);
+  assert.match(guard,/\$start\.Arguments = '--host ' \+ \$verified\.Endpoint/);
+  assert.match(guard,/exec -i ' \+ \$Container/);
+  assert.match(guard,/psql -X -q -v ON_ERROR_STOP=1/);
+  assert.match(guard,/\[IO\.File\]::ReadAllBytes\(\$SqlPath\)/);
+  assert.match(guard,/Invoke-FfhNativeJobChild -StartInfo \$start -SqlMode/);
+  assert.match(guard,/public static string RunPsql\(/);
+  assert.match(guard,/SqlMarkersValid\(captured, overflow, matrix\)/);
+  assert.match(guard,/BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED/);
+  assert.match(guard,/BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED/);
+  assert.match(guard,/function Assert-FfhReadOnlyPsqlPreflightReceipt \{/);
+  assert.match(prepare,/OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS/);
+  assert.match(matrix,/FRESH_LOCAL_PREFLIGHT=PASS/);
 });
 
 test("FFH-P01 SQL only echoes final success after both role checks and retains read-only error stop",()=>{

@@ -97,33 +97,11 @@ Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 POR
 # database password, provider token, hosted Auth or service-role session.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
-Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture {
-  # Only THIS read-only preflight uses scoped Continue to prevent a benign
-  # PostgreSQL NOTICE from becoming NativeCommandError under WinPS5.1 Stop.
-  $ErrorActionPreference = 'Continue'
-  # Native commands update the global automatic LASTEXITCODE in WinPS5.1.
-  # An unqualified local assignment SHADOWS it and falsely yields null.
-  # Preserve the caller's prior global status while using a fresh sentinel.
-  $priorNativeExitVar = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
-  $hadPriorNativeExit = $null -ne $priorNativeExitVar
-  $priorNativeExit = if ($hadPriorNativeExit) { $priorNativeExitVar.Value } else { $null }
-  try {
-    $global:LASTEXITCODE = $null
-    $preflightStdout = @(
-    Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
-      & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
-    )
-    $preflightExitCode = $global:LASTEXITCODE # Immediately after native pipeline.
-  } finally {
-    if ($hadPriorNativeExit) {
-      $global:LASTEXITCODE = $priorNativeExit
-    } else {
-      Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
-    }
-  }
-
-  [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
-}
+# Gate B remains unapproved. When separately authorized, its read-only
+# role preflight uses the identical bounded Job Object SQL-by-stdin path.
+Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $container `
+  -SqlPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') `
+  -DockerBinding $dockerBinding -Source $source
 Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 
 # All synthetic fixture operations are BEGIN/ROLLBACK protected in matrix.sql.
@@ -132,9 +110,11 @@ Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 # without new approval. A matrix PASS remains OWNER-OBSERVED only.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
-Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') -Raw -Encoding UTF8 |
-  & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $container psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres
-if ($LASTEXITCODE -ne 0) {
-  throw 'BLOCKED: matrix failed; preserve only privacy-safe receipt; no retry/reset'
-}
+# Separate finite 15-minute matrix window. Exact immutable matrix.sql is
+# piped in memory with owned stdin and must emit both ROLLBACK and ZERO_RESIDUE
+# completion markers after exactly 913 PASS receipts. Timeouts never imply
+# daemon-side rollback, cleanup, retry permission or zero residue.
+Invoke-FfhOwnedLocalPsql -Mode Matrix -Container $container `
+  -SqlPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') `
+  -DockerBinding $dockerBinding -Source $source
 Write-Output 'OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW'

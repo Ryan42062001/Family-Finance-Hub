@@ -185,33 +185,12 @@ try {
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
   $dockerBinding = Assert-FfhLocalDockerDesktop
-  Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture {
-    # Only THIS native preflight invocation relaxes PowerShell's 5.1 native
-    # stderr-as-error promotion. All other owner/global error handling stays Stop.
-    $ErrorActionPreference = 'Continue'
-    # Native commands update the global automatic LASTEXITCODE in WinPS5.1.
-    # An unqualified local assignment SHADOWS it and falsely yields null.
-    # Preserve the caller's prior global status while using a fresh sentinel.
-    $priorNativeExitVar = Get-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
-    $hadPriorNativeExit = $null -ne $priorNativeExitVar
-    $priorNativeExit = if ($hadPriorNativeExit) { $priorNativeExitVar.Value } else { $null }
-    try {
-      $global:LASTEXITCODE = $null
-      $preflightStdout = @(
-      Get-Content -LiteralPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') -Raw -Encoding UTF8 -ErrorAction Stop |
-        & $dockerBinding.Executable --host $dockerBinding.Endpoint exec -i $containerName psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres 2>$null
-      )
-      $preflightExitCode = $global:LASTEXITCODE # Immediately after native pipeline.
-    } finally {
-      if ($hadPriorNativeExit) {
-        $global:LASTEXITCODE = $priorNativeExit
-      } else {
-        Remove-Variable -Name LASTEXITCODE -Scope Global -ErrorAction SilentlyContinue
-      }
-    }
-
-    [pscustomobject]@{ ExitCode = $preflightExitCode; Stdout = @($preflightStdout) }
-  }
+  # Finite native Windows Job Object operation: owned stdin and separate
+  # stdout/stderr pipes, exit-zero + final marker, empty client process tree.
+  # Any interruption/timeout leaves Docker daemon-side session UNVERIFIED.
+  Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $containerName `
+    -SqlPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') `
+    -DockerBinding $dockerBinding -Source $source
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
   [IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
                           [Text.UTF8Encoding]::new($false))

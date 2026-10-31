@@ -476,7 +476,10 @@ function Resolve-FfhTrustedNpxCmd {
 function Invoke-FfhNativeJobChild {
   param(
     [Parameter(Mandatory=$true)][Diagnostics.ProcessStartInfo]$StartInfo,
-    [switch]$VersionProbe
+    [switch]$VersionProbe,
+    [switch]$SqlMode,
+    [byte[]]$SqlBytes,
+    [switch]$Matrix
   )
   if (-not ('FfhRlsJobRunner' -as [type])) {
     try {
@@ -644,9 +647,13 @@ public static class FfhRlsJobRunner {
   [DllImport("kernel32.dll", SetLastError=true)]
   private static extern bool ReadFile(IntPtr file, [Out] byte[] buffer, uint bytes,
     out uint read, IntPtr overlapped);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern bool WriteFile(IntPtr file, [In] byte[] buffer, uint bytes,
+    out uint written, IntPtr overlapped);
+
 
   private static bool DrainVersionPipe(IntPtr reader, List<byte> captured, ref bool overflow,
-    out bool empty, bool discard = false) {
+    out bool empty, bool discard = false, int maxCaptureBytes = MAX_VERSION_OUTPUT_BYTES) {
     empty = true;
     // PeekNamedPipe makes each subsequent ReadFile bounded to available bytes;
     // there is no blocking pipe read or waiting for a descendant to close stdout.
@@ -664,7 +671,7 @@ public static class FfhRlsJobRunner {
       if (!ReadFile(reader, data, count, out got, IntPtr.Zero) || got == 0)
         return false;
       if (!discard) {
-        if (captured.Count + got > MAX_VERSION_OUTPUT_BYTES) {
+        if (captured.Count + got > maxCaptureBytes) {
           overflow = true;
         } else if (!overflow) {
           for (int k=0; k<got; k++) captured.Add(data[k]);
@@ -863,6 +870,247 @@ public static class FfhRlsJobRunner {
     }
   }
 
+
+  // RLS-PF-01: bounded, contained SQL-by-owned-stdin for read-only PRE-FLIGHT
+  // and separately authorized matrix. No changes to RunVersion / Run.
+  private const int MAX_SQL_INPUT_BYTES = 262144;
+  private const int MAX_SQL_STDOUT_BYTES = 65536;
+  private sealed class SqlWriterState {
+    public volatile bool Done;
+    public volatile bool Ok;
+  }
+
+  private static bool SqlMarkersValid(List<byte> output, bool overflow, bool matrix) {
+    if (overflow || output.Count == 0) return false;
+    string text;
+    try {
+      text = new UTF8Encoding(false, true).GetString(output.ToArray())
+        .Replace("\r\n", "\n").Replace('\r', '\n');
+    } catch { return false; }
+    string expectedLast = matrix
+      ? "MATRIX_ZERO_RESIDUE_PASS"
+      : "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1";
+    int preflightCount = 0, rollbackCount = 0, zeroCount = 0, assertionsCount = 0;
+    string last = null;
+    foreach (string raw in text.Split('\n')) {
+      string line = raw.Trim();
+      if (line.Length > 0) last = line;
+      if (!matrix) {
+        if (line.Contains("PREFLIGHT_PASS")) {
+          if (line != expectedLast) return false;
+          preflightCount++;
+        }
+      } else {
+        if (line.Contains("MATRIX_ROLLBACK_COMPLETE")) {
+          if (line != "MATRIX_ROLLBACK_COMPLETE") return false;
+          rollbackCount++;
+        }
+        if (line.Contains("MATRIX_ZERO_RESIDUE_PASS")) {
+          if (line != "MATRIX_ZERO_RESIDUE_PASS") return false;
+          zeroCount++;
+        }
+        if (line.Contains("MATRIX_ASSERTIONS_PASS=")) {
+          if (line != "MATRIX_ASSERTIONS_PASS=913") return false;
+          assertionsCount++;
+        }
+      }
+    }
+    return last == expectedLast && (matrix
+      ? rollbackCount == 1 && zeroCount == 1 && assertionsCount == 1
+      : preflightCount == 1);
+  }
+
+  // Every ERROR / timeout from client process means container-side session
+  // state is UNVERIFIED. Do not construe empty Windows job as server rollback.
+  private static string StopSqlJob(IntPtr job, Thread writer,
+    int verificationMilliseconds, string classification) {
+    bool empty = TerminateAndConfirmJob(job, verificationMilliseconds);
+    bool writerStopped = writer == null || writer.Join(2000);
+    return empty && writerStopped ? classification
+      : "BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED";
+  }
+
+  public static string RunPsql(string application, string arguments,
+    string workingDirectory, StringDictionary childEnvironment, byte[] sql,
+    bool matrix, int executionMilliseconds, int verificationMilliseconds) {
+    IntPtr job = IntPtr.Zero, environment = IntPtr.Zero;
+    IntPtr stdoutRead = IntPtr.Zero, stdoutWrite = IntPtr.Zero;
+    IntPtr stderrRead = IntPtr.Zero, stderrWrite = IntPtr.Zero;
+    IntPtr stdinRead = IntPtr.Zero, stdinWrite = IntPtr.Zero;
+    IntPtr attributes = IntPtr.Zero, handles = IntPtr.Zero;
+    bool attributesInitialized = false, created = false, assigned = false;
+    PROCESS_INFORMATION owned = new PROCESS_INFORMATION();
+    Thread writer = null;
+    SqlWriterState writerState = new SqlWriterState();
+    List<byte> captured = new List<byte>();
+    List<byte> discarded = new List<byte>();
+    bool overflow = false, ignoredOverflow = false;
+    try {
+      if (sql == null || sql.Length == 0 || sql.Length > MAX_SQL_INPUT_BYTES ||
+          executionMilliseconds < 100 || verificationMilliseconds < 100)
+        return "BLOCKED_SQL_PAYLOAD_OR_BUDGET_INVALID";
+      job = CreateJobObjectW(IntPtr.Zero, null);
+      if (job == IntPtr.Zero || !EnableKillOnClose(job))
+        return "BLOCKED_SQL_JOB_SETUP_FAILED";
+      SECURITY_ATTRIBUTES attrs = new SECURITY_ATTRIBUTES();
+      attrs.nLength = (uint)Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+      attrs.bInheritHandle = true;
+      if (!CreatePipe(out stdoutRead, out stdoutWrite, ref attrs, 0) ||
+          !SetHandleInformation(stdoutRead, HANDLE_FLAG_INHERIT, 0) ||
+          !CreatePipe(out stderrRead, out stderrWrite, ref attrs, 0) ||
+          !SetHandleInformation(stderrRead, HANDLE_FLAG_INHERIT, 0) ||
+          !CreatePipe(out stdinRead, out stdinWrite, ref attrs, 0) ||
+          !SetHandleInformation(stdinWrite, HANDLE_FLAG_INHERIT, 0))
+        return "BLOCKED_SQL_PIPE_SETUP_FAILED";
+      environment = BuildChildEnvironment(childEnvironment);
+      IntPtr size = IntPtr.Zero;
+      InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+      if (size == IntPtr.Zero) return "BLOCKED_SQL_HANDLE_ALLOWLIST_FAILED";
+      attributes = Marshal.AllocHGlobal(size);
+      if (!InitializeProcThreadAttributeList(attributes, 1, 0, ref size))
+        return "BLOCKED_SQL_HANDLE_ALLOWLIST_FAILED";
+      attributesInitialized = true;
+      handles = Marshal.AllocHGlobal(IntPtr.Size * 3);
+      Marshal.WriteIntPtr(handles, 0, stdinRead);
+      Marshal.WriteIntPtr(handles, IntPtr.Size, stdoutWrite);
+      Marshal.WriteIntPtr(handles, IntPtr.Size * 2, stderrWrite);
+      if (!UpdateProcThreadAttribute(attributes, 0,
+          new IntPtr((long)PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handles,
+          new IntPtr(IntPtr.Size * 3), IntPtr.Zero, IntPtr.Zero))
+        return "BLOCKED_SQL_HANDLE_ALLOWLIST_FAILED";
+      STARTUPINFOEX startup = new STARTUPINFOEX();
+      startup.StartupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFOEX));
+      startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+      startup.StartupInfo.hStdInput = stdinRead;
+      startup.StartupInfo.hStdOutput = stdoutWrite;
+      startup.StartupInfo.hStdError = stderrWrite;
+      startup.lpAttributeList = attributes;
+      StringBuilder cmd = new StringBuilder("\"" + application + "\" " + arguments);
+      // Assign suspended root to private kill-on-close job BEFORE resume.
+      if (!CreateProcessWEx(application, cmd, IntPtr.Zero, IntPtr.Zero, true,
+          CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW |
+          EXTENDED_STARTUPINFO_PRESENT,
+          environment, workingDirectory, ref startup, out owned))
+        return "BLOCKED_SQL_PROCESS_START_FAILED";
+      created = true;
+      bool closed = true;
+      if (CloseHandle(stdinRead)) stdinRead = IntPtr.Zero; else closed = false;
+      if (CloseHandle(stdoutWrite)) stdoutWrite = IntPtr.Zero; else closed = false;
+      if (CloseHandle(stderrWrite)) stderrWrite = IntPtr.Zero; else closed = false;
+      if (!closed)
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_SQL_SUSPENDED_ROOT_TERMINATED_DAEMON_UNVERIFIED"
+          : "BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED";
+      if (!AssignProcessToJobObject(job, owned.hProcess))
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_SQL_SUSPENDED_ROOT_TERMINATED_DAEMON_UNVERIFIED"
+          : "BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED";
+      assigned = true;
+      if (ResumeThread(owned.hThread) == WAIT_FAILED)
+        return StopSqlJob(job, null, verificationMilliseconds,
+          "BLOCKED_SQL_RESUME_FAILED_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED");
+
+      // One owned background writer pumps exact immutable SQL bytes to stdin.
+      // The foreground polls BOTH stdout/stderr even if the writer blocks.
+      // Only this writer can own/close stdinWrite; no other handle inherited.
+      IntPtr writerHandle = stdinWrite;
+      stdinWrite = IntPtr.Zero;
+      writer = new Thread(() => {
+        bool success = true;
+        try {
+          int offset = 0;
+          while (offset < sql.Length) {
+            int count = Math.Min(4096, sql.Length - offset);
+            byte[] block = new byte[count];
+            Buffer.BlockCopy(sql, offset, block, 0, count);
+            uint sent;
+            if (!WriteFile(writerHandle, block, (uint)count, out sent,
+                IntPtr.Zero) || sent == 0 || sent > count) {
+              success = false;
+              break;
+            }
+            offset += (int)sent;
+          }
+        } catch { success = false; }
+        finally {
+          if (!CloseHandle(writerHandle)) success = false;
+          writerState.Ok = success;
+          writerState.Done = true;
+        }
+      });
+      writer.IsBackground = true;
+      try { writer.Start(); }
+      catch {
+        CloseHandle(writerHandle);
+        writer = null;
+        return StopSqlJob(job, null, verificationMilliseconds,
+          "BLOCKED_SQL_WRITER_START_FAILED_DAEMON_UNVERIFIED");
+      }
+
+      Stopwatch clock = Stopwatch.StartNew();
+      Stopwatch afterRoot = null;
+      while (true) {
+        bool stdoutEmpty, stderrEmpty;
+        if (!DrainVersionPipe(stdoutRead, captured, ref overflow,
+             out stdoutEmpty, false, MAX_SQL_STDOUT_BYTES) ||
+            !DrainVersionPipe(stderrRead, discarded, ref ignoredOverflow,
+             out stderrEmpty, true))
+          return StopSqlJob(job, writer, verificationMilliseconds,
+            "BLOCKED_SQL_PIPE_READ_FAILED_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED");
+        uint wait = WaitForSingleObject(owned.hProcess, 0);
+        if (wait != WAIT_OBJECT_0 && wait != WAIT_TIMEOUT)
+          return StopSqlJob(job, writer, verificationMilliseconds,
+            "BLOCKED_SQL_WAIT_FAILED_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED");
+        if (wait == WAIT_OBJECT_0 && afterRoot == null)
+          afterRoot = Stopwatch.StartNew();
+        if (wait == WAIT_OBJECT_0 && writerState.Done && JobEmpty(job) &&
+            stdoutEmpty && stderrEmpty) {
+          if (!writer.Join(1000) || !writerState.Ok)
+            return "BLOCKED_SQL_STDIN_INCOMPLETE_DAEMON_UNVERIFIED";
+          uint exitCode;
+          if (!GetExitCodeProcess(owned.hProcess, out exitCode))
+            return "BLOCKED_SQL_EXIT_UNKNOWN_DAEMON_UNVERIFIED";
+          if (exitCode != 0) return "BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED";
+          return SqlMarkersValid(captured, overflow, matrix)
+            ? "EXIT_ZERO" : "BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED";
+        }
+        if (afterRoot != null &&
+            afterRoot.ElapsedMilliseconds >= verificationMilliseconds)
+          return StopSqlJob(job, writer, verificationMilliseconds,
+            "BLOCKED_SQL_DESCENDANTS_TERMINATED_DAEMON_UNVERIFIED");
+        if (clock.ElapsedMilliseconds >= executionMilliseconds)
+          return StopSqlJob(job, writer, verificationMilliseconds,
+            "BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED");
+        Thread.Sleep(25);
+      }
+    } catch {
+      if (assigned)
+        return StopSqlJob(job, writer, verificationMilliseconds,
+          "BLOCKED_SQL_RUNNER_FAILED_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED");
+      if (created)
+        return TerminateSuspendedRoot(owned.hProcess)
+          ? "BLOCKED_SQL_SUSPENDED_ROOT_TERMINATED_DAEMON_UNVERIFIED"
+          : "BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED";
+      return "BLOCKED_SQL_PRESTART_FAILED";
+    } finally {
+      // KILL_ON_JOB_CLOSE is FALLBACK only, not death confirmation.
+      // No raw SQL, stdout/stderr, process IDs or environment leave this method.
+      if (owned.hThread != IntPtr.Zero) CloseHandle(owned.hThread);
+      if (owned.hProcess != IntPtr.Zero) CloseHandle(owned.hProcess);
+      if (stdinRead != IntPtr.Zero) CloseHandle(stdinRead);
+      if (stdinWrite != IntPtr.Zero) CloseHandle(stdinWrite);
+      if (stdoutRead != IntPtr.Zero) CloseHandle(stdoutRead);
+      if (stdoutWrite != IntPtr.Zero) CloseHandle(stdoutWrite);
+      if (stderrRead != IntPtr.Zero) CloseHandle(stderrRead);
+      if (stderrWrite != IntPtr.Zero) CloseHandle(stderrWrite);
+      if (attributesInitialized) DeleteProcThreadAttributeList(attributes);
+      if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
+      if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
+      if (environment != IntPtr.Zero) Marshal.FreeHGlobal(environment);
+      if (job != IntPtr.Zero) CloseHandle(job);
+    }
+  }
+
   private static bool EnableKillOnClose(IntPtr job) {
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -1011,6 +1259,17 @@ public static class FfhRlsJobRunner {
     }
   }
   try {
+    if ($SqlMode) {
+      if ($VersionProbe -or $null -eq $SqlBytes) {
+        throw 'BLOCKED_SQL_MODE_INVALID'
+      }
+      $milliseconds = if ($Matrix) { 900000 } else { 120000 }
+      return [FfhRlsJobRunner]::RunPsql(
+        $StartInfo.FileName, $StartInfo.Arguments, $StartInfo.WorkingDirectory,
+        $StartInfo.EnvironmentVariables, $SqlBytes, [bool]$Matrix,
+        $milliseconds, 10000
+      )
+    }
     if ($VersionProbe) {
       # 60s wall-clock job budget + 10s bounded descendant verification.
       # The native runner returns only redacted outcome classifications.
@@ -1123,6 +1382,161 @@ function Assert-FfhDbLoopback {
 # the Docker/psql native pipeline and return exactly one typed result.
 # A PostgreSQL NOTICE is emitted on native stderr before the later role
 # checks; only the FINAL literal stdout marker plus exit=0 can pass.
+# RLS-PF-01: one contained local Docker/psql SQL-by-stdin launcher.
+# The SQL file's exact source bytes are read in memory; the owner procedures
+# already performed immutable Git-object/SHA256 source checkout validation.
+# The only successful status is EXIT_ZERO after native Job Object empty and
+# mode-specific completion markers; stdout/stderr/SQL are never returned.
+function Invoke-FfhOwnedLocalPsql {
+  param(
+    [Parameter(Mandatory=$true)][ValidateSet('Preflight','Matrix')][string]$Mode,
+    [Parameter(Mandatory=$true)][string]$Container,
+    [Parameter(Mandatory=$true)][string]$SqlPath,
+    [Parameter(Mandatory=$true)]$DockerBinding,
+    [Parameter(Mandatory=$true)]$Source
+  )
+  Assert-FfhNoRemoteConfiguration
+  Assert-FfhDockerEnvironment
+  if ($Container -cnotmatch '^supabase_db_ffh_p01_rls_fresh_[a-f0-9]{12}
+  param(
+    [Parameter(Mandatory=$true)][scriptblock]$NativeCapture
+  )
+  $results = $null
+  try {
+    # Never disclose native error records or mixed output from the invocation.
+    $results = @(& $NativeCapture 2>$null)
+  } catch {
+    throw 'BLOCKED: local PostgreSQL preflight native invocation failed'
+  }
+  if ($null -eq $results -or $results.Count -ne 1 -or
+      $null -eq $results[0]) {
+    throw 'BLOCKED: local PostgreSQL preflight result absent or ambiguous'
+  }
+  $result = $results[0]
+  $fields = @($result.PSObject.Properties.Name)
+  if ($fields -cnotcontains 'ExitCode' -or $fields -cnotcontains 'Stdout' -or
+      $null -eq $result.ExitCode -or
+      $result.ExitCode -isnot [int] -or $result.ExitCode -ne 0) {
+    throw 'BLOCKED: local PostgreSQL preflight process failed or indeterminate'
+  }
+  if ($null -eq $result.Stdout) {
+    throw 'BLOCKED: local PostgreSQL preflight final marker missing'
+  }
+  $expected = 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
+  $allLines = New-Object 'System.Collections.Generic.List[string]'
+  foreach ($piece in @($result.Stdout)) {
+    if ($null -eq $piece -or $piece -isnot [string]) {
+      throw 'BLOCKED: local PostgreSQL preflight stdout invalid'
+    }
+    $normalized = $piece.Replace("`r`n","`n").Replace("`r","`n")
+    foreach ($line in $normalized.Split([char]"`n")) {
+      [void]$allLines.Add($line)
+    }
+  }
+  $markerCount = 0
+  $lastNonempty = $null
+  foreach ($line in $allLines) {
+    if (-not [string]::IsNullOrWhiteSpace($line)) {
+      $lastNonempty = $line
+    }
+    if ($line.Contains('PREFLIGHT_PASS')) {
+      if ($line -cne $expected) {
+        throw 'BLOCKED: local PostgreSQL preflight marker incorrect or ambiguous'
+      }
+      $markerCount++
+    }
+  }
+  if ($markerCount -ne 1 -or $lastNonempty -cne $expected) {
+    throw 'BLOCKED: local PostgreSQL preflight final marker absent or duplicated'
+  }
+  # Do not return raw stdout, stderr or the native capture object.
+}
+ -or
+      [string]$DockerBinding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
+      [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
+      -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
+      -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
+    throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
+  }
+  # Independently reassert the trusted native Docker Desktop executable and
+  # npipe locality before process creation, not merely a caller-provided name.
+  $verified = Assert-FfhLocalDockerDesktop
+  if ([string]$verified.Executable -cne [string]$DockerBinding.Executable -or
+      [string]$verified.Endpoint -cne [string]$DockerBinding.Endpoint) {
+    throw 'BLOCKED_SQL_NATIVE_DOCKER_IDENTITY_CHANGED: no retry/reset/cleanup'
+  }
+  $sqlRelative = if ($Mode -ceq 'Preflight') {
+    'scripts/rls-local/preflight.sql'
+  } else {
+    'scripts/rls-local/matrix.sql'
+  }
+  $sqlExpected = Join-Path ([string]$Source.repo) $sqlRelative
+  $manifestMatches = @($Source.all_files | Where-Object { $_.path -ceq $sqlRelative })
+  if ($manifestMatches.Count -ne 1 -or
+      $null -eq $manifestMatches[0].sha256 -or
+      -not [IO.Path]::IsPathRooted($SqlPath) -or
+      -not ([IO.Path]::GetFullPath($SqlPath)).Equals(
+        [IO.Path]::GetFullPath($sqlExpected),[StringComparison]::OrdinalIgnoreCase) -or
+      -not (Test-Path -LiteralPath $SqlPath -PathType Leaf)) {
+    throw 'BLOCKED_SQL_SOURCE_PATH_OR_MANIFEST_INVALID: no retry/reset/cleanup'
+  }
+  # Hash the EXACT bytes sent on the owned stdin pipe immediately before use.
+  # They must match the Git-object-verified SHA256 source manifest.
+  $payload = [IO.File]::ReadAllBytes($SqlPath)
+  if ($payload.Length -le 0 -or $payload.Length -gt 262144) {
+    throw 'BLOCKED_SQL_SOURCE_BYTES_INVALID: no retry/reset/cleanup'
+  }
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try {
+    $actualSqlDigest = [BitConverter]::ToString($sha.ComputeHash($payload)).Replace('-','').ToLowerInvariant()
+  } finally { $sha.Dispose() }
+  if ($actualSqlDigest -cne [string]$manifestMatches[0].sha256) {
+    throw 'BLOCKED_SQL_SOURCE_SHA256_MISMATCH: no retry/reset/cleanup'
+  }
+  $start = [Diagnostics.ProcessStartInfo]::new()
+  $start.FileName = [string]$verified.Executable
+  # Every authorized daemon operation specifies the pinned Linux npipe.
+  # Container is a strictly SHA-derived, metacharacter-free identifier.
+  $start.Arguments = '--host ' + $verified.Endpoint +
+    ' exec -i ' + $Container +
+    ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
+  $start.WorkingDirectory = (Get-Location).Path
+  $start.UseShellExecute = $false
+  $start.CreateNoWindow = $true
+  foreach ($key in @($start.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $start.EnvironmentVariables.Remove([string]$key)
+    }
+  }
+  $start.EnvironmentVariables['DOCKER_HOST'] = $verified.Endpoint
+  if ($start.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
+      $start.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
+      $start.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
+      $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
+  }
+  # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
+  # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
+  # owns Win32 handles, finite stdin pumping and native exit retrieval.
+  $outcome = Invoke-FfhNativeJobChild -StartInfo $start -SqlMode -SqlBytes $payload -Matrix:($Mode -ceq 'Matrix')
+  if ($outcome -cne 'EXIT_ZERO') {
+    $known = @(
+      'BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED',
+      'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED',
+      'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED',
+      'BLOCKED_SQL_DESCENDANTS_TERMINATED_DAEMON_UNVERIFIED',
+      'BLOCKED_SQL_STDIN_INCOMPLETE_DAEMON_UNVERIFIED',
+      'BLOCKED_SQL_PROCESS_START_FAILED',
+      'BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED'
+    )
+    $category = if ($known -ccontains $outcome) { $outcome } else {
+      'BLOCKED_SQL_NATIVE_OR_DAEMON_STATE_UNVERIFIED'
+    }
+    throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
+  }
+  Assert-FfhDockerEnvironment
+}
+
 function Assert-FfhReadOnlyPsqlPreflightReceipt {
   param(
     [Parameter(Mandatory=$true)][scriptblock]$NativeCapture

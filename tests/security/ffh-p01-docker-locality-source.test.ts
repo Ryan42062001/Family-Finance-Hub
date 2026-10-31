@@ -103,16 +103,18 @@ test("RLS-01 locality: owner entrypoints verify locality and pin the direct daem
       "[void](Assert-FfhLocalDockerDesktop)",
     ]);
     assert.ok(importAt < localityAt);
-    const firstDaemonOperation = source.search(/& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint (?:ps|exec)/);
+    const firstDaemonOperation = source.search(/& \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint ps|Invoke-FfhOwnedLocalPsql -Mode (?:Preflight|Matrix)/);
     assert.ok(firstDaemonOperation > localityAt);
     assert.doesNotMatch(source, /& docker (?:ps|inspect|exec)/);
   }
   assert.match(shared, /\$dockerCli\.Source --host \$endpoint info --format/);
   assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Start/);
   assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Reset/);
-  assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
-  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Assert-FfhReadOnlyPsqlPreflightReceipt -NativeCapture \{/);
-  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+Get-Content -LiteralPath \(Join-Path \$source\.repo 'scripts\/rls-local\/matrix\.sql'\)/);
+  assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+[\s\S]*?Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$containerName/);
+  assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+[\s\S]*?Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$container/);
+  assert.match(execute, /Invoke-FfhOwnedLocalPsql -Mode Matrix -Container \$container/);
+  assert.match(shared, /\$start\.Arguments = '--host ' \+ \$verified\.Endpoint/);
+  assert.match(shared, /psql -X -q -v ON_ERROR_STOP=1/);
   assert.match(shared, /function Assert-FfhDbLoopback \{[\s\S]*?\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$raw = & \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect/);
 });
 
