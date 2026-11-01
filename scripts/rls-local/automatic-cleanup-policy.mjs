@@ -3,6 +3,7 @@
 import {win32} from "node:path";
 export const PIPE="npipe:////./pipe/dockerDesktopLinuxEngine";
 export const LABEL="com.supabase.cli.project";
+export const COMPOSE_LABEL="com.docker.compose.project";
 export const BLOCKED="CLEANUP_BLOCKED_MANUAL_REVIEW";
 export const VERIFIED="CLEANUP_VERIFIED";
 const sha=/^[0-9a-f]{40}$/, token=/^[0-9a-f]{24}$/, id=/^[0-9a-f]{64}$/;
@@ -18,15 +19,16 @@ function child(parent,part,basename) {
 }
 export function expectedIdentity(sourceSha,runToken) {
   if(!sha.test(sourceSha??"") || !token.test(runToken??"")) fail("RUN_IDENTITY_INVALID");
-  const suffix=sourceSha.slice(0,12)+"_"+runToken;
+  const suffix=sourceSha.slice(0,8)+"_"+runToken;
   return {sourceSha,runToken,
-    projectId:"ffh_p01_rls_fresh_"+suffix,
+    projectId:"ffhp1_"+suffix,
     rootName:"FFH-P01-RLS-Fresh-"+sourceSha.slice(0,12)+"-"+runToken,
-    containerName:"supabase_db_ffh_p01_rls_fresh_"+suffix};
+    containerName:"supabase_db_ffhp1_"+suffix};
 }
 export function assertManifest(m) {
   if(!m || typeof m!=="object") fail("MANIFEST_MISSING");
   const x=expectedIdentity(m.sourceSha,m.runToken);
+  if(x.projectId.length!==39) fail("CLI_PROJECT_ID_LENGTH_INVALID");
   if(m.projectId!==x.projectId || m.rootName!==x.rootName) fail("RUN_IDENTITY_MISMATCH");
   if(!m.owner || !child(m.owner.profile,m.owner.root,x.rootName) ||
      !child(m.owner.profile,m.owner.evidence,"FFH-P01-RLS-Evidence") ||
@@ -38,7 +40,7 @@ export function assertManifest(m) {
      m.port<20000 || m.port>60999 || m.shadowPort<20000 ||
      m.shadowPort>60999 || m.port===m.shadowPort ||
      m.port===54332 || m.shadowPort===54333) fail("HOST_PORT_COLLISION_OR_INVALID");
-  if(m.daemon?.endpoint!==PIPE || !id.test(m.daemon.id??"")) fail("DAEMON_IDENTITY_INVALID");
+  if(m.daemon?.endpoint!==PIPE || !(/^[A-Za-z0-9_:\/-]{8,200}$/.test(m.daemon.id??""))) fail("DAEMON_IDENTITY_INVALID");
   if(!sha.test(m.legacyBaseline??"")) fail("LEGACY_BASELINE_UNVERIFIED");
   if(!m.resources || typeof m.resources!=="object") fail("LEDGER_MISSING");
   for(const kind of kinds) {
@@ -48,7 +50,7 @@ export function assertManifest(m) {
       if(!r || !safe.test(r.name??"") || !r.name.includes(x.projectId) ||
          /ffh-rls-test/i.test(r.name) ||
          (kind==="volumes" ? r.id!==r.name : !id.test(r.id??"")) ||
-         r.labels?.[LABEL]!==x.projectId || ids.has(r.id) || names.has(r.name))
+         (r.labels?.[LABEL]!==x.projectId || r.labels?.[COMPOSE_LABEL]!==x.projectId) || ids.has(r.id) || names.has(r.name))
          fail("LEDGER_OWNERSHIP_UNVERIFIED");
       ids.add(r.id);names.add(r.name);
     }
@@ -57,7 +59,7 @@ export function assertManifest(m) {
 }
 function verifiedResource(r,ledger,kind,project) {
   if(!r || !ledger || r.id!==ledger.id || r.name!==ledger.name ||
-     r.labels?.[LABEL]!==project || r.labels?.["ffh.p01.protected"]==="true")
+     (r.labels?.[LABEL]!==project || r.labels?.[COMPOSE_LABEL]!==project) || r.labels?.["ffh.p01.protected"]==="true")
      fail("RESOURCE_ID_LABEL_MISMATCH");
   if(kind==="containers" &&
      (typeof r.running!=="boolean" || typeof r.sqlActive!=="boolean" ||
@@ -82,7 +84,7 @@ export function nextDecision({manifest,journal,snapshot}) {
        journal.runToken!==x.runToken || journal.projectId!==x.projectId ||
        !["GATE_A","GATE_B"].includes(journal.phase) ||
        !["PASS","FAIL","UNKNOWN"].includes(journal.testResult) ||
-       journal.cleanupResult===BLOCKED || journal.cleanupResult==="UNKNOWN")
+       journal.testResult==="UNKNOWN" || journal.cleanupResult===BLOCKED || journal.cleanupResult==="UNKNOWN")
        fail("JOURNAL_UNVERIFIED");
     if(journal.phase==="GATE_A" && journal.testResult==="PASS")
       return {cleanupResult:"PRESERVED_FOR_SEPARATE_GATE_B",action:null};
