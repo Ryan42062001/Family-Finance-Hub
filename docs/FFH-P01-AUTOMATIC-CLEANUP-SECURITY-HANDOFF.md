@@ -1,62 +1,45 @@
-# FFH-P01 / Issue #83 — Automatic test cleanup: security handoff (source-only)
+# FFH-P01 #83 — Automatic Test Cleanup security handoff
 
-## Binding checkpoint
+**Role:** SAME Primary Builder. **PR:** #84 DRAFT/OPEN/UNMERGED. **Branch:** feature/ffh-p01-automatic-test-cleanup. **Source GO:** Issue #83 comment 6552557643; PR #84 comment 6552559497. **Risk:** HIGH. Source and mock tests do not certify safe owner-host Docker deletion.
 
-- Parent Manager contract: #83.
-- Release branch: phase/ffh-p01-release-readiness.
-- Immutable base verified before branch creation: 344c4c7ac1f46d8b1fd2d81b2b4a391cbd136983.
-- Feature branch: feature/ffh-p01-automatic-test-cleanup.
-- Parent release PR #81 is DRAFT / OPEN; protected main is untouched.
-- **Status: INCOMPLETE / BLOCKED FOR ACTIVATION.** The policy and mocked decisions exist. No executable cleanup adapter, owner-host integration, or activation is authorized.
+## Implementation inventory
 
-## Delivered pure policy (cannot mutate a host)
+- scripts/rls-local/automatic-cleanup.ps1 — cryptographic 96-bit run token, 39-character project ID ffhp1_<sha8>_<token24>, direct-child Windows fixed-drive profile root, exclusive lifecycle lock, outside-root durable JSON journal, unique host port pair, pinned local Docker metadata, dual labels, redacted evidence.
+- scripts/rls-local/cleanup-executor.ps1 — precreation namespace and FFH-RLS-Test baseline verification, exact resource ID/mount/attachment validation, read-only SQL idle attestation, bounded exact native Docker Job Object actions, post-action absence proof, bounded nonrecursive temporary root removal, fail-closed manual review.
+- scripts/rls-local/source-provenance.ps1 — hashes new helper source and keeps strict immutable checkout/migration receipts, adds unique project ID and dynamic port support.
+- scripts/rls-local/prepare-fresh-owner.ps1 — Gate A uses a new token/journal/root, isolated startup, observed resource ledger, immutable source application. PASS preserves DB for Gate B; safe FAIL requests exact cleanup.
+- scripts/rls-local/run-owner.ps1 — separately approved Gate B uses preserved same-SHA/token/root/config/port receipt. PASS/FAIL recorded separately from cleanup result; requests staged cleanup if safe.
+- scripts/rls-local/automatic-cleanup-policy.mjs — pure decision policy, updated for 39-character ID and dual labels; not a mutation adapter.
 
-The policy in scripts/rls-local/automatic-cleanup-policy.mjs exports:
-1. expectedIdentity: SHA + per-run 96-bit token yields a unique project/container/root identity.
-2. assertManifest: guards Windows profile child root, outside-root evidence directory, nonlegacy names, nondefault noncolliding ports, exact per-run resource ledger and daemon fingerprint.
-3. nextDecision: a **single-step** decision for Gate A failure or Gate B success/failure. Requires fresh exact engine and run-labelled Docker inventories, exact IDs, labels, ownership and attachments; refuses shared mounts, unknown SQL/child state, changed legacy fingerprint and missing sanitized evidence. Returns only graceful-stop, exact remove of container/volume/network, then verified root removal. Unknown state returns CLEANUP_BLOCKED_MANUAL_REVIEW, never a delete.
-4. nextRunGate: read-only crash/stale-journal block; a retained successful Gate A database blocks an unrelated new run.
+## Source research vs unverified local metadata
 
-Gate A success returns PRESERVED_FOR_SEPARATE_GATE_B instead of cleanup. TEST_RESULT is never overwritten by CLEANUP_RESULT. A policy result is **not** an observed Docker action or proof of absence.
+Supabase CLI v2.122.0 tagged source: docker-ids.ts limits sanitized project IDs to 40 chars. container-lifecycle.ts attaches both com.supabase.cli.project and com.docker.compose.project to created containers and passes these to named volume creation. start-database.ts passes both labels to network creation. Historical FFH owner-host evidence observed the Compose label. This is not a substitute for installed CLI v2.122.0 metadata inspection per container/volume/network kind. Names alone do not prove ownership; source code allows reuse of an existing named network.
 
-## Offline source test matrix
+## Invariants and failure behavior
 
-File: tests/security/ffh-p01-automatic-cleanup-policy.test.ts, Node 22 built-in node:test, in-memory fake inventory only.
+1. No remote Docker endpoint or hosted Supabase configuration. Immutable full SHA, clean checkout, explicit Gate A vs Gate B authorization and source manifests preserved.
+2. Prior to first resource creation, exclusive lock, no stale journals/roots, no old named/labeled resource, verified local Docker daemon and protected FFH-RLS-Test inventory; persist precreation journal on local fixed disk outside disposable root.
+3. Full SHA and whole cryptographically random 96-bit token are recorded. Project ID is 39 characters. Port pair is separately checked; race must fail without touching a preexisting listener. Actual Postgres mapping is pinned loopback-only.
+4. Gate A PASS preserves DB and application receipt; Gate B is separately authorized on exactly the same run, SHA, ports, root and source hashes. Neither gate treats cleanup success as test PASS.
+5. Save redacted evidence outside root before cleanup. If child/SQL/daemon/labels/journal/attachment/filesystem status cannot be proven, set CLEANUP_BLOCKED_MANUAL_REVIEW and stop.
+6. Fresh inventory before each action. Graceful stop without force; exact owned container removal, unattached volume removal, isolated network removal, then bounded leaf-first root retirement; verify absence and protected baseline. Never prune, wildcard delete, Compose down, blindly retry, or remove FFH-RLS-Test.
+7. Power/OS crash may interrupt finally. Stale-resource discovery must only block future runs for manual reconciliation; no guaranteed cleanup claim.
 
-| Fixture | Expected policy decision |
-| --- | --- |
-| Unique SHA/token identifier and strict manifest | ALLOW validated identity |
-| Gate A success | PRESERVE database |
-| Gate A failure staged graceful stop -> container -> volume -> network -> root | Exact one-action stages |
-| Gate B PASS and FAIL | Retire without changing TEST_RESULT |
-| Unknown child tree, SQL status, evidence capture | BLOCK |
-| Active SQL session | BLOCK |
-| Changed daemon ID/endpoint, incomplete inventory | BLOCK |
-| Forged label, unrecorded object, duplicate resource | BLOCK |
-| Shared volume/network, foreign attachment | BLOCK |
-| Legacy fingerprint drift, wrong root, reparse, open handle | BLOCK |
-| Missing ledger, conflicting fixed port, remote daemon | BLOCK |
-| Crashed/unknown journal, preserved previous Gate A, unlabeled stale inventory | BLOCK |
+## Future owner-host procedures (not run in CI)
 
-## Unimplemented work — explicitly prevents approval
+Gate A entrypoint:
+powershell.exe -NoProfile -File scripts/rls-local/prepare-fresh-owner.ps1 -ExpectedHead <IMMUTABLE_SHA> -ExplicitAuthorization FFH-P01-FRESH-LOCAL-GO
 
-- **Entrypoints have not been modified:** prepare-fresh-owner.ps1 and run-owner.ps1 still use the old source-SHA fixed root, project, 54332/54333 ports and their existing receipt contract. Do not execute Gate A #6 or Gate B on the basis of this branch.
-- No Windows PowerShell 5.1 cleanup adapter, one-time idempotent bounded finally worker, actual inventory collection, direct exact-ID Docker commands, timeouts, graceful stop, cross-process journal locking, Windows reparse/ACL check for recursive root removal or post-delete absence verification.
-- No trustworthy owner-host runtime discovery yet for Supabase CLI 2.122.0 container/volume/network labels and mounts. **Do not weaken the label checks or assume sample fake metadata matches reality.**
-- No cryptographically unique token/port allocation entrypoint with an OS-checked reservation; no stored *precreation* crash journal/immutable receipt; no independently rechecked legacy fingerprint strategy; no outside-root privacy-safe evidence writer. The pure policy accepts already-verified immutable facts; it cannot establish those facts.
-- No automatic Gate A/Gate B outcome handling, timeout/unknown-session recovery or test-vs-cleanup exit-code surfacing.
-- No new Windows 5.1 fake-Docker **adapter** tests. Existing Windows AST, provenance, CLI, and SQL owner-procedure tests remain unchanged and are still mandatory.
-- No claimed local test execution, independent audit, exact-head FAST, owner-host inventory, dry run, real SQL run or real Docker deletion in this handoff.
+Gate A prints RUN_TOKEN=<24hex>. FreshRoot is the current user profile direct child FFH-P01-RLS-Fresh-<sha12>-<token>. After successful Gate A, use separate authorization:
 
-## Required next implementation/audit sequence
+powershell.exe -NoProfile -File scripts/rls-local/run-owner.ps1 -ExpectedHead <SAME_SHA> -FreshRoot <SAME_FRESH_ROOT> -ExplicitAuthorization FFH-P01-RLS-EXECUTION-GO
 
-1. Have the Manager approve the exact snapshot and guarded adapter design, including Docker labels and platform-specific Windows verification mechanics. Treat any unsupported metadata as a hard STOP, not a guessed resource ID.
-2. Implement per-run allocation and an immutable outside-root lifecycle journal **before** the first possible Docker creation. Use exact source provenance without relaxing branch/SHA and authorization gates. Port collision/reservation checks are mandatory.
-3. Implement an exact-ID PowerShell 5.1 adapter with repeated daemon, identity, label, attachments, legacy and filesystem checks **before each mutation**, only graceful stop, no force, no broad prune/sweep. Verify absence and journal transition after each stage. A lost child/SQL state must preserve BLOCKED status.
-4. Integrate Gate A failure / Gate B finally paths and separately authorized Gate A success preservation, with sanitized evidence captured outside the root first. Retain TEST_RESULT separate from CLEANUP_RESULT.
-5. Add adversarial Windows PowerShell fake-Docker fault tests for partial startup, return codes, timeouts, reparse races, journal crashes and untrusted commands. Execute canonical Windows FAST and fresh independent source/procedure security audit against immutable head.
-6. Only after audit PASS, exact-head CI and a separately authorized one-time owner-host dry run with two independent inventories may Manager consider **separately authorizing** Gate A #6. Gate B requires its own approval.
+Do not use these before a fresh independent security audit, true owner-host metadata confirmation and bounded authorized disposable dry run. Existing FFH-RLS-Test, historical source checkout, production data and unrelated resources are out of scope.
 
-## Safety hold
+## Adversarial matrix (planned/covered by policy and WinPS mock source tests; see CI for actual outcomes)
 
-No Docker, Supabase CLI, local SQL, hosted SQL, secret retrieval, network mutation, production/Private Beta, Gate A #6, Gate B/913, branch merge, deployment or protected-main change was authorized by this document. This document is **not an implementation-complete receipt** and must not be cited to release the parent PR.
+AC-01 unique random token; AC-02 existing project/root; AC-03 occupied host port; AC-04 port bind race; AC-05 journal write failure; AC-06 partial network; AC-07 partial volume/container; AC-08 changed daemon; AC-09 missing/forged dual labels; AC-10 shared volume; AC-11 foreign network endpoint; AC-12 active SQL; AC-13 timeout/descendants; AC-14 failed graceful stop; AC-15 interrupted evidence writer; AC-16 wrong evidence destination; AC-17 ACL/reparse/path race; AC-18 crash during mutation; AC-19 Gate A PASS preservation; AC-20 Gate B FAIL remains FAIL after cleanup; AC-21 FFH-RLS-Test drift; AC-22 final exact absence.
+
+**Security audit handoff:** Fresh independent read-only Auditor must freeze and review new immutable feature HEAD, exact source/AST/WinPS tests, process/SQL state, 15 migration source manifest, 913 matrix integrity, resource label per kind, port/network/FS races, crash recovery and protected baseline. FAST success alone is not security approval. No audit is claimed by Builder.
+
+**Release hold:** PR #84 remains DRAFT/OPEN/UNMERGED. No automatic merge, protected-main or parent release mutation, production deploy, hosted SQL, spending or Private Beta. Formal release Gate A #6/B still require their own release evidence and authorization.
