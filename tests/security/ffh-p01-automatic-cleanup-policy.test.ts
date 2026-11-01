@@ -94,7 +94,7 @@ test("FFH #83 Gate B PASS and FAIL both request disposal; not test-result rewrit
 });
 test("FFH #83 all unknown child/SQL/receipt/evidence states block",()=>{
   for(const key of ["clientTree","daemonSql","capture","evidenceOutsideRoot"] as const){
-    const f=fixture();(f.journal as any)[key]=false;
+    const f=fixture();(f.journal as unknown as Record<string, string | boolean>)[key]=false;
     deny(f,key);
   }
   const f=fixture();f.snapshot.resources.containers[0].sqlActive=true;deny(f,"active SQL");
