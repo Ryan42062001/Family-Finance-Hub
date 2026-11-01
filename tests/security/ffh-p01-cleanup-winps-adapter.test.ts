@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-const harness = String.raw\`
+const harness = String.raw`
 $ErrorActionPreference='Stop'
 . (Join-Path (Get-Location).Path 'scripts/rls-local/automatic-cleanup.ps1')
 . (Join-Path (Get-Location).Path 'scripts/rls-local/cleanup-executor.ps1')
@@ -65,7 +65,7 @@ Check 'mock-exact-action-pass' {Invoke-FfhExactDockerCommand -Arguments @('rm',(
 Check 'mock-exact-action-fail' {MustThrow {Invoke-FfhExactDockerCommand -Arguments @('rm',('c'*64)) -Fake {param($a) 'BLOCKED'}}}
 Check 'exact-absence-pass' {Test-FfhExactAbsent -Kind 'containers' -Id $script:containerId -Fake $fake}
 Check 'exact-absence-refused' {$script:mode='PRESENT';MustThrow {Test-FfhExactAbsent -Kind 'containers' -Id $script:containerId -Fake $fake};$script:mode='EMPTY'}
-\`;
+`;
 
 test("FFH-P01 PowerShell 5.1 real adapter functions: 15 isolated fake-Docker faults", () => {
   const interpreter = process.platform === "win32" ? "powershell.exe" : "pwsh";
