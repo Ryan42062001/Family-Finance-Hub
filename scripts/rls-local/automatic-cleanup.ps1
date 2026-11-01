@@ -113,7 +113,8 @@ function Assert-FfhNoOtherLiveRuns {
   param($Identity)
   Assert-FfhEvidencePath -Identity $Identity
   foreach ($f in @(Get-ChildItem -LiteralPath $Identity.evidence -Filter '*.json' -File)) {
-    if ($f.Name -cnotmatch '^[a-f0-9]{24}\.json
+    if ($f.Name -cnotmatch '^[a-f0-9]{24}\.json$') { continue }
+    if ($f.Name -cne ($Identity.token+'.json')) {
       $j=Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($j.cleanupResult -cne 'CLEANUP_VERIFIED') {
         throw 'BLOCKED: previous run retained or stale; read-only manual review'
