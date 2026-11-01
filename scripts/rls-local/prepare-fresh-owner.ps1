@@ -8,7 +8,6 @@ param(
   [ValidatePattern('^[0-9a-f]{40}$')]
   [string]$ExpectedHead,
 
-  [Parameter(Mandatory=$true)]
   [string]$FreshRoot,
 
   [Parameter(Mandatory=$true)]
@@ -17,6 +16,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
+. "$PSScriptRoot/automatic-cleanup.ps1"
+. "$PSScriptRoot/cleanup-executor.ps1"
 
 # Isolated Windows PowerShell 5.1 native version probe. Native stderr notices
 # may appear as NativeCommandError with the caller's ErrorActionPreference=Stop.
@@ -75,8 +76,21 @@ Assert-FfhNoRemoteConfiguration
 # Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
 [void](Assert-FfhLocalDockerDesktop)
 $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
-$root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
-$projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+$identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
+$lock=Enter-FfhLifecycleLock -Identity $identity
+$journalCreated=$false
+try {
+  if ($FreshRoot -and
+      -not ([IO.Path]::GetFullPath($FreshRoot)).Equals($identity.root,
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: requested root does not match random run identity'
+  }
+  $FreshRoot=$identity.root
+  $ports=@(Select-FfhRunPorts -Identity $identity)
+  $j=New-FfhPrecreationJournal -Identity $identity -Ports $ports
+  $journalCreated=$true
+  $root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead -RunToken $identity.token
+  $projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead -RunToken $identity.token
 $containerName = 'supabase_db_' + $projectId
 if (Test-Path -LiteralPath $root) {
   throw 'BLOCKED: fresh root already exists; never reuse or reset an existing folder'
@@ -131,7 +145,7 @@ foreach ($file in $source.migration_files) {
 $copyNames = @(Get-ChildItem -LiteralPath (Join-Path $root 'supabase/migrations') -File -Filter '*.sql')
 if ($copyNames.Count -ne 15) { throw 'BLOCKED: fresh migration snapshot is incomplete' }
 $configPath = Join-Path $root 'supabase/config.toml'
-[IO.File]::WriteAllText($configPath,(Get-FfhFreshConfig -ExpectedHead $ExpectedHead),
+[IO.File]::WriteAllText($configPath,(Get-FfhFreshConfig -ExpectedHead $ExpectedHead -RunToken $identity.token -DbPort $ports[0] -ShadowPort $ports[1]),
                         [Text.UTF8Encoding]::new($false))
 $configHash = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if (Test-Path -LiteralPath (Join-Path $root 'supabase/.temp/project-ref')) {
@@ -144,7 +158,9 @@ $receipt = [ordered]@{
   cli_version = '2.122.0'
   project_id = $projectId
   db_container = $containerName
-  db_port = 54332
+  db_port = $ports[0]
+  shadow_port = $ports[1]
+  run_token = $identity.token
   migration_count = 15
   source_sha256 = @($source.all_files)
   config_sha256 = $configHash
@@ -159,8 +175,10 @@ Push-Location $root
 try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_RUNNING')
   Invoke-FfhPinnedLocalSupabase -Operation Start
-  [void](Assert-FfhDbLoopback -Container $containerName)
+  [void](Register-FfhOwnedResources -Identity $identity)
+  [void](Assert-FfhDbLoopback -Container $containerName -DbPort $ports[0])
   if (Test-Path -LiteralPath 'supabase/.temp/project-ref') {
     throw 'BLOCKED: hosted Supabase link detected after fresh local startup'
   }
@@ -169,7 +187,8 @@ try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
   Invoke-FfhPinnedLocalSupabase -Operation Reset
-  [void](Assert-FfhDbLoopback -Container $containerName)
+  [void](Register-FfhOwnedResources -Identity $identity)
+  [void](Assert-FfhDbLoopback -Container $containerName -DbPort $ports[0])
   foreach ($file in $source.migration_files) {
     $dest = Join-Path $root ($file.path -replace '/','\')
     $digest = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -197,10 +216,34 @@ try {
   $receiptSha = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
   [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),
                           $receiptSha,[Text.UTF8Encoding]::new($false))
-  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha"
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
+  Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'
+  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha RUN_TOKEN=$($identity.token) CLEANUP_RESULT=PRESERVED_FOR_GATE_B"
 }
 finally { Pop-Location }
 # STOP: actual matrix fixture writes require a separate, fresh approval.
 # Failure leaves no permission to retry or reset anything. Preserve only
 # privacy-safe failure category for Manager and arrange an approved teardown
 # of this NEW project if needed; never touch FFH-RLS-Test.
+
+catch {
+  # Never emit unredacted native stderr, SQL, secrets or filesystem contents.
+  if ($journalCreated) {
+    try {
+      $current=Read-FfhJournal -Identity $identity
+      if ($current.state -cne 'GATE_A_PRESERVED') {
+        Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
+        [void](Register-FfhOwnedResources -Identity $identity)
+        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -TestResult 'FAIL')
+        $idle=Get-FfhSqlIdleAttestation -Identity $identity
+        $cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle
+        Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+      }
+    } catch {
+      [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
+    }
+  }
+  throw 'BLOCKED: Gate A unsuccessful; original test failure is not converted to PASS'
+}
+finally { $lock.Dispose() }
