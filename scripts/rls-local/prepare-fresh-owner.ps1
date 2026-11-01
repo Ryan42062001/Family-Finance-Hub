@@ -226,6 +226,7 @@ finally { Pop-Location }
 # privacy-safe failure category for Manager and arrange an approved teardown
 # of this NEW project if needed; never touch FFH-RLS-Test.
 
+}
 catch {
   # Never emit unredacted native stderr, SQL, secrets or filesystem contents.
   if ($journalCreated) {
