@@ -328,32 +328,4 @@ function Write-FfhRedactedEvidence {
   $j.sequence=[int]$j.sequence+1
   Write-FfhJournal -Identity $Identity -Journal $j
 }
-# Strict safety: the adapter never claims the daemon's SQL state from a client exit.
-# A separate, independently audited idle attestation must be supplied before deletion.
-function Invoke-FfhOwnedCleanup {
-  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake)
-  $j=Read-FfhJournal -Identity $Identity
-  if ($j.state -ceq 'GATE_A_PRESERVED') { return 'PRESERVED_FOR_GATE_B' }
-  if ($j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') { return $j.cleanupResult }
-  if (-not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE') {
-    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
-  }
-  try {
-    if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
-      throw 'BLOCKED: daemon identity changed'
-    }
-    $observed=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake)
-    foreach ($r in $observed) {
-      if (@($j.resources | Where-Object { $_.kind -ceq $r.kind -and $_.id -ceq $r.id }).Count -ne 1) {
-        throw 'BLOCKED: resource not journalled'
-      }
-    }
-    # Actual removal is deliberately delegated to a separately verified exact-ID adapter.
-    # Never delete an unconfirmed resource on the strength of a label alone.
-    throw 'BLOCKED: exact-id removal requires independent attachment and filesystem validation'
-  } catch {
-    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
-  }
-}
+# Exact verified retirement is exclusively implemented by cleanup-executor.ps1.
