@@ -179,9 +179,44 @@ function Invoke-FfhDockerRead {
   if ($Fake) { return @(& $Fake $Arguments) }
   $binding=Assert-FfhLocalDockerDesktop
   if ($binding.Endpoint -cne $script:FfhPipe) {throw 'BLOCKED: daemon endpoint drift'}
-  $out=@(& $binding.Executable --host $binding.Endpoint @Arguments 2>$null)
-  if ($LASTEXITCODE -ne 0) { throw 'BLOCKED: Docker metadata query failed' }
-  return $out
+  $command=@('--host',$binding.Endpoint)+@($Arguments)
+  $safe=@()
+  foreach ($arg in $command) {
+    if ([string]$arg -match '[\x00-\x1f"]' -or [string]$arg -match '\\$') {
+      throw 'BLOCKED: malformed native read-only argument'
+    }
+    $safe+= ('"'+[string]$arg+'"')
+  }
+  $info=[Diagnostics.ProcessStartInfo]::new()
+  $info.FileName=$binding.Executable
+  $info.Arguments=($safe -join ' ')
+  $info.UseShellExecute=$false
+  $info.CreateNoWindow=$true
+  $info.RedirectStandardOutput=$true
+  $info.RedirectStandardError=$true
+  $info.WorkingDirectory=[Environment]::GetFolderPath('UserProfile')
+  foreach ($key in @($info.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $info.EnvironmentVariables.Remove($key)
+    }
+  }
+  $info.EnvironmentVariables['DOCKER_HOST']=$script:FfhPipe
+  $process=[Diagnostics.Process]::new()
+  try {
+    $process.StartInfo=$info
+    if (-not $process.Start()) { throw 'BLOCKED: Docker metadata process did not start' }
+    $stdout=$process.StandardOutput.ReadToEndAsync()
+    $stderr=$process.StandardError.ReadToEndAsync()
+    if (-not $process.WaitForExit(15000)) {
+      try { $process.Kill() } catch {}
+      throw 'BLOCKED: bounded metadata read timed out'
+    }
+    if ($process.ExitCode -ne 0) {throw 'BLOCKED: Docker metadata read returned nonzero'}
+    $output=[string]$stdout.Result
+    [void]$stderr.Result  # Never print Docker/native stderr.
+    if ($output.Length -gt 131072) {throw 'BLOCKED: excessive metadata output'}
+    return @($output -split '\r?\n' | Where-Object { $_ -ne '' })
+  } finally { $process.Dispose() }
 }
 function Get-FfhObservedDaemon {
   param([scriptblock]$Fake)
