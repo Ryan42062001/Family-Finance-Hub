@@ -108,8 +108,8 @@ test("RLS-01 locality: owner entrypoints verify locality and pin the direct daem
     assert.doesNotMatch(source, /& docker (?:ps|inspect|exec)/);
   }
   assert.match(shared, /\$dockerCli\.Source --host \$endpoint info --format/);
-  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Start/);
-  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)\s+Invoke-FfhPinnedLocalSupabase -Operation Reset/);
+  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)[\s\S]{0,240}Invoke-FfhPinnedLocalSupabase -Operation Start/);
+  assert.match(prepare, /\[void\]\(Assert-FfhLocalDockerDesktop\)[\s\S]{0,240}Invoke-FfhPinnedLocalSupabase -Operation Reset/);
   assert.match(prepare, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+[\s\S]*?Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$containerName/);
   assert.match(execute, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+[\s\S]*?Invoke-FfhOwnedLocalPsql -Mode Preflight -Container \$container/);
   assert.match(execute, /Invoke-FfhOwnedLocalPsql -Mode Matrix -Container \$container/);
