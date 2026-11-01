@@ -191,6 +191,13 @@ function Clear-FfhVerifiedRoot {
     $stack.Push([pscustomobject]@{path=$item.path;visited=$true})
     foreach ($child in @(Get-ChildItem -LiteralPath $item.path -Force -ErrorAction Stop)) {
       Assert-FfhNoReparsePath -Path $child.FullName
+      $canonical=[IO.Path]::GetFullPath($child.FullName)
+      if (-not $canonical.StartsWith(($Identity.root.TrimEnd('\')+'\'),
+          [StringComparison]::OrdinalIgnoreCase)) { throw 'BLOCKED: child escaped root' }
+      if ((Get-Acl -LiteralPath $canonical -ErrorAction Stop).Owner -cne
+          [Security.Principal.WindowsIdentity]::GetCurrent().Name) {
+        throw 'BLOCKED: file ACL owner drift'
+      }
       if ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) {
         throw 'BLOCKED: reparse point discovered'
       }
