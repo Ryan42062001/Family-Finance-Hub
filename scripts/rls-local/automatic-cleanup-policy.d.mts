@@ -1,6 +1,7 @@
 // Types for the source-only policy's pure contract; not an implementation adapter.
 export const PIPE: string;
 export const LABEL: string;
+export const COMPOSE_LABEL: string;
 export const BLOCKED: string;
 export const VERIFIED: string;
 export function expectedIdentity(sourceSha:string,runToken:string):{
