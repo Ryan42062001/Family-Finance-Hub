@@ -25,7 +25,7 @@ function Assert-FfhSourceCheckout {
   $head = (& git -C $root rev-parse HEAD).Trim()
   $branch = (& git -C $root branch --show-current).Trim()
   if ($LASTEXITCODE -ne 0 -or $head -cne $ExpectedHead -or
-      $branch -cne 'phase/ffh-p01-release-readiness') {
+      $branch -cnotin @('phase/ffh-p01-release-readiness','feature/ffh-p01-automatic-test-cleanup')) {
     throw 'BLOCKED: source HEAD or original phase branch mismatch'
   }
   # Entire checkout, not just two SQL files. Includes tracked modifications,
@@ -52,6 +52,9 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/run-owner.ps1',
     'scripts/rls-local/prepare-fresh-owner.ps1',
     'scripts/rls-local/source-provenance.ps1',
+    'scripts/rls-local/automatic-cleanup.ps1',
+    'scripts/rls-local/cleanup-executor.ps1',
+    'scripts/rls-local/automatic-cleanup-policy.mjs',
     'scripts/rls-local/run.sh',
     '.github/workflows/ci.yml',
     'scripts/validate-release-candidate.mjs',
@@ -94,18 +97,28 @@ function Assert-FfhSourceCheckout {
 }
 
 function Get-FfhFreshProjectId {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,[string]$RunToken)
+  if ($RunToken) {
+    if ($ExpectedHead -cnotmatch '^[0-9a-f]{40}$' -or $RunToken -cnotmatch '^[0-9a-f]{24}$') {
+      throw 'BLOCKED: invalid run identity'
+    }
+    return 'ffhp1_' + $ExpectedHead.Substring(0,8) + '_' + $RunToken
+  }
   return 'ffh_p01_rls_fresh_' + $ExpectedHead.Substring(0,12)
 }
-
 function Get-FfhFreshConfig {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
-  $projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,[string]$RunToken,
+    [int]$DbPort=54332,[int]$ShadowPort=54333)
+  $projectId=Get-FfhFreshProjectId -ExpectedHead $ExpectedHead -RunToken $RunToken
+  if ($RunToken -and ($DbPort -lt 20000 -or $DbPort -gt 59999 -or
+      $ShadowPort -lt 20000 -or $ShadowPort -gt 59999 -or $DbPort -eq $ShadowPort)) {
+    throw 'BLOCKED: isolated run port invalid'
+  }
   return @"
 project_id = "$projectId"
 [db]
-port = 54332
-shadow_port = 54333
+port = $DbPort
+shadow_port = $ShadowPort
 major_version = 17
 [api]
 enabled = false
@@ -113,18 +126,24 @@ enabled = false
 enabled = false
 "@
 }
+# Legacy read-only reference: port = 54332 / shadow_port = 54333.
 
 function Assert-FfhFreshRoot {
   param(
     [Parameter(Mandatory=$true)][string]$FreshRoot,
     [Parameter(Mandatory=$true)][string]$RepoRoot,
-    [Parameter(Mandatory=$true)][string]$ExpectedHead
+    [Parameter(Mandatory=$true)][string]$ExpectedHead,
+    [string]$RunToken
   )
   $root = [IO.Path]::GetFullPath($FreshRoot).TrimEnd('\','/')
   $repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\','/')
   $userHomePath = [IO.Path]::GetFullPath($HOME).TrimEnd('\','/')
   $userProfilePath = [IO.Path]::GetFullPath([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)).TrimEnd('\','/')
   $expectedName = 'FFH-P01-RLS-Fresh-' + $ExpectedHead.Substring(0,12)
+  if ($RunToken) {
+    if ($RunToken -cnotmatch '^[0-9a-f]{24}$') {throw 'BLOCKED: bad token'}
+    $expectedName += '-' + $RunToken
+  }
   if ($userHomePath -cnotmatch '^[a-zA-Z]:\\' -or
       -not $userHomePath.Equals($userProfilePath,[StringComparison]::OrdinalIgnoreCase) -or
       -not (Split-Path $root -Parent).Equals($userHomePath,[StringComparison]::OrdinalIgnoreCase)) {
@@ -1354,7 +1373,7 @@ function Invoke-FfhPinnedLocalSupabase {
 }
 
 function Assert-FfhDbLoopback {
-  param([Parameter(Mandatory=$true)][string]$Container)
+  param([Parameter(Mandatory=$true)][string]$Container,[int]$DbPort=54332)
   $dockerBinding = Assert-FfhLocalDockerDesktop
   $raw = & $dockerBinding.Executable --host $dockerBinding.Endpoint inspect $Container 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $raw) {
@@ -1369,7 +1388,7 @@ function Assert-FfhDbLoopback {
   $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
   if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
   foreach ($binding in $bindings) {
-    if ($binding.HostPort -cne '54332' -or
+    if ($binding.HostPort -cne ([string]$DbPort) -or
         $binding.HostIp -cnotin @('127.0.0.1','::1')) {
       throw 'BLOCKED: DB not loopback-only on fresh port 54332'
     }
