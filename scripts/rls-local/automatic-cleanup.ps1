@@ -155,6 +155,9 @@ function Select-FfhRunPorts {
 function New-FfhPrecreationJournal {
   param($Identity,$Ports)
   Assert-FfhNoOtherLiveRuns -Identity $Identity
+  Assert-FfhPrecreationNamespace -Identity $Identity
+  $daemon=Get-FfhObservedDaemon
+  $protected=@(Get-FfhProtectedInventory)
   if (Test-Path -LiteralPath (Get-FfhJournalPath -Identity $Identity)) {
     throw 'BLOCKED: run token reused'
   }
@@ -162,7 +165,7 @@ function New-FfhPrecreationJournal {
     version=1; sha=$Identity.sha; token=$Identity.token; project=$Identity.project
     root=$Identity.root; container=$Identity.container; evidence=$Identity.evidence
     ports=@([int]$Ports[0],[int]$Ports[1]); cliVersion='2.122.0'
-    daemon=''; state='PRECREATION_COMMITTED'; sequence=0
+    daemon=$daemon; protected=$protected; state='PRECREATION_COMMITTED'; sequence=0
     testResult='NOT_STARTED'; cleanupResult='NOT_ATTEMPTED'
     resources=@(); gates=@(); evidenceSaved=$false
   }
