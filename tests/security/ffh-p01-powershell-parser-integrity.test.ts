@@ -10,6 +10,8 @@ const paths = [
   "scripts/rls-local/source-provenance.ps1",
   "scripts/rls-local/prepare-fresh-owner.ps1",
   "scripts/rls-local/run-owner.ps1",
+  "scripts/rls-local/automatic-cleanup.ps1",
+  "scripts/rls-local/cleanup-executor.ps1",
 ] as const;
 const shared = readFileSync(paths[0], "utf8");
 
@@ -45,9 +47,9 @@ function assertNoInjectedInspection(source: string): void {
   assert.equal((source.match(/function Assert-FfhDbLoopback \{/g) ?? []).length, 1);
   assert.equal((source.match(/\$raw\s*=\s*&\s*\$dockerBinding\.Executable\s+--host\s+\$dockerBinding\.Endpoint\s+inspect\s+\$Container\b/g) ?? []).length, 1);
   assert.equal((source.match(/NetworkSettings\.Ports\.'5432\/tcp'/g) ?? []).length, 1);
-  assert.equal((source.match(/param\(\[Parameter\(Mandatory=\$true\)\]\[string\]\$Container\)/g) ?? []).length, 1);
+  assert.equal((source.match(/param\(\[Parameter\(Mandatory=\$true\)\]\[string\]\$Container,\[int\]\$DbPort=54332\)/g) ?? []).length, 1);
   assert.match(loopback, /\$dockerBinding = Assert-FfhLocalDockerDesktop\s+\$raw = & \$dockerBinding\.Executable --host \$dockerBinding\.Endpoint inspect \$Container/);
-  assert.match(loopback, /\$binding\.HostPort -cne '54332'/);
+  assert.match(loopback, /\$binding\.HostPort -cne \(\[string\]\$DbPort\)/);
   assert.match(loopback, /\$binding\.HostIp -cnotin @\('127\.0\.0\.1','::1'\)/);
 }
 
@@ -76,7 +78,7 @@ test("RLS-01 regression rejects duplicated DB port-inspection body", () => {
   assert.throws(() => assertNoInjectedInspection(bad), assert.AssertionError);
 });
 
-test("Windows PowerShell AST parser-only check fails on syntax errors in all three entrypoints", () => {
+test("Windows PowerShell AST parser-only check fails on syntax errors in all five PowerShell source files", () => {
   const interpreter = process.platform === "win32" ? "powershell.exe" : "pwsh";
   const script = [
     "$ErrorActionPreference = 'Stop'",
