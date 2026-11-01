@@ -299,7 +299,9 @@ function Register-FfhOwnedResources {
     }
   }
   $j.resources=@($observed | ForEach-Object { [pscustomobject]@{kind=$_.kind; id=$_.id; name=$_.name} })
-  $j.daemon=Get-FfhObservedDaemon -Fake $Fake
+  if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
+    throw 'BLOCKED: daemon ID changed after precreation journal'
+  }
   $j.sequence=[int]$j.sequence+1
   $j.state='INVENTORY_VERIFIED'
   Write-FfhJournal -Identity $Identity -Journal $j
