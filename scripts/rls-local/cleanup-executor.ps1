@@ -199,6 +199,26 @@ function Clear-FfhVerifiedRoot {
     }
   }
 }
+function Get-FfhSqlIdleAttestation {
+  param($Identity,[scriptblock]$Fake)
+  try {
+    $running=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake |
+      Where-Object { $_.kind -eq 'containers' -and $_.running })
+    if (-not $running.Count) { return 'VERIFIED_DAEMON_SQL_IDLE' }
+    $db=@($running | Where-Object { $_.name -ceq ('/'+$Identity.container) -or
+      $_.name -ceq $Identity.container })
+    if ($db.Count -ne 1) { return 'UNKNOWN' }
+    # Only one bounded, local socket, read-only PostgreSQL activity query.
+    # No credentials, database URL, household data or mutable SQL.
+    $query="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
+    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$Identity.container,
+      'psql','-U','postgres','-d','postgres','-t','-A','-c',$query) -Fake $Fake)
+    if ($values.Count -eq 1 -and ([string]$values[0]).Trim() -ceq '0') {
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
+  } catch { }
+  return 'UNKNOWN'
+}
 function Invoke-FfhVerifiedCleanup {
   param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake)
   $j=Read-FfhJournal -Identity $Identity
@@ -213,8 +233,14 @@ function Invoke-FfhVerifiedCleanup {
     # A missing recorded resource after crash is not silently adopted. The
     # per-mutation action intent remains durable until verified completion.
     foreach ($kind in @('containers','volumes','networks')) {
+      if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+        throw 'BLOCKED: SQL state changed before mutation'
+      }
       $entries=@($j.resources | Where-Object kind -eq $kind)
       foreach ($r in $entries) {
+        if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+          throw 'BLOCKED: SQL state unknown before exact resource mutation'
+        }
         $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
         $match=@($observed | Where-Object { $_.kind -ceq $kind -and $_.id -ceq $r.id })
         if ($match.Count -ne 1) {throw 'BLOCKED: expected resource unexpectedly missing'}
