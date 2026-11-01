@@ -17,16 +17,38 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
+. "$PSScriptRoot/automatic-cleanup.ps1"
+. "$PSScriptRoot/cleanup-executor.ps1"
 Assert-FfhNoRemoteConfiguration
 # Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
 [void](Assert-FfhLocalDockerDesktop)
 $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
-$root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
+$leaf=Split-Path $FreshRoot -Leaf
+if ($leaf -cnotmatch '^FFH-P01-RLS-Fresh-[0-9a-f]{12}-([0-9a-f]{24})$') {
+  throw 'BLOCKED: expected unique Gate A root name with full random token'
+}
+$identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken $Matches[1]
+if (-not ([IO.Path]::GetFullPath($FreshRoot)).Equals(
+  $identity.root,[StringComparison]::OrdinalIgnoreCase)) {
+  throw 'BLOCKED: Gate B root does not match preserved run identity'
+}
+$lock=Enter-FfhLifecycleLock -Identity $identity
+$gateBStarted=$false
+try {
+  $j=Read-FfhJournal -Identity $identity
+  if ($j.state -cne 'GATE_A_PRESERVED' -or
+      $j.cleanupResult -cne 'PRESERVED_FOR_GATE_B' -or
+      -not $j.evidenceSaved -or $j.testResult -cne 'PASS') {
+    throw 'BLOCKED: Gate A preservation receipt absent or already consumed'
+  }
+  $ports=@($j.ports)
+  if ($ports.Count -ne 2) { throw 'BLOCKED: preserved port pair absent' }
+  $root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead -RunToken $identity.token
 Assert-FfhFreshTree -FreshRoot $root
 if (-not (Test-Path -LiteralPath $root -PathType Container)) {
   throw 'BLOCKED: approved fresh isolated project folder absent; do not use old DB'
 }
-$projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+$projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead -RunToken $identity.token
 $container = 'supabase_db_' + $projectId
 $receiptPath = Join-Path $root 'ffh-p01-local-provenance.json'
 $receiptHashPath = Join-Path $root 'ffh-p01-local-provenance.sha256'
@@ -44,7 +66,9 @@ if ($receipt.source_sha -cne $ExpectedHead -or
     $receipt.cli_version -cne '2.122.0' -or
     $receipt.project_id -cne $projectId -or
     $receipt.db_container -cne $container -or
-    $receipt.db_port -ne 54332 -or
+    $receipt.db_port -ne $ports[0] -or
+    $receipt.shadow_port -ne $ports[1] -or
+    $receipt.run_token -cne $identity.token -or
     $receipt.migration_count -ne 15 -or
     $receipt.migration_application -cne 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS') {
   throw 'BLOCKED: new local DB initialization receipt invalid or wrong HEAD'
@@ -78,7 +102,7 @@ $configPath = Join-Path $root 'supabase/config.toml'
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf) -or
     (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne
       $receipt.config_sha256 -or
-    [IO.File]::ReadAllText($configPath) -cne (Get-FfhFreshConfig -ExpectedHead $ExpectedHead)) {
+    [IO.File]::ReadAllText($configPath) -cne (Get-FfhFreshConfig -ExpectedHead $ExpectedHead -RunToken $identity.token -DbPort $ports[0] -ShadowPort $ports[1])) {
   throw 'BLOCKED: fresh local-only configuration differs from SHA-bound template'
 }
 if (Test-Path -LiteralPath (Join-Path $root 'supabase/.temp/project-ref')) {
@@ -89,9 +113,11 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Assert-FfhFreshTree -FreshRoot $root
 [void](Assert-FfhLocalDockerDesktop)
-[void](Assert-FfhDbLoopback -Container $container)
+[void](Assert-FfhDbLoopback -Container $container -DbPort $ports[0])
 Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK MANIFEST=SHA256_MATCH"
 
+$gateBStarted=$true
+[void](Set-FfhRunState -Identity $identity -State 'GATE_B_RUNNING')
 # Revalidate catalog and effective role/claim preflight over Docker-local stdin
 # before ANY synthetic identities/transactions are attempted. No DB URL,
 # database password, provider token, hosted Auth or service-role session.
@@ -117,4 +143,32 @@ $dockerBinding = Assert-FfhLocalDockerDesktop
 Invoke-FfhOwnedLocalPsql -Mode Matrix -Container $container `
   -SqlPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') `
   -DockerBinding $dockerBinding -Source $source
-Write-Output 'OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW'
+[void](Set-FfhRunState -Identity $identity -State 'GATE_B_COMPLETE' -TestResult 'PASS')
+Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_B' -Result 'PASS' -Category 'NONE'
+[void](Register-FfhOwnedResources -Identity $identity)
+[void](Set-FfhRunState -Identity $identity -State 'GATE_B_COMPLETE')
+$idleness=Get-FfhSqlIdleAttestation -Identity $identity
+$cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idleness
+Write-Output "TEST_RESULT=PASS CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token) OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
+
+}
+catch {
+  if ($gateBStarted) {
+    try {
+      $current=Read-FfhJournal -Identity $identity
+      if ($current.testResult -cne 'PASS') {
+        Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_B' -Result 'FAIL' -Category 'GATE_B_FAILURE'
+        [void](Register-FfhOwnedResources -Identity $identity)
+        [void](Set-FfhRunState -Identity $identity -State 'GATE_B_FAILED' -TestResult 'FAIL')
+        $idle=Get-FfhSqlIdleAttestation -Identity $identity
+        $cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle
+        Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+      }
+    } catch {
+      [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
+    }
+  }
+  throw 'BLOCKED: Gate B failed or cleanup uncertain; independent test result preserved in journal'
+}
+finally { $lock.Dispose() }
