@@ -181,6 +181,9 @@ function Clear-FfhVerifiedRoot {
     if (++$count -gt 4000) { throw 'BLOCKED: root tree too large' }
     $item=$stack.Pop()
     Assert-FfhNoReparsePath -Path $item.path
+    $actualOwner=(Get-Acl -LiteralPath $item.path -ErrorAction Stop).Owner
+    $expectedOwner=[Security.Principal.WindowsIdentity]::GetCurrent().Name
+    if ($actualOwner -cne $expectedOwner) { throw 'BLOCKED: filesystem ACL owner drift' }
     if ($item.visited) {
       Remove-Item -LiteralPath $item.path -Force -ErrorAction Stop
       continue
@@ -268,6 +271,8 @@ function Invoke-FfhVerifiedCleanup {
         Write-FfhJournal -Identity $Identity -Journal $j
       }
     }
+    $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+    if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
     if (-not $Fake) { Clear-FfhVerifiedRoot -Identity $Identity }
     $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
     return $j.cleanupResult
