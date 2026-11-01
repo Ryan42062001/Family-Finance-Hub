@@ -256,6 +256,8 @@ function Get-FfhResourceSnapshot {
           $prefix=@('volume','inspect',[string]$key,'--format')
           $name=$key;$id=$key
           $labels=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{json .Labels}}')) -Fake $Fake)[0] | ConvertFrom-Json
+          $driver=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{.Driver}}')) -Fake $Fake)[0]
+          if ($driver -cne 'local') {throw 'BLOCKED: untrusted volume driver'}
           $mounts=@();$nets=$null;$running='false'
         }
         'networks' {
@@ -263,6 +265,8 @@ function Get-FfhResourceSnapshot {
           $name=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{.Name}}')) -Fake $Fake)[0]
           $id=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{.Id}}')) -Fake $Fake)[0]
           $labels=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{json .Labels}}')) -Fake $Fake)[0] | ConvertFrom-Json
+          $driver=@(Invoke-FfhDockerRead -Arguments ($prefix+@('{{.Driver}}')) -Fake $Fake)[0]
+          if ($driver -cne 'bridge') {throw 'BLOCKED: untrusted network driver'}
           $mounts=@();$nets=$null;$running='false'
         }
       }
