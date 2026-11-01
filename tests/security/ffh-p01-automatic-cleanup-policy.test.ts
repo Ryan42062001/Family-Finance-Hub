@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   expectedIdentity, nextDecision, nextRunGate, assertManifest, BLOCKED, VERIFIED,
-  LABEL, PIPE,
+  LABEL, COMPOSE_LABEL, PIPE,
 } from "../../scripts/rls-local/automatic-cleanup-policy.mjs";
 
 const sha = "a".repeat(40), token = "b".repeat(24);
 const dockerId = "c".repeat(64), containerId = "d".repeat(64), networkId = "e".repeat(64);
 const legacy = "f".repeat(40);
 const x = expectedIdentity(sha, token);
-const labels = { [LABEL]: x.projectId };
+const labels = { [LABEL]: x.projectId, [COMPOSE_LABEL]: x.projectId };
 const copy = <T>(v:T):T => structuredClone(v);
 function fixture() {
   const volume = "supabase_db_" + x.projectId + "_data";
@@ -57,7 +57,8 @@ function deny(f:ReturnType<typeof fixture>, reason:string) {
   assert.equal(d.action,null,reason);
 }
 test("FFH #83 identity requires unique SHA+token, not old fixed project/root",()=>{
-  assert.match(x.projectId,/^ffh_p01_rls_fresh_[a-f0-9]{12}_[a-f0-9]{24}$/);
+  assert.match(x.projectId,/^ffhp1_[a-f0-9]{8}_[a-f0-9]{24}$/);
+  assert.equal(x.projectId.length,39);
   assert.match(x.rootName,/^FFH-P01-RLS-Fresh-[a-f0-9]{12}-[a-f0-9]{24}$/);
   assert.notEqual(expectedIdentity(sha,"1".repeat(24)).projectId,x.projectId);
   assert.throws(()=>expectedIdentity(sha,"*"));
@@ -98,6 +99,7 @@ test("FFH #83 all unknown child/SQL/receipt/evidence states block",()=>{
     deny(f,key);
   }
   const f=fixture();f.snapshot.resources.containers[0].sqlActive=true;deny(f,"active SQL");
+  const unknown=fixture();unknown.journal.testResult="UNKNOWN";deny(unknown,"unknown test outcome");
 });
 test("FFH #83 daemon endpoint or exact engine identity mismatch blocks",()=>{
   let f=fixture();f.snapshot.daemon.id="0".repeat(64);deny(f,"daemon id");
@@ -109,6 +111,7 @@ test("FFH #83 label tamper, unknown run resource and inventory duplication block
   let f=fixture();f.snapshot.resources.containers[0].labels[LABEL]="FFH-RLS-Test";deny(f,"label");
   f=fixture();f.snapshot.runLabelScan.containers.push({id:"1".repeat(64),name:"extra",labels:copy(labels)});deny(f,"scan extra");
   f=fixture();f.snapshot.resources.containers.push(copy(f.snapshot.resources.containers[0]));deny(f,"duplicate");
+  f=fixture();f.snapshot.resources.containers[0].labels[COMPOSE_LABEL]="another_project";deny(f,"compose label");
 });
 test("FFH #83 shared mount, outside network, foreign attachment block",()=>{
   let f=fixture();f.snapshot.resources.containers[0].mounts.push({kind:"volume",name:"production_data"});deny(f,"shared volume");
