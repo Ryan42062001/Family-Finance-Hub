@@ -134,6 +134,10 @@ $script:fakeDocker={
       if ($script:mock.running) {return 'true'}
       return 'false'
     }
+    if ($fmt -ceq '{{json .State}}') {return '{"Running":true,"Health":{"Status":"healthy"}}'}
+    if ($fmt -ceq '{{json .NetworkSettings.Ports}}') {
+      return '{"5432/tcp":[{"HostIp":"127.0.0.1","HostPort":"26430"}]}'
+    }
     throw 'MOCK_BLOCKED: container inspect field'
   }
   if ($verb -ceq 'exec') {
@@ -278,6 +282,11 @@ function Verify-Results([string]$a,[string]$b,[string]$cleanup) {
 }
 # Execute the owner's immutable-source-guarded Gate B tail with synthetic
 # SQL and exact-run fake Docker. The production script has no test bypass.
+$script:realAdmission=(Get-Command Assert-FfhJournaledSqlAdmission).ScriptBlock
+function Assert-FfhJournaledSqlAdmission {
+  param($Identity,[string]$Phase)
+  return (& $script:realAdmission -Identity $Identity -Phase $Phase -Fake $script:fakeDocker)
+}
 $script:realCompleteGateB=(Get-Command Complete-FfhGateB).ScriptBlock
 function Complete-FfhGateB {
   param($Identity,[string]$GateBResult)
@@ -286,7 +295,8 @@ function Complete-FfhGateB {
 function Assert-FfhFreshTree {param($FreshRoot)}
 function Assert-FfhLocalDockerDesktop {return [pscustomobject]@{Endpoint='mock-local-only';Executable='never-invoked'}}
 function Invoke-FfhOwnedLocalPsql {
-  param([string]$Mode,$Container,$SqlPath,$DockerBinding,$Source)
+  param([string]$Mode,$Container,$SqlPath,$DockerBinding,$Source,$Identity,$ContainerId)
+  if ($ContainerId -cne $script:cid) {throw 'MOCK_SQL_WRONG_CONTAINER_ID'}
   if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_MATRIX_FAILURE'}
   if ($Mode -cnotin @('Matrix','Preflight')) {throw 'MOCK_UNAUTHORIZED_SQL_MODE'}
 }
