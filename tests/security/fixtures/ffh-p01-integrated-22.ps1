@@ -253,6 +253,41 @@ function Verify-Results([string]$a,[string]$b,[string]$cleanup) {
   Assert-Mock ($j.gateBResult -ceq $b) 'GATE_B_RESULT'
   Assert-Mock ($j.cleanupResult -ceq $cleanup) 'CLEANUP_RESULT'
 }
+# Execute the owner's immutable-source-guarded Gate B tail with synthetic
+# SQL and exact-run fake Docker. The production script has no test bypass.
+$script:realCompleteGateB=(Get-Command Complete-FfhGateB).ScriptBlock
+function Complete-FfhGateB {
+  param($Identity,[string]$GateBResult)
+  return (& $script:realCompleteGateB -Identity $Identity -GateBResult $GateBResult -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs)
+}
+function Assert-FfhFreshTree {param($FreshRoot)}
+function Assert-FfhLocalDockerDesktop {return [pscustomobject]@{Endpoint='mock-local-only';Executable='never-invoked'}}
+function Invoke-FfhOwnedLocalPsql {
+  param([string]$Mode,$Container,$SqlPath,$DockerBinding,$Source)
+  if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_MATRIX_FAILURE'}
+  if ($Mode -cnotin @('Matrix','Preflight')) {throw 'MOCK_UNAUTHORIZED_SQL_MODE'}
+}
+function Invoke-MockOwnerGateBTail {
+  param([switch]$FailMatrix)
+  $sourceText=[IO.File]::ReadAllText((Join-Path $repo 'scripts/rls-local/run-owner.ps1'))
+  $index=$sourceText.IndexOf('$gateBStarted=$true')
+  if ($index -lt 0) {throw 'MOCK_MISSING_OWNER_GATE_B_TAIL'}
+  $tail='try {'+[char]10+$sourceText.Substring($index)
+  $script:matrixFail=[bool]$FailMatrix
+  $identity=$script:identity
+  $source=[pscustomobject]@{repo=$repo}
+  $root=$identity.root
+  $container=$identity.container
+  $lock=[pscustomobject]@{}
+  Add-Member -InputObject $lock -MemberType ScriptMethod -Name Dispose -Value {}
+  $gateBStarted=$false
+  try {
+    Invoke-Expression $tail | Out-Null
+    return 'EXIT_ZERO'
+  } catch {
+    return 'EXIT_NONZERO'
+  }
+}
 $cases=@(
   'AC-01','AC-02','AC-03','AC-04','AC-05','AC-06','AC-07','AC-08',
   'AC-09','AC-10','AC-11','AC-12','AC-13','AC-14','AC-15','AC-16',
@@ -387,11 +422,10 @@ foreach($case in $cases) {
       }
       'AC-20' {
         Prepare-PreservedRun -Resources
-        Prepare-GateB
-        $result=Complete-FfhGateB -Identity $script:identity -GateBResult 'FAIL' -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
-        Assert-Mock ($result -ceq 'CLEANUP_VERIFIED') 'GATE_B_FAIL_CLEANUP_PASS'
+        $status=Invoke-MockOwnerGateBTail -FailMatrix
+        Assert-Mock ($status -ceq 'EXIT_NONZERO') 'GATE_B_MATRIX_FAIL_PROCESS_EXIT'
         Verify-Results 'PASS' 'FAIL' 'CLEANUP_VERIFIED'
-        Must-Block {Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult $result}
+        Must-Block {Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult 'CLEANUP_VERIFIED'}
       }
       'AC-21' {
         Prepare-FailingRun -Resources
@@ -400,23 +434,19 @@ foreach($case in $cases) {
       }
       'AC-22' {
         Prepare-PreservedRun -Resources
-        Prepare-GateB
-        $result=Complete-FfhGateB -Identity $script:identity -GateBResult 'PASS' -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
-        Assert-Mock ($result -ceq 'CLEANUP_VERIFIED') 'GATE_B_PASS_CLEANUP_PASS'
+        $status=Invoke-MockOwnerGateBTail
+        Assert-Mock ($status -ceq 'EXIT_ZERO') 'GATE_B_PASS_PROCESS_EXIT'
         Verify-Results 'PASS' 'PASS' 'CLEANUP_VERIFIED'
-        Assert-Mock ([bool](Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult $result)) 'GATE_B_SUCCESS_EXIT'
         Assert-Mock (($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'EXACT_ACTION_ORDER'
         Assert-Mock ($script:fsQueries -ge 2) 'FINAL_ABSENCE_DOUBLE_CHECK'
-        # Independently exercise PASS/BLOCKED with a newly isolated journal.
+        # Independent PASS/BLOCKED scenario with a newly isolated journal.
         Stop-MockCase
         Start-MockCase
         Prepare-PreservedRun
-        Prepare-GateB
         $script:mock.root='PRESENT'
-        $blocked=Complete-FfhGateB -Identity $script:identity -GateBResult 'PASS' -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
-        Assert-Mock ($blocked -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_B_PASS_ROOT_BLOCKED'
+        $status=Invoke-MockOwnerGateBTail
+        Assert-Mock ($status -ceq 'EXIT_NONZERO') 'GATE_B_PASS_ROOT_BLOCKED_EXIT'
         Verify-Results 'PASS' 'PASS' 'CLEANUP_BLOCKED_MANUAL_REVIEW'
-        Must-Block {Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult $blocked}
       }
       default {throw 'MOCK_UNHANDLED_CASE'}
     }
