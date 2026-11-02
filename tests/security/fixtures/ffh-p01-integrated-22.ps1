@@ -504,7 +504,7 @@ foreach($case in $cases) {
         # Independent PASS/BLOCKED scenario with a newly isolated journal.
         Stop-MockCase
         Start-MockCase
-        Prepare-PreservedRun
+        Prepare-PreservedRun -Resources
         $script:mock.root='PRESENT'
         $status=Invoke-MockOwnerGateBTail
         Assert-Mock ($status -ceq 'EXIT_NONZERO') 'GATE_B_PASS_ROOT_BLOCKED_EXIT'
