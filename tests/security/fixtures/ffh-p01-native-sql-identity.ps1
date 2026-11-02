@@ -8,6 +8,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $repo 'scripts/rls-local/automatic-cleanup.ps1')
 . (Join-Path $repo 'scripts/rls-local/cleanup-executor.ps1')
 $script:cid='c'*64
+$script:nid='d'*64
 $script:legacyId='f'*64
 $script:dockerExe=Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
 $script:identity=Get-FfhRunIdentity -SourceSha ('a'*40) -RunToken ('b'*24)
@@ -18,7 +19,8 @@ $script:journal=[pscustomobject]@{
   cliVersion='2.122.0';ports=@(42133,42134)
   state='GATE_B_RUNNING';gateAResult='PASS';gateBResult='RUNNING'
   cleanupResult='PRESERVED_FOR_GATE_B';protected=@(('C:'+$script:legacyId+' FFH-RLS-Test'))
-  resources=@([pscustomobject]@{kind='containers';id=$script:cid;name=('/'+$script:identity.container)})
+  resources=@([pscustomobject]@{kind='containers';id=$script:cid;name=('/'+$script:identity.container)},
+    [pscustomobject]@{kind='networks';id=$script:nid;name=('supabase_network_'+$script:identity.project)})
 }
 $script:nativeCalls=0
 $script:nativeArg=''
@@ -80,7 +82,29 @@ $script:dockerRead={
     throw 'MOCK_UNEXPECTED_PS'
   }
   if($argv[0] -ceq 'volume') {return}
-  if($argv[0] -ceq 'network') {return}
+  if($argv[0] -ceq 'network') {
+    if($argv[1] -ceq 'ls') {
+      if($joined.Contains('{{.ID}} {{.Name}}')) {
+        return ($script:nid+' supabase_network_'+$script:identity.project)
+      }
+      return $script:nid
+    }
+    if($argv[1] -ceq 'inspect') {
+      $fmt=[string]$argv[$argv.Count-1]
+      if($fmt -ceq '{{.Name}}') {return ('supabase_network_'+$script:identity.project)}
+      if($fmt -ceq '{{.Id}}') {return $script:nid}
+      if($fmt -ceq '{{.Driver}}') {return 'bridge'}
+      if($fmt -ceq '{{json .Labels}}') {
+        return (ConvertTo-Json -InputObject @{
+          'com.supabase.cli.project'=$script:identity.project
+          'com.docker.compose.project'=$script:identity.project} -Compress)
+      }
+      if($fmt -ceq '{{json .Containers}}') {
+        return ('{"'+$script:cid+'":{"Name":"'+$script:identity.container+'"}}')
+      }
+    }
+    throw 'MOCK_UNEXPECTED_NETWORK'
+  }
   if($argv[0] -ceq 'inspect') {
     $fmt=[string]$argv[$argv.Count-1]
     $activeId=if($script:substitute){'e'*64}else{$script:cid}
@@ -95,7 +119,7 @@ $script:dockerRead={
     if($fmt -ceq '{{json .Mounts}}') {return '[]'}
     if($fmt -ceq '{{json .NetworkSettings.Networks}}') {
       if($script:foreignNetwork) {return '{"rogue":{"NetworkID":"1111111111111111111111111111111111111111111111111111111111111111"}}'}
-      return '{}'
+      return ('{"supabase_network_'+$script:identity.project+'":{"NetworkID":"'+$script:nid+'"}}')
     }
     if($fmt -ceq '{{.State.Running}}') {return 'true'}
     if($fmt -ceq '{{json .State}}') {
