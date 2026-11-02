@@ -177,19 +177,19 @@ function Test-FfhExactAbsent {
 # controlled manual retirement; never call Remove-Item on the disposable root.
 function Test-FfhVerifiedRootAbsent {
   param($Identity,[scriptblock]$FakeFilesystem)
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $profilePath=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
   $root=[IO.Path]::GetFullPath([string]$Identity.root)
   if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
       $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
       -not ([IO.Path]::GetDirectoryName($root)).Equals(
-        $home,[StringComparison]::OrdinalIgnoreCase) -or
+        $profilePath,[StringComparison]::OrdinalIgnoreCase) -or
       [IO.Path]::GetFileName($root) -cne $expected -or
       $root -match '(?i)FFH-RLS-Test') {
     throw 'BLOCKED: root identity or direct parent mismatch'
   }
   if (-not $FakeFilesystem) {
-    Assert-FfhNoReparsePath -Path $home
+    Assert-FfhNoReparsePath -Path $profilePath
     if (Test-Path -LiteralPath $root) {
       # No deletion is authorized while any filesystem object exists at root.
       Assert-FfhNoReparsePath -Path $root
