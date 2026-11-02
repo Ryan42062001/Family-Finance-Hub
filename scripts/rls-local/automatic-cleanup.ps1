@@ -30,6 +30,69 @@ function Get-FfhRunIdentity {
     container=('supabase_db_'+$project)
   }
 }
+# Evidence is a security boundary: never read or write a shared/inherited DACL.
+function Assert-FfhPrivateEvidenceAcl {
+  param([Parameter(Mandatory=$true)][string]$Path)
+  if (-not (Test-Path -LiteralPath $Path)) { throw 'BLOCKED: evidence entry absent' }
+  Assert-FfhNoReparsePath -Path $Path
+  $item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+  if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw 'BLOCKED: evidence entry reparse point'
+  }
+  $acl=Get-Acl -LiteralPath $Path -ErrorAction Stop
+  $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
+  $owner=$acl.GetOwner([Security.Principal.SecurityIdentifier])
+  if (-not $owner.Equals($who) -or -not $acl.AreAccessRulesProtected) {
+    throw 'BLOCKED: evidence ACL owner or inheritance unsafe'
+  }
+  $allowed=@($who.Value,'S-1-5-18','S-1-5-32-544')
+  foreach ($rule in $acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier])) {
+    if ($allowed -cnotcontains $rule.IdentityReference.Value) {
+      throw 'BLOCKED: evidence ACL contains foreign access principal'
+    }
+    if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) {
+      throw 'BLOCKED: evidence ACL contains ambiguous deny entry'
+    }
+  }
+}
+function Initialize-FfhPrivateEvidenceAcl {
+  param([string]$Path)
+  $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
+  $acl=Get-Acl -LiteralPath $Path -ErrorAction Stop
+  if (-not $acl.GetOwner([Security.Principal.SecurityIdentifier]).Equals($who)) {
+    throw 'BLOCKED: evidence path owner is not current user'
+  }
+  $acl.SetAccessRuleProtection($true,$false)
+  foreach($rule in @($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))) {
+    [void]$acl.RemoveAccessRuleSpecific($rule)
+  }
+  foreach($sid in @($who.Value,'S-1-5-18','S-1-5-32-544')) {
+    $rights=[Security.AccessControl.FileSystemRights]::FullControl
+    $inherit=[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+      [Security.AccessControl.InheritanceFlags]::ObjectInherit
+    $newRule=New-Object Security.AccessControl.FileSystemAccessRule(
+      (New-Object Security.Principal.SecurityIdentifier($sid)), $rights,
+      $inherit,[Security.AccessControl.PropagationFlags]::None,
+      [Security.AccessControl.AccessControlType]::Allow)
+    $acl.AddAccessRule($newRule)
+  }
+  Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
+  Assert-FfhPrivateEvidenceAcl -Path $Path
+}
+function Assert-FfhEvidenceEntry {
+  param($Identity,[string]$Path,[switch]$Optional)
+  Assert-FfhEvidencePath -Identity $Identity
+  $expected=[IO.Path]::GetFullPath($Path)
+  if (-not ([IO.Path]::GetDirectoryName($expected)).Equals(
+    [IO.Path]::GetFullPath($Identity.evidence),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: evidence entry outside isolated directory'
+  }
+  if (-not (Test-Path -LiteralPath $expected -PathType Leaf)) {
+    if ($Optional) { return }
+    throw 'BLOCKED: evidence entry missing'
+  }
+  Assert-FfhPrivateEvidenceAcl -Path $expected
+}
 function Assert-FfhEvidencePath {
   param([Parameter(Mandatory=$true)]$Identity)
   $profile = [IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
@@ -42,7 +105,9 @@ function Assert-FfhEvidencePath {
   } else {
     [void](New-Item -ItemType Directory -Path $Identity.evidence -ErrorAction Stop)
     Assert-FfhNoReparsePath -Path $Identity.evidence
+    Initialize-FfhPrivateEvidenceAcl -Path $Identity.evidence
   }
+  Assert-FfhPrivateEvidenceAcl -Path $Identity.evidence
 }
 function Enter-FfhLifecycleLock {
   param($Identity)
@@ -63,6 +128,7 @@ function Write-FfhJournal {
   if ($Journal.sha -cne $Identity.sha -or $Journal.token -cne $Identity.token -or
       $Journal.project -cne $Identity.project) { throw 'BLOCKED: journal identity drift' }
   $dest=Get-FfhJournalPath -Identity $Identity
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $dest -Optional
   $tmp=Join-Path $Identity.evidence ('.'+$Identity.token+'.'+(New-FfhRunToken)+'.tmp')
   $payload=[Text.UTF8Encoding]::new($false).GetBytes(($Journal | ConvertTo-Json -Depth 30))
   $f=$null
@@ -72,11 +138,13 @@ function Write-FfhJournal {
     $f.Write($payload,0,$payload.Length)
     $f.Flush($true)
     $f.Dispose();$f=$null
+    Assert-FfhPrivateEvidenceAcl -Path $tmp
     if (Test-Path -LiteralPath $dest -PathType Leaf) {
       [IO.File]::Replace($tmp,$dest,$null)
     } else {
       [IO.File]::Move($tmp,$dest)
     }
+    Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
     # Re-read identity and state; interrupted replace never grants permission.
     $check=Get-Content -LiteralPath $dest -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($check.sha -cne $Identity.sha -or $check.token -cne $Identity.token -or
@@ -92,19 +160,42 @@ function Read-FfhJournal {
   param($Identity)
   Assert-FfhEvidencePath -Identity $Identity
   $path=Get-FfhJournalPath -Identity $Identity
-  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'BLOCKED: durable journal missing' }
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $path
   $j=Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
   if ($j.sha -cne $Identity.sha -or $j.token -cne $Identity.token -or
-      $j.project -cne $Identity.project -or $j.version -ne 1 -or
+      $j.project -cne $Identity.project -or $j.version -ne 2 -or
+      -not ($j.PSObject.Properties.Name -ccontains 'gateAResult') -or
+      -not ($j.PSObject.Properties.Name -ccontains 'gateBResult') -or
+      $j.gateAResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
+      $j.gateBResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
       $j.sequence -lt 0) { throw 'BLOCKED: journal invalid or changed' }
   return $j
 }
 function Set-FfhRunState {
-  param($Identity,[string]$State,[string]$TestResult,[string]$CleanupResult)
+  param($Identity,[string]$State,[string]$TestResult,[string]$CleanupResult,
+    [string]$GateAResult,[string]$GateBResult)
   $j=Read-FfhJournal -Identity $Identity
   $j.sequence=[int]$j.sequence+1
   $j.state=$State
   if ($TestResult) {$j.testResult=$TestResult}
+  if ($GateAResult) {
+    if ($GateAResult -cnotin @('RUNNING','PASS','FAIL','UNKNOWN')) {
+      throw 'BLOCKED: invalid Gate A result'
+    }
+    if ($j.gateAResult -ceq 'PASS' -and $GateAResult -cne 'PASS') {
+      throw 'BLOCKED: committed Gate A PASS immutable'
+    }
+    $j.gateAResult=$GateAResult
+  }
+  if ($GateBResult) {
+    if ($GateBResult -cnotin @('RUNNING','PASS','FAIL','UNKNOWN')) {
+      throw 'BLOCKED: invalid Gate B result'
+    }
+    if ($j.gateBResult -ceq 'PASS' -and $GateBResult -cne 'PASS') {
+      throw 'BLOCKED: committed Gate B PASS immutable'
+    }
+    $j.gateBResult=$GateBResult
+  }
   if ($CleanupResult) {$j.cleanupResult=$CleanupResult}
   Write-FfhJournal -Identity $Identity -Journal $j
   return $j
@@ -115,8 +206,9 @@ function Assert-FfhNoOtherLiveRuns {
   foreach ($f in @(Get-ChildItem -LiteralPath $Identity.evidence -Filter '*.json' -File)) {
     if ($f.Name -cnotmatch '^[a-f0-9]{24}\.json$') { continue }
     if ($f.Name -cne ($Identity.token+'.json')) {
+      Assert-FfhEvidenceEntry -Identity $Identity -Path $f.FullName
       $j=Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-      if ($j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+      if ($j.version -ne 2 -or $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
         throw 'BLOCKED: previous run retained or stale; read-only manual review'
       }
     }
@@ -136,7 +228,7 @@ function Select-FfhRunPorts {
     for ($attempt=0;$attempt -lt 128;$attempt++) {
       $random.GetBytes($bytes)
       $candidate=20000+([BitConverter]::ToUInt32($bytes,0) % 40000)
-      if ($candidate -ge 60000 -or $used.Contains([int]$candidate) -or
+      if ($candidate -gt 59998 -or $used.Contains([int]$candidate) -or
           $used.Contains([int]($candidate+1))) { continue }
       $listeners=@()
       try {
@@ -163,10 +255,11 @@ function New-FfhPrecreationJournal {
     throw 'BLOCKED: run token reused'
   }
   $j=[pscustomobject]@{
-    version=1; sha=$Identity.sha; token=$Identity.token; project=$Identity.project
+    version=2; sha=$Identity.sha; token=$Identity.token; project=$Identity.project
     root=$Identity.root; container=$Identity.container; evidence=$Identity.evidence
     ports=@([int]$Ports[0],[int]$Ports[1]); cliVersion='2.122.0'
     daemon=$daemon; protected=$protected; state='PRECREATION_COMMITTED'; sequence=0
+    gateAResult='NOT_STARTED'; gateBResult='NOT_STARTED'
     testResult='NOT_STARTED'; cleanupResult='NOT_ATTEMPTED'
     resources=@(); gates=@(); evidenceSaved=$false
   }
@@ -314,7 +407,35 @@ function Register-FfhOwnedResources {
 function Write-FfhRedactedEvidence {
   param($Identity,[string]$Phase,[string]$Result,[string]$Category)
   $j=Read-FfhJournal -Identity $Identity
-  $receipt=[pscustomobject]@{schema=1; sha=$Identity.sha; runToken=$Identity.token
+  if ($Phase -cnotin @('GATE_A','GATE_B') -or $Result -cnotin @('PASS','FAIL','UNKNOWN') -or
+      $Category -cnotmatch '^[A-Z0-9_]{1,60} sha=$Identity.sha; runToken=$Identity.token
+    phase=$Phase; testResult=$Result; failureCategory=$Category
+    atUtc=[DateTime]::UtcNow.ToString('o'); project=$Identity.project}
+  $dest=Join-Path $Identity.evidence ($Identity.token+'.'+$Phase+'.result.json')
+  $temp=$dest+'.tmp-'+(New-FfhRunToken)
+  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($receipt|ConvertTo-Json -Depth 5))
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $dest -Optional
+  if (Test-Path -LiteralPath $dest) { throw 'BLOCKED: gate evidence already exists' }
+  $fs=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try { $fs.Write($bytes,0,$bytes.Length);$fs.Flush($true) } finally { $fs.Dispose() }
+  Assert-FfhPrivateEvidenceAcl -Path $temp
+  [IO.File]::Move($temp,$dest)
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
+  if ($Phase -ceq 'GATE_A') {
+    $j.gateAResult=$Result
+  } else {
+    $j.gateBResult=$Result
+  }
+  $j.evidenceSaved=$true
+  $j.testResult=$Result
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+}
+# Exact verified retirement is exclusively implemented by cleanup-executor.ps1.
+) {
+    throw 'BLOCKED: redacted evidence category invalid'
+  }
+  $receipt=[pscustomobject]@{schema=2; sha=$Identity.sha; runToken=$Identity.token
     phase=$Phase; testResult=$Result; failureCategory=$Category
     atUtc=[DateTime]::UtcNow.ToString('o'); project=$Identity.project}
   $dest=Join-Path $Identity.evidence ($Identity.token+'.'+$Phase+'.result.json')
