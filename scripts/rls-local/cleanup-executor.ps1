@@ -287,6 +287,11 @@ function Invoke-FfhVerifiedCleanup {
     $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
     return $j.cleanupResult
   } catch {
+    if ($Fake) {
+      # Synthetic adapters only: expose sanitized mock failure category to
+      # the offline test harness, never raw owner-host native exceptions.
+      $script:FfhMockLastCleanupFailure=[string]$_.Exception.Message
+    }
     [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
     return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
   }
