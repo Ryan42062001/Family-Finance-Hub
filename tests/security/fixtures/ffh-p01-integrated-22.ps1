@@ -243,7 +243,7 @@ function Prepare-FailingRun([switch]$Resources) {
 # extracted from the owner entrypoint after its immutable authorization gates.
 # Only synthetic identity/journal data are supplied; no actual owner script runs.
 function Invoke-MockOwnerGateAPassTail {
-  $text=[IO.File]::ReadAllText((Join-Path $repo 'scripts/rls-local/prepare-fresh-owner.ps1')).Replace([char]13,'')
+  $text=[IO.File]::ReadAllText((Join-Path $repo 'scripts/rls-local/prepare-fresh-owner.ps1')).Replace([string][char]13,'')
   $mark=$text.IndexOf('GATE_A_PRESERVED')
   if ($mark -lt 0) {throw 'MOCK_MISSING_GATE_A_PRESERVE'}
   $start=$text.LastIndexOf('[void](Set-FfhRunState',$mark)
