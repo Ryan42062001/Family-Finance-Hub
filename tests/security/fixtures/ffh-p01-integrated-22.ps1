@@ -291,6 +291,11 @@ foreach($case in $cases) {
         $j=Read-FfhJournal -Identity $script:identity
         $j.sha='0'*40
         Must-Block {Write-FfhJournal -Identity $script:identity -Journal $j}
+        # Simulate a torn/truncated journal after power loss: never infer a
+        # resource owner or authorize a retry from partially decoded JSON.
+        $path=Get-FfhJournalPath -Identity $script:identity
+        [IO.File]::WriteAllText($path,'{"version":2,"sha":')
+        Must-Block {Read-FfhJournal -Identity $script:identity}
       }
       'AC-06' {
         $script:mock.n=$true
@@ -344,6 +349,11 @@ foreach($case in $cases) {
       'AC-15' {
         New-MockJournal
         [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
+        # A stale receipt collision prevents publishing fresh evidence.
+        $dest=Join-Path $script:evidence ($script:identity.token+'.GATE_A.result.json')
+        [IO.File]::WriteAllText($dest,'{"interrupted":true}')
+        Initialize-FfhPrivateEvidenceAcl -Path $dest
+        Must-Block {Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'FAIL' -Category 'MOCK_FAILURE'}
         Must-BlockCleanup
       }
       'AC-16' {
@@ -355,6 +365,12 @@ foreach($case in $cases) {
         Prepare-FailingRun
         $script:mock.root='PRESENT'
         Must-BlockCleanup
+        # Explicitly make the test fixture's evidence DACL inheritable and
+        # confirm the real owner/ACL guard rejects it without mutation.
+        $acl=[IO.Directory]::GetAccessControl($script:evidence)
+        $acl.SetAccessRuleProtection($false,$true)
+        [IO.Directory]::SetAccessControl($script:evidence,$acl)
+        Must-Block {Read-FfhJournal -Identity $script:identity}
       }
       'AC-18' {
         Prepare-FailingRun -Resources
