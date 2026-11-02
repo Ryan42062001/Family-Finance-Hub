@@ -6,7 +6,7 @@
 param()
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
-$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../'))
+$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../'))
 . (Join-Path $repo 'scripts/rls-local/source-provenance.ps1')
 . (Join-Path $repo 'scripts/rls-local/automatic-cleanup.ps1')
 . (Join-Path $repo 'scripts/rls-local/cleanup-executor.ps1')
