@@ -370,6 +370,8 @@ foreach($case in $cases) {
         $path=Get-FfhJournalPath -Identity $script:identity
         [IO.File]::WriteAllText($path,'{"version":2,"sha":')
         Must-Block {Read-FfhJournal -Identity $script:identity}
+        $status=Get-FfhDurableRunStatus -Identity $script:identity
+        Assert-Mock ($status -match 'GATE_A_RESULT=UNKNOWN GATE_B_RESULT=UNKNOWN CLEANUP_RESULT=UNKNOWN_JOURNAL_UNVERIFIED') 'TORN_JOURNAL_NO_STALE_STATUS'
       }
       'AC-06' {
         $script:mock.n=$true
@@ -429,6 +431,20 @@ foreach($case in $cases) {
         Initialize-FfhPrivateEvidenceAcl -Path $dest -NewlyCreated
         Must-Block {Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'FAIL' -Category 'MOCK_FAILURE'}
         Must-BlockCleanup
+        $status=Get-FfhDurableRunStatus -Identity $script:identity
+        Assert-Mock ($status -match 'GATE_A_RESULT=FAIL GATE_B_RESULT=NOT_STARTED CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_A_FAILED_EVIDENCE_STATUS_DURABLE'
+        # Interrupted Gate A PASS evidence must never be reported preserved.
+        Stop-MockCase
+        Start-MockCase
+        New-MockJournal
+        [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
+        $dest=Join-Path $script:evidence ($script:identity.token+'.GATE_A.result.json')
+        [IO.File]::WriteAllText($dest,'{"interrupted":true}')
+        Initialize-FfhPrivateEvidenceAcl -Path $dest -NewlyCreated
+        Must-Block {Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'}
+        [void](Set-FfhRunState -Identity $script:identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        $status=Get-FfhDurableRunStatus -Identity $script:identity
+        Assert-Mock ($status -match 'GATE_A_RESULT=PASS GATE_B_RESULT=NOT_STARTED CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_A_EVIDENCE_INTERRUPTED_NOT_PRESERVED'
       }
       'AC-16' {
         New-MockJournal
@@ -493,6 +509,23 @@ foreach($case in $cases) {
         $status=Invoke-MockOwnerGateBTail
         Assert-Mock ($status -ceq 'EXIT_NONZERO') 'GATE_B_PASS_ROOT_BLOCKED_EXIT'
         Verify-Results 'PASS' 'PASS' 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+        $status=Get-FfhDurableRunStatus -Identity $script:identity
+        Assert-Mock ($status -match 'GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_B_PASS_BLOCKED_NO_STALE_STATUS'
+        # Real durable Gate B PASS then interrupted evidence write: remain PASS,
+        # but cleanup and exit must remain blocked/manual review.
+        Stop-MockCase
+        Start-MockCase
+        Prepare-PreservedRun
+        Prepare-GateB
+        $dest=Join-Path $script:evidence ($script:identity.token+'.GATE_B.result.json')
+        [IO.File]::WriteAllText($dest,'{"interrupted":true}')
+        Initialize-FfhPrivateEvidenceAcl -Path $dest -NewlyCreated
+        Must-Block {Complete-FfhGateB -Identity $script:identity -GateBResult 'PASS'}
+        $j=Read-FfhJournal -Identity $script:identity
+        Assert-Mock ($j.gateBResult -ceq 'PASS') 'GATE_B_PASS_IMMUTABLE_AFTER_EVIDENCE_FAIL'
+        [void](Set-FfhRunState -Identity $script:identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        $status=Get-FfhDurableRunStatus -Identity $script:identity
+        Assert-Mock ($status -match 'GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_B_PASS_EVIDENCE_INTERRUPTED_DURABLE'
       }
       default {throw 'MOCK_UNHANDLED_CASE'}
     }
