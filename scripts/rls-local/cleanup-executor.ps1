@@ -127,6 +127,726 @@ function Assert-FfhExactInventory {
   }
   return @($owned)
 }
+# Immutable production SQL admission: all comparisons are source/journal-bound.
+# Called by BOTH owner entrypoints and again inside the real native SQL runner.
+# Fake is used solely by offline WinPS tests; owner scripts never supply it.
+function Assert-FfhJournaledSqlAdmission {
+  param(
+    [Parameter(Mandatory=$true)]$Identity,
+    [Parameter(Mandatory=$true)][ValidateSet('GATE_A','GATE_B')][string]$Phase,
+    [scriptblock]$Fake
+  )
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.version -ne 2 -or $j.sha -cne $Identity.sha -or
+      $j.token -cne $Identity.token -or $j.project -cne $Identity.project -or
+      $j.root -cne $Identity.root -or $j.container -cne $Identity.container -or
+      $j.daemon -eq $null -or $j.cliVersion -cne '2.122.0' -or
+      $Identity.project -cne ('ffhp1_'+$Identity.sha.Substring(0,8)+'_'+$Identity.token) -or
+      $Identity.container -cne ('supabase_db_'+$Identity.project) -or
+      $Identity.sha -cnotmatch '^[a-f0-9]{40}
+  param([string[]]$Arguments,[scriptblock]$Fake)
+  if ($Fake) {
+    $result=@(& $Fake $Arguments)
+    if ($result.Count -ne 1 -or $result[0] -cne 'EXIT_ZERO') {
+      throw 'BLOCKED: fake Docker exact action failed'
+    }
+    return
+  }
+  $binding=Assert-FfhLocalDockerDesktop
+  if ($binding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: exact-action daemon endpoint drift'
+  }
+  # String is constructed only from fixed commands and previously verified Docker IDs.
+  foreach ($word in $Arguments) {
+    if ($word -notmatch '^[A-Za-z0-9_.:=/-]+$') {
+      throw 'BLOCKED: unsafe native argument'
+    }
+  }
+  $start=[Diagnostics.ProcessStartInfo]::new()
+  $start.FileName=$binding.Executable
+  $start.Arguments='--host '+$binding.Endpoint+' '+($Arguments -join ' ')
+  $start.WorkingDirectory=[Environment]::GetFolderPath('UserProfile')
+  $start.UseShellExecute=$false;$start.CreateNoWindow=$true
+  foreach ($key in @($start.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $start.EnvironmentVariables.Remove($key)
+    }
+  }
+  $start.EnvironmentVariables['DOCKER_HOST']=$binding.Endpoint
+  $outcome=Invoke-FfhNativeJobChild -StartInfo $start
+  if ($outcome -cne 'EXIT_ZERO') {
+    throw 'BLOCKED: bounded Docker action nonzero or indeterminate'
+  }
+}
+function Test-FfhExactAbsent {
+  param([string]$Kind,[string]$Id,[scriptblock]$Fake)
+  switch ($Kind) {
+    'containers' { $ids=@(Invoke-FfhDockerRead -Arguments @('ps','-a','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    'volumes' { $ids=@(Invoke-FfhDockerRead -Arguments @('volume','ls','--format','{{.Name}}') -Fake $Fake) }
+    'networks' { $ids=@(Invoke-FfhDockerRead -Arguments @('network','ls','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    default { throw 'BLOCKED: unknown resource kind' }
+  }
+  if ($ids -ccontains $Id) { throw 'BLOCKED: resource not absent following action' }
+}
+# No path-based deletion. A handle-bound Win32 implementation is NOT yet
+# independently proved safe on owner hosts. Retain any present directory for
+# controlled manual retirement; never call Remove-Item on the disposable root.
+function Test-FfhVerifiedRootAbsent {
+  param($Identity,[scriptblock]$FakeFilesystem)
+  $profilePath=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      -not ([IO.Path]::GetDirectoryName($root)).Equals(
+        $profilePath,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $expected -or
+      $root -match '(?i)FFH-RLS-Test') {
+    throw 'BLOCKED: root identity or direct parent mismatch'
+  }
+  if (-not $FakeFilesystem) {
+    Assert-FfhNoReparsePath -Path $profilePath
+    if (Test-Path -LiteralPath $root) {
+      # No deletion is authorized while any filesystem object exists at root.
+      Assert-FfhNoReparsePath -Path $root
+      throw 'BLOCKED: root retained, handle-bound retirement unverified'
+    }
+    if (Test-Path -LiteralPath $root) {
+      throw 'BLOCKED: root appeared during final absence verification'
+    }
+  } else {
+    $receipt=@(& $FakeFilesystem $root)
+    if ($receipt.Count -ne 1 -or $receipt[0] -cne 'ABSENT') {
+      throw 'BLOCKED: fake root present, changed or unknown'
+    }
+  }
+  return $true
+}
+
+function Get-FfhSqlIdleAttestation {
+  param($Identity,[scriptblock]$Fake)
+  try {
+    $running=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake |
+      Where-Object { $_.kind -eq 'containers' -and $_.running })
+    if (-not $running.Count) { return 'VERIFIED_DAEMON_SQL_IDLE' }
+    $db=@($running | Where-Object { $_.name -ceq ('/'+$Identity.container) -or
+      $_.name -ceq $Identity.container })
+    if ($db.Count -ne 1) { return 'UNKNOWN' }
+    # Only one bounded, local socket, read-only PostgreSQL activity query.
+    # No credentials, database URL, household data or mutable SQL.
+    $query="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
+    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$Identity.container,
+      'psql','-U','postgres','-d','postgres','-t','-A','-c',$query) -Fake $Fake)
+    if ($values.Count -eq 1 -and ([string]$values[0]).Trim() -ceq '0') {
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
+  } catch { }
+  return 'UNKNOWN'
+}
+function Invoke-FfhVerifiedCleanup {
+  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake,
+    [scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.state -ceq 'GATE_A_PRESERVED') { return 'PRESERVED_FOR_GATE_B' }
+  if ($FakeFilesystem -and -not $Fake) { throw 'BLOCKED: fake filesystem requires fake Docker' }
+  if ($j.state -cnotin @('GATE_A_FAILED','GATE_B_COMPLETE','GATE_B_FAILED') -or
+      -not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE' -or
+      $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') {
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+  try {
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING' -CleanupResult 'CLEANUP_PENDING'
+    # A missing recorded resource after crash is not silently adopted. The
+    # per-mutation action intent remains durable until verified completion.
+    foreach ($kind in @('containers','volumes','networks')) {
+      if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+        throw 'BLOCKED: SQL state changed before mutation'
+      }
+      $entries=@($j.resources | Where-Object kind -eq $kind)
+      foreach ($r in $entries) {
+        if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+          throw 'BLOCKED: SQL state unknown before exact resource mutation'
+        }
+        $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+        $match=@($observed | Where-Object { $_.kind -ceq $kind -and $_.id -ceq $r.id })
+        if ($match.Count -ne 1) {throw 'BLOCKED: expected resource unexpectedly missing'}
+        $entry=$match[0]
+        if ($kind -eq 'containers' -and $entry.running) {
+          [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+          Invoke-FfhExactDockerCommand -Arguments @('stop','--time=-1',$r.id) -Fake $Fake
+          $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING'
+          $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+          $entry=@($observed | Where-Object { $_.id -ceq $r.id })[0]
+          if ($entry.running) {throw 'BLOCKED: container still running'}
+        }
+        $verb=if ($kind -eq 'containers') {'rm'} else {'rm'}
+        $command=switch ($kind) {
+          'containers' { @('rm',$r.id) }
+          'volumes' { @('volume','rm',$r.name) }
+          'networks' { @('network','rm',$r.id) }
+        }
+        [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+        Invoke-FfhExactDockerCommand -Arguments $command -Fake $Fake
+        Test-FfhExactAbsent -Kind $kind -Id $(if($kind -eq 'volumes'){$r.name}else{$r.id}) -Fake $Fake
+        $j=Read-FfhJournal -Identity $Identity
+        $j.resources=@($j.resources | Where-Object { -not ($_.kind -ceq $r.kind -and $_.id -ceq $r.id) })
+        $j.state='CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+        Write-FfhJournal -Identity $Identity -Journal $j
+      }
+    }
+    $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+    if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    Confirm-FfhBaseline -Journal $j -Fake $Fake
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
+    return $j.cleanupResult
+  } catch {
+    if ($Fake) {
+      # Synthetic adapters only: expose sanitized mock failure category to
+      # the offline test harness, never raw owner-host native exceptions.
+      $script:FfhMockLastCleanupFailure=[string]$_.Exception.Message
+    }
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+}
+
+
+# Once Gate B SQL has completed (or failed after RUNNING), preserve its own
+# durable result independently of Gate A and cleanup. Injected adapters are
+# ONLY for offline WinPS mocks; owner scripts never supply either fake.
+function Complete-FfhGateB {
+  param($Identity,[ValidateSet('PASS','FAIL')][string]$GateBResult,
+    [scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or
+      $j.gateBResult -cne 'RUNNING' -or
+      $j.state -cne 'GATE_B_RUNNING') {
+    throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
+  }
+  $phaseState=if ($GateBResult -ceq 'PASS') {'GATE_B_COMPLETE'} else {'GATE_B_FAILED'}
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState -GateBResult $GateBResult -TestResult $GateBResult)
+  Write-FfhRedactedEvidence -Identity $Identity -Phase 'GATE_B' -Result $GateBResult -Category $(if($GateBResult -ceq 'PASS'){'NONE'}else{'GATE_B_FAILURE'})
+  [void](Register-FfhOwnedResources -Identity $Identity -Fake $Fake)
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState)
+  $idle=Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake
+  return Invoke-FfhVerifiedCleanup -Identity $Identity -SqlIdleAttestation $idle -Fake $Fake -FakeFilesystem $FakeFilesystem
+}
+
+# This exact function is used by the actual Gate B entrypoint and offline
+# process-exit contract tests. A valid Gate B PASS cannot mask cleanup BLOCKED.
+function Assert-FfhGateBSuccessfulExit {
+  param($Identity,[string]$CleanupResult)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or $j.gateBResult -cne 'PASS' -or
+      $CleanupResult -cne 'CLEANUP_VERIFIED' -or
+      $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+    throw 'BLOCKED: Gate B success/cleanup receipts not both verified'
+  }
+  return $true
+}
+ -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}
+  param([string[]]$Arguments,[scriptblock]$Fake)
+  if ($Fake) {
+    $result=@(& $Fake $Arguments)
+    if ($result.Count -ne 1 -or $result[0] -cne 'EXIT_ZERO') {
+      throw 'BLOCKED: fake Docker exact action failed'
+    }
+    return
+  }
+  $binding=Assert-FfhLocalDockerDesktop
+  if ($binding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: exact-action daemon endpoint drift'
+  }
+  # String is constructed only from fixed commands and previously verified Docker IDs.
+  foreach ($word in $Arguments) {
+    if ($word -notmatch '^[A-Za-z0-9_.:=/-]+$') {
+      throw 'BLOCKED: unsafe native argument'
+    }
+  }
+  $start=[Diagnostics.ProcessStartInfo]::new()
+  $start.FileName=$binding.Executable
+  $start.Arguments='--host '+$binding.Endpoint+' '+($Arguments -join ' ')
+  $start.WorkingDirectory=[Environment]::GetFolderPath('UserProfile')
+  $start.UseShellExecute=$false;$start.CreateNoWindow=$true
+  foreach ($key in @($start.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $start.EnvironmentVariables.Remove($key)
+    }
+  }
+  $start.EnvironmentVariables['DOCKER_HOST']=$binding.Endpoint
+  $outcome=Invoke-FfhNativeJobChild -StartInfo $start
+  if ($outcome -cne 'EXIT_ZERO') {
+    throw 'BLOCKED: bounded Docker action nonzero or indeterminate'
+  }
+}
+function Test-FfhExactAbsent {
+  param([string]$Kind,[string]$Id,[scriptblock]$Fake)
+  switch ($Kind) {
+    'containers' { $ids=@(Invoke-FfhDockerRead -Arguments @('ps','-a','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    'volumes' { $ids=@(Invoke-FfhDockerRead -Arguments @('volume','ls','--format','{{.Name}}') -Fake $Fake) }
+    'networks' { $ids=@(Invoke-FfhDockerRead -Arguments @('network','ls','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    default { throw 'BLOCKED: unknown resource kind' }
+  }
+  if ($ids -ccontains $Id) { throw 'BLOCKED: resource not absent following action' }
+}
+# No path-based deletion. A handle-bound Win32 implementation is NOT yet
+# independently proved safe on owner hosts. Retain any present directory for
+# controlled manual retirement; never call Remove-Item on the disposable root.
+function Test-FfhVerifiedRootAbsent {
+  param($Identity,[scriptblock]$FakeFilesystem)
+  $profilePath=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      -not ([IO.Path]::GetDirectoryName($root)).Equals(
+        $profilePath,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $expected -or
+      $root -match '(?i)FFH-RLS-Test') {
+    throw 'BLOCKED: root identity or direct parent mismatch'
+  }
+  if (-not $FakeFilesystem) {
+    Assert-FfhNoReparsePath -Path $profilePath
+    if (Test-Path -LiteralPath $root) {
+      # No deletion is authorized while any filesystem object exists at root.
+      Assert-FfhNoReparsePath -Path $root
+      throw 'BLOCKED: root retained, handle-bound retirement unverified'
+    }
+    if (Test-Path -LiteralPath $root) {
+      throw 'BLOCKED: root appeared during final absence verification'
+    }
+  } else {
+    $receipt=@(& $FakeFilesystem $root)
+    if ($receipt.Count -ne 1 -or $receipt[0] -cne 'ABSENT') {
+      throw 'BLOCKED: fake root present, changed or unknown'
+    }
+  }
+  return $true
+}
+
+function Get-FfhSqlIdleAttestation {
+  param($Identity,[scriptblock]$Fake)
+  try {
+    $running=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake |
+      Where-Object { $_.kind -eq 'containers' -and $_.running })
+    if (-not $running.Count) { return 'VERIFIED_DAEMON_SQL_IDLE' }
+    $db=@($running | Where-Object { $_.name -ceq ('/'+$Identity.container) -or
+      $_.name -ceq $Identity.container })
+    if ($db.Count -ne 1) { return 'UNKNOWN' }
+    # Only one bounded, local socket, read-only PostgreSQL activity query.
+    # No credentials, database URL, household data or mutable SQL.
+    $query="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
+    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$Identity.container,
+      'psql','-U','postgres','-d','postgres','-t','-A','-c',$query) -Fake $Fake)
+    if ($values.Count -eq 1 -and ([string]$values[0]).Trim() -ceq '0') {
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
+  } catch { }
+  return 'UNKNOWN'
+}
+function Invoke-FfhVerifiedCleanup {
+  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake,
+    [scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.state -ceq 'GATE_A_PRESERVED') { return 'PRESERVED_FOR_GATE_B' }
+  if ($FakeFilesystem -and -not $Fake) { throw 'BLOCKED: fake filesystem requires fake Docker' }
+  if ($j.state -cnotin @('GATE_A_FAILED','GATE_B_COMPLETE','GATE_B_FAILED') -or
+      -not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE' -or
+      $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') {
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+  try {
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING' -CleanupResult 'CLEANUP_PENDING'
+    # A missing recorded resource after crash is not silently adopted. The
+    # per-mutation action intent remains durable until verified completion.
+    foreach ($kind in @('containers','volumes','networks')) {
+      if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+        throw 'BLOCKED: SQL state changed before mutation'
+      }
+      $entries=@($j.resources | Where-Object kind -eq $kind)
+      foreach ($r in $entries) {
+        if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+          throw 'BLOCKED: SQL state unknown before exact resource mutation'
+        }
+        $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+        $match=@($observed | Where-Object { $_.kind -ceq $kind -and $_.id -ceq $r.id })
+        if ($match.Count -ne 1) {throw 'BLOCKED: expected resource unexpectedly missing'}
+        $entry=$match[0]
+        if ($kind -eq 'containers' -and $entry.running) {
+          [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+          Invoke-FfhExactDockerCommand -Arguments @('stop','--time=-1',$r.id) -Fake $Fake
+          $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING'
+          $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+          $entry=@($observed | Where-Object { $_.id -ceq $r.id })[0]
+          if ($entry.running) {throw 'BLOCKED: container still running'}
+        }
+        $verb=if ($kind -eq 'containers') {'rm'} else {'rm'}
+        $command=switch ($kind) {
+          'containers' { @('rm',$r.id) }
+          'volumes' { @('volume','rm',$r.name) }
+          'networks' { @('network','rm',$r.id) }
+        }
+        [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+        Invoke-FfhExactDockerCommand -Arguments $command -Fake $Fake
+        Test-FfhExactAbsent -Kind $kind -Id $(if($kind -eq 'volumes'){$r.name}else{$r.id}) -Fake $Fake
+        $j=Read-FfhJournal -Identity $Identity
+        $j.resources=@($j.resources | Where-Object { -not ($_.kind -ceq $r.kind -and $_.id -ceq $r.id) })
+        $j.state='CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+        Write-FfhJournal -Identity $Identity -Journal $j
+      }
+    }
+    $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+    if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    Confirm-FfhBaseline -Journal $j -Fake $Fake
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
+    return $j.cleanupResult
+  } catch {
+    if ($Fake) {
+      # Synthetic adapters only: expose sanitized mock failure category to
+      # the offline test harness, never raw owner-host native exceptions.
+      $script:FfhMockLastCleanupFailure=[string]$_.Exception.Message
+    }
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+}
+
+
+# Once Gate B SQL has completed (or failed after RUNNING), preserve its own
+# durable result independently of Gate A and cleanup. Injected adapters are
+# ONLY for offline WinPS mocks; owner scripts never supply either fake.
+function Complete-FfhGateB {
+  param($Identity,[ValidateSet('PASS','FAIL')][string]$GateBResult,
+    [scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or
+      $j.gateBResult -cne 'RUNNING' -or
+      $j.state -cne 'GATE_B_RUNNING') {
+    throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
+  }
+  $phaseState=if ($GateBResult -ceq 'PASS') {'GATE_B_COMPLETE'} else {'GATE_B_FAILED'}
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState -GateBResult $GateBResult -TestResult $GateBResult)
+  Write-FfhRedactedEvidence -Identity $Identity -Phase 'GATE_B' -Result $GateBResult -Category $(if($GateBResult -ceq 'PASS'){'NONE'}else{'GATE_B_FAILURE'})
+  [void](Register-FfhOwnedResources -Identity $Identity -Fake $Fake)
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState)
+  $idle=Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake
+  return Invoke-FfhVerifiedCleanup -Identity $Identity -SqlIdleAttestation $idle -Fake $Fake -FakeFilesystem $FakeFilesystem
+}
+
+# This exact function is used by the actual Gate B entrypoint and offline
+# process-exit contract tests. A valid Gate B PASS cannot mask cleanup BLOCKED.
+function Assert-FfhGateBSuccessfulExit {
+  param($Identity,[string]$CleanupResult)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or $j.gateBResult -cne 'PASS' -or
+      $CleanupResult -cne 'CLEANUP_VERIFIED' -or
+      $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+    throw 'BLOCKED: Gate B success/cleanup receipts not both verified'
+  }
+  return $true
+}
+ -or
+      @($j.ports).Count -ne 2 -or [int]$j.ports[0] -lt 20000 -or
+      [int]$j.ports[0] -gt 59998 -or [int]$j.ports[1] -ne ([int]$j.ports[0]+1)) {
+    throw 'BLOCKED_SQL_ADMISSION_JOURNAL_IDENTITY_INVALID'
+  }
+  if ($Phase -ceq 'GATE_A') {
+    if ($j.gateAResult -cne 'RUNNING' -or
+        $j.state -cnotin @('INVENTORY_VERIFIED','GATE_A_RUNNING') -or
+        $j.gateBResult -cne 'NOT_STARTED') {
+      throw 'BLOCKED_SQL_ADMISSION_GATE_A_STATE_INVALID'
+    }
+  } else {
+    if ($j.gateAResult -cne 'PASS' -or $j.gateBResult -cne 'RUNNING' -or
+        $j.state -cne 'GATE_B_RUNNING' -or
+        $j.cleanupResult -cne 'PRESERVED_FOR_GATE_B') {
+      throw 'BLOCKED_SQL_ADMISSION_GATE_B_STATE_INVALID'
+    }
+  }
+  $expected=@($j.resources | Where-Object {
+    $_.kind -ceq 'containers' -and
+    $_.name -ceq ('/'+$Identity.container) -and
+    $_.id -cmatch '^[a-f0-9]{64}
+  param([string[]]$Arguments,[scriptblock]$Fake)
+  if ($Fake) {
+    $result=@(& $Fake $Arguments)
+    if ($result.Count -ne 1 -or $result[0] -cne 'EXIT_ZERO') {
+      throw 'BLOCKED: fake Docker exact action failed'
+    }
+    return
+  }
+  $binding=Assert-FfhLocalDockerDesktop
+  if ($binding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
+    throw 'BLOCKED: exact-action daemon endpoint drift'
+  }
+  # String is constructed only from fixed commands and previously verified Docker IDs.
+  foreach ($word in $Arguments) {
+    if ($word -notmatch '^[A-Za-z0-9_.:=/-]+$') {
+      throw 'BLOCKED: unsafe native argument'
+    }
+  }
+  $start=[Diagnostics.ProcessStartInfo]::new()
+  $start.FileName=$binding.Executable
+  $start.Arguments='--host '+$binding.Endpoint+' '+($Arguments -join ' ')
+  $start.WorkingDirectory=[Environment]::GetFolderPath('UserProfile')
+  $start.UseShellExecute=$false;$start.CreateNoWindow=$true
+  foreach ($key in @($start.EnvironmentVariables.Keys)) {
+    if ([string]$key -match '^(?i:DOCKER_)') {
+      $start.EnvironmentVariables.Remove($key)
+    }
+  }
+  $start.EnvironmentVariables['DOCKER_HOST']=$binding.Endpoint
+  $outcome=Invoke-FfhNativeJobChild -StartInfo $start
+  if ($outcome -cne 'EXIT_ZERO') {
+    throw 'BLOCKED: bounded Docker action nonzero or indeterminate'
+  }
+}
+function Test-FfhExactAbsent {
+  param([string]$Kind,[string]$Id,[scriptblock]$Fake)
+  switch ($Kind) {
+    'containers' { $ids=@(Invoke-FfhDockerRead -Arguments @('ps','-a','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    'volumes' { $ids=@(Invoke-FfhDockerRead -Arguments @('volume','ls','--format','{{.Name}}') -Fake $Fake) }
+    'networks' { $ids=@(Invoke-FfhDockerRead -Arguments @('network','ls','--no-trunc','--format','{{.ID}}') -Fake $Fake) }
+    default { throw 'BLOCKED: unknown resource kind' }
+  }
+  if ($ids -ccontains $Id) { throw 'BLOCKED: resource not absent following action' }
+}
+# No path-based deletion. A handle-bound Win32 implementation is NOT yet
+# independently proved safe on owner hosts. Retain any present directory for
+# controlled manual retirement; never call Remove-Item on the disposable root.
+function Test-FfhVerifiedRootAbsent {
+  param($Identity,[scriptblock]$FakeFilesystem)
+  $profilePath=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      -not ([IO.Path]::GetDirectoryName($root)).Equals(
+        $profilePath,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $expected -or
+      $root -match '(?i)FFH-RLS-Test') {
+    throw 'BLOCKED: root identity or direct parent mismatch'
+  }
+  if (-not $FakeFilesystem) {
+    Assert-FfhNoReparsePath -Path $profilePath
+    if (Test-Path -LiteralPath $root) {
+      # No deletion is authorized while any filesystem object exists at root.
+      Assert-FfhNoReparsePath -Path $root
+      throw 'BLOCKED: root retained, handle-bound retirement unverified'
+    }
+    if (Test-Path -LiteralPath $root) {
+      throw 'BLOCKED: root appeared during final absence verification'
+    }
+  } else {
+    $receipt=@(& $FakeFilesystem $root)
+    if ($receipt.Count -ne 1 -or $receipt[0] -cne 'ABSENT') {
+      throw 'BLOCKED: fake root present, changed or unknown'
+    }
+  }
+  return $true
+}
+
+function Get-FfhSqlIdleAttestation {
+  param($Identity,[scriptblock]$Fake)
+  try {
+    $running=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake |
+      Where-Object { $_.kind -eq 'containers' -and $_.running })
+    if (-not $running.Count) { return 'VERIFIED_DAEMON_SQL_IDLE' }
+    $db=@($running | Where-Object { $_.name -ceq ('/'+$Identity.container) -or
+      $_.name -ceq $Identity.container })
+    if ($db.Count -ne 1) { return 'UNKNOWN' }
+    # Only one bounded, local socket, read-only PostgreSQL activity query.
+    # No credentials, database URL, household data or mutable SQL.
+    $query="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
+    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$Identity.container,
+      'psql','-U','postgres','-d','postgres','-t','-A','-c',$query) -Fake $Fake)
+    if ($values.Count -eq 1 -and ([string]$values[0]).Trim() -ceq '0') {
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
+  } catch { }
+  return 'UNKNOWN'
+}
+function Invoke-FfhVerifiedCleanup {
+  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake,
+    [scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.state -ceq 'GATE_A_PRESERVED') { return 'PRESERVED_FOR_GATE_B' }
+  if ($FakeFilesystem -and -not $Fake) { throw 'BLOCKED: fake filesystem requires fake Docker' }
+  if ($j.state -cnotin @('GATE_A_FAILED','GATE_B_COMPLETE','GATE_B_FAILED') -or
+      -not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE' -or
+      $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') {
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+  try {
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING' -CleanupResult 'CLEANUP_PENDING'
+    # A missing recorded resource after crash is not silently adopted. The
+    # per-mutation action intent remains durable until verified completion.
+    foreach ($kind in @('containers','volumes','networks')) {
+      if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+        throw 'BLOCKED: SQL state changed before mutation'
+      }
+      $entries=@($j.resources | Where-Object kind -eq $kind)
+      foreach ($r in $entries) {
+        if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+          throw 'BLOCKED: SQL state unknown before exact resource mutation'
+        }
+        $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+        $match=@($observed | Where-Object { $_.kind -ceq $kind -and $_.id -ceq $r.id })
+        if ($match.Count -ne 1) {throw 'BLOCKED: expected resource unexpectedly missing'}
+        $entry=$match[0]
+        if ($kind -eq 'containers' -and $entry.running) {
+          [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+          Invoke-FfhExactDockerCommand -Arguments @('stop','--time=-1',$r.id) -Fake $Fake
+          $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING'
+          $observed=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+          $entry=@($observed | Where-Object { $_.id -ceq $r.id })[0]
+          if ($entry.running) {throw 'BLOCKED: container still running'}
+        }
+        $verb=if ($kind -eq 'containers') {'rm'} else {'rm'}
+        $command=switch ($kind) {
+          'containers' { @('rm',$r.id) }
+          'volumes' { @('volume','rm',$r.name) }
+          'networks' { @('network','rm',$r.id) }
+        }
+        [void](Set-FfhRunState -Identity $Identity -State 'MUTATION_IN_FLIGHT')
+        Invoke-FfhExactDockerCommand -Arguments $command -Fake $Fake
+        Test-FfhExactAbsent -Kind $kind -Id $(if($kind -eq 'volumes'){$r.name}else{$r.id}) -Fake $Fake
+        $j=Read-FfhJournal -Identity $Identity
+        $j.resources=@($j.resources | Where-Object { -not ($_.kind -ceq $r.kind -and $_.id -ceq $r.id) })
+        $j.state='CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+        Write-FfhJournal -Identity $Identity -Journal $j
+      }
+    }
+    $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+    if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    Confirm-FfhBaseline -Journal $j -Fake $Fake
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
+    return $j.cleanupResult
+  } catch {
+    if ($Fake) {
+      # Synthetic adapters only: expose sanitized mock failure category to
+      # the offline test harness, never raw owner-host native exceptions.
+      $script:FfhMockLastCleanupFailure=[string]$_.Exception.Message
+    }
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+    return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+  }
+}
+
+
+# Once Gate B SQL has completed (or failed after RUNNING), preserve its own
+# durable result independently of Gate A and cleanup. Injected adapters are
+# ONLY for offline WinPS mocks; owner scripts never supply either fake.
+function Complete-FfhGateB {
+  param($Identity,[ValidateSet('PASS','FAIL')][string]$GateBResult,
+    [scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or
+      $j.gateBResult -cne 'RUNNING' -or
+      $j.state -cne 'GATE_B_RUNNING') {
+    throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
+  }
+  $phaseState=if ($GateBResult -ceq 'PASS') {'GATE_B_COMPLETE'} else {'GATE_B_FAILED'}
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState -GateBResult $GateBResult -TestResult $GateBResult)
+  Write-FfhRedactedEvidence -Identity $Identity -Phase 'GATE_B' -Result $GateBResult -Category $(if($GateBResult -ceq 'PASS'){'NONE'}else{'GATE_B_FAILURE'})
+  [void](Register-FfhOwnedResources -Identity $Identity -Fake $Fake)
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState)
+  $idle=Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake
+  return Invoke-FfhVerifiedCleanup -Identity $Identity -SqlIdleAttestation $idle -Fake $Fake -FakeFilesystem $FakeFilesystem
+}
+
+# This exact function is used by the actual Gate B entrypoint and offline
+# process-exit contract tests. A valid Gate B PASS cannot mask cleanup BLOCKED.
+function Assert-FfhGateBSuccessfulExit {
+  param($Identity,[string]$CleanupResult)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or $j.gateBResult -cne 'PASS' -or
+      $CleanupResult -cne 'CLEANUP_VERIFIED' -or
+      $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+    throw 'BLOCKED: Gate B success/cleanup receipts not both verified'
+  }
+  return $true
+}
+
+  })
+  if ($expected.Count -ne 1 -or
+      @($j.resources | Where-Object { $_.kind -ceq 'containers' }).Count -ne 1) {
+    throw 'BLOCKED_SQL_ADMISSION_JOURNALED_CONTAINER_ID_ABSENT'
+  }
+  # The existing full bijection proves both authoritative labels by kind,
+  # mounts, volume usage, network attachments/peers and the protected baseline.
+  $verified=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+  $db=@($verified | Where-Object {
+    $_.kind -ceq 'containers' -and $_.id -ceq $expected[0].id -and
+    $_.name -ceq $expected[0].name -and $_.running
+  })
+  if ($db.Count -ne 1) {
+    throw 'BLOCKED_SQL_ADMISSION_CONTAINER_CHANGED_OR_NOT_RUNNING'
+  }
+  $cid=[string]$db[0].id
+  # Re-read current exact immutable container ID, never mutable name.
+  $id=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{.Id}}') -Fake $Fake)
+  $name=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{.Name}}') -Fake $Fake)
+  $stateRaw=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{json .State}}') -Fake $Fake)
+  $portsRaw=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{json .NetworkSettings.Ports}}') -Fake $Fake)
+  if ($id.Count -ne 1 -or $id[0] -cne $cid -or
+      $name.Count -ne 1 -or $name[0] -cne ('/'+$Identity.container) -or
+      $stateRaw.Count -ne 1 -or $portsRaw.Count -ne 1) {
+    throw 'BLOCKED_SQL_ADMISSION_CONTAINER_INSPECTION_INCONSISTENT'
+  }
+  try {
+    $state=[string]$stateRaw[0] | ConvertFrom-Json
+    $published=[string]$portsRaw[0] | ConvertFrom-Json
+    $binds=@($published.'5432/tcp')
+  } catch {throw 'BLOCKED_SQL_ADMISSION_PORT_OR_HEALTH_JSON_INVALID'}
+  if (-not $state.Running -or $state.Health.Status -cne 'healthy' -or
+      $binds.Count -lt 1 -or $binds.Count -gt 2) {
+    throw 'BLOCKED_SQL_ADMISSION_DB_HEALTH_OR_PORT_INVALID'
+  }
+  foreach ($binding in $binds) {
+    if ([string]$binding.HostPort -cne [string]$j.ports[0] -or
+        [string]$binding.HostIp -cnotin @('127.0.0.1','::1')) {
+      throw 'BLOCKED_SQL_ADMISSION_HOST_PORT_NOT_ISOLATED'
+    }
+  }
+  # Repeat immutable daemon/baseline after inspection, before SQL is released.
+  if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
+    throw 'BLOCKED_SQL_ADMISSION_DAEMON_CHANGED'
+  }
+  Confirm-FfhBaseline -Journal $j -Fake $Fake
+  return $cid
+}
+
+# Every status message is derived from a NEW durable journal read.
+# UNKNOWN means the final persisted state could not be proven; never guess.
+function Get-FfhDurableRunStatus {
+  param([Parameter(Mandatory=$true)]$Identity)
+  try {
+    $j=Read-FfhJournal -Identity $Identity
+    if ($j.version -ne 2 -or
+        $j.gateAResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
+        $j.gateBResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
+        [string]::IsNullOrWhiteSpace([string]$j.cleanupResult)) {
+      throw 'unverified durable result'
+    }
+    return ('GATE_A_RESULT='+$j.gateAResult+' GATE_B_RESULT='+$j.gateBResult+
+      ' CLEANUP_RESULT='+$j.cleanupResult+' RUN_TOKEN='+$Identity.token)
+  } catch {
+    return ('GATE_A_RESULT=UNKNOWN GATE_B_RESULT=UNKNOWN '+
+      'CLEANUP_RESULT=UNKNOWN_JOURNAL_UNVERIFIED RUN_TOKEN='+$Identity.token)
+  }
+}
+
 function Invoke-FfhExactDockerCommand {
   param([string[]]$Arguments,[scriptblock]$Fake)
   if ($Fake) {
