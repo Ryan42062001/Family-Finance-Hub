@@ -60,7 +60,7 @@ function Assert-FfhPrivateEvidenceAcl {
   }
 }
 function Initialize-FfhPrivateEvidenceAcl {
-  param([string]$Path)
+  param([string]$Path,[switch]$NewlyCreated)
   $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
   $item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
   $acl=if ($item.PSIsContainer) {
@@ -69,7 +69,11 @@ function Initialize-FfhPrivateEvidenceAcl {
     [IO.File]::GetAccessControl($Path)
   }
   if (-not $acl.GetOwner([Security.Principal.SecurityIdentifier]).Equals($who)) {
-    throw 'BLOCKED: evidence path owner is not current user'
+    if (-not $NewlyCreated) {throw 'BLOCKED: preexisting evidence owner differs'}
+    # A Windows admin session may initially assign Administrators as owner to
+    # a freshly created file. Bind only explicitly just-created evidence to
+    # the actual user SID; never take ownership of a preexisting path.
+    $acl.SetOwner($who)
   }
   $acl.SetAccessRuleProtection($true,$false)
   foreach($rule in @($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))) {
@@ -121,7 +125,7 @@ function Assert-FfhEvidencePath {
   } else {
     [void](New-Item -ItemType Directory -Path $Identity.evidence -ErrorAction Stop)
     Assert-FfhNoReparsePath -Path $Identity.evidence
-    Initialize-FfhPrivateEvidenceAcl -Path $Identity.evidence
+    Initialize-FfhPrivateEvidenceAcl -Path $Identity.evidence -NewlyCreated
   }
   Assert-FfhPrivateEvidenceAcl -Path $Identity.evidence
 }
@@ -154,7 +158,7 @@ function Write-FfhJournal {
     $f.Write($payload,0,$payload.Length)
     $f.Flush($true)
     $f.Dispose();$f=$null
-    Initialize-FfhPrivateEvidenceAcl -Path $tmp
+    Initialize-FfhPrivateEvidenceAcl -Path $tmp -NewlyCreated
     if (Test-Path -LiteralPath $dest -PathType Leaf) {
       [IO.File]::Replace($tmp,$dest,$null)
     } else {
@@ -457,7 +461,7 @@ function Write-FfhRedactedEvidence {
   if (Test-Path -LiteralPath $dest) { throw 'BLOCKED: gate evidence already exists' }
   $fs=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
   try { $fs.Write($bytes,0,$bytes.Length); $fs.Flush($true) } finally { $fs.Dispose() }
-  Initialize-FfhPrivateEvidenceAcl -Path $temp
+  Initialize-FfhPrivateEvidenceAcl -Path $temp -NewlyCreated
   [IO.File]::Move($temp,$dest)
   Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
   if ($Phase -ceq 'GATE_A') { $j.gateAResult=$Result } else { $j.gateBResult=$Result }
