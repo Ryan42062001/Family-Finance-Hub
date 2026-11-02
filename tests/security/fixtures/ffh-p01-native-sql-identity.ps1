@@ -39,7 +39,7 @@ foreach($file in @('preflight.sql','matrix.sql')) {
   [IO.File]::WriteAllText($path,'SELECT 1;',[Text.UTF8Encoding]::new($false))
   $rows+= [pscustomobject]@{
     path=('scripts/rls-local/'+$file)
-    sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    sha256=([BitConverter]::ToString(([Security.Cryptography.SHA256]::Create()).ComputeHash([IO.File]::ReadAllBytes($path))).Replace('-','').ToLowerInvariant())
   }
 }
 $script:source=[pscustomobject]@{head=$script:identity.sha;repo=$script:temp;all_files=@($rows)}
