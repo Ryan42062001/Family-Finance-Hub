@@ -1419,21 +1419,27 @@ function Invoke-FfhOwnedLocalPsql {
   )
   Assert-FfhNoRemoteConfiguration
   Assert-FfhDockerEnvironment
-  if ($Identity.sha -cnotmatch '^[a-f0-9]{40} -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      $Identity.project -cne ('ffhp1_'+$Identity.sha.Substring(0,8)+'_'+$Identity.token) -or
+      $Identity.container -cne ('supabase_db_'+$Identity.project) -or
+      $Container -cne $Identity.container -or
+      $ContainerId -cnotmatch '^[a-f0-9]{64}$' -or
+      [string]$Source.head -cne $Identity.sha -or
+      [string]$DockerBinding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
       [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
       -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
       -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
     throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
   }
-  # The production native runner validates the actual durable v2 journal,
-  # not merely a shape-matching caller-supplied container name.
-  $journal=Read-FfhJournal -Identity $Identity
-  $phase=if ($journal.gateBResult -ceq 'RUNNING') {'GATE_B'} else {'GATE_A'}
-  if ($journal.version -ne 2 -or
-      $journal.sha -cne $Identity.sha -or $journal.token -cne $Identity.token -or
-      $journal.project -cne $Identity.project -or
-      $journal.container -cne $Container -or
-      @($journal.resources | Where-Object {
+  # The REAL production SQL runner re-reads the actual durable journal;
+  # a regex-looking foreign name or caller-supplied ID is insufficient.
+  $j=Read-FfhJournal -Identity $Identity
+  $phase=if ($j.gateBResult -ceq 'RUNNING') {'GATE_B'} else {'GATE_A'}
+  if ($j.version -ne 2 -or $j.sha -cne $Identity.sha -or
+      $j.token -cne $Identity.token -or $j.project -cne $Identity.project -or
+      $j.container -cne $Container -or
+      @($j.resources | Where-Object {
         $_.kind -ceq 'containers' -and $_.id -ceq $ContainerId -and
         $_.name -ceq ('/'+$Container)
       }).Count -ne 1) {
@@ -1441,7 +1447,7 @@ function Invoke-FfhOwnedLocalPsql {
   }
   $firstAdmission=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $phase -Fake $FakeDocker
   if ($firstAdmission -cne $ContainerId) {
-    throw 'BLOCKED_SQL_NATIVE_ADMITTED_ID_MISMATCH'
+    throw 'BLOCKED_SQL_NATIVE_ADMITTED_CONTAINER_ID_CHANGED'
   }
   # Independently reassert the trusted native Docker Desktop executable and
   # npipe locality before process creation, not merely a caller-provided name.
@@ -1481,7 +1487,7 @@ function Invoke-FfhOwnedLocalPsql {
   $start = [Diagnostics.ProcessStartInfo]::new()
   $start.FileName = [string]$verified.Executable
   # Every authorized daemon operation specifies the pinned Linux npipe.
-  # Execute only the immutable, independently reattested Docker container ID.
+  # Never send SQL to a mutable container name. Use its 64-hex exact ID.
   $start.Arguments = '--host ' + $verified.Endpoint +
     ' exec -i ' + $ContainerId +
     ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
@@ -1500,435 +1506,11 @@ function Invoke-FfhOwnedLocalPsql {
       $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
     throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
   }
-  # Repeat full identity and isolation checks immediately before job creation.
-  # Replacement at the same mutable name cannot redirect this immutable ID.
-  $finalAdmission=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $phase -Fake $FakeDocker
-  if ($finalAdmission -cne $ContainerId) {
-    throw 'BLOCKED_SQL_NATIVE_CONTAINER_CHANGED_BEFORE_EXEC'
-  }
-  # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
-  # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
-  # owns Win32 handles, finite stdin pumping and native exit retrieval.
-  $outcome = Invoke-FfhNativeJobChild -StartInfo $start -SqlMode -SqlBytes $payload -Matrix:($Mode -ceq 'Matrix')
-  if ($outcome -cne 'EXIT_ZERO') {
-    $known = @(
-      'BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_DESCENDANTS_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_STDIN_INCOMPLETE_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_PROCESS_START_FAILED',
-      'BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED'
-    )
-    $category = if ($known -ccontains $outcome) { $outcome } else {
-      'BLOCKED_SQL_NATIVE_OR_DAEMON_STATE_UNVERIFIED'
-    }
-    throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
-  }
-  Assert-FfhDockerEnvironment
-}
-
-function Assert-FfhReadOnlyPsqlPreflightReceipt {
-  param(
-    [Parameter(Mandatory=$true)][scriptblock]$NativeCapture
-  )
-  $results = $null
-  try {
-    # Never disclose native error records or mixed output from the invocation.
-    $results = @(& $NativeCapture 2>$null)
-  } catch {
-    throw 'BLOCKED: local PostgreSQL preflight native invocation failed'
-  }
-  if ($null -eq $results -or $results.Count -ne 1 -or
-      $null -eq $results[0]) {
-    throw 'BLOCKED: local PostgreSQL preflight result absent or ambiguous'
-  }
-  $result = $results[0]
-  $fields = @($result.PSObject.Properties.Name)
-  if ($fields -cnotcontains 'ExitCode' -or $fields -cnotcontains 'Stdout' -or
-      $null -eq $result.ExitCode -or
-      $result.ExitCode -isnot [int] -or $result.ExitCode -ne 0) {
-    throw 'BLOCKED: local PostgreSQL preflight process failed or indeterminate'
-  }
-  if ($null -eq $result.Stdout) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker missing'
-  }
-  $expected = 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
-  $allLines = New-Object 'System.Collections.Generic.List[string]'
-  foreach ($piece in @($result.Stdout)) {
-    if ($null -eq $piece -or $piece -isnot [string]) {
-      throw 'BLOCKED: local PostgreSQL preflight stdout invalid'
-    }
-    $normalized = $piece.Replace("`r`n","`n").Replace("`r","`n")
-    foreach ($line in $normalized.Split([char]"`n")) {
-      [void]$allLines.Add($line)
-    }
-  }
-  $markerCount = 0
-  $lastNonempty = $null
-  foreach ($line in $allLines) {
-    if (-not [string]::IsNullOrWhiteSpace($line)) {
-      $lastNonempty = $line
-    }
-    if ($line.Contains('PREFLIGHT_PASS')) {
-      if ($line -cne $expected) {
-        throw 'BLOCKED: local PostgreSQL preflight marker incorrect or ambiguous'
-      }
-      $markerCount++
-    }
-  }
-  if ($markerCount -ne 1 -or $lastNonempty -cne $expected) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker absent or duplicated'
-  }
-  # Do not return raw stdout, stderr or the native capture object.
-}
- -or
-      $Identity.token -cnotmatch '^[a-f0-9]{24} -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
-      [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
-      -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
-      -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
-  }
-  # Independently reassert the trusted native Docker Desktop executable and
-  # npipe locality before process creation, not merely a caller-provided name.
-  $verified = Assert-FfhLocalDockerDesktop
-  if ([string]$verified.Executable -cne [string]$DockerBinding.Executable -or
-      [string]$verified.Endpoint -cne [string]$DockerBinding.Endpoint) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_IDENTITY_CHANGED: no retry/reset/cleanup'
-  }
-  $sqlRelative = if ($Mode -ceq 'Preflight') {
-    'scripts/rls-local/preflight.sql'
-  } else {
-    'scripts/rls-local/matrix.sql'
-  }
-  $sqlExpected = Join-Path ([string]$Source.repo) $sqlRelative
-  $manifestMatches = @($Source.all_files | Where-Object { $_.path -ceq $sqlRelative })
-  if ($manifestMatches.Count -ne 1 -or
-      $null -eq $manifestMatches[0].sha256 -or
-      -not [IO.Path]::IsPathRooted($SqlPath) -or
-      -not ([IO.Path]::GetFullPath($SqlPath)).Equals(
-        [IO.Path]::GetFullPath($sqlExpected),[StringComparison]::OrdinalIgnoreCase) -or
-      -not (Test-Path -LiteralPath $SqlPath -PathType Leaf)) {
-    throw 'BLOCKED_SQL_SOURCE_PATH_OR_MANIFEST_INVALID: no retry/reset/cleanup'
-  }
-  # Hash the EXACT bytes sent on the owned stdin pipe immediately before use.
-  # They must match the Git-object-verified SHA256 source manifest.
-  $payload = [IO.File]::ReadAllBytes($SqlPath)
-  if ($payload.Length -le 0 -or $payload.Length -gt 262144) {
-    throw 'BLOCKED_SQL_SOURCE_BYTES_INVALID: no retry/reset/cleanup'
-  }
-  $sha = [Security.Cryptography.SHA256]::Create()
-  try {
-    $actualSqlDigest = [BitConverter]::ToString($sha.ComputeHash($payload)).Replace('-','').ToLowerInvariant()
-  } finally { $sha.Dispose() }
-  if ($actualSqlDigest -cne [string]$manifestMatches[0].sha256) {
-    throw 'BLOCKED_SQL_SOURCE_SHA256_MISMATCH: no retry/reset/cleanup'
-  }
-  $start = [Diagnostics.ProcessStartInfo]::new()
-  $start.FileName = [string]$verified.Executable
-  # Every authorized daemon operation specifies the pinned Linux npipe.
-  # Container is a strictly SHA-derived, metacharacter-free identifier.
-  $start.Arguments = '--host ' + $verified.Endpoint +
-    ' exec -i ' + $Container +
-    ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
-  $start.WorkingDirectory = (Get-Location).Path
-  $start.UseShellExecute = $false
-  $start.CreateNoWindow = $true
-  foreach ($key in @($start.EnvironmentVariables.Keys)) {
-    if ([string]$key -match '^(?i:DOCKER_)') {
-      $start.EnvironmentVariables.Remove([string]$key)
-    }
-  }
-  $start.EnvironmentVariables['DOCKER_HOST'] = $verified.Endpoint
-  if ($start.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
-      $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
-    throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
-  }
-  # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
-  # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
-  # owns Win32 handles, finite stdin pumping and native exit retrieval.
-  $outcome = Invoke-FfhNativeJobChild -StartInfo $start -SqlMode -SqlBytes $payload -Matrix:($Mode -ceq 'Matrix')
-  if ($outcome -cne 'EXIT_ZERO') {
-    $known = @(
-      'BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_DESCENDANTS_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_STDIN_INCOMPLETE_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_PROCESS_START_FAILED',
-      'BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED'
-    )
-    $category = if ($known -ccontains $outcome) { $outcome } else {
-      'BLOCKED_SQL_NATIVE_OR_DAEMON_STATE_UNVERIFIED'
-    }
-    throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
-  }
-  Assert-FfhDockerEnvironment
-}
-
-function Assert-FfhReadOnlyPsqlPreflightReceipt {
-  param(
-    [Parameter(Mandatory=$true)][scriptblock]$NativeCapture
-  )
-  $results = $null
-  try {
-    # Never disclose native error records or mixed output from the invocation.
-    $results = @(& $NativeCapture 2>$null)
-  } catch {
-    throw 'BLOCKED: local PostgreSQL preflight native invocation failed'
-  }
-  if ($null -eq $results -or $results.Count -ne 1 -or
-      $null -eq $results[0]) {
-    throw 'BLOCKED: local PostgreSQL preflight result absent or ambiguous'
-  }
-  $result = $results[0]
-  $fields = @($result.PSObject.Properties.Name)
-  if ($fields -cnotcontains 'ExitCode' -or $fields -cnotcontains 'Stdout' -or
-      $null -eq $result.ExitCode -or
-      $result.ExitCode -isnot [int] -or $result.ExitCode -ne 0) {
-    throw 'BLOCKED: local PostgreSQL preflight process failed or indeterminate'
-  }
-  if ($null -eq $result.Stdout) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker missing'
-  }
-  $expected = 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
-  $allLines = New-Object 'System.Collections.Generic.List[string]'
-  foreach ($piece in @($result.Stdout)) {
-    if ($null -eq $piece -or $piece -isnot [string]) {
-      throw 'BLOCKED: local PostgreSQL preflight stdout invalid'
-    }
-    $normalized = $piece.Replace("`r`n","`n").Replace("`r","`n")
-    foreach ($line in $normalized.Split([char]"`n")) {
-      [void]$allLines.Add($line)
-    }
-  }
-  $markerCount = 0
-  $lastNonempty = $null
-  foreach ($line in $allLines) {
-    if (-not [string]::IsNullOrWhiteSpace($line)) {
-      $lastNonempty = $line
-    }
-    if ($line.Contains('PREFLIGHT_PASS')) {
-      if ($line -cne $expected) {
-        throw 'BLOCKED: local PostgreSQL preflight marker incorrect or ambiguous'
-      }
-      $markerCount++
-    }
-  }
-  if ($markerCount -ne 1 -or $lastNonempty -cne $expected) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker absent or duplicated'
-  }
-  # Do not return raw stdout, stderr or the native capture object.
-}
- -or
-      $Identity.project -cne ('ffhp1_'+$Identity.sha.Substring(0,8)+'_'+$Identity.token) -or
-      $Identity.container -cne ('supabase_db_'+$Identity.project) -or
-      $Container -cne $Identity.container -or
-      $ContainerId -cnotmatch '^[a-f0-9]{64} -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
-      [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
-      -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
-      -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
-  }
-  # Independently reassert the trusted native Docker Desktop executable and
-  # npipe locality before process creation, not merely a caller-provided name.
-  $verified = Assert-FfhLocalDockerDesktop
-  if ([string]$verified.Executable -cne [string]$DockerBinding.Executable -or
-      [string]$verified.Endpoint -cne [string]$DockerBinding.Endpoint) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_IDENTITY_CHANGED: no retry/reset/cleanup'
-  }
-  $sqlRelative = if ($Mode -ceq 'Preflight') {
-    'scripts/rls-local/preflight.sql'
-  } else {
-    'scripts/rls-local/matrix.sql'
-  }
-  $sqlExpected = Join-Path ([string]$Source.repo) $sqlRelative
-  $manifestMatches = @($Source.all_files | Where-Object { $_.path -ceq $sqlRelative })
-  if ($manifestMatches.Count -ne 1 -or
-      $null -eq $manifestMatches[0].sha256 -or
-      -not [IO.Path]::IsPathRooted($SqlPath) -or
-      -not ([IO.Path]::GetFullPath($SqlPath)).Equals(
-        [IO.Path]::GetFullPath($sqlExpected),[StringComparison]::OrdinalIgnoreCase) -or
-      -not (Test-Path -LiteralPath $SqlPath -PathType Leaf)) {
-    throw 'BLOCKED_SQL_SOURCE_PATH_OR_MANIFEST_INVALID: no retry/reset/cleanup'
-  }
-  # Hash the EXACT bytes sent on the owned stdin pipe immediately before use.
-  # They must match the Git-object-verified SHA256 source manifest.
-  $payload = [IO.File]::ReadAllBytes($SqlPath)
-  if ($payload.Length -le 0 -or $payload.Length -gt 262144) {
-    throw 'BLOCKED_SQL_SOURCE_BYTES_INVALID: no retry/reset/cleanup'
-  }
-  $sha = [Security.Cryptography.SHA256]::Create()
-  try {
-    $actualSqlDigest = [BitConverter]::ToString($sha.ComputeHash($payload)).Replace('-','').ToLowerInvariant()
-  } finally { $sha.Dispose() }
-  if ($actualSqlDigest -cne [string]$manifestMatches[0].sha256) {
-    throw 'BLOCKED_SQL_SOURCE_SHA256_MISMATCH: no retry/reset/cleanup'
-  }
-  $start = [Diagnostics.ProcessStartInfo]::new()
-  $start.FileName = [string]$verified.Executable
-  # Every authorized daemon operation specifies the pinned Linux npipe.
-  # Container is a strictly SHA-derived, metacharacter-free identifier.
-  $start.Arguments = '--host ' + $verified.Endpoint +
-    ' exec -i ' + $Container +
-    ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
-  $start.WorkingDirectory = (Get-Location).Path
-  $start.UseShellExecute = $false
-  $start.CreateNoWindow = $true
-  foreach ($key in @($start.EnvironmentVariables.Keys)) {
-    if ([string]$key -match '^(?i:DOCKER_)') {
-      $start.EnvironmentVariables.Remove([string]$key)
-    }
-  }
-  $start.EnvironmentVariables['DOCKER_HOST'] = $verified.Endpoint
-  if ($start.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
-      $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
-    throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
-  }
-  # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
-  # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
-  # owns Win32 handles, finite stdin pumping and native exit retrieval.
-  $outcome = Invoke-FfhNativeJobChild -StartInfo $start -SqlMode -SqlBytes $payload -Matrix:($Mode -ceq 'Matrix')
-  if ($outcome -cne 'EXIT_ZERO') {
-    $known = @(
-      'BLOCKED_SQL_NATIVE_NONZERO_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_MARKER_INVALID_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_TIMEOUT_CLIENT_TREE_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_DESCENDANTS_TERMINATED_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_STDIN_INCOMPLETE_DAEMON_UNVERIFIED',
-      'BLOCKED_SQL_PROCESS_START_FAILED',
-      'BLOCKED_INDETERMINATE_CLIENT_OR_DAEMON_UNVERIFIED'
-    )
-    $category = if ($known -ccontains $outcome) { $outcome } else {
-      'BLOCKED_SQL_NATIVE_OR_DAEMON_STATE_UNVERIFIED'
-    }
-    throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
-  }
-  Assert-FfhDockerEnvironment
-}
-
-function Assert-FfhReadOnlyPsqlPreflightReceipt {
-  param(
-    [Parameter(Mandatory=$true)][scriptblock]$NativeCapture
-  )
-  $results = $null
-  try {
-    # Never disclose native error records or mixed output from the invocation.
-    $results = @(& $NativeCapture 2>$null)
-  } catch {
-    throw 'BLOCKED: local PostgreSQL preflight native invocation failed'
-  }
-  if ($null -eq $results -or $results.Count -ne 1 -or
-      $null -eq $results[0]) {
-    throw 'BLOCKED: local PostgreSQL preflight result absent or ambiguous'
-  }
-  $result = $results[0]
-  $fields = @($result.PSObject.Properties.Name)
-  if ($fields -cnotcontains 'ExitCode' -or $fields -cnotcontains 'Stdout' -or
-      $null -eq $result.ExitCode -or
-      $result.ExitCode -isnot [int] -or $result.ExitCode -ne 0) {
-    throw 'BLOCKED: local PostgreSQL preflight process failed or indeterminate'
-  }
-  if ($null -eq $result.Stdout) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker missing'
-  }
-  $expected = 'PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1'
-  $allLines = New-Object 'System.Collections.Generic.List[string]'
-  foreach ($piece in @($result.Stdout)) {
-    if ($null -eq $piece -or $piece -isnot [string]) {
-      throw 'BLOCKED: local PostgreSQL preflight stdout invalid'
-    }
-    $normalized = $piece.Replace("`r`n","`n").Replace("`r","`n")
-    foreach ($line in $normalized.Split([char]"`n")) {
-      [void]$allLines.Add($line)
-    }
-  }
-  $markerCount = 0
-  $lastNonempty = $null
-  foreach ($line in $allLines) {
-    if (-not [string]::IsNullOrWhiteSpace($line)) {
-      $lastNonempty = $line
-    }
-    if ($line.Contains('PREFLIGHT_PASS')) {
-      if ($line -cne $expected) {
-        throw 'BLOCKED: local PostgreSQL preflight marker incorrect or ambiguous'
-      }
-      $markerCount++
-    }
-  }
-  if ($markerCount -ne 1 -or $lastNonempty -cne $expected) {
-    throw 'BLOCKED: local PostgreSQL preflight final marker absent or duplicated'
-  }
-  # Do not return raw stdout, stderr or the native capture object.
-}
- -or
-      [string]$Source.head -cne $Identity.sha -or
-      [string]$DockerBinding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
-      [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
-      -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
-      -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
-  }
-  # Independently reassert the trusted native Docker Desktop executable and
-  # npipe locality before process creation, not merely a caller-provided name.
-  $verified = Assert-FfhLocalDockerDesktop
-  if ([string]$verified.Executable -cne [string]$DockerBinding.Executable -or
-      [string]$verified.Endpoint -cne [string]$DockerBinding.Endpoint) {
-    throw 'BLOCKED_SQL_NATIVE_DOCKER_IDENTITY_CHANGED: no retry/reset/cleanup'
-  }
-  $sqlRelative = if ($Mode -ceq 'Preflight') {
-    'scripts/rls-local/preflight.sql'
-  } else {
-    'scripts/rls-local/matrix.sql'
-  }
-  $sqlExpected = Join-Path ([string]$Source.repo) $sqlRelative
-  $manifestMatches = @($Source.all_files | Where-Object { $_.path -ceq $sqlRelative })
-  if ($manifestMatches.Count -ne 1 -or
-      $null -eq $manifestMatches[0].sha256 -or
-      -not [IO.Path]::IsPathRooted($SqlPath) -or
-      -not ([IO.Path]::GetFullPath($SqlPath)).Equals(
-        [IO.Path]::GetFullPath($sqlExpected),[StringComparison]::OrdinalIgnoreCase) -or
-      -not (Test-Path -LiteralPath $SqlPath -PathType Leaf)) {
-    throw 'BLOCKED_SQL_SOURCE_PATH_OR_MANIFEST_INVALID: no retry/reset/cleanup'
-  }
-  # Hash the EXACT bytes sent on the owned stdin pipe immediately before use.
-  # They must match the Git-object-verified SHA256 source manifest.
-  $payload = [IO.File]::ReadAllBytes($SqlPath)
-  if ($payload.Length -le 0 -or $payload.Length -gt 262144) {
-    throw 'BLOCKED_SQL_SOURCE_BYTES_INVALID: no retry/reset/cleanup'
-  }
-  $sha = [Security.Cryptography.SHA256]::Create()
-  try {
-    $actualSqlDigest = [BitConverter]::ToString($sha.ComputeHash($payload)).Replace('-','').ToLowerInvariant()
-  } finally { $sha.Dispose() }
-  if ($actualSqlDigest -cne [string]$manifestMatches[0].sha256) {
-    throw 'BLOCKED_SQL_SOURCE_SHA256_MISMATCH: no retry/reset/cleanup'
-  }
-  $start = [Diagnostics.ProcessStartInfo]::new()
-  $start.FileName = [string]$verified.Executable
-  # Every authorized daemon operation specifies the pinned Linux npipe.
-  # Container is a strictly SHA-derived, metacharacter-free identifier.
-  $start.Arguments = '--host ' + $verified.Endpoint +
-    ' exec -i ' + $Container +
-    ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
-  $start.WorkingDirectory = (Get-Location).Path
-  $start.UseShellExecute = $false
-  $start.CreateNoWindow = $true
-  foreach ($key in @($start.EnvironmentVariables.Keys)) {
-    if ([string]$key -match '^(?i:DOCKER_)') {
-      $start.EnvironmentVariables.Remove([string]$key)
-    }
-  }
-  $start.EnvironmentVariables['DOCKER_HOST'] = $verified.Endpoint
-  if ($start.EnvironmentVariables.ContainsKey('DOCKER_CONTEXT') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_TLS_VERIFY') -or
-      $start.EnvironmentVariables.ContainsKey('DOCKER_CONFIG') -or
-      $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
-    throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
+  # Revalidate immediately before native process launch; no name swap can
+  # redirect an immutable 64-hex Docker ID.
+  $lastAdmission=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $phase -Fake $FakeDocker
+  if ($lastAdmission -cne $ContainerId) {
+    throw 'BLOCKED_SQL_NATIVE_LAST_ADMISSION_ID_CHANGED'
   }
   # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
   # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
