@@ -251,7 +251,10 @@ function Verify-Results([string]$a,[string]$b,[string]$cleanup) {
   $j=Read-FfhJournal -Identity $script:identity
   Assert-Mock ($j.gateAResult -ceq $a) 'GATE_A_RESULT'
   Assert-Mock ($j.gateBResult -ceq $b) 'GATE_B_RESULT'
-  Assert-Mock ($j.cleanupResult -ceq $cleanup) 'CLEANUP_RESULT'
+  if ($j.cleanupResult -cne $cleanup) {
+    throw ('MOCK_ASSERT_CLEANUP_RESULT expected='+$cleanup+' actual='+$j.cleanupResult+
+      ' state='+$j.state+' actions='+($script:mutations -join ','))
+  }
 }
 # Execute the owner's immutable-source-guarded Gate B tail with synthetic
 # SQL and exact-run fake Docker. The production script has no test bypass.
