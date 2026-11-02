@@ -291,3 +291,25 @@ function Invoke-FfhVerifiedCleanup {
     return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
   }
 }
+
+
+# Once Gate B SQL has completed (or failed after RUNNING), preserve its own
+# durable result independently of Gate A and cleanup. Injected adapters are
+# ONLY for offline WinPS mocks; owner scripts never supply either fake.
+function Complete-FfhGateB {
+  param($Identity,[ValidateSet('PASS','FAIL')][string]$GateBResult,
+    [scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or
+      $j.gateBResult -cne 'RUNNING' -or
+      $j.state -cne 'GATE_B_RUNNING') {
+    throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
+  }
+  $phaseState=if ($GateBResult -ceq 'PASS') {'GATE_B_COMPLETE'} else {'GATE_B_FAILED'}
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState -GateBResult $GateBResult -TestResult $GateBResult)
+  Write-FfhRedactedEvidence -Identity $Identity -Phase 'GATE_B' -Result $GateBResult -Category $(if($GateBResult -ceq 'PASS'){'NONE'}else{'GATE_B_FAILURE'})
+  [void](Register-FfhOwnedResources -Identity $Identity -Fake $Fake)
+  [void](Set-FfhRunState -Identity $Identity -State $phaseState)
+  $idle=Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake
+  return Invoke-FfhVerifiedCleanup -Identity $Identity -SqlIdleAttestation $idle -Fake $Fake -FakeFilesystem $FakeFilesystem
+}
