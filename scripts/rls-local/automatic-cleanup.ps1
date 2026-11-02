@@ -220,10 +220,14 @@ function Assert-FfhNoOtherLiveRuns {
   if ($roots.Count) { throw 'BLOCKED: existing temporary root detected; manual review' }
 }
 function Select-FfhRunPorts {
-  param($Identity)
+  param($Identity,[scriptblock]$FakeCandidate,[scriptblock]$FakeProbe,[int[]]$FakeUsedPorts)
   # Docker may race this probe; a later exact-bind and locality check is mandatory.
   $used=New-Object 'System.Collections.Generic.HashSet[int]'
-  foreach ($entry in @(Get-NetTCPConnection -ErrorAction Stop)) { [void]$used.Add([int]$entry.LocalPort) }
+  if ($FakeUsedPorts) {
+    foreach ($p in $FakeUsedPorts) { [void]$used.Add([int]$p) }
+  } else {
+    foreach ($entry in @(Get-NetTCPConnection -ErrorAction Stop)) { [void]$used.Add([int]$entry.LocalPort) }
+  }
   foreach ($port in @(54332,54333)) { [void]$used.Add($port) }
   $random=[Security.Cryptography.RandomNumberGenerator]::Create()
   try {
@@ -231,8 +235,15 @@ function Select-FfhRunPorts {
     for ($attempt=0;$attempt -lt 128;$attempt++) {
       $random.GetBytes($bytes)
       $candidate=20000+([BitConverter]::ToUInt32($bytes,0) % 40000)
+      if ($FakeCandidate) { $candidate=[int](& $FakeCandidate $attempt) }
       if ($candidate -gt 59998 -or $used.Contains([int]$candidate) -or
           $used.Contains([int]($candidate+1))) { continue }
+      if ($FakeProbe) {
+        if ([bool](& $FakeProbe $candidate ([int]($candidate+1)))) {
+          return @([int]$candidate,[int]($candidate+1))
+        }
+        continue
+      }
       $listeners=@()
       try {
         foreach ($p in @($candidate,$candidate+1)) {
@@ -249,11 +260,11 @@ function Select-FfhRunPorts {
   throw 'BLOCKED: no verified unoccupied port pair'
 }
 function New-FfhPrecreationJournal {
-  param($Identity,$Ports)
+  param($Identity,$Ports,[scriptblock]$Fake)
   Assert-FfhNoOtherLiveRuns -Identity $Identity
-  Assert-FfhPrecreationNamespace -Identity $Identity
-  $daemon=Get-FfhObservedDaemon
-  $protected=@(Get-FfhProtectedInventory)
+  Assert-FfhPrecreationNamespace -Identity $Identity -Fake $Fake
+  $daemon=Get-FfhObservedDaemon -Fake $Fake
+  $protected=@(Get-FfhProtectedInventory -Fake $Fake)
   if (Test-Path -LiteralPath (Get-FfhJournalPath -Identity $Identity)) {
     throw 'BLOCKED: run token reused'
   }
