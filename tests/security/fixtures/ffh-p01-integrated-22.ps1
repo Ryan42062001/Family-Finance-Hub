@@ -391,10 +391,16 @@ foreach($case in $cases) {
         Assert-Mock ([bool](Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult $result)) 'GATE_B_SUCCESS_EXIT'
         Assert-Mock (($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'EXACT_ACTION_ORDER'
         Assert-Mock ($script:fsQueries -ge 2) 'FINAL_ABSENCE_DOUBLE_CHECK'
-        # A second independent PASS/BLOCKED combination must exit nonzero
-        # without overwriting the durable Gate B PASS.
+        # Independently exercise PASS/BLOCKED with a newly isolated journal.
+        Stop-MockCase
+        Start-MockCase
+        Prepare-PreservedRun
+        Prepare-GateB
         $script:mock.root='PRESENT'
-        Must-Block {Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW'}
+        $blocked=Complete-FfhGateB -Identity $script:identity -GateBResult 'PASS' -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
+        Assert-Mock ($blocked -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_B_PASS_ROOT_BLOCKED'
+        Verify-Results 'PASS' 'PASS' 'CLEANUP_BLOCKED_MANUAL_REVIEW'
+        Must-Block {Assert-FfhGateBSuccessfulExit -Identity $script:identity -CleanupResult $blocked}
       }
       default {throw 'MOCK_UNHANDLED_CASE'}
     }
