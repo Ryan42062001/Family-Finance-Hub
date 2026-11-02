@@ -27,9 +27,10 @@ jobs:
         shell: cmd
         run: powershell.exe -NoProfile -NonInteractive -File tests\security\fixtures\ffh-p01-gate-exit.ps1 -Case PASS_PASS
       - name: Gate B PASS/BLOCKED and FAIL/PASS return nonzero
-        shell: pwsh
+        shell: cmd
         run: |
-          & powershell.exe -NoProfile -NonInteractive -File tests/security/fixtures/ffh-p01-gate-exit.ps1 -Case PASS_BLOCKED
-          if ($LASTEXITCODE -eq 0) { throw 'PASS/BLOCKED falsely passed' }
-          & powershell.exe -NoProfile -NonInteractive -File tests/security/fixtures/ffh-p01-gate-exit.ps1 -Case FAIL_PASS
-          if ($LASTEXITCODE -eq 0) { throw 'FAIL/PASS falsely passed' }
+          powershell.exe -NoProfile -NonInteractive -File tests\security\fixtures\ffh-p01-gate-exit.ps1 -Case PASS_BLOCKED
+          if not errorlevel 1 exit /b 1
+          powershell.exe -NoProfile -NonInteractive -File tests\security\fixtures\ffh-p01-gate-exit.ps1 -Case FAIL_PASS
+          if not errorlevel 1 exit /b 1
+          exit /b 0
