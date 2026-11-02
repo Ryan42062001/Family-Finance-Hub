@@ -499,7 +499,9 @@ foreach($case in $cases) {
         Assert-Mock (($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'EXACT_ACTION_ORDER'
         $expectedActions=@('stop --time=-1 '+$script:cid,'rm '+$script:cid,
           'volume rm '+$script:mock.vname,'network rm '+$script:nid)
-        Assert-Mock (($script:actionArgs -join '|') -ceq ($expectedActions -join '|')) 'EXACT_NATIVE_ARGUMENT_VECTORS_AND_IDS'
+        if (($script:actionArgs -join '|') -cne ($expectedActions -join '|')) {
+          throw ('MOCK_VECTOR_EXPECTED='+($expectedActions -join '|')+' ACTUAL='+($script:actionArgs -join '|'))
+        }
         Assert-Mock ($script:fsQueries -ge 2) 'FINAL_ABSENCE_DOUBLE_CHECK'
         # Independent PASS/BLOCKED scenario with a newly isolated journal.
         Stop-MockCase
