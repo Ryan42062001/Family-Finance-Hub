@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][ValidateSet('PASS_PASS','PASS_BLOCKED','FAIL_PASS')][string]$Case)
 $ErrorActionPreference='Stop'
-. (Join-Path $PSScriptRoot '../../scripts/rls-local/cleanup-executor.ps1')
+. (Join-Path $PSScriptRoot '../../../scripts/rls-local/cleanup-executor.ps1')
 $script:case=$Case
 function Read-FfhJournal {
   param($Identity)
