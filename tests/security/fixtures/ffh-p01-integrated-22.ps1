@@ -168,7 +168,7 @@ function Start-MockCase {
   $script:base=Join-Path ([IO.Path]::GetTempPath()) ('ffh-p01-ac-'+[Guid]::NewGuid().ToString('N'))
   $script:evidence=Join-Path $script:base 'FFH-P01-RLS-Evidence'
   [void](New-Item -ItemType Directory -Path $script:evidence -Force -ErrorAction Stop)
-  Initialize-FfhPrivateEvidenceAcl -Path $script:evidence
+  Initialize-FfhPrivateEvidenceAcl -Path $script:evidence -NewlyCreated
   $sha='a'*40
   $script:identity=Get-FfhRunIdentity -SourceSha $sha -RunToken (New-FfhRunToken)
   $script:identity.evidence=$script:evidence
@@ -352,7 +352,7 @@ foreach($case in $cases) {
         # A stale receipt collision prevents publishing fresh evidence.
         $dest=Join-Path $script:evidence ($script:identity.token+'.GATE_A.result.json')
         [IO.File]::WriteAllText($dest,'{"interrupted":true}')
-        Initialize-FfhPrivateEvidenceAcl -Path $dest
+        Initialize-FfhPrivateEvidenceAcl -Path $dest -NewlyCreated
         Must-Block {Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'FAIL' -Category 'MOCK_FAILURE'}
         Must-BlockCleanup
       }
