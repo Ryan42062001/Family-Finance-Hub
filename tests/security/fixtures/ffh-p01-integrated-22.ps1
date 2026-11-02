@@ -18,6 +18,7 @@ $script:cid='c'*64
 $script:nid='d'*64
 $script:legacyId='f'*64
 $script:mutations=New-Object 'System.Collections.Generic.List[string]'
+$script:actionArgs=New-Object 'System.Collections.Generic.List[string]'
 $script:fsQueries=0
 
 # Test-only replacement of the profile directory binding. This *narrows*
@@ -82,6 +83,7 @@ $script:fakeDocker={
       throw 'MOCK_BLOCKED: volume inspect field'
     }
     if ($argv[1] -ceq 'rm') {
+      [void]$script:actionArgs.Add(($argv -join ' '))
       [void]$script:mutations.Add('volume rm')
       if ($script:mock.failRm) {return 'BLOCKED'}
       $script:mock.v=$false
@@ -109,6 +111,7 @@ $script:fakeDocker={
       throw 'MOCK_BLOCKED: network inspect field'
     }
     if ($argv[1] -ceq 'rm') {
+      [void]$script:actionArgs.Add(($argv -join ' '))
       [void]$script:mutations.Add('network rm')
       if ($script:mock.failRm) {return 'BLOCKED'}
       $script:mock.n=$false
@@ -146,12 +149,14 @@ $script:fakeDocker={
     return '0'
   }
   if ($verb -ceq 'stop') {
+    [void]$script:actionArgs.Add(($argv -join ' '))
     [void]$script:mutations.Add('stop')
     if ($script:mock.failStop) {return 'BLOCKED'}
     $script:mock.running=$false
     return 'EXIT_ZERO'
   }
   if ($verb -ceq 'rm') {
+    [void]$script:actionArgs.Add(($argv -join ' '))
     [void]$script:mutations.Add('rm')
     if ($script:mock.failRm) {return 'BLOCKED'}
     $script:mock.c=$false
@@ -184,6 +189,7 @@ function Start-MockCase {
     nname=('supabase_network_'+$script:identity.project)
   }
   $script:mutations.Clear()
+  $script:actionArgs.Clear()
   $script:fsQueries=0
   $script:FfhMockLastCleanupFailure='NONE'
 }
@@ -475,6 +481,9 @@ foreach($case in $cases) {
         Assert-Mock ($status -ceq 'EXIT_ZERO') 'GATE_B_PASS_PROCESS_EXIT'
         Verify-Results 'PASS' 'PASS' 'CLEANUP_VERIFIED'
         Assert-Mock (($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'EXACT_ACTION_ORDER'
+        $expectedActions=@('stop --time=-1 '+$script:cid,'rm '+$script:cid,
+          'volume rm '+$script:mock.vname,'network rm '+$script:nid)
+        Assert-Mock (($script:actionArgs -join '|') -ceq ($expectedActions -join '|')) 'EXACT_NATIVE_ARGUMENT_VECTORS_AND_IDS'
         Assert-Mock ($script:fsQueries -ge 2) 'FINAL_ABSENCE_DOUBLE_CHECK'
         # Independent PASS/BLOCKED scenario with a newly isolated journal.
         Stop-MockCase
