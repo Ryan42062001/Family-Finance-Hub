@@ -175,7 +175,7 @@ Push-Location $root
 try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
-  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_RUNNING')
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_RUNNING' -GateAResult 'RUNNING' -TestResult 'RUNNING')
   Invoke-FfhPinnedLocalSupabase -Operation Start
   [void](Register-FfhOwnedResources -Identity $identity)
   [void](Assert-FfhDbLoopback -Container $containerName -DbPort $ports[0])
@@ -216,7 +216,7 @@ try {
   $receiptSha = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
   [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),
                           $receiptSha,[Text.UTF8Encoding]::new($false))
-  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
   Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'
   Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha RUN_TOKEN=$($identity.token) CLEANUP_RESULT=PRESERVED_FOR_GATE_B"
 }
@@ -235,7 +235,7 @@ catch {
       if ($current.state -cne 'GATE_A_PRESERVED') {
         Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
         [void](Register-FfhOwnedResources -Identity $identity)
-        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -TestResult 'FAIL')
+        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
         $idle=Get-FfhSqlIdleAttestation -Identity $identity
         $cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle
         Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
