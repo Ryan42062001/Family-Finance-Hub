@@ -38,7 +38,8 @@ try {
   $j=Read-FfhJournal -Identity $identity
   if ($j.state -cne 'GATE_A_PRESERVED' -or
       $j.cleanupResult -cne 'PRESERVED_FOR_GATE_B' -or
-      -not $j.evidenceSaved -or $j.testResult -cne 'PASS') {
+      -not $j.evidenceSaved -or $j.gateAResult -cne 'PASS' -or
+      $j.gateBResult -cne 'NOT_STARTED' -or $j.testResult -cne 'PASS') {
     throw 'BLOCKED: Gate A preservation receipt absent or already consumed'
   }
   $ports=@($j.ports)
@@ -117,7 +118,7 @@ Assert-FfhFreshTree -FreshRoot $root
 Write-Output "FRESH_MATRIX_GUARD=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK MANIFEST=SHA256_MATCH"
 
 $gateBStarted=$true
-[void](Set-FfhRunState -Identity $identity -State 'GATE_B_RUNNING')
+[void](Set-FfhRunState -Identity $identity -State 'GATE_B_RUNNING' -GateBResult 'RUNNING' -TestResult 'RUNNING')
 # Revalidate catalog and effective role/claim preflight over Docker-local stdin
 # before ANY synthetic identities/transactions are attempted. No DB URL,
 # database password, provider token, hosted Auth or service-role session.
@@ -143,32 +144,41 @@ $dockerBinding = Assert-FfhLocalDockerDesktop
 Invoke-FfhOwnedLocalPsql -Mode Matrix -Container $container `
   -SqlPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') `
   -DockerBinding $dockerBinding -Source $source
-[void](Set-FfhRunState -Identity $identity -State 'GATE_B_COMPLETE' -TestResult 'PASS')
-Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_B' -Result 'PASS' -Category 'NONE'
-[void](Register-FfhOwnedResources -Identity $identity)
-[void](Set-FfhRunState -Identity $identity -State 'GATE_B_COMPLETE')
-$idleness=Get-FfhSqlIdleAttestation -Identity $identity
-$cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idleness
-Write-Output "TEST_RESULT=PASS CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token) OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
+$cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'PASS'
+if ($cleanup -cne 'CLEANUP_VERIFIED') {
+  # Gate B really passed; cleanup did not. Never exit zero or overwrite PASS.
+  throw 'BLOCKED: Gate B PASS, cleanup not independently verified'
+}
+Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED RUN_TOKEN=$($identity.token) OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
 
 }
 catch {
   if ($gateBStarted) {
     try {
       $current=Read-FfhJournal -Identity $identity
-      if ($current.testResult -cne 'PASS') {
-        Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_B' -Result 'FAIL' -Category 'GATE_B_FAILURE'
-        [void](Register-FfhOwnedResources -Identity $identity)
-        [void](Set-FfhRunState -Identity $identity -State 'GATE_B_FAILED' -TestResult 'FAIL')
-        $idle=Get-FfhSqlIdleAttestation -Identity $identity
-        $cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle
-        Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+      if ($current.gateBResult -ceq 'RUNNING') {
+        # A failed SQL or preflight must not inherit Gate A PASS. Finalize only
+        # once, save redacted FAIL and perform safe exact-resource cleanup.
+        $cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'FAIL'
+        Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+      } elseif ($current.gateBResult -ceq 'PASS') {
+        # Real Gate B PASS remains immutable even when cleanup later blocks.
+        if ($current.cleanupResult -cne 'CLEANUP_VERIFIED') {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        }
+        Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=$($current.cleanupResult) RUN_TOKEN=$($identity.token)"
+      } else {
+        throw 'BLOCKED: Gate B is not in a recoverable RUNNING/PASS state'
       }
     } catch {
-      [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-      Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
+      # A truly ambiguous failure never authorizes deletion. Gate A PASS and
+      # any committed Gate B result are left intact.
+      try {
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      } catch { }
+      Write-Output "GATE_B_OUTCOME=UNKNOWN_OR_FAILED CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
     }
   }
-  throw 'BLOCKED: Gate B failed or cleanup uncertain; independent test result preserved in journal'
+  throw 'BLOCKED: Gate B failed or cleanup uncertain; inspect independent durable results'
 }
 finally { $lock.Dispose() }
