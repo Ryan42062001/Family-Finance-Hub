@@ -181,6 +181,7 @@ function Start-MockCase {
   }
   $script:mutations.Clear()
   $script:fsQueries=0
+  $script:FfhMockLastCleanupFailure='NONE'
 }
 function Stop-MockCase {
   $canonical=[IO.Path]::GetFullPath($script:base)
@@ -253,7 +254,8 @@ function Verify-Results([string]$a,[string]$b,[string]$cleanup) {
   Assert-Mock ($j.gateBResult -ceq $b) 'GATE_B_RESULT'
   if ($j.cleanupResult -cne $cleanup) {
     throw ('MOCK_ASSERT_CLEANUP_RESULT expected='+$cleanup+' actual='+$j.cleanupResult+
-      ' state='+$j.state+' actions='+($script:mutations -join ','))
+      ' state='+$j.state+' actions='+($script:mutations -join ',')+
+      ' cleanupError='+$script:FfhMockLastCleanupFailure)
   }
 }
 # Execute the owner's immutable-source-guarded Gate B tail with synthetic
