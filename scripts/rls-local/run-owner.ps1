@@ -145,10 +145,7 @@ Invoke-FfhOwnedLocalPsql -Mode Matrix -Container $container `
   -SqlPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') `
   -DockerBinding $dockerBinding -Source $source
 $cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'PASS'
-if ($cleanup -cne 'CLEANUP_VERIFIED') {
-  # Gate B really passed; cleanup did not. Never exit zero or overwrite PASS.
-  throw 'BLOCKED: Gate B PASS, cleanup not independently verified'
-}
+[void](Assert-FfhGateBSuccessfulExit -Identity $identity -CleanupResult $cleanup)
 Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED RUN_TOKEN=$($identity.token) OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
 
 }
