@@ -239,6 +239,24 @@ function Prepare-FailingRun([switch]$Resources) {
   Ensure-MockRegistered
   Save-MockGateAFail
 }
+# Exercise the *actual* Gate A PASS preservation and redacted evidence tail,
+# extracted from the owner entrypoint after its immutable authorization gates.
+# Only synthetic identity/journal data are supplied; no actual owner script runs.
+function Invoke-MockOwnerGateAPassTail {
+  $text=[IO.File]::ReadAllText((Join-Path $repo 'scripts/rls-local/prepare-fresh-owner.ps1')).Replace([char]13,'')
+  $mark=$text.IndexOf('GATE_A_PRESERVED')
+  if ($mark -lt 0) {throw 'MOCK_MISSING_GATE_A_PRESERVE'}
+  $start=$text.LastIndexOf('[void](Set-FfhRunState',$mark)
+  $end=$text.IndexOf(([char]10+'}'+[char]10+'finally { Pop-Location }'),$mark)
+  if ($start -lt 0 -or $end -le $start) {
+    throw 'MOCK_GATE_A_TAIL_BOUNDARY_INVALID'
+  }
+  $fragment=$text.Substring($start,$end-$start)
+  $identity=$script:identity
+  $ExpectedHead=$identity.sha
+  $receiptSha='f'*64
+  Invoke-Expression $fragment | Out-Null
+}
 function Prepare-PreservedRun([switch]$Resources) {
   New-MockJournal
   if($Resources) {Set-MockResources}
@@ -418,7 +436,11 @@ foreach($case in $cases) {
         Must-BlockCleanup
       }
       'AC-19' {
-        Prepare-PreservedRun -Resources
+        New-MockJournal
+        Set-MockResources
+        Ensure-MockRegistered
+        [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_RUNNING' -GateAResult 'RUNNING' -TestResult 'RUNNING')
+        Invoke-MockOwnerGateAPassTail
         $idle=Get-FfhSqlIdleAttestation -Identity $script:identity -Fake $script:fakeDocker
         $result=Invoke-FfhVerifiedCleanup -Identity $script:identity -SqlIdleAttestation $idle -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
         Assert-Mock ($result -ceq 'PRESERVED_FOR_GATE_B') 'GATE_A_PRESERVE'
