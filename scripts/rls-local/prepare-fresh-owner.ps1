@@ -204,12 +204,14 @@ try {
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
   $dockerBinding = Assert-FfhLocalDockerDesktop
+  $admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_A'
   # Finite native Windows Job Object operation: owned stdin and separate
   # stdout/stderr pipes, exit-zero + final marker, empty client process tree.
   # Any interruption/timeout leaves Docker daemon-side session UNVERIFIED.
   Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $containerName `
     -SqlPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') `
-    -DockerBinding $dockerBinding -Source $source
+    -DockerBinding $dockerBinding -Source $source -Identity $identity `
+    -ContainerId $admittedContainerId
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
   [IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
                           [Text.UTF8Encoding]::new($false))
@@ -218,7 +220,8 @@ try {
                           $receiptSha,[Text.UTF8Encoding]::new($false))
   [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
   Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'
-  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha RUN_TOKEN=$($identity.token) CLEANUP_RESULT=PRESERVED_FOR_GATE_B"
+  Write-Output (Get-FfhDurableRunStatus -Identity $identity)
+  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha RUN_TOKEN=$($identity.token)"
 }
 finally { Pop-Location }
 # STOP: actual matrix fixture writes require a separate, fresh approval.
@@ -228,23 +231,31 @@ finally { Pop-Location }
 
 }
 catch {
-  # Never emit unredacted native stderr, SQL, secrets or filesystem contents.
+  # Never emit SQL, native errors, or potentially private filesystem contents.
   if ($journalCreated) {
     try {
       $current=Read-FfhJournal -Identity $identity
-      if ($current.state -cne 'GATE_A_PRESERVED') {
+      if ($current.gateAResult -ceq 'PASS' -or $current.state -ceq 'GATE_A_PRESERVED') {
+        # An interrupted PASS evidence write cannot authorize Gate B.
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      } else {
+        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
         Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
         [void](Register-FfhOwnedResources -Identity $identity)
-        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
+        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED')
         $idle=Get-FfhSqlIdleAttestation -Identity $identity
-        $cleanup=Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle
-        Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+        [void](Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle)
       }
     } catch {
-      [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-      Write-Output "TEST_RESULT=FAIL CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
+      try {
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      } catch { }
     }
   }
-  throw 'BLOCKED: Gate A unsuccessful; original test failure is not converted to PASS'
+  if ($journalCreated) {
+    # Only a fresh durable read can establish the final persisted state.
+    Write-Output (Get-FfhDurableRunStatus -Identity $identity)
+  }
+  throw 'BLOCKED: Gate A unsuccessful; inspect durable result'
 }
 finally { $lock.Dispose() }
