@@ -124,11 +124,13 @@ $gateBStarted=$true
 # database password, provider token, hosted Auth or service-role session.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
+$admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_B'
 # Gate B remains unapproved. When separately authorized, its read-only
 # role preflight uses the identical bounded Job Object SQL-by-stdin path.
 Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $container `
   -SqlPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') `
-  -DockerBinding $dockerBinding -Source $source
+  -DockerBinding $dockerBinding -Source $source -Identity $identity `
+  -ContainerId $admittedContainerId
 Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 
 # All synthetic fixture operations are BEGIN/ROLLBACK protected in matrix.sql.
@@ -137,16 +139,19 @@ Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 # without new approval. A matrix PASS remains OWNER-OBSERVED only.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
+$admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_B'
 # Separate finite 15-minute matrix window. Exact immutable matrix.sql is
 # piped in memory with owned stdin and must emit both ROLLBACK and ZERO_RESIDUE
 # completion markers after exactly 913 PASS receipts. Timeouts never imply
 # daemon-side rollback, cleanup, retry permission or zero residue.
 Invoke-FfhOwnedLocalPsql -Mode Matrix -Container $container `
   -SqlPath (Join-Path $source.repo 'scripts/rls-local/matrix.sql') `
-  -DockerBinding $dockerBinding -Source $source
+  -DockerBinding $dockerBinding -Source $source -Identity $identity `
+  -ContainerId $admittedContainerId
 $cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'PASS'
 [void](Assert-FfhGateBSuccessfulExit -Identity $identity -CleanupResult $cleanup)
-Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED RUN_TOKEN=$($identity.token) OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
+Write-Output (Get-FfhDurableRunStatus -Identity $identity)
+Write-Output "OWNER_OPERATED_SYNTHETIC_MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW"
 
 }
 catch {
@@ -157,13 +162,13 @@ catch {
         # A failed SQL or preflight must not inherit Gate A PASS. Finalize only
         # once, save redacted FAIL and perform safe exact-resource cleanup.
         $cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'FAIL'
-        Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=FAIL CLEANUP_RESULT=$cleanup RUN_TOKEN=$($identity.token)"
+        # Final status is emitted only AFTER all mutations and a new durable read.
       } elseif ($current.gateBResult -ceq 'PASS') {
         # Real Gate B PASS remains immutable even when cleanup later blocks.
         if ($current.cleanupResult -cne 'CLEANUP_VERIFIED') {
           [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
         }
-        Write-Output "GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=$($current.cleanupResult) RUN_TOKEN=$($identity.token)"
+        # Never emit the pre-mutation $current cleanup status.
       } else {
         throw 'BLOCKED: Gate B is not in a recoverable RUNNING/PASS state'
       }
@@ -173,9 +178,10 @@ catch {
       try {
         [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
       } catch { }
-      Write-Output "GATE_B_OUTCOME=UNKNOWN_OR_FAILED CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW RUN_TOKEN=$($identity.token)"
+      # A torn journal cannot be reported as a verified persisted outcome.
     }
   }
+  Write-Output (Get-FfhDurableRunStatus -Identity $identity)
   throw 'BLOCKED: Gate B failed or cleanup uncertain; inspect independent durable results'
 }
 finally { $lock.Dispose() }
