@@ -313,3 +313,16 @@ function Complete-FfhGateB {
   $idle=Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake
   return Invoke-FfhVerifiedCleanup -Identity $Identity -SqlIdleAttestation $idle -Fake $Fake -FakeFilesystem $FakeFilesystem
 }
+
+# This exact function is used by the actual Gate B entrypoint and offline
+# process-exit contract tests. A valid Gate B PASS cannot mask cleanup BLOCKED.
+function Assert-FfhGateBSuccessfulExit {
+  param($Identity,[string]$CleanupResult)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.gateAResult -cne 'PASS' -or $j.gateBResult -cne 'PASS' -or
+      $CleanupResult -cne 'CLEANUP_VERIFIED' -or
+      $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+    throw 'BLOCKED: Gate B success/cleanup receipts not both verified'
+  }
+  return $true
+}
