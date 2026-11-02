@@ -410,43 +410,33 @@ function Register-FfhOwnedResources {
 function Write-FfhRedactedEvidence {
   param($Identity,[string]$Phase,[string]$Result,[string]$Category)
   $j=Read-FfhJournal -Identity $Identity
-  if ($Phase -cnotin @('GATE_A','GATE_B') -or $Result -cnotin @('PASS','FAIL','UNKNOWN') -or
-      $Category -cnotmatch '^[A-Z0-9_]{1,60} sha=$Identity.sha; runToken=$Identity.token
+  if ($Phase -cnotin @('GATE_A','GATE_B') -or
+      $Result -cnotin @('PASS','FAIL','UNKNOWN') -or
+      $Category -cnotmatch '^[A-Z0-9_]{1,60}$') {
+    throw 'BLOCKED: redacted evidence category invalid'
+  }
+  if ($Phase -ceq 'GATE_A' -and $j.gateAResult -ceq 'PASS' -and $Result -cne 'PASS') {
+    throw 'BLOCKED: Gate A PASS immutable'
+  }
+  if ($Phase -ceq 'GATE_B' -and $j.gateBResult -ceq 'PASS' -and $Result -cne 'PASS') {
+    throw 'BLOCKED: Gate B PASS immutable'
+  }
+  $receipt=[pscustomobject]@{
+    schema=2; sha=$Identity.sha; runToken=$Identity.token
     phase=$Phase; testResult=$Result; failureCategory=$Category
-    atUtc=[DateTime]::UtcNow.ToString('o'); project=$Identity.project}
+    atUtc=[DateTime]::UtcNow.ToString('o'); project=$Identity.project
+  }
   $dest=Join-Path $Identity.evidence ($Identity.token+'.'+$Phase+'.result.json')
   $temp=$dest+'.tmp-'+(New-FfhRunToken)
-  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($receipt|ConvertTo-Json -Depth 5))
+  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($receipt | ConvertTo-Json -Depth 5))
   Assert-FfhEvidenceEntry -Identity $Identity -Path $dest -Optional
   if (Test-Path -LiteralPath $dest) { throw 'BLOCKED: gate evidence already exists' }
   $fs=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-  try { $fs.Write($bytes,0,$bytes.Length);$fs.Flush($true) } finally { $fs.Dispose() }
+  try { $fs.Write($bytes,0,$bytes.Length); $fs.Flush($true) } finally { $fs.Dispose() }
   Initialize-FfhPrivateEvidenceAcl -Path $temp
   [IO.File]::Move($temp,$dest)
   Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
-  if ($Phase -ceq 'GATE_A') {
-    $j.gateAResult=$Result
-  } else {
-    $j.gateBResult=$Result
-  }
-  $j.evidenceSaved=$true
-  $j.testResult=$Result
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-}
-# Exact verified retirement is exclusively implemented by cleanup-executor.ps1.
-) {
-    throw 'BLOCKED: redacted evidence category invalid'
-  }
-  $receipt=[pscustomobject]@{schema=2; sha=$Identity.sha; runToken=$Identity.token
-    phase=$Phase; testResult=$Result; failureCategory=$Category
-    atUtc=[DateTime]::UtcNow.ToString('o'); project=$Identity.project}
-  $dest=Join-Path $Identity.evidence ($Identity.token+'.'+$Phase+'.result.json')
-  $temp=$dest+'.tmp-'+(New-FfhRunToken)
-  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($receipt|ConvertTo-Json -Depth 5))
-  $fs=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-  try { $fs.Write($bytes,0,$bytes.Length);$fs.Flush($true) } finally { $fs.Dispose() }
-  [IO.File]::Move($temp,$dest)
+  if ($Phase -ceq 'GATE_A') { $j.gateAResult=$Result } else { $j.gateBResult=$Result }
   $j.evidenceSaved=$true
   $j.testResult=$Result
   $j.sequence=[int]$j.sequence+1
