@@ -39,7 +39,11 @@ function Assert-FfhPrivateEvidenceAcl {
   if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw 'BLOCKED: evidence entry reparse point'
   }
-  $acl=Get-Acl -LiteralPath $Path -ErrorAction Stop
+  $acl=if ($item.PSIsContainer) {
+    [IO.Directory]::GetAccessControl($Path)
+  } else {
+    [IO.File]::GetAccessControl($Path)
+  }
   $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
   $owner=$acl.GetOwner([Security.Principal.SecurityIdentifier])
   if (-not $owner.Equals($who) -or -not $acl.AreAccessRulesProtected) {
@@ -58,7 +62,12 @@ function Assert-FfhPrivateEvidenceAcl {
 function Initialize-FfhPrivateEvidenceAcl {
   param([string]$Path)
   $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
-  $acl=Get-Acl -LiteralPath $Path -ErrorAction Stop
+  $item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+  $acl=if ($item.PSIsContainer) {
+    [IO.Directory]::GetAccessControl($Path)
+  } else {
+    [IO.File]::GetAccessControl($Path)
+  }
   if (-not $acl.GetOwner([Security.Principal.SecurityIdentifier]).Equals($who)) {
     throw 'BLOCKED: evidence path owner is not current user'
   }
@@ -79,7 +88,11 @@ function Initialize-FfhPrivateEvidenceAcl {
       [Security.AccessControl.AccessControlType]::Allow)
     $acl.AddAccessRule($newRule)
   }
-  Set-Acl -LiteralPath $Path -AclObject $acl -ErrorAction Stop
+  if ($item.PSIsContainer) {
+    [IO.Directory]::SetAccessControl($Path,$acl)
+  } else {
+    [IO.File]::SetAccessControl($Path,$acl)
+  }
   Assert-FfhPrivateEvidenceAcl -Path $Path
 }
 function Assert-FfhEvidenceEntry {
