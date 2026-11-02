@@ -68,11 +68,14 @@ function Initialize-FfhPrivateEvidenceAcl {
   }
   foreach($sid in @($who.Value,'S-1-5-18','S-1-5-32-544')) {
     $rights=[Security.AccessControl.FileSystemRights]::FullControl
-    $inherit=[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
-      [Security.AccessControl.InheritanceFlags]::ObjectInherit
-    $newRule=New-Object Security.AccessControl.FileSystemAccessRule(
-      (New-Object Security.Principal.SecurityIdentifier($sid)), $rights,
-      $inherit,[Security.AccessControl.PropagationFlags]::None,
+    $inherit=[Security.AccessControl.InheritanceFlags]::None
+    if ((Get-Item -LiteralPath $Path -Force).PSIsContainer) {
+      $inherit=[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor
+        [Security.AccessControl.InheritanceFlags]::ObjectInherit
+    }
+    $newRule=[Security.AccessControl.FileSystemAccessRule]::new(
+      [Security.Principal.SecurityIdentifier]::new($sid),$rights,$inherit,
+      [Security.AccessControl.PropagationFlags]::None,
       [Security.AccessControl.AccessControlType]::Allow)
     $acl.AddAccessRule($newRule)
   }
@@ -138,7 +141,7 @@ function Write-FfhJournal {
     $f.Write($payload,0,$payload.Length)
     $f.Flush($true)
     $f.Dispose();$f=$null
-    Assert-FfhPrivateEvidenceAcl -Path $tmp
+    Initialize-FfhPrivateEvidenceAcl -Path $tmp
     if (Test-Path -LiteralPath $dest -PathType Leaf) {
       [IO.File]::Replace($tmp,$dest,$null)
     } else {
@@ -418,7 +421,7 @@ function Write-FfhRedactedEvidence {
   if (Test-Path -LiteralPath $dest) { throw 'BLOCKED: gate evidence already exists' }
   $fs=[IO.FileStream]::new($temp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
   try { $fs.Write($bytes,0,$bytes.Length);$fs.Flush($true) } finally { $fs.Dispose() }
-  Assert-FfhPrivateEvidenceAcl -Path $temp
+  Initialize-FfhPrivateEvidenceAcl -Path $temp
   [IO.File]::Move($temp,$dest)
   Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
   if ($Phase -ceq 'GATE_A') {
