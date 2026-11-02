@@ -497,8 +497,11 @@ foreach($case in $cases) {
         Assert-Mock ($status -ceq 'EXIT_ZERO') 'GATE_B_PASS_PROCESS_EXIT'
         Verify-Results 'PASS' 'PASS' 'CLEANUP_VERIFIED'
         Assert-Mock (($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'EXACT_ACTION_ORDER'
-        $expectedActions=@('stop --time=-1 '+$script:cid,'rm '+$script:cid,
-          'volume rm '+$script:mock.vname,'network rm '+$script:nid)
+        $expectedActions=@()
+        $expectedActions+=('stop --time=-1 '+$script:cid)
+        $expectedActions+=('rm '+$script:cid)
+        $expectedActions+=('volume rm '+$script:mock.vname)
+        $expectedActions+=('network rm '+$script:nid)
         if (($script:actionArgs -join '|') -cne ($expectedActions -join '|')) {
           throw ('MOCK_VECTOR_EXPECTED='+($expectedActions -join '|')+' ACTUAL='+($script:actionArgs -join '|'))
         }
