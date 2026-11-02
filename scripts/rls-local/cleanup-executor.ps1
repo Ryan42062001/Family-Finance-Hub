@@ -48,6 +48,15 @@ function Assert-FfhExactInventory {
   Confirm-FfhBaseline -Journal $Journal -Fake $Fake
   $owned=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake)
   $records=@($Journal.resources)
+  if ($owned.Count -ne $records.Count) {
+    throw 'BLOCKED: incomplete resource inventory cardinality'
+  }
+  foreach ($kind in @('containers','volumes','networks')) {
+    if (@($owned | Where-Object { $_.kind -ceq $kind }).Count -ne
+        @($records | Where-Object { $_.kind -ceq $kind }).Count) {
+      throw 'BLOCKED: per-kind resource inventory count mismatch'
+    }
+  }
   foreach ($entry in $owned) {
     if (@($records | Where-Object { $_.kind -ceq $entry.kind -and
           $_.id -ceq $entry.id -and $_.name -ceq $entry.name }).Count -ne 1) {
@@ -56,8 +65,8 @@ function Assert-FfhExactInventory {
   }
   foreach ($entry in $records) {
     if (@($owned | Where-Object { $_.kind -ceq $entry.kind -and
-          $_.id -ceq $entry.id }).Count -gt 1) {
-      throw 'BLOCKED: duplicate resource identity'
+          $_.id -ceq $entry.id -and $_.name -ceq $entry.name }).Count -ne 1) {
+      throw 'BLOCKED: journaled exact resource missing or duplicated'
     }
   }
   $all=@(Get-FfhFullResourceNamespace -Fake $Fake)
@@ -163,52 +172,41 @@ function Test-FfhExactAbsent {
   }
   if ($ids -ccontains $Id) { throw 'BLOCKED: resource not absent following action' }
 }
-function Clear-FfhVerifiedRoot {
-  param($Identity)
-  # Never follow reparse points; no recursive deletion. Restrict to an exact
-  # direct-child run root and verify every entry before a leaf-first operation.
-  Assert-FfhNoReparsePath -Path $Identity.root
-  if (-not (Test-Path -LiteralPath $Identity.root -PathType Container)) { return }
+# No path-based deletion. A handle-bound Win32 implementation is NOT yet
+# independently proved safe on owner hosts. Retain any present directory for
+# controlled manual retirement; never call Remove-Item on the disposable root.
+function Test-FfhVerifiedRootAbsent {
+  param($Identity,[scriptblock]$FakeFilesystem)
   $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
-  if (-not ([IO.Path]::GetFullPath((Split-Path $Identity.root -Parent))).Equals(
-      $home,[StringComparison]::OrdinalIgnoreCase)) {
-    throw 'BLOCKED: unsafe temporary root parent'
+  $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      -not ([IO.Path]::GetDirectoryName($root)).Equals(
+        $home,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $expected -or
+      $root -match '(?i)FFH-RLS-Test') {
+    throw 'BLOCKED: root identity or direct parent mismatch'
   }
-  $stack=New-Object System.Collections.Stack
-  $stack.Push([pscustomobject]@{path=$Identity.root;visited=$false})
-  $count=0
-  while ($stack.Count -gt 0) {
-    if (++$count -gt 4000) { throw 'BLOCKED: root tree too large' }
-    $item=$stack.Pop()
-    Assert-FfhNoReparsePath -Path $item.path
-    $actualOwner=(Get-Acl -LiteralPath $item.path -ErrorAction Stop).Owner
-    $expectedOwner=[Security.Principal.WindowsIdentity]::GetCurrent().Name
-    if ($actualOwner -cne $expectedOwner) { throw 'BLOCKED: filesystem ACL owner drift' }
-    if ($item.visited) {
-      Remove-Item -LiteralPath $item.path -Force -ErrorAction Stop
-      continue
+  if (-not $FakeFilesystem) {
+    Assert-FfhNoReparsePath -Path $home
+    if (Test-Path -LiteralPath $root) {
+      # No deletion is authorized while any filesystem object exists at root.
+      Assert-FfhNoReparsePath -Path $root
+      throw 'BLOCKED: root retained, handle-bound retirement unverified'
     }
-    $stack.Push([pscustomobject]@{path=$item.path;visited=$true})
-    foreach ($child in @(Get-ChildItem -LiteralPath $item.path -Force -ErrorAction Stop)) {
-      Assert-FfhNoReparsePath -Path $child.FullName
-      $canonical=[IO.Path]::GetFullPath($child.FullName)
-      if (-not $canonical.StartsWith(($Identity.root.TrimEnd('\')+'\'),
-          [StringComparison]::OrdinalIgnoreCase)) { throw 'BLOCKED: child escaped root' }
-      if ((Get-Acl -LiteralPath $canonical -ErrorAction Stop).Owner -cne
-          [Security.Principal.WindowsIdentity]::GetCurrent().Name) {
-        throw 'BLOCKED: file ACL owner drift'
-      }
-      if ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        throw 'BLOCKED: reparse point discovered'
-      }
-      if ($child.PSIsContainer) {
-        $stack.Push([pscustomobject]@{path=$child.FullName;visited=$false})
-      } else {
-        Remove-Item -LiteralPath $child.FullName -Force -ErrorAction Stop
-      }
+    if (Test-Path -LiteralPath $root) {
+      throw 'BLOCKED: root appeared during final absence verification'
+    }
+  } else {
+    $receipt=@(& $FakeFilesystem $root)
+    if ($receipt.Count -ne 1 -or $receipt[0] -cne 'ABSENT') {
+      throw 'BLOCKED: fake root present, changed or unknown'
     }
   }
+  return $true
 }
+
 function Get-FfhSqlIdleAttestation {
   param($Identity,[scriptblock]$Fake)
   try {
@@ -230,10 +228,13 @@ function Get-FfhSqlIdleAttestation {
   return 'UNKNOWN'
 }
 function Invoke-FfhVerifiedCleanup {
-  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake)
+  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake,
+    [scriptblock]$FakeFilesystem)
   $j=Read-FfhJournal -Identity $Identity
   if ($j.state -ceq 'GATE_A_PRESERVED') { return 'PRESERVED_FOR_GATE_B' }
-  if (-not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE' -or
+  if ($FakeFilesystem -and -not $Fake) { throw 'BLOCKED: fake filesystem requires fake Docker' }
+  if ($j.state -cnotin @('GATE_A_FAILED','GATE_B_COMPLETE','GATE_B_FAILED') -or
+      -not $j.evidenceSaved -or $SqlIdleAttestation -cne 'VERIFIED_DAEMON_SQL_IDLE' -or
       $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') {
     [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
     return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
@@ -280,7 +281,9 @@ function Invoke-FfhVerifiedCleanup {
     }
     $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
     if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
-    if (-not $Fake) { Clear-FfhVerifiedRoot -Identity $Identity }
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    Confirm-FfhBaseline -Journal $j -Fake $Fake
+    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
     $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
     return $j.cleanupResult
   } catch {
