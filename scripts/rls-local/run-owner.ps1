@@ -170,7 +170,7 @@ catch {
         $boundary=$current.sqlBoundary
         $admittedSqlActuallyStarted=($boundary.phase -ceq 'GATE_B' -and
           $boundary.mode -ceq $gateBSqlStage -and
-          $boundary.status -cin @('EXECUTING','COMPLETE') -and
+          $boundary.status -ceq 'COMPLETE' -and
           $boundary.containerId -cmatch '^[a-f0-9]{64}$')
         if ($admittedSqlActuallyStarted) {
           # Only an actually executed, journaled SQL test may attempt bounded
