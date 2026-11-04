@@ -219,6 +219,7 @@ function Save-MockGateAFail {
   [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'PENDING')
   [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'ADMITTED' -ContainerId $script:cid)
   [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'EXECUTING' -ContainerId $script:cid)
+  [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'COMPLETE' -ContainerId $script:cid)
   [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
   Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'FAIL' -Category 'MOCK_FAILURE'
 }
@@ -313,8 +314,8 @@ function Invoke-FfhOwnedLocalPsql {
   if ($ContainerId -cne $script:cid) {throw 'MOCK_SQL_WRONG_CONTAINER_ID'}
   if ($Mode -cnotin @('Matrix','Preflight')) {throw 'MOCK_UNAUTHORIZED_SQL_MODE'}
   [void](Set-FfhSqlBoundary -Identity $Identity -Phase 'GATE_B' -Mode $Mode -Status 'EXECUTING' -ContainerId $ContainerId)
-  if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_MATRIX_FAILURE'}
   [void](Set-FfhSqlBoundary -Identity $Identity -Phase 'GATE_B' -Mode $Mode -Status 'COMPLETE' -ContainerId $ContainerId)
+  if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_POST_CLIENT_EXIT_MATRIX_FAILURE'}
 }
 function Invoke-MockOwnerGateBTail {
   param([switch]$FailMatrix)
