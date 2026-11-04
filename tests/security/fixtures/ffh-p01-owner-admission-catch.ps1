@@ -193,7 +193,13 @@ try {
   $script:afterCompleteFailure='Preflight'
   $null=Run-GateA
   $j=Read-FfhJournal -Identity $script:identity
-  Check ($j.gateAResult -ceq 'FAIL' -and $j.cleanupResult -ceq 'CLEANUP_VERIFIED') 'A_COMPLETED_CLIENT_SAFE_CLEANUP'
+  if ($j.gateAResult -cne 'FAIL' -or $j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+    throw ('MOCK_OWNER_A_COMPLETED_ACTUAL gateA='+$j.gateAResult+
+      ' cleanup='+$j.cleanupResult+' state='+$j.state+
+      ' boundary='+$j.sqlBoundary.status+' idleCalls='+$script:idleCalls+
+      ' actions='+($script:mutations -join ',')+
+      ' reason='+$script:FfhMockLastCleanupFailure)
+  }
   Check ($script:idleCalls -gt 0 -and ($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'A_COMPLETED_CLIENT_EXACT_CLEANUP'
   Write-Output 'OWNER-A-PREFLIGHT-COMPLETED-CLIENT-FAIL PASS'
 } finally {End}
