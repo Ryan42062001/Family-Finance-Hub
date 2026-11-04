@@ -211,6 +211,11 @@ function Set-MockResources {
   $script:mock.running=$true
 }
 function Save-MockGateAFail {
+  # These cleanup tests simulate a previously admitted/executed SQL failure,
+  # never a rejection at the admission boundary.
+  [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'PENDING')
+  [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'ADMITTED' -ContainerId $script:cid)
+  [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'EXECUTING' -ContainerId $script:cid)
   [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
   Write-FfhRedactedEvidence -Identity $script:identity -Phase 'GATE_A' -Result 'FAIL' -Category 'MOCK_FAILURE'
 }
@@ -303,8 +308,10 @@ function Assert-FfhLocalDockerDesktop {return [pscustomobject]@{Endpoint='mock-l
 function Invoke-FfhOwnedLocalPsql {
   param([string]$Mode,$Container,$SqlPath,$DockerBinding,$Source,$Identity,$ContainerId)
   if ($ContainerId -cne $script:cid) {throw 'MOCK_SQL_WRONG_CONTAINER_ID'}
-  if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_MATRIX_FAILURE'}
   if ($Mode -cnotin @('Matrix','Preflight')) {throw 'MOCK_UNAUTHORIZED_SQL_MODE'}
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase 'GATE_B' -Mode $Mode -Status 'EXECUTING' -ContainerId $ContainerId)
+  if ($script:matrixFail -and $Mode -ceq 'Matrix') {throw 'MOCK_MATRIX_FAILURE'}
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase 'GATE_B' -Mode $Mode -Status 'COMPLETE' -ContainerId $ContainerId)
 }
 function Invoke-MockOwnerGateBTail {
   param([switch]$FailMatrix)
@@ -320,6 +327,7 @@ function Invoke-MockOwnerGateBTail {
   $lock=[pscustomobject]@{}
   Add-Member -InputObject $lock -MemberType ScriptMethod -Name Dispose -Value {}
   $gateBStarted=$false
+  $terminalStatePersistenceFailed=$false
   try {
     Invoke-Expression $tail | Out-Null
     return 'EXIT_ZERO'
