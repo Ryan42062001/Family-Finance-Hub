@@ -548,6 +548,14 @@ foreach($case in $cases) {
         Start-MockCase
         Prepare-PreservedRun
         Prepare-GateB
+        # Simulate a fully admitted, actually executed preflight + matrix
+        # before evidence interruption, not an unadmitted synthetic PASS.
+        foreach ($mode in @('Preflight','Matrix')) {
+          [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_B' -Mode $mode -Status 'PENDING')
+          [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_B' -Mode $mode -Status 'ADMITTED' -ContainerId $script:cid)
+          [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_B' -Mode $mode -Status 'EXECUTING' -ContainerId $script:cid)
+          [void](Set-FfhSqlBoundary -Identity $script:identity -Phase 'GATE_B' -Mode $mode -Status 'COMPLETE' -ContainerId $script:cid)
+        }
         $dest=Join-Path $script:evidence ($script:identity.token+'.GATE_B.result.json')
         [IO.File]::WriteAllText($dest,'{"interrupted":true}')
         Initialize-FfhPrivateEvidenceAcl -Path $dest -NewlyCreated
