@@ -60,7 +60,13 @@ public static class FfhP01OwnedRoot {
     FileSystemSecurity a=dir?(FileSystemSecurity)Directory.GetAccessControl(path):
       (FileSystemSecurity)File.GetAccessControl(path);
     string who=WindowsIdentity.GetCurrent().User.Value;
-    if(a.GetOwner(typeof(SecurityIdentifier)).Value!=who ||
+    string owner=a.GetOwner(typeof(SecurityIdentifier)).Value;
+    // Root and marker must be owned by the invoking user; Windows may
+    // create child directories under Administrators/SYSTEM default-owner
+    // tokens. Permit only these two additional trusted child owners.
+    if((protectedDacl && owner!=who) ||
+       (!protectedDacl && owner!=who && owner!="S-1-5-18" &&
+        owner!="S-1-5-32-544") ||
        (protectedDacl && !a.AreAccessRulesProtected))Fail("ACL_OWNER");
     foreach(FileSystemAccessRule rule in a.GetAccessRules(true,true,typeof(SecurityIdentifier))) {
       string sid=rule.IdentityReference.Value;
