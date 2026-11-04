@@ -10,8 +10,8 @@ $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile'))
 $sha='b'*40
 function New-NativeRoot {
   $id=Get-FfhRunIdentity -SourceSha $sha -RunToken (New-FfhRunToken)
-  if (Test-Path -LiteralPath $id.root) {throw 'SYNTH_COLLISION'}
-  [void](New-Item -ItemType Directory -LiteralPath $id.root -ErrorAction Stop)
+  if (Test-Path -Path $id.root) {throw 'SYNTH_COLLISION'}
+  [void](New-Item -ItemType Directory -Path $id.root -ErrorAction Stop)
   Initialize-FfhPrivateEvidenceAcl -Path $id.root -NewlyCreated
   $marker=Join-Path $id.root '.ffh-p01-owned-root'
   [IO.File]::WriteAllText($marker,(Get-FfhRootMarker -Identity $id),[Text.UTF8Encoding]::new($false))
@@ -52,7 +52,7 @@ try {
   # FS-01: Native load, exact owned marker, ACL, two ordinary child levels.
   $id=New-NativeRoot
   $dir=Join-Path $id.root 'supabase'
-  [void](New-Item -ItemType Directory -LiteralPath $dir)
+  [void](New-Item -ItemType Directory -Path $dir)
   [IO.File]::WriteAllText((Join-Path $dir 'config.toml'),'synthetic')
   $recorded=FileId $id
   if ($recorded -cnotmatch '^[a-f0-9]{8}:[a-f0-9]{16}$') {throw 'SYNTH_NO_FILESYSTEM_ID'}
@@ -65,13 +65,13 @@ try {
   $stale=FileId $id
   if ((NativeRetire $id $stale) -cne 'RETIRED') {throw 'SYNTH_FIRST_RETIRE'}
   $new=New-Object psobject -Property @{root=$id.root;sha=$id.sha;token=$id.token;project=$id.project}
-  [void](New-Item -ItemType Directory -LiteralPath $id.root)
+  [void](New-Item -ItemType Directory -Path $id.root)
   Initialize-FfhPrivateEvidenceAcl -Path $id.root -NewlyCreated
   $marker=Join-Path $id.root '.ffh-p01-owned-root'
   [IO.File]::WriteAllText($marker,(Get-FfhRootMarker -Identity $new),[Text.UTF8Encoding]::new($false))
   Initialize-FfhPrivateEvidenceAcl -Path $marker -NewlyCreated
   MustBlock {NativeRetire $id $stale}
-  if (-not (Test-Path -LiteralPath $id.root)) {throw 'SYNTH_FOREIGN_REPLACEMENT_DELETED'}
+  if (-not (Test-Path -Path $id.root)) {throw 'SYNTH_FOREIGN_REPLACEMENT_DELETED'}
   FileReceipt '02'
   Stop-NativeRoot $id;$id=$null
   # FS-03: Tampered SHA/token marker is fail closed.
@@ -84,7 +84,7 @@ try {
   # FS-04: Reparse/junction inside owned directory cannot be followed.
   $id=New-NativeRoot;$recorded=FileId $id
   $foreign=Join-Path $home ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
-  [void](New-Item -ItemType Directory -LiteralPath $foreign)
+  [void](New-Item -ItemType Directory -Path $foreign)
   $proof=Join-Path $foreign 'never-delete.txt'
   [IO.File]::WriteAllText($proof,'preserved')
   $junction=Join-Path $id.root 'aa-junction'

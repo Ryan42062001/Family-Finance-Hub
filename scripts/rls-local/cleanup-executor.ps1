@@ -344,6 +344,40 @@ function Test-FfhVerifiedRootAbsent {
   }
   return $true
 }
+
+# Mandatory pre-mutation proof: an existing exact owned root, not merely a
+# saved string. A missing, swapped, reparse, foreign-ACL or interrupted root
+# blocks before the first exact Docker stop/rm.
+function Assert-FfhOwnedRootPreflight {
+  param($Identity,$Journal,[scriptblock]$FakeFilesystem)
+  if ($Journal.rootRetirement.status -cne 'NOT_STARTED' -or
+      $Journal.rootOwnership.markerVersion -ne 1 -or
+      $Journal.rootOwnership.fileId -cnotmatch '^[a-f0-9]{8}:[a-f0-9]{16}$' -or
+      $Journal.root -cne $Identity.root -or
+      $Journal.sha -cne $Identity.sha -or $Journal.token -cne $Identity.token) {
+    throw 'BLOCKED: pre-mutation root identity journal invalid'
+  }
+  if ($FakeFilesystem) {
+    $response=@(& $FakeFilesystem $Identity.root 'VERIFY_OWNER' $Journal.rootOwnership.fileId)
+    if ($response.Count -ne 1 -or $response[0] -cne 'OWNED') {
+      throw 'BLOCKED: mock root ownership not proven before Docker'
+    }
+  } else {
+    $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+    $root=[IO.Path]::GetFullPath($Identity.root)
+    $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+    if (-not ([IO.Path]::GetDirectoryName($root)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($root) -cne $leaf) {
+      throw 'BLOCKED: native preflight wrong profile child'
+    }
+    Assert-FfhNoReparsePath -Path $home
+    [void](Get-FfhOwnedRootNative)
+    $observed=[FfhP01OwnedRoot]::Inspect($home,$leaf,(Get-FfhRootMarker -Identity $Identity))
+    if ($observed -cne $Journal.rootOwnership.fileId) {
+      throw 'BLOCKED: native root file ID changed before Docker'
+    }
+  }
+}
 function Invoke-FfhOwnedRootRetirement {
   param($Identity,$Journal,[scriptblock]$FakeFilesystem)
   if ($Journal.state -cne 'CLEANUP_RUNNING' -or
@@ -456,6 +490,7 @@ function Invoke-FfhVerifiedCleanup {
     return 'CLEANUP_BLOCKED_MANUAL_REVIEW'
   }
   try {
+    Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
     $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_RUNNING' -CleanupResult 'CLEANUP_PENDING'
     # A missing recorded resource after crash is not silently adopted. The
     # per-mutation action intent remains durable until verified completion.

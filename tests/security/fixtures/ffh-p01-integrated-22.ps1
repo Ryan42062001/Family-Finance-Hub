@@ -38,6 +38,10 @@ $script:fakeFs={
   param([string]$root,[string]$action='PROBE',[string]$fileId='')
   $script:fsQueries++
   if ($root -cne $script:identity.root) {throw 'MOCK_BLOCKED: wrong root'}
+  if ($action -ceq 'VERIFY_OWNER') {
+    if ($fileId -cne '12345678:abcdef0123456789') {return 'UNKNOWN'}
+    return $script:mock.root
+  }
   if ($action -ceq 'RETIRE') {
     if ($fileId -cne '12345678:abcdef0123456789') {throw 'MOCK_BLOCKED: wrong file ID'}
     if ($script:mock.root -ceq 'OWNED') {$script:mock.root='ABSENT';return 'RETIRED'}
@@ -194,7 +198,7 @@ function Start-MockCase {
     daemon='mock-docker-engine-1234'; c=$false;v=$false;n=$false;running=$false
     legacy=$true;foreignVolume=$false;foreignNetwork=$false;foreignMount=$false
     badCompose=$false;failStop=$false;failRm=$false;sqlActive=$false;sqlTimeout=$false
-    root='ABSENT';vname=('supabase_db_'+$script:identity.project+'_data')
+    root='OWNED';vname=('supabase_db_'+$script:identity.project+'_data')
     nname=('supabase_network_'+$script:identity.project)
   }
   $script:mutations.Clear()
