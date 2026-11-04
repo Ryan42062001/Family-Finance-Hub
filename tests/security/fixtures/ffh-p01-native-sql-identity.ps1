@@ -19,6 +19,9 @@ $script:journal=[pscustomobject]@{
   cliVersion='2.122.0';ports=@(42133,42134)
   state='GATE_B_RUNNING';gateAResult='PASS';gateBResult='RUNNING'
   cleanupResult='PRESERVED_FOR_GATE_B';protected=@(('C:'+$script:legacyId+' FFH-RLS-Test'))
+  sqlBoundary=[pscustomobject]@{phase='GATE_B';mode='Preflight';status='ADMITTED'
+    sha=$script:identity.sha;token=$script:identity.token
+    containerId=$script:cid;daemon='synthetic-local-daemon-1234'}
   resources=@([pscustomobject]@{kind='containers';id=$script:cid;name=('/'+$script:identity.container)},
     [pscustomobject]@{kind='networks';id=$script:nid;name=('supabase_network_'+$script:identity.project)})
 }
@@ -48,6 +51,22 @@ $script:source=[pscustomobject]@{head=$script:identity.sha;repo=$script:temp;all
 $script:binding=[pscustomobject]@{Endpoint='npipe:////./pipe/dockerDesktopLinuxEngine';Executable=$script:dockerExe}
 # Replace environment/native edges while running the actual production functions.
 function Read-FfhJournal {param($Identity) return $script:journal}
+# The fixture replaces only durable I/O. Production native SQL function,
+# exact-ID validator and its transition call sites remain real.
+function Set-FfhSqlBoundary {
+  param($Identity,$Phase,$Mode,$Status,$ContainerId)
+  if ($script:journal.sqlBoundary.phase -cne $Phase -or
+      $script:journal.sqlBoundary.mode -cne $Mode -or
+      $script:journal.sqlBoundary.containerId -cne $ContainerId) {
+    throw 'MOCK_BOUNDARY_WRONG_IDENTITY'
+  }
+  if (($Status -ceq 'EXECUTING' -and $script:journal.sqlBoundary.status -cne 'ADMITTED') -or
+      ($Status -ceq 'COMPLETE' -and $script:journal.sqlBoundary.status -cne 'EXECUTING')) {
+    throw 'MOCK_BOUNDARY_INVALID_TRANSITION'
+  }
+  $script:journal.sqlBoundary.status=$Status
+  return $script:journal
+}
 function Assert-FfhNoRemoteConfiguration { }
 function Assert-FfhDockerEnvironment { }
 function Assert-FfhLocalDockerDesktop {return $script:binding}
@@ -143,12 +162,18 @@ function Reset-Mock {
   $script:journal.project=$script:identity.project
   $script:journal.gateAResult='PASS';$script:journal.gateBResult='RUNNING'
   $script:journal.state='GATE_B_RUNNING';$script:journal.cleanupResult='PRESERVED_FOR_GATE_B'
+  $script:journal.sqlBoundary=[pscustomobject]@{
+    phase='GATE_B';mode='Preflight';status='ADMITTED'
+    sha=$script:identity.sha;token=$script:identity.token
+    containerId=$script:cid;daemon='synthetic-local-daemon-1234'
+  }
   $script:source.head=$script:identity.sha
   $script:binding=[pscustomobject]@{Endpoint='npipe:////./pipe/dockerDesktopLinuxEngine';Executable=$script:dockerExe}
 }
 function Run-RealNative([string]$Mode='Preflight',[string]$Container='',[string]$Id='') {
   if(-not $Container) {$Container=$script:identity.container}
   if(-not $Id) {$Id=$script:cid}
+  $script:journal.sqlBoundary.mode=$Mode
   return (Invoke-FfhOwnedLocalPsql -Mode $Mode -Container $Container -ContainerId $Id -Identity $script:identity -FakeDocker $script:dockerRead -SqlPath (Join-Path $script:sqlDir ($Mode.ToLowerInvariant()+'.sql')) -Source $script:source -DockerBinding $script:binding)
 }
 function Must-Block($description,[scriptblock]$action) {
@@ -175,6 +200,7 @@ try {
   $script:journal.gateAResult='RUNNING'
   $script:journal.gateBResult='NOT_STARTED'
   $script:journal.state='INVENTORY_VERIFIED'
+  $script:journal.sqlBoundary.phase='GATE_A'
   Run-RealNative | Out-Null
   if($script:nativeCalls -ne 1) {throw 'MOCK_GATE_A_VALID_FAIL'}
   Write-Output 'NATIVE-GATE-A-ID PASS'
