@@ -14,9 +14,22 @@ if (-not $prefix.Contains($oldRepo)) {throw 'MOCK_OWNER_REPO_SOURCE_BOUNDARY_MIS
 $prefix=$prefix.Replace($oldRepo,'$repo=$script:fixtureRepo')
 Invoke-Expression $prefix
 $script:baseDocker=$script:fakeDocker
+# Owner exception paths call these real functions without test arguments.
+# Inject only the Docker/native/filesystem edges, never replace the logic.
+$script:realIdle=(Get-Command Get-FfhSqlIdleAttestation).ScriptBlock
+function Get-FfhSqlIdleAttestation {
+  param($Identity,[scriptblock]$Fake)
+  return (& $script:realIdle -Identity $Identity -Fake $script:fakeDocker)
+}
+$script:realCleanup=(Get-Command Invoke-FfhVerifiedCleanup).ScriptBlock
+function Invoke-FfhVerifiedCleanup {
+  param($Identity,[string]$SqlIdleAttestation,[scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  return (& $script:realCleanup -Identity $Identity -SqlIdleAttestation $SqlIdleAttestation -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs)
+}
 $script:idleCalls=0;$script:preflightCalls=0;$script:matrixCalls=0
 $script:fault='';$script:postPreflightFault=''
 $script:blockTerminalWrites=$false
+$script:afterCompleteFailure=''
 $script:baseSetState=(Get-Command Set-FfhRunState).ScriptBlock
 function Set-FfhRunState {
   param($Identity,[string]$State,[string]$TestResult,[string]$CleanupResult,
@@ -60,6 +73,7 @@ function Invoke-FfhOwnedLocalPsql {
   [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phase -Mode $Mode -Status 'EXECUTING' -ContainerId $ContainerId)
   if($script:simulateSqlFailure -ceq $Mode){throw 'MOCK_ADMITTED_SQL_FAILURE'}
   [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phase -Mode $Mode -Status 'COMPLETE' -ContainerId $ContainerId)
+  if($script:afterCompleteFailure -ceq $Mode){throw 'MOCK_POST_CLIENT_COMPLETED_TEST_FAILURE'}
   if($script:postPreflightFault -and $Mode -ceq 'Preflight'){
     $script:fault=$script:postPreflightFault
     if($script:fault -ceq 'LABEL'){$script:mock.badCompose=$true}
@@ -70,7 +84,7 @@ function Reset-Counts{
   $script:idleCalls=0;$script:preflightCalls=0;$script:matrixCalls=0
   $script:fault='';$script:postPreflightFault=''
   $script:blockTerminalWrites=$false;$script:journalGateA=$false
-  $script:simulateSqlFailure=''
+  $script:simulateSqlFailure='';$script:afterCompleteFailure=''
 }
 function Check([bool]$ok,[string]$label){if(-not $ok){throw ('MOCK_OWNER_'+$label)}}
 $sourceA=([IO.File]::ReadAllText((Join-Path $repo 'scripts/rls-local/prepare-fresh-owner.ps1'))).Replace([string][char]13,'')
@@ -154,6 +168,40 @@ foreach($caseName in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASE
     Write-Output ('OWNER-A-'+$caseName+' PASS')
   } finally {End}
 }
+# Distinguish admitted/completed client failure (eligible for reverified
+# cleanup) from an indeterminate EXECUTING native client (never eligible).
+foreach($mode in @('Preflight','Matrix')){
+  Begin 'B'
+  try {
+    $script:afterCompleteFailure=$mode
+    $result=Invoke-MockOwnerGateBTail
+    $j=Read-FfhJournal -Identity $script:identity
+    Check ($result -ceq 'EXIT_NONZERO') ('B_ADMITTED_'+$mode+'_NONZERO')
+    Check ($j.gateBResult -ceq 'FAIL' -and $j.cleanupResult -ceq 'CLEANUP_VERIFIED') ('B_ADMITTED_'+$mode+'_SAFE_CLEANUP')
+    Check ($script:idleCalls -gt 0 -and
+      ($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') ('B_ADMITTED_'+$mode+'_EXACT_CLEANUP')
+    Write-Output ('OWNER-B-'+$mode.ToUpperInvariant()+'-COMPLETED-CLIENT-FAIL PASS')
+  } finally {End}
+}
+Begin 'A'
+try {
+  $script:afterCompleteFailure='Preflight'
+  $null=Run-GateA
+  $j=Read-FfhJournal -Identity $script:identity
+  Check ($j.gateAResult -ceq 'FAIL' -and $j.cleanupResult -ceq 'CLEANUP_VERIFIED') 'A_COMPLETED_CLIENT_SAFE_CLEANUP'
+  Check ($script:idleCalls -gt 0 -and ($script:mutations -join ',') -ceq 'stop,rm,volume rm,network rm') 'A_COMPLETED_CLIENT_EXACT_CLEANUP'
+  Write-Output 'OWNER-A-PREFLIGHT-COMPLETED-CLIENT-FAIL PASS'
+} finally {End}
+Begin 'B'
+try {
+  $script:simulateSqlFailure='Preflight'
+  $result=Invoke-MockOwnerGateBTail
+  $j=Read-FfhJournal -Identity $script:identity
+  Check ($result -ceq 'EXIT_NONZERO') 'B_EXECUTING_UNKNOWN_NONZERO'
+  Check ($j.gateBResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'B_EXECUTING_UNKNOWN_DURABLE'
+  Check ($script:idleCalls -eq 0 -and $script:mutations.Count -eq 0) 'B_EXECUTING_UNKNOWN_NO_SQL_DELETE'
+  Write-Output 'OWNER-B-NATIVE-EXECUTING-UNKNOWN-NO-CLEANUP PASS'
+} finally {End}
 Begin 'A'
 try {
   [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
