@@ -112,46 +112,46 @@ function Run-Catch([string]$phase){
   $scriptText=if($phase -ceq 'A'){$aCatchBody}else{$bCatchBody}
   return @(& {try {Invoke-Expression $scriptText} catch {}})
 }
-foreach($fault in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
+foreach($caseName in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
   Begin 'B'
   try {
-    $script:fault=$fault
-    if($fault -ceq 'LABEL'){$script:mock.badCompose=$true}
-    if($fault -ceq 'BASELINE'){$script:mock.legacy=$false}
+    $script:fault=$caseName
+    if($caseName -ceq 'LABEL'){$script:mock.badCompose=$true}
+    if($caseName -ceq 'BASELINE'){$script:mock.legacy=$false}
     $result=Invoke-MockOwnerGateBTail
     $j=Read-FfhJournal -Identity $script:identity
-    Check ($result -ceq 'EXIT_NONZERO') ('B_PREFLIGHT_'+$fault+'_EXIT')
-    Check ($script:preflightCalls -eq 0 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('B_PREFLIGHT_'+$fault+'_ZERO_SQL')
-    Check ($script:mutations.Count -eq 0) ('B_PREFLIGHT_'+$fault+'_ZERO_DELETE')
-    Check ($j.gateBResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('B_PREFLIGHT_'+$fault+'_JOURNAL')
-    Write-Output ('OWNER-B-PREFLIGHT-'+$fault+' PASS')
+    Check ($result -ceq 'EXIT_NONZERO') ('B_PREFLIGHT_'+$caseName+'_EXIT')
+    Check ($script:preflightCalls -eq 0 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('B_PREFLIGHT_'+$caseName+'_ZERO_SQL')
+    Check ($script:mutations.Count -eq 0) ('B_PREFLIGHT_'+$caseName+'_ZERO_DELETE')
+    Check ($j.gateBResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('B_PREFLIGHT_'+$caseName+'_JOURNAL')
+    Write-Output ('OWNER-B-PREFLIGHT-'+$caseName+' PASS')
   } finally {End}
 }
-foreach($fault in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
+foreach($caseName in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
   Begin 'B'
   try {
-    $script:postPreflightFault=$fault
+    $script:postPreflightFault=$caseName
     $result=Invoke-MockOwnerGateBTail
     $j=Read-FfhJournal -Identity $script:identity
-    Check ($result -ceq 'EXIT_NONZERO') ('B_MATRIX_'+$fault+'_EXIT')
-    Check ($script:preflightCalls -eq 1 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('B_MATRIX_'+$fault+'_ZERO_NEW_SQL')
-    Check ($script:mutations.Count -eq 0) ('B_MATRIX_'+$fault+'_ZERO_DELETE')
-    Check ($j.gateBResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('B_MATRIX_'+$fault+'_JOURNAL')
-    Write-Output ('OWNER-B-MATRIX-'+$fault+' PASS')
+    Check ($result -ceq 'EXIT_NONZERO') ('B_MATRIX_'+$caseName+'_EXIT')
+    Check ($script:preflightCalls -eq 1 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('B_MATRIX_'+$caseName+'_ZERO_NEW_SQL')
+    Check ($script:mutations.Count -eq 0) ('B_MATRIX_'+$caseName+'_ZERO_DELETE')
+    Check ($j.gateBResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('B_MATRIX_'+$caseName+'_JOURNAL')
+    Write-Output ('OWNER-B-MATRIX-'+$caseName+' PASS')
   } finally {End}
 }
-foreach($fault in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
+foreach($caseName in @('PORT','NONLOOPBACK','HEALTH','ID','LABEL','DAEMON','BASELINE')){
   Begin 'A'
   try {
-    $script:fault=$fault
-    if($fault -ceq 'LABEL'){$script:mock.badCompose=$true}
-    if($fault -ceq 'BASELINE'){$script:mock.legacy=$false}
+    $script:fault=$caseName
+    if($caseName -ceq 'LABEL'){$script:mock.badCompose=$true}
+    if($caseName -ceq 'BASELINE'){$script:mock.legacy=$false}
     $out=Run-GateA
     $j=Read-FfhJournal -Identity $script:identity
-    Check ($script:preflightCalls -eq 0 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('A_'+$fault+'_ZERO_SQL')
-    Check ($script:mutations.Count -eq 0) ('A_'+$fault+'_ZERO_DELETE')
-    Check ($j.gateAResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('A_'+$fault+'_JOURNAL')
-    Write-Output ('OWNER-A-'+$fault+' PASS')
+    Check ($script:preflightCalls -eq 0 -and $script:matrixCalls -eq 0 -and $script:idleCalls -eq 0) ('A_'+$caseName+'_ZERO_SQL')
+    Check ($script:mutations.Count -eq 0) ('A_'+$caseName+'_ZERO_DELETE')
+    Check ($j.gateAResult -ceq 'UNKNOWN' -and $j.cleanupResult -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') ('A_'+$caseName+'_JOURNAL')
+    Write-Output ('OWNER-A-'+$caseName+' PASS')
   } finally {End}
 }
 Begin 'A'
