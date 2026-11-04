@@ -19,6 +19,7 @@ $script:nid='d'*64
 $script:legacyId='f'*64
 $script:mutations=New-Object 'System.Collections.Generic.List[string]'
 $script:actionArgs=New-Object 'System.Collections.Generic.List[string]'
+$script:idleQueryArgs=New-Object 'System.Collections.Generic.List[string]'
 $script:fsQueries=0
 
 # Test-only replacement of the profile directory binding. This *narrows*
@@ -144,6 +145,7 @@ $script:fakeDocker={
     throw 'MOCK_BLOCKED: container inspect field'
   }
   if ($verb -ceq 'exec') {
+    [void]$script:idleQueryArgs.Add(($argv -join ' '))
     if ($script:mock.sqlTimeout) {throw 'MOCK_SQL_TIMEOUT'}
     if ($script:mock.sqlActive) {return '1'}
     return '0'
@@ -190,6 +192,7 @@ function Start-MockCase {
   }
   $script:mutations.Clear()
   $script:actionArgs.Clear()
+  $script:idleQueryArgs.Clear()
   $script:fsQueries=0
   $script:FfhMockLastCleanupFailure='NONE'
 }
@@ -522,6 +525,11 @@ foreach($case in $cases) {
         $expectedActions+=('network rm '+$script:nid)
         if (($script:actionArgs -join '|') -cne ($expectedActions -join '|')) {
           throw ('MOCK_VECTOR_EXPECTED='+($expectedActions -join '|')+' ACTUAL='+($script:actionArgs -join '|'))
+        }
+        Assert-Mock ($script:idleQueryArgs.Count -gt 0) 'READ_ONLY_SQL_IDLE_PROBE_OBSERVED'
+        foreach($argsText in $script:idleQueryArgs) {
+          Assert-Mock ($argsText.StartsWith(('exec -i '+$script:cid+' psql -U postgres -d postgres -t -A -c SELECT count(*) FROM pg_stat_activity'),[StringComparison]::Ordinal)) 'IDLE_PROBE_EXACT_CONTAINER_ID_AND_VECTOR'
+          Assert-Mock (-not $argsText.Contains($script:identity.container)) 'IDLE_PROBE_NEVER_MUTABLE_NAME'
         }
         Assert-Mock ($script:fsQueries -ge 2) 'FINAL_ABSENCE_DOUBLE_CHECK'
         # Independent PASS/BLOCKED scenario with a newly isolated journal.
