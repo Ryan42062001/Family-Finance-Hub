@@ -1512,6 +1512,17 @@ function Invoke-FfhOwnedLocalPsql {
   if ($lastAdmission -cne $ContainerId) {
     throw 'BLOCKED_SQL_NATIVE_LAST_ADMISSION_ID_CHANGED'
   }
+  # Crossing this boundary is the ONLY point from which a failed SQL test
+  # may ever be considered for cleanup. Persist before the native child starts.
+  $phaseStage=if($phase -ceq 'GATE_A'){'GATE_A'}else{'GATE_B'}
+  $boundary=Read-FfhJournal -Identity $Identity
+  if ($boundary.sqlBoundary.phase -cne $phaseStage -or
+      $boundary.sqlBoundary.mode -cne $Mode -or
+      $boundary.sqlBoundary.status -cne 'ADMITTED' -or
+      $boundary.sqlBoundary.containerId -cne $ContainerId) {
+    throw 'BLOCKED_SQL_NATIVE_BOUNDARY_NOT_DURABLY_ADMITTED'
+  }
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phaseStage -Mode $Mode -Status 'EXECUTING' -ContainerId $ContainerId)
   # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
   # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
   # owns Win32 handles, finite stdin pumping and native exit retrieval.
@@ -1532,6 +1543,7 @@ function Invoke-FfhOwnedLocalPsql {
     throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
   }
   Assert-FfhDockerEnvironment
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phaseStage -Mode $Mode -Status 'COMPLETE' -ContainerId $ContainerId)
 }
 
 function Assert-FfhReadOnlyPsqlPreflightReceipt {
