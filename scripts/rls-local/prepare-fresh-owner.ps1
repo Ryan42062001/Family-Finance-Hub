@@ -264,7 +264,12 @@ catch {
       }
     } catch {
       try {
-        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        $fallback=Read-FfhJournal -Identity $identity
+        if ($fallback.gateAResult -ceq 'RUNNING') {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -GateAResult 'UNKNOWN' -TestResult 'UNKNOWN' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        } else {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        }
       } catch {
         $terminalStatePersistenceFailed=$true
       }
