@@ -348,19 +348,37 @@ function Test-FfhVerifiedRootAbsent {
   return $true
 }
 
+# Read-only cleanup SQL is strictly journal/daemon/container-ID bound.
+# Any admission rejection, unknown stage or changed health/port/label
+# returns UNKNOWN without even attempting the SQL-idle query.
 function Get-FfhSqlIdleAttestation {
   param($Identity,[scriptblock]$Fake)
   try {
-    $running=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake |
-      Where-Object { $_.kind -eq 'containers' -and $_.running })
-    if (-not $running.Count) { return 'VERIFIED_DAEMON_SQL_IDLE' }
-    $db=@($running | Where-Object { $_.name -ceq ('/'+$Identity.container) -or
-      $_.name -ceq $Identity.container })
-    if ($db.Count -ne 1) { return 'UNKNOWN' }
-    # Only one bounded, local socket, read-only PostgreSQL activity query.
-    # No credentials, database URL, household data or mutable SQL.
+    $j=Read-FfhJournal -Identity $Identity
+    if ($j.sqlBoundary.phase -cnotin @('GATE_A','GATE_B') -or
+        $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+        $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$' -or
+        $j.sqlBoundary.sha -cne $Identity.sha -or
+        $j.sqlBoundary.token -cne $Identity.token -or
+        $j.sqlBoundary.daemon -cne $j.daemon) {
+      return 'UNKNOWN'
+    }
+    $owned=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
+    $containers=@($owned | Where-Object {$_.kind -ceq 'containers'})
+    $db=@($containers | Where-Object {
+      $_.id -ceq $j.sqlBoundary.containerId -and
+      $_.name -ceq ('/'+$Identity.container)
+    })
+    if ($db.Count -ne 1 -or $containers.Count -ne 1) {return 'UNKNOWN'}
+    if (-not $db[0].running) {
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
+    $cid=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $j.sqlBoundary.phase -ForCleanup -Fake $Fake
+    if ($cid -cne $j.sqlBoundary.containerId) {return 'UNKNOWN'}
+    $again=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $j.sqlBoundary.phase -ForCleanup -Fake $Fake
+    if ($again -cne $cid) {return 'UNKNOWN'}
     $query="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
-    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$Identity.container,
+    $values=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$cid,
       'psql','-U','postgres','-d','postgres','-t','-A','-c',$query) -Fake $Fake)
     if ($values.Count -eq 1 -and ([string]$values[0]).Trim() -ceq '0') {
       return 'VERIFIED_DAEMON_SQL_IDLE'
@@ -450,6 +468,11 @@ function Complete-FfhGateB {
       $j.gateBResult -cne 'RUNNING' -or
       $j.state -cne 'GATE_B_RUNNING') {
     throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
+  }
+  if ($j.sqlBoundary.phase -cne 'GATE_B' -or
+      $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+      $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$') {
+    throw 'BLOCKED: Gate B never executed a durably admitted SQL stage'
   }
   $phaseState=if ($GateBResult -ceq 'PASS') {'GATE_B_COMPLETE'} else {'GATE_B_FAILED'}
   [void](Set-FfhRunState -Identity $Identity -State $phaseState -GateBResult $GateBResult -TestResult $GateBResult)
