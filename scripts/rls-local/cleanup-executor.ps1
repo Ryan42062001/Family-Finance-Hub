@@ -153,7 +153,7 @@ function Assert-FfhJournaledSqlAdmission {
   }
   if ($ForCleanup) {
     if ($j.sqlBoundary.phase -cne $Phase -or
-        $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+        $j.sqlBoundary.status -cne 'COMPLETE' -or
         $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$' -or
         $j.sqlBoundary.daemon -cne $j.daemon -or
         $j.state -cnotin @('GATE_A_FAILED','GATE_B_FAILED','GATE_B_COMPLETE','CLEANUP_RUNNING')) {
@@ -356,7 +356,7 @@ function Get-FfhSqlIdleAttestation {
   try {
     $j=Read-FfhJournal -Identity $Identity
     if ($j.sqlBoundary.phase -cnotin @('GATE_A','GATE_B') -or
-        $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+        $j.sqlBoundary.status -cne 'COMPLETE' -or
         $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$' -or
         $j.sqlBoundary.sha -cne $Identity.sha -or
         $j.sqlBoundary.token -cne $Identity.token -or
@@ -478,7 +478,7 @@ function Complete-FfhGateB {
     throw 'BLOCKED: Gate B cannot finalize without independent RUNNING receipt'
   }
   if ($j.sqlBoundary.phase -cne 'GATE_B' -or
-      $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+      $j.sqlBoundary.status -cne 'COMPLETE' -or
       $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$') {
     throw 'BLOCKED: Gate B never executed a durably admitted SQL stage'
   }
