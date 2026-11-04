@@ -337,8 +337,8 @@ function Test-FfhVerifiedRootAbsent {
     }
   } else {
     Assert-FfhNoReparsePath -Path $home
-    $native=Get-FfhOwnedRootNative
-    if ($native::Probe($home,$leaf) -cne 'ABSENT') {
+    [void](Get-FfhOwnedRootNative)
+    if ([FfhP01OwnedRoot]::Probe($home,$leaf) -cne 'ABSENT') {
       throw 'BLOCKED: exact root still present'
     }
   }
@@ -376,12 +376,12 @@ function Invoke-FfhOwnedRootRetirement {
     }
   } else {
     Assert-FfhNoReparsePath -Path $home
-    $native=Get-FfhOwnedRootNative
-    $observed=$native::Probe($home,$leaf)
+    [void](Get-FfhOwnedRootNative)
+    $observed=[FfhP01OwnedRoot]::Probe($home,$leaf)
     if ($observed -cne 'ABSENT' -and $observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: root file ID mismatch'
     }
-    if ($native::Retire($home,$leaf,$Journal.rootOwnership.fileId,
+    if ([FfhP01OwnedRoot]::Retire($home,$leaf,$Journal.rootOwnership.fileId,
         (Get-FfhRootMarker -Identity $Identity)) -cnotin @('RETIRED','ABSENT')) {
       throw 'BLOCKED: native retirement indeterminate'
     }

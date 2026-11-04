@@ -331,8 +331,8 @@ function Initialize-FfhOwnedRoot {
   try {$file.Write($payload,0,$payload.Length);$file.Flush($true)}
   finally {$file.Dispose()}
   Initialize-FfhPrivateEvidenceAcl -Path $marker -NewlyCreated
-  $native=Get-FfhOwnedRootNative
-  $fileId=$native::Inspect($parent,$leaf,(Get-FfhRootMarker -Identity $Identity))
+  [void](Get-FfhOwnedRootNative)
+  $fileId=[FfhP01OwnedRoot]::Inspect($parent,$leaf,(Get-FfhRootMarker -Identity $Identity))
   if ($fileId -cnotmatch '^[a-f0-9]{8}:[a-f0-9]{16}
   param($Identity)
   Assert-FfhEvidencePath -Identity $Identity
