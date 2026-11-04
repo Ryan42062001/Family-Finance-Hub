@@ -59,7 +59,7 @@ Check 'local-daemon-metadata' {if ((Get-FfhObservedDaemon -Fake $fake) -cne 'moc
 Check 'empty-precreation' {Assert-FfhPrecreationNamespace -Identity $i -Fake $fake}
 Check 'labelled-precreation-block' {$script:mode='LABELLED';MustThrow {Assert-FfhPrecreationNamespace -Identity $i -Fake $fake};$script:mode='EMPTY'}
 Check 'unlabelled-precreation-block' {$script:mode='UNLABELLED';MustThrow {Assert-FfhPrecreationNamespace -Identity $i -Fake $fake};$script:mode='EMPTY'}
-Check 'stopped-sql-idle' {if ((Get-FfhSqlIdleAttestation -Identity $i -Fake $fake) -cne 'VERIFIED_DAEMON_SQL_IDLE'){throw 'idle unknown'}}
+Check 'unadmitted-idle-block' {if ((Get-FfhSqlIdleAttestation -Identity $i -Fake $fake) -cne 'UNKNOWN'){throw 'idle must fail closed'}}
 Check 'dual-label-conflict-block' {$script:mode='LABELLED';MustThrow {Get-FfhResourceSnapshot -Identity $i -Fake $fake};$script:mode='EMPTY'}
 Check 'mock-exact-action-pass' {Invoke-FfhExactDockerCommand -Arguments @('rm',('c'*64)) -Fake {param($a) 'EXIT_ZERO'}}
 Check 'mock-exact-action-fail' {MustThrow {Invoke-FfhExactDockerCommand -Arguments @('rm',('c'*64)) -Fake {param($a) 'BLOCKED'}}}
