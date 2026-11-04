@@ -247,7 +247,7 @@ catch {
         $boundary=$current.sqlBoundary
         if ($boundary.phase -ceq 'GATE_A' -and
             $boundary.mode -ceq 'Preflight' -and
-            $boundary.status -cin @('EXECUTING','COMPLETE') -and
+            $boundary.status -ceq 'COMPLETE' -and
             $boundary.containerId -cmatch '^[a-f0-9]{64}$') {
           [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
           Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
