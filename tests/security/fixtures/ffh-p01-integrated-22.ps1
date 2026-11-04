@@ -295,8 +295,8 @@ function Verify-Results([string]$a,[string]$b,[string]$cleanup) {
 # SQL and exact-run fake Docker. The production script has no test bypass.
 $script:realAdmission=(Get-Command Assert-FfhJournaledSqlAdmission).ScriptBlock
 function Assert-FfhJournaledSqlAdmission {
-  param($Identity,[string]$Phase)
-  return (& $script:realAdmission -Identity $Identity -Phase $Phase -Fake $script:fakeDocker)
+  param($Identity,[string]$Phase,[switch]$ForCleanup)
+  return (& $script:realAdmission -Identity $Identity -Phase $Phase -Fake $script:fakeDocker -ForCleanup:$ForCleanup)
 }
 $script:realCompleteGateB=(Get-Command Complete-FfhGateB).ScriptBlock
 function Complete-FfhGateB {
