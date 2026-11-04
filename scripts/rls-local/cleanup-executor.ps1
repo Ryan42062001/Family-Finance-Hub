@@ -405,18 +405,18 @@ function Invoke-FfhOwnedRootRetirement {
   Write-FfhJournal -Identity $Identity -Journal $Journal
   if ($FakeFilesystem) {
     $reply=@(& $FakeFilesystem $root 'RETIRE' $Journal.rootOwnership.fileId)
-    if ($reply.Count -ne 1 -or $reply[0] -cnotin @('RETIRED','ABSENT')) {
+    if ($reply.Count -ne 1 -or $reply[0] -cne 'RETIRED') {
       throw 'BLOCKED: fake filesystem retirement failed or changed'
     }
   } else {
     Assert-FfhNoReparsePath -Path $profileHome
     [void](Get-FfhOwnedRootNative)
     $observed=[FfhP01OwnedRoot]::Probe($profileHome,$leaf)
-    if ($observed -cne 'ABSENT' -and $observed -cne $Journal.rootOwnership.fileId) {
+    if ($observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: root file ID mismatch'
     }
     if ([FfhP01OwnedRoot]::Retire($profileHome,$leaf,$Journal.rootOwnership.fileId,
-        (Get-FfhRootMarker -Identity $Identity)) -cnotin @('RETIRED','ABSENT')) {
+        (Get-FfhRootMarker -Identity $Identity)) -cne 'RETIRED') {
       throw 'BLOCKED: native retirement indeterminate'
     }
   }

@@ -107,3 +107,10 @@ After the Manager 2026-11-03 GO (PR #84 comment 6622575068), the original manual
 Windows CI must confirm parser, 28 mock lifecycle receipts, and 6 native ephemeral-root filesystem receipts. This source-only validation is not Owner-host activation. Independent auditor: freeze the current exact PR #84 head **at audit time**, inspect changed cleanup/root code and the focused Windows receipts, and decide PASS/FAIL for source safety. In particular scrutinize Win32 sharing/disposition semantics, root ACL inheritance, race protection and irrecoverable root replacement. Do not re-open previously passed unrelated source controls unless this diff impacts them. Pending actual Owner-host dry run, all runtime claims remain UNVERIFIED.
 
 Read-only future metadata procedure: `docs/FFH-P01-OWNER-HOST-METADATA-VERIFICATION.md` and `scripts/rls-local/owner-host-metadata-inventory.ps1`. Neither may be run on the Owner host without its own GO. No merge, main/parent mutation, formal Gate A #6/Gate B/913, hosted SQL, destructive dry run, spend, or Private Beta authorized.
+
+
+### Final fail-closed addendum
+
+The native disposer refuses unexpected top-level children and unknown immediate `supabase/` children. The only supported top-level entries are `.ffh-p01-owned-root`, `supabase`, `ffh-p01-local-provenance.json`, and `ffh-p01-local-provenance.sha256`; unexpected paths are preserved with manual review. A missing root immediately before retirement is now an unexpected state rather than a successful deletion receipt, even when a later absence check might pass. A separate FS-07 live-Windows fixture verifies that an unrelated same-user folder is not deleted.
+
+The newer source implementation in this addendum supersedes the earlier root-retained design description above; older paragraphs document the audit-accepted baseline at the start of issue #83, not the final behavior.

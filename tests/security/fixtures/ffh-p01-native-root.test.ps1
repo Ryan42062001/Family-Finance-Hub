@@ -110,8 +110,19 @@ try {
   $id=New-NativeRoot;$recorded=FileId $id
   if ((NativeRetire $id $recorded) -cne 'RETIRED') {throw 'SYNTH_EMPTY_RETIRE'}
   CheckAbsent $id
-  if ((NativeRetire $id $recorded) -cne 'ABSENT') {throw 'SYNTH_ABSENT_NOT_STABLE'}
+  MustBlock {NativeRetire $id $recorded}
+  CheckAbsent $id
   FileReceipt '06'
+  # FS-07: A same-user foreign top-level folder may not be adopted.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $foreignChild=Join-Path $id.root 'unrelated-folder'
+  [void](New-Item -ItemType Directory -Path $foreignChild)
+  [IO.File]::WriteAllText((Join-Path $foreignChild 'foreign-data.txt'),'preserve')
+  MustBlock {NativeRetire $id $recorded}
+  if (-not (Test-Path -LiteralPath (Join-Path $foreignChild 'foreign-data.txt'))) {
+    throw 'SYNTH_FOREIGN_FOLDER_DELETED'
+  }
+  FileReceipt '07'
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {

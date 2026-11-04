@@ -117,9 +117,18 @@ public static class FfhP01OwnedRoot {
     Array.Sort(entries,StringComparer.Ordinal);
     foreach(string e in entries) {
       count++;if(count>4096)Fail("TOTAL_SIZE");
+      string childName=Path.GetFileName(e);
       if(!String.Equals(Path.GetDirectoryName(e),path,StringComparison.OrdinalIgnoreCase) ||
-         Path.GetFileName(e).IndexOf("FFH-RLS-Test",StringComparison.OrdinalIgnoreCase)>=0)
+         childName.IndexOf("FFH-RLS-Test",StringComparison.OrdinalIgnoreCase)>=0)
         Fail("FOREIGN_CHILD");
+      // Never adopt unexpected top-level files/folders as disposable, even
+      // when a same-user process planted them beneath an owned root.
+      if(depth==0 && childName!=".ffh-p01-owned-root" &&
+         childName!="supabase" && childName!="ffh-p01-local-provenance.json" &&
+         childName!="ffh-p01-local-provenance.sha256")Fail("FOREIGN_ROOT_ENTRY");
+      if(depth==1 && Path.GetFileName(path)=="supabase" &&
+         childName!="config.toml" && childName!="migrations" &&
+         childName!=".temp")Fail("FOREIGN_SUPABASE_ENTRY");
       using(SafeFileHandle h=OpenPath(e,true,false)) {
         Info i;
         if(!GetFileInformationByHandle(h,out i) || (i.attr&LINK)!=0 ||
@@ -137,7 +146,7 @@ public static class FfhP01OwnedRoot {
     using(SafeFileHandle p=OpenPath(parent,false,false)) {
       Info parentInfo=Describe(p,true);
       using(SafeFileHandle r=OpenPath(root,true,true)) {
-        if(r==null)return "ABSENT";
+        if(r==null)Fail("ROOT_DISAPPEARED_BEFORE_RETIRE");
         string actual=Check(root,r,marker);
         if(!String.Equals(actual,expected,StringComparison.Ordinal))Fail("ID_DRIFT");
         Info i=Describe(r,true);
