@@ -14,6 +14,11 @@ if (-not $prefix.Contains($oldRepo)) {throw 'MOCK_OWNER_REPO_SOURCE_BOUNDARY_MIS
 $prefix=$prefix.Replace($oldRepo,'$repo=$script:fixtureRepo')
 Invoke-Expression $prefix
 $script:baseDocker=$script:fakeDocker
+$script:realRegister=(Get-Command Register-FfhOwnedResources).ScriptBlock
+function Register-FfhOwnedResources {
+  param($Identity,[scriptblock]$Fake)
+  return (& $script:realRegister -Identity $Identity -Fake $script:fakeDocker)
+}
 # Owner exception paths call these real functions without test arguments.
 # Inject only the Docker/native/filesystem edges, never replace the logic.
 $script:realIdle=(Get-Command Get-FfhSqlIdleAttestation).ScriptBlock
