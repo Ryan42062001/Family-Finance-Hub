@@ -120,6 +120,7 @@ Assert-FfhExactNativeVersion -DockerEndpoint $dockerBinding.Endpoint
 Assert-FfhNoReparsePath -Path $parent
 New-Item -ItemType Directory -Path $root -ErrorAction Stop | Out-Null
 Assert-FfhNoReparsePath -Path $root
+Initialize-FfhOwnedRoot -Identity $identity
 Assert-FfhFreshTree -FreshRoot $root
 $supabaseDir = Join-Path $root 'supabase'
 if (Test-Path -LiteralPath $supabaseDir) { throw 'BLOCKED: unexpected fresh supabase path exists' }

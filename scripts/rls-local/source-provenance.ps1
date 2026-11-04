@@ -54,6 +54,7 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/source-provenance.ps1',
     'scripts/rls-local/automatic-cleanup.ps1',
     'scripts/rls-local/cleanup-executor.ps1',
+    'scripts/rls-local/ffh-owned-root-retire.cs',
     'scripts/rls-local/automatic-cleanup-policy.mjs',
     'scripts/rls-local/run.sh',
     '.github/workflows/ci.yml',

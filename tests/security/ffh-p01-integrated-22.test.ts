@@ -7,8 +7,8 @@ import test from "node:test";
 import {readFileSync} from "node:fs";
 
 const fixture = "tests/security/fixtures/ffh-p01-integrated-22.ps1";
-const expected = Array.from({length:22},(_,i)=>"AC-"+String(i+1).padStart(2,"0"));
-test("RLS-AC-06: all 22 WinPS lifecycle fake-Docker adversarial scenarios execute independently",()=>{
+const expected = Array.from({length:28},(_,i)=>"AC-"+String(i+1).padStart(2,"0"));
+test("RLS-AC-06: all 28 WinPS lifecycle fake-Docker adversarial scenarios execute independently",()=>{
   const interpreter=process.platform==="win32"?"powershell.exe":"pwsh";
   const result=spawnSync(interpreter,
     ["-NoLogo","-NoProfile","-NonInteractive","-File",fixture],

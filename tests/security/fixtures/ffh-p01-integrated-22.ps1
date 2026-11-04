@@ -35,9 +35,16 @@ function Assert-FfhEvidencePath {
 }
 
 $script:fakeFs={
-  param([string]$root)
+  param([string]$root,[string]$action='PROBE',[string]$fileId='')
   $script:fsQueries++
   if ($root -cne $script:identity.root) {throw 'MOCK_BLOCKED: wrong root'}
+  if ($action -ceq 'RETIRE') {
+    if ($fileId -cne '12345678:abcdef0123456789') {throw 'MOCK_BLOCKED: wrong file ID'}
+    if ($script:mock.root -ceq 'OWNED') {$script:mock.root='ABSENT';return 'RETIRED'}
+    if ($script:mock.root -ceq 'ABSENT') {return 'ABSENT'}
+    return $script:mock.root
+  }
+  if ($action -cne 'PROBE') {throw 'MOCK_BLOCKED: invalid filesystem verb'}
   return $script:mock.root
 }
 $script:fakeDocker={
@@ -207,6 +214,10 @@ function Stop-MockCase {
 }
 function New-MockJournal {
   [void](New-FfhPrecreationJournal -Identity $script:identity -Ports @(26430,26431) -Fake $script:fakeDocker)
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.rootOwnership=[pscustomobject]@{fileId='12345678:abcdef0123456789';markerVersion=1}
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
   [void](Set-FfhRunState -Identity $script:identity -State 'GATE_A_RUNNING' -GateAResult 'RUNNING' -TestResult 'RUNNING')
 }
 function Set-MockResources {
@@ -342,7 +353,8 @@ function Invoke-MockOwnerGateBTail {
 $cases=@(
   'AC-01','AC-02','AC-03','AC-04','AC-05','AC-06','AC-07','AC-08',
   'AC-09','AC-10','AC-11','AC-12','AC-13','AC-14','AC-15','AC-16',
-  'AC-17','AC-18','AC-19','AC-20','AC-21','AC-22'
+  'AC-17','AC-18','AC-19','AC-20','AC-21','AC-22',
+  'AC-23','AC-24','AC-25','AC-26','AC-27','AC-28'
 )
 foreach($case in $cases) {
   Start-MockCase
@@ -566,6 +578,57 @@ foreach($case in $cases) {
         [void](Set-FfhRunState -Identity $script:identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
         $status=Get-FfhDurableRunStatus -Identity $script:identity
         Assert-Mock ($status -match 'GATE_A_RESULT=PASS GATE_B_RESULT=PASS CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW') 'GATE_B_PASS_EVIDENCE_INTERRUPTED_DURABLE'
+      }
+      'AC-23' {
+        Prepare-FailingRun -Resources
+        $script:mock.root='OWNED'
+        $result=Run-MockCleanup
+        Assert-Mock ($result -ceq 'CLEANUP_VERIFIED') 'OWNED_ROOT_RETIRED'
+        Assert-Mock ($script:mock.root -ceq 'ABSENT') 'ROOT_ABSENCE'
+        Assert-Mock ((Read-FfhJournal -Identity $script:identity).rootRetirement.status -ceq 'ABSENT_VERIFIED') 'DURABLE_ROOT_ABSENCE'
+      }
+      'AC-24' {
+        Prepare-FailingRun -Resources
+        $script:mock.root='FOREIGN'
+        $result=Run-MockCleanup
+        Assert-Mock ($result -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'FOREIGN_ROOT_BLOCKED'
+        Assert-Mock ($script:mock.root -ceq 'FOREIGN') 'FOREIGN_ROOT_PRESERVED'
+      }
+      'AC-25' {
+        Prepare-FailingRun -Resources
+        $script:mock.root='OWNED'
+        $j=Read-FfhJournal -Identity $script:identity
+        $j.rootOwnership.fileId='00000000:0000000000000000'
+        Write-FfhJournal -Identity $script:identity -Journal $j
+        $result=Run-MockCleanup
+        Assert-Mock ($result -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'BAD_ID_BLOCKED'
+        Assert-Mock ($script:mock.root -ceq 'OWNED') 'BAD_ID_ROOT_PRESERVED'
+      }
+      'AC-26' {
+        Prepare-FailingRun -Resources
+        $script:mock.root='OWNED'
+        $j=Read-FfhJournal -Identity $script:identity
+        $j.rootRetirement.status='IN_FLIGHT'
+        Write-FfhJournal -Identity $script:identity -Journal $j
+        Must-BlockCleanup
+      }
+      'AC-27' {
+        Prepare-FailingRun -Resources
+        $script:mock.root='OWNED'
+        $j=Read-FfhJournal -Identity $script:identity
+        $j.rootOwnership.markerVersion=9
+        Write-FfhJournal -Identity $script:identity -Journal $j
+        $result=Run-MockCleanup
+        Assert-Mock ($result -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'MARKER_VERSION_BLOCK'
+        Assert-Mock ($script:mock.root -ceq 'OWNED') 'MARKER_ROOT_PRESERVED'
+      }
+      'AC-28' {
+        Prepare-PreservedRun -Resources
+        $script:mock.root='OWNED'
+        $result=Invoke-MockOwnerGateBTail
+        Assert-Mock ($result -ceq 'EXIT_ZERO') 'GATE_B_OWNED_ROOT_RETIRED_EXIT'
+        Verify-Results 'PASS' 'PASS' 'CLEANUP_VERIFIED'
+        Assert-Mock ($script:mock.root -ceq 'ABSENT') 'GATE_B_ROOT_ABSENT'
       }
       default {throw 'MOCK_UNHANDLED_CASE'}
     }

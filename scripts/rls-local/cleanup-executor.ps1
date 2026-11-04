@@ -313,39 +313,88 @@ function Test-FfhExactAbsent {
   }
   if ($ids -ccontains $Id) { throw 'BLOCKED: resource not absent following action' }
 }
-# No path-based deletion. A handle-bound Win32 implementation is NOT yet
-# independently proved safe on owner hosts. Retain any present directory for
-# controlled manual retirement; never call Remove-Item on the disposable root.
+# Root retirement is separate from exact Docker retirement. The filesystem
+# adapter holds native Win32 handles with OPEN_REPARSE_POINT and denies rename,
+# checks per-entry ACLs and file IDs, and uses only handle dispositions.
 function Test-FfhVerifiedRootAbsent {
   param($Identity,[scriptblock]$FakeFilesystem)
-  $profilePath=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
-  $expected='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
-  $root=[IO.Path]::GetFullPath([string]$Identity.root)
   if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
-      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
-      -not ([IO.Path]::GetDirectoryName($root)).Equals(
-        $profilePath,[StringComparison]::OrdinalIgnoreCase) -or
-      [IO.Path]::GetFileName($root) -cne $expected -or
-      $root -match '(?i)FFH-RLS-Test') {
-    throw 'BLOCKED: root identity or direct parent mismatch'
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$') {
+    throw 'BLOCKED: root SHA or token invalid'
   }
-  if (-not $FakeFilesystem) {
-    Assert-FfhNoReparsePath -Path $profilePath
-    if (Test-Path -LiteralPath $root) {
-      # No deletion is authorized while any filesystem object exists at root.
-      Assert-FfhNoReparsePath -Path $root
-      throw 'BLOCKED: root retained, handle-bound retirement unverified'
-    }
-    if (Test-Path -LiteralPath $root) {
-      throw 'BLOCKED: root appeared during final absence verification'
+  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  if (-not ([IO.Path]::GetDirectoryName($root)).Equals(
+      $home,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $leaf -or $root -match '(?i)FFH-RLS-Test') {
+    throw 'BLOCKED: root parent or exact leaf invalid'
+  }
+  if ($FakeFilesystem) {
+    $result=@(& $FakeFilesystem $root 'PROBE')
+    if ($result.Count -ne 1 -or $result[0] -cne 'ABSENT') {
+      throw 'BLOCKED: exact fake root still present or unknown'
     }
   } else {
-    $receipt=@(& $FakeFilesystem $root)
-    if ($receipt.Count -ne 1 -or $receipt[0] -cne 'ABSENT') {
-      throw 'BLOCKED: fake root present, changed or unknown'
+    Assert-FfhNoReparsePath -Path $home
+    $native=Get-FfhOwnedRootNative
+    if ($native::Probe($home,$leaf) -cne 'ABSENT') {
+      throw 'BLOCKED: exact root still present'
     }
   }
   return $true
+}
+function Invoke-FfhOwnedRootRetirement {
+  param($Identity,$Journal,[scriptblock]$FakeFilesystem)
+  if ($Journal.state -cne 'CLEANUP_RUNNING' -or
+      $Journal.sha -cne $Identity.sha -or $Journal.token -cne $Identity.token -or
+      $Journal.root -cne $Identity.root -or
+      $Journal.rootOwnership.markerVersion -ne 1 -or
+      $Journal.rootOwnership.fileId -cnotmatch '^[a-f0-9]{8}:[a-f0-9]{16}$' -or
+      $Journal.rootRetirement.status -cne 'NOT_STARTED' -or
+      @($Journal.resources).Count -ne 0 -or -not $Journal.evidenceSaved) {
+    throw 'BLOCKED: root ownership or cleanup journal incomplete'
+  }
+  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $root=[IO.Path]::GetFullPath([string]$Identity.root)
+  $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  if (-not ([IO.Path]::GetDirectoryName($root)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($root) -cne $leaf) {
+    throw 'BLOCKED: root identity changed'
+  }
+  # Crash after this write: IN_FLIGHT never automatically retries.
+  $Journal.rootRetirement=[pscustomobject]@{
+    status='IN_FLIGHT';fileId=$Journal.rootOwnership.fileId
+    atUtc=[DateTime]::UtcNow.ToString('o')
+  }
+  $Journal.sequence=[int]$Journal.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $Journal
+  if ($FakeFilesystem) {
+    $reply=@(& $FakeFilesystem $root 'RETIRE' $Journal.rootOwnership.fileId)
+    if ($reply.Count -ne 1 -or $reply[0] -cnotin @('RETIRED','ABSENT')) {
+      throw 'BLOCKED: fake filesystem retirement failed or changed'
+    }
+  } else {
+    Assert-FfhNoReparsePath -Path $home
+    $native=Get-FfhOwnedRootNative
+    $observed=$native::Probe($home,$leaf)
+    if ($observed -cne 'ABSENT' -and $observed -cne $Journal.rootOwnership.fileId) {
+      throw 'BLOCKED: root file ID mismatch'
+    }
+    if ($native::Retire($home,$leaf,$Journal.rootOwnership.fileId,
+        (Get-FfhRootMarker -Identity $Identity)) -cnotin @('RETIRED','ABSENT')) {
+      throw 'BLOCKED: native retirement indeterminate'
+    }
+  }
+  [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+  $after=Read-FfhJournal -Identity $Identity
+  if ($after.rootRetirement.status -cne 'IN_FLIGHT') {
+    throw 'BLOCKED: root retirement intent changed'
+  }
+  $after.rootRetirement.status='ABSENT_VERIFIED'
+  $after.sequence=[int]$after.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $after
+  [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
 }
 
 # Read-only cleanup SQL is strictly journal/daemon/container-ID bound.
@@ -448,8 +497,12 @@ function Invoke-FfhVerifiedCleanup {
     }
     $remaining=@(Assert-FfhExactInventory -Identity $Identity -Journal $j -Fake $Fake)
     if ($remaining.Count -ne 0) { throw 'BLOCKED: resource remains before root retirement' }
-    [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+    if ((Get-FfhSqlIdleAttestation -Identity $Identity -Fake $Fake) -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+      throw 'BLOCKED: daemon or SQL uncertainty before filesystem retirement'
+    }
     Confirm-FfhBaseline -Journal $j -Fake $Fake
+    Invoke-FfhOwnedRootRetirement -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
+    Confirm-FfhBaseline -Journal (Read-FfhJournal -Identity $Identity) -Fake $Fake
     [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
     $j=Set-FfhRunState -Identity $Identity -State 'CLEANUP_VERIFIED' -CleanupResult 'CLEANUP_VERIFIED'
     return $j.cleanupResult
