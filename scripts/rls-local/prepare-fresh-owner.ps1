@@ -79,6 +79,7 @@ $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
 $identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
 $lock=Enter-FfhLifecycleLock -Identity $identity
 $journalCreated=$false
+$terminalStatePersistenceFailed=$false
 try {
   if ($FreshRoot -and
       -not ([IO.Path]::GetFullPath($FreshRoot)).Equals($identity.root,
@@ -204,7 +205,9 @@ try {
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
   $dockerBinding = Assert-FfhLocalDockerDesktop
+  [void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'PENDING')
   $admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_A'
+  [void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'ADMITTED' -ContainerId $admittedContainerId)
   # Finite native Windows Job Object operation: owned stdin and separate
   # stdout/stderr pipes, exit-zero + final marker, empty client process tree.
   # Any interruption/timeout leaves Docker daemon-side session UNVERIFIED.
@@ -231,31 +234,44 @@ finally { Pop-Location }
 
 }
 catch {
-  # Never emit SQL, native errors, or potentially private filesystem contents.
+  # Gate A source validation / startup failure or rejected admission must not
+  # be misclassified as a SQL test failure with teardown permission.
   if ($journalCreated) {
     try {
       $current=Read-FfhJournal -Identity $identity
-      if ($current.gateAResult -ceq 'PASS' -or $current.state -ceq 'GATE_A_PRESERVED') {
-        # An interrupted PASS evidence write cannot authorize Gate B.
+      if ($current.gateAResult -ceq 'PASS' -or
+          $current.state -ceq 'GATE_A_PRESERVED') {
+        # Durable PASS followed by evidence failure cannot authorize Gate B.
         [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      } elseif ($current.gateAResult -ceq 'RUNNING') {
+        $boundary=$current.sqlBoundary
+        if ($boundary.phase -ceq 'GATE_A' -and
+            $boundary.mode -ceq 'Preflight' -and
+            $boundary.status -cin @('EXECUTING','COMPLETE') -and
+            $boundary.containerId -cmatch '^[a-f0-9]{64}$') {
+          [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
+          Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
+          [void](Register-FfhOwnedResources -Identity $identity)
+          [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED')
+          $idle=Get-FfhSqlIdleAttestation -Identity $identity
+          [void](Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle)
+        } else {
+          # NO SQL (including cleanup idle) and NO automatic Docker deletion.
+          [void](Block-FfhRejectedSqlAdmission -Identity $identity -Phase 'GATE_A' -Mode 'Preflight')
+        }
       } else {
-        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
-        Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
-        [void](Register-FfhOwnedResources -Identity $identity)
-        [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED')
-        $idle=Get-FfhSqlIdleAttestation -Identity $identity
-        [void](Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle)
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
       }
     } catch {
       try {
         [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-      } catch { }
+      } catch {
+        $terminalStatePersistenceFailed=$true
+      }
     }
+    # Never report an old preserved state when terminal write failed.
+    Write-Output (Get-FfhDurableRunStatus -Identity $identity -TerminalStatePersistenceFailed:$terminalStatePersistenceFailed)
   }
-  if ($journalCreated) {
-    # Only a fresh durable read can establish the final persisted state.
-    Write-Output (Get-FfhDurableRunStatus -Identity $identity)
-  }
-  throw 'BLOCKED: Gate A unsuccessful; inspect durable result'
+  throw 'BLOCKED: Gate A failure or admission uncertain; inspect durable result'
 }
 finally { $lock.Dispose() }
