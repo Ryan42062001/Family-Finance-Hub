@@ -6,7 +6,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../'))
 . (Join-Path $repo 'scripts/rls-local/source-provenance.ps1')
 . (Join-Path $repo 'scripts/rls-local/automatic-cleanup.ps1')
 [void](Get-FfhOwnedRootNative)
-$home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile'))
+$profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile'))
 $sha='b'*40
 function New-NativeRoot {
   $id=Get-FfhRunIdentity -SourceSha $sha -RunToken (New-FfhRunToken)
@@ -19,10 +19,10 @@ function New-NativeRoot {
   return $id
 }
 function FileId($id) {
-  return [FfhP01OwnedRoot]::Inspect($home,(Split-Path $id.root -Leaf),(Get-FfhRootMarker -Identity $id))
+  return [FfhP01OwnedRoot]::Inspect($profileHome,(Split-Path $id.root -Leaf),(Get-FfhRootMarker -Identity $id))
 }
 function NativeRetire($id,[string]$fileId) {
-  return [FfhP01OwnedRoot]::Retire($home,(Split-Path $id.root -Leaf),$fileId,(Get-FfhRootMarker -Identity $id))
+  return [FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$fileId,(Get-FfhRootMarker -Identity $id))
 }
 function MustBlock([scriptblock]$action) {
   $did=$false
@@ -31,7 +31,7 @@ function MustBlock([scriptblock]$action) {
 }
 function FileReceipt([string]$name) {Write-Output ('FS-'+$name+' PASS')}
 function CheckAbsent($id) {
-  if ([FfhP01OwnedRoot]::Probe($home,(Split-Path $id.root -Leaf)) -cne 'ABSENT') {
+  if ([FfhP01OwnedRoot]::Probe($profileHome,(Split-Path $id.root -Leaf)) -cne 'ABSENT') {
     throw 'SYNTH_NATIVE_ROOT_REMAINS'
   }
 }
@@ -41,7 +41,7 @@ function CheckAbsent($id) {
 function Stop-NativeRoot($id) {
   if ($null -eq $id) {return}
   $root=[IO.Path]::GetFullPath($id.root)
-  if (-not ([IO.Path]::GetDirectoryName($root)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -or
+  if (-not ([IO.Path]::GetDirectoryName($root)).Equals($profileHome,[StringComparison]::OrdinalIgnoreCase) -or
       [IO.Path]::GetFileName($root) -cnotmatch '^FFH-P01-RLS-Fresh-b{12}-[a-f0-9]{24}$') {
     throw 'SYNTH_REFUSED_TO_REMOVE_FOREIGN_ROOT'
   }
@@ -83,7 +83,7 @@ try {
   Stop-NativeRoot $id;$id=$null
   # FS-04: Reparse/junction inside owned directory cannot be followed.
   $id=New-NativeRoot;$recorded=FileId $id
-  $foreign=Join-Path $home ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
+  $foreign=Join-Path $profileHome ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
   [void](New-Item -ItemType Directory -Path $foreign)
   $proof=Join-Path $foreign 'never-delete.txt'
   [IO.File]::WriteAllText($proof,'preserved')
@@ -116,7 +116,7 @@ try {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {
     $path=[IO.Path]::GetFullPath($foreign)
-    if (([IO.Path]::GetDirectoryName($path)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -and
+    if (([IO.Path]::GetDirectoryName($path)).Equals($profileHome,[StringComparison]::OrdinalIgnoreCase) -and
         [IO.Path]::GetFileName($path) -cmatch '^FFH-P01-Synthetic-Foreign-[a-f0-9]{24}$') {
       [IO.Directory]::Delete($path,$true)
     }

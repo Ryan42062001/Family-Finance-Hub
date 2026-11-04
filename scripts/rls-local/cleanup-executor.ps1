@@ -322,11 +322,11 @@ function Test-FfhVerifiedRootAbsent {
       $Identity.token -cnotmatch '^[a-f0-9]{24}$') {
     throw 'BLOCKED: root SHA or token invalid'
   }
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $root=[IO.Path]::GetFullPath([string]$Identity.root)
   $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
   if (-not ([IO.Path]::GetDirectoryName($root)).Equals(
-      $home,[StringComparison]::OrdinalIgnoreCase) -or
+      $profileHome,[StringComparison]::OrdinalIgnoreCase) -or
       [IO.Path]::GetFileName($root) -cne $leaf -or $root -match '(?i)FFH-RLS-Test') {
     throw 'BLOCKED: root parent or exact leaf invalid'
   }
@@ -336,9 +336,9 @@ function Test-FfhVerifiedRootAbsent {
       throw 'BLOCKED: exact fake root still present or unknown'
     }
   } else {
-    Assert-FfhNoReparsePath -Path $home
+    Assert-FfhNoReparsePath -Path $profileHome
     [void](Get-FfhOwnedRootNative)
-    if ([FfhP01OwnedRoot]::Probe($home,$leaf) -cne 'ABSENT') {
+    if ([FfhP01OwnedRoot]::Probe($profileHome,$leaf) -cne 'ABSENT') {
       throw 'BLOCKED: exact root still present'
     }
   }
@@ -363,16 +363,16 @@ function Assert-FfhOwnedRootPreflight {
       throw 'BLOCKED: mock root ownership not proven before Docker'
     }
   } else {
-    $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+    $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
     $root=[IO.Path]::GetFullPath($Identity.root)
     $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
-    if (-not ([IO.Path]::GetDirectoryName($root)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -or
+    if (-not ([IO.Path]::GetDirectoryName($root)).Equals($profileHome,[StringComparison]::OrdinalIgnoreCase) -or
         [IO.Path]::GetFileName($root) -cne $leaf) {
       throw 'BLOCKED: native preflight wrong profile child'
     }
-    Assert-FfhNoReparsePath -Path $home
+    Assert-FfhNoReparsePath -Path $profileHome
     [void](Get-FfhOwnedRootNative)
-    $observed=[FfhP01OwnedRoot]::Inspect($home,$leaf,(Get-FfhRootMarker -Identity $Identity))
+    $observed=[FfhP01OwnedRoot]::Inspect($profileHome,$leaf,(Get-FfhRootMarker -Identity $Identity))
     if ($observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: native root file ID changed before Docker'
     }
@@ -389,10 +389,10 @@ function Invoke-FfhOwnedRootRetirement {
       @($Journal.resources).Count -ne 0 -or -not $Journal.evidenceSaved) {
     throw 'BLOCKED: root ownership or cleanup journal incomplete'
   }
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $root=[IO.Path]::GetFullPath([string]$Identity.root)
   $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
-  if (-not ([IO.Path]::GetDirectoryName($root)).Equals($home,[StringComparison]::OrdinalIgnoreCase) -or
+  if (-not ([IO.Path]::GetDirectoryName($root)).Equals($profileHome,[StringComparison]::OrdinalIgnoreCase) -or
       [IO.Path]::GetFileName($root) -cne $leaf) {
     throw 'BLOCKED: root identity changed'
   }
@@ -409,13 +409,13 @@ function Invoke-FfhOwnedRootRetirement {
       throw 'BLOCKED: fake filesystem retirement failed or changed'
     }
   } else {
-    Assert-FfhNoReparsePath -Path $home
+    Assert-FfhNoReparsePath -Path $profileHome
     [void](Get-FfhOwnedRootNative)
-    $observed=[FfhP01OwnedRoot]::Probe($home,$leaf)
+    $observed=[FfhP01OwnedRoot]::Probe($profileHome,$leaf)
     if ($observed -cne 'ABSENT' -and $observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: root file ID mismatch'
     }
-    if ([FfhP01OwnedRoot]::Retire($home,$leaf,$Journal.rootOwnership.fileId,
+    if ([FfhP01OwnedRoot]::Retire($profileHome,$leaf,$Journal.rootOwnership.fileId,
         (Get-FfhRootMarker -Identity $Identity)) -cnotin @('RETIRED','ABSENT')) {
       throw 'BLOCKED: native retirement indeterminate'
     }
