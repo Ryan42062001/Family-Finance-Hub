@@ -132,7 +132,8 @@ function Assert-FfhJournaledSqlAdmission {
   param(
     [Parameter(Mandatory=$true)]$Identity,
     [Parameter(Mandatory=$true)][ValidateSet('GATE_A','GATE_B')][string]$Phase,
-    [scriptblock]$Fake
+    [scriptblock]$Fake,
+    [switch]$ForCleanup
   )
   $j=Read-FfhJournal -Identity $Identity
   if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
@@ -150,7 +151,15 @@ function Assert-FfhJournaledSqlAdmission {
       [int]$j.ports[0] -gt 59998 -or [int]$j.ports[1] -ne ([int]$j.ports[0]+1)) {
     throw 'BLOCKED_SQL_ADMISSION_JOURNAL_IDENTITY_INVALID'
   }
-  if ($Phase -ceq 'GATE_A') {
+  if ($ForCleanup) {
+    if ($j.sqlBoundary.phase -cne $Phase -or
+        $j.sqlBoundary.status -cnotin @('EXECUTING','COMPLETE') -or
+        $j.sqlBoundary.containerId -cnotmatch '^[a-f0-9]{64}$' -or
+        $j.sqlBoundary.daemon -cne $j.daemon -or
+        $j.state -cnotin @('GATE_A_FAILED','GATE_B_FAILED','GATE_B_COMPLETE','CLEANUP_RUNNING')) {
+      throw 'BLOCKED_SQL_CLEANUP_NOT_PREVIOUSLY_ADMITTED'
+    }
+  } elseif ($Phase -ceq 'GATE_A') {
     if ($j.gateAResult -cne 'RUNNING' -or
         $j.state -cnotin @('INVENTORY_VERIFIED','GATE_A_RUNNING') -or
         $j.gateBResult -cne 'NOT_STARTED') {
@@ -183,6 +192,9 @@ function Assert-FfhJournaledSqlAdmission {
     throw 'BLOCKED_SQL_ADMISSION_CONTAINER_ID_CHANGED_OR_STOPPED'
   }
   $cid=[string]$db[0].id
+  if ($ForCleanup -and $cid -cne [string]$j.sqlBoundary.containerId) {
+    throw 'BLOCKED_SQL_CLEANUP_CONTAINER_ID_DRIFT'
+  }
   $id=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{.Id}}') -Fake $Fake)
   $name=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{.Name}}') -Fake $Fake)
   $stateRaw=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{json .State}}') -Fake $Fake)
@@ -216,7 +228,13 @@ function Assert-FfhJournaledSqlAdmission {
 
 # Never print a stale in-memory result after cleanup or evidence write errors.
 function Get-FfhDurableRunStatus {
-  param([Parameter(Mandatory=$true)]$Identity)
+  param([Parameter(Mandatory=$true)]$Identity,
+    [switch]$TerminalStatePersistenceFailed)
+  if ($TerminalStatePersistenceFailed) {
+    return ('OUTCOME_UNKNOWN TERMINAL_STATE_PERSISTENCE_FAILED '+
+      'GATE_A_RESULT=UNKNOWN GATE_B_RESULT=UNKNOWN '+
+      'CLEANUP_RESULT=UNKNOWN_JOURNAL_UNVERIFIED RUN_TOKEN='+$Identity.token)
+  }
   try {
     $j=Read-FfhJournal -Identity $Identity
     if ($j.version -ne 2 -or
@@ -230,6 +248,23 @@ function Get-FfhDurableRunStatus {
   } catch {
     return ('GATE_A_RESULT=UNKNOWN GATE_B_RESULT=UNKNOWN '+
       'CLEANUP_RESULT=UNKNOWN_JOURNAL_UNVERIFIED RUN_TOKEN='+$Identity.token)
+  }
+}
+
+# Rejected admission must not execute SQL-idle checks or Docker mutation.
+function Block-FfhRejectedSqlAdmission {
+  param($Identity,[ValidateSet('GATE_A','GATE_B')][string]$Phase,
+    [ValidateSet('Preflight','Matrix')][string]$Mode)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.sqlBoundary.phase -ceq $Phase -and
+      $j.sqlBoundary.mode -ceq $Mode -and
+      $j.sqlBoundary.status -cin @('PENDING','ADMITTED')) {
+    [void](Set-FfhSqlBoundary -Identity $Identity -Phase $Phase -Mode $Mode -Status 'REJECTED')
+  }
+  if ($Phase -ceq 'GATE_A') {
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -GateAResult 'UNKNOWN' -TestResult 'UNKNOWN' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+  } else {
+    [void](Set-FfhRunState -Identity $Identity -State 'MANUAL_REVIEW' -GateBResult 'UNKNOWN' -TestResult 'UNKNOWN' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
   }
 }
 
