@@ -34,6 +34,8 @@ if (-not ([IO.Path]::GetFullPath($FreshRoot)).Equals(
 }
 $lock=Enter-FfhLifecycleLock -Identity $identity
 $gateBStarted=$false
+$gateBSqlStage='Preflight'
+$terminalStatePersistenceFailed=$false
 try {
   $j=Read-FfhJournal -Identity $identity
   if ($j.state -cne 'GATE_A_PRESERVED' -or
@@ -124,7 +126,10 @@ $gateBStarted=$true
 # database password, provider token, hosted Auth or service-role session.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
+$gateBSqlStage='Preflight'
+[void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_B' -Mode 'Preflight' -Status 'PENDING')
 $admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_B'
+[void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_B' -Mode 'Preflight' -Status 'ADMITTED' -ContainerId $admittedContainerId)
 # Gate B remains unapproved. When separately authorized, its read-only
 # role preflight uses the identical bounded Job Object SQL-by-stdin path.
 Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $container `
@@ -132,6 +137,7 @@ Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $container `
   -DockerBinding $dockerBinding -Source $source -Identity $identity `
   -ContainerId $admittedContainerId
 Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
+$gateBSqlStage='Matrix'
 
 # All synthetic fixture operations are BEGIN/ROLLBACK protected in matrix.sql.
 # Expected SQL errors use PL/pgSQL subtransactions. If psql returns nonzero,
@@ -139,7 +145,9 @@ Write-Output 'FRESH_LOCAL_PREFLIGHT=PASS'
 # without new approval. A matrix PASS remains OWNER-OBSERVED only.
 Assert-FfhFreshTree -FreshRoot $root
 $dockerBinding = Assert-FfhLocalDockerDesktop
+[void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_B' -Mode 'Matrix' -Status 'PENDING')
 $admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_B'
+[void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_B' -Mode 'Matrix' -Status 'ADMITTED' -ContainerId $admittedContainerId)
 # Separate finite 15-minute matrix window. Exact immutable matrix.sql is
 # piped in memory with owned stdin and must emit both ROLLBACK and ZERO_RESIDUE
 # completion markers after exactly 913 PASS receipts. Timeouts never imply
@@ -159,29 +167,42 @@ catch {
     try {
       $current=Read-FfhJournal -Identity $identity
       if ($current.gateBResult -ceq 'RUNNING') {
-        # A failed SQL or preflight must not inherit Gate A PASS. Finalize only
-        # once, save redacted FAIL and perform safe exact-resource cleanup.
-        $cleanup=Complete-FfhGateB -Identity $identity -GateBResult 'FAIL'
-        # Final status is emitted only AFTER all mutations and a new durable read.
+        $boundary=$current.sqlBoundary
+        $admittedSqlActuallyStarted=($boundary.phase -ceq 'GATE_B' -and
+          $boundary.mode -ceq $gateBSqlStage -and
+          $boundary.status -cin @('EXECUTING','COMPLETE') -and
+          $boundary.containerId -cmatch '^[a-f0-9]{64}$')
+        if ($admittedSqlActuallyStarted) {
+          # Only an actually executed, journaled SQL test may attempt bounded
+          # cleanup. The idle query must independently reattest exact ID.
+          [void](Complete-FfhGateB -Identity $identity -GateBResult 'FAIL')
+        } else {
+          # Rejected/UNKNOWN admission: absolutely NO SQL-idle probe and
+          # absolutely NO Docker destructive operation.
+          [void](Block-FfhRejectedSqlAdmission -Identity $identity -Phase 'GATE_B' -Mode $gateBSqlStage)
+        }
       } elseif ($current.gateBResult -ceq 'PASS') {
-        # Real Gate B PASS remains immutable even when cleanup later blocks.
         if ($current.cleanupResult -cne 'CLEANUP_VERIFIED') {
           [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
         }
-        # Never emit the pre-mutation $current cleanup status.
       } else {
-        throw 'BLOCKED: Gate B is not in a recoverable RUNNING/PASS state'
+        # An earlier independently committed FAIL/UNKNOWN is retained.
+        if ($current.cleanupResult -cne 'CLEANUP_VERIFIED' -and
+            $current.cleanupResult -cne 'CLEANUP_BLOCKED_MANUAL_REVIEW') {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        }
       }
     } catch {
-      # A truly ambiguous failure never authorizes deletion. Gate A PASS and
-      # any committed Gate B result are left intact.
       try {
         [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
-      } catch { }
-      # A torn journal cannot be reported as a verified persisted outcome.
+      } catch {
+        $terminalStatePersistenceFailed=$true
+      }
     }
   }
-  Write-Output (Get-FfhDurableRunStatus -Identity $identity)
-  throw 'BLOCKED: Gate B failed or cleanup uncertain; inspect independent durable results'
+  # A readable older journal does not prove that the attempted terminal
+  # transition was persisted. Make uncertainty explicit and exit nonzero.
+  Write-Output (Get-FfhDurableRunStatus -Identity $identity -TerminalStatePersistenceFailed:$terminalStatePersistenceFailed)
+  throw 'BLOCKED: Gate B failure/admission/cleanup uncertain; inspect durable state'
 }
 finally { $lock.Dispose() }
