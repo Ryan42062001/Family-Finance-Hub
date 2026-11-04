@@ -369,6 +369,14 @@ function Get-FfhSqlIdleAttestation {
       $_.id -ceq $j.sqlBoundary.containerId -and
       $_.name -ceq ('/'+$Identity.container)
     })
+    # After an individually verified exact container deletion, the journal
+    # removes its recorded ID and cleanup may continue to unattached volumes
+    # and isolated networks. Never issue SQL against a missing container.
+    if ($containers.Count -eq 0 -and $j.state -ceq 'CLEANUP_RUNNING' -and
+        @($j.resources | Where-Object {$_.kind -ceq 'containers'}).Count -eq 0) {
+      Test-FfhExactAbsent -Kind containers -Id $j.sqlBoundary.containerId -Fake $Fake
+      return 'VERIFIED_DAEMON_SQL_IDLE'
+    }
     if ($db.Count -ne 1 -or $containers.Count -ne 1) {return 'UNKNOWN'}
     if (-not $db[0].running) {
       return 'VERIFIED_DAEMON_SQL_IDLE'
