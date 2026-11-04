@@ -426,9 +426,19 @@ foreach($case in $cases) {
       'AC-14' {
         Prepare-FailingRun -Resources
         $script:mock.failStop=$true
+        $beforeIdle=Get-FfhSqlIdleAttestation -Identity $script:identity -Fake $script:fakeDocker
+        if ($beforeIdle -cne 'VERIFIED_DAEMON_SQL_IDLE') {
+          $admissionError='NONE'
+          try {
+            [void](Assert-FfhJournaledSqlAdmission -Identity $script:identity -Phase 'GATE_A' -ForCleanup -Fake $script:fakeDocker)
+          } catch {$admissionError=$_.Exception.Message}
+          throw ('MOCK_IDLE_BLOCKED_BEFORE_STOP='+$beforeIdle+' ADMISSION='+$admissionError)
+        }
         $result=Run-MockCleanup
         Assert-Mock ($result -ceq 'CLEANUP_BLOCKED_MANUAL_REVIEW') 'GRACEFUL_STOP_FAIL'
-        Assert-Mock (($script:mutations -join ',') -ceq 'stop') 'NO_FORCE_OR_FOLLOWON_DELETE'
+        if (($script:mutations -join ',') -cne 'stop') {
+          throw ('MOCK_EXPECTED_GRACEFUL_STOP_ONLY ACTUAL='+($script:mutations -join ',')+' REASON='+$script:FfhMockLastCleanupFailure)
+        }
       }
       'AC-15' {
         New-MockJournal
