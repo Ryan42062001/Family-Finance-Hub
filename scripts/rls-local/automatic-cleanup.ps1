@@ -194,6 +194,11 @@ function Read-FfhJournal {
       -not ($j.PSObject.Properties.Name -ccontains 'gateBResult') -or
       $j.gateAResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
       $j.gateBResult -cnotin @('NOT_STARTED','RUNNING','PASS','FAIL','UNKNOWN') -or
+      -not ($j.PSObject.Properties.Name -ccontains 'sqlBoundary') -or
+      $null -eq $j.sqlBoundary -or
+      $j.sqlBoundary.sha -cne $Identity.sha -or
+      $j.sqlBoundary.token -cne $Identity.token -or
+      $j.sqlBoundary.status -cnotin @('NOT_STARTED','PENDING','ADMITTED','EXECUTING','COMPLETE','REJECTED') -or
       $j.sequence -lt 0) { throw 'BLOCKED: journal invalid or changed' }
   return $j
 }
@@ -226,6 +231,62 @@ function Set-FfhRunState {
   Write-FfhJournal -Identity $Identity -Journal $j
   return $j
 }
+# Write-through, immutable source/daemon/container identity for each SQL stage.
+# No SQL may execute unless EXECUTING was first durably journaled.
+function Set-FfhSqlBoundary {
+  param(
+    [Parameter(Mandatory=$true)]$Identity,
+    [ValidateSet('GATE_A','GATE_B')][string]$Phase,
+    [ValidateSet('Preflight','Matrix')][string]$Mode,
+    [ValidateSet('PENDING','ADMITTED','EXECUTING','COMPLETE','REJECTED')][string]$Status,
+    [string]$ContainerId
+  )
+  $j=Read-FfhJournal -Identity $Identity
+  $previous=$j.sqlBoundary
+  $requiredGate=if($Phase -ceq 'GATE_A'){$j.gateAResult}else{$j.gateBResult}
+  if ($requiredGate -cne 'RUNNING' -or
+      $previous.sha -cne $Identity.sha -or $previous.token -cne $Identity.token -or
+      $previous.daemon -cne $j.daemon -or
+      ($Phase -ceq 'GATE_A' -and $Mode -cne 'Preflight')) {
+    throw 'BLOCKED_SQL_BOUNDARY_IDENTITY_OR_GATE_INVALID'
+  }
+  if ($Status -ceq 'PENDING') {
+    if ($previous.status -cnotin @('NOT_STARTED','COMPLETE') -or
+        ($Phase -ceq 'GATE_B' -and $Mode -ceq 'Matrix' -and
+          ($previous.phase -cne 'GATE_B' -or $previous.mode -cne 'Preflight' -or
+            $previous.status -cne 'COMPLETE'))) {
+      throw 'BLOCKED_SQL_BOUNDARY_PREVIOUS_STAGE_NOT_COMPLETE'
+    }
+    $ContainerId=''
+  } elseif ($Status -ceq 'REJECTED') {
+    if ($previous.phase -cne $Phase -or $previous.mode -cne $Mode -or
+        $previous.status -cnotin @('PENDING','ADMITTED')) {
+      throw 'BLOCKED_SQL_BOUNDARY_REJECTION_NOT_PENDING'
+    }
+    $ContainerId=[string]$previous.containerId
+  } else {
+    $prior= switch ($Status) {
+      'ADMITTED' {'PENDING'}
+      'EXECUTING' {'ADMITTED'}
+      'COMPLETE' {'EXECUTING'}
+    }
+    if ($previous.phase -cne $Phase -or $previous.mode -cne $Mode -or
+        $previous.status -cne $prior -or
+        $ContainerId -cnotmatch '^[a-f0-9]{64}$' -or
+        ($prior -cne 'PENDING' -and $ContainerId -cne $previous.containerId)) {
+      throw 'BLOCKED_SQL_BOUNDARY_INVALID_TRANSITION_OR_CONTAINER'
+    }
+  }
+  $j.sqlBoundary=[pscustomobject]@{
+    phase=$Phase;mode=$Mode;status=$Status
+    sha=$Identity.sha;token=$Identity.token;daemon=$j.daemon
+    containerId=$ContainerId
+  }
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  return $j
+}
+
 function Assert-FfhNoOtherLiveRuns {
   param($Identity)
   Assert-FfhEvidencePath -Identity $Identity
@@ -301,6 +362,8 @@ function New-FfhPrecreationJournal {
     daemon=$daemon; protected=$protected; state='PRECREATION_COMMITTED'; sequence=0
     gateAResult='NOT_STARTED'; gateBResult='NOT_STARTED'
     testResult='NOT_STARTED'; cleanupResult='NOT_ATTEMPTED'
+    sqlBoundary=[pscustomobject]@{phase='NONE';mode='NONE';status='NOT_STARTED';
+      sha=$Identity.sha;token=$Identity.token;containerId='';daemon=$daemon}
     resources=@(); gates=@(); evidenceSaved=$false
   }
   Write-FfhJournal -Identity $Identity -Journal $j
