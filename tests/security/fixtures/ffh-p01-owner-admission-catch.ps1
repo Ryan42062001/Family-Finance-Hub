@@ -7,7 +7,12 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $base=([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'ffh-p01-integrated-22.ps1'))).Replace([string][char]13,'')
 $cut=$base.IndexOf('$cases=@(')
 if($cut -lt 0){throw 'MOCK_OWNER_FIXTURE_CUT_MISSING'}
-Invoke-Expression $base.Substring(0,$cut)
+$script:fixtureRepo=$repo
+$prefix=$base.Substring(0,$cut)
+$oldRepo='$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '+[char]39+'../../../'+[char]39+'))'
+if (-not $prefix.Contains($oldRepo)) {throw 'MOCK_OWNER_REPO_SOURCE_BOUNDARY_MISSING'}
+$prefix=$prefix.Replace($oldRepo,'$repo=$script:fixtureRepo')
+Invoke-Expression $prefix
 $script:baseDocker=$script:fakeDocker
 $script:idleCalls=0;$script:preflightCalls=0;$script:matrixCalls=0
 $script:fault='';$script:postPreflightFault=''
