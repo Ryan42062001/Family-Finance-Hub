@@ -28,6 +28,7 @@ function Resolve-FfhDiagnosticCachedCli {
     $CliExecutable=$candidates[0]
   }
   $exe=[IO.Path]::GetFullPath($CliExecutable)
+  if ($exe -match '[&|<>^%!"()\r\n]') {throw 'BLOCKED_DIAG_CACHED_EXE_SHELL_UNSAFE'}
   # A caller-chosen path cannot grant arbitrary code execution. Must be in the
   # known existing per-user npm _npx package cache with exact package layout.
   if (-not $exe.StartsWith(($cache+'\'),[StringComparison]::OrdinalIgnoreCase) -or
