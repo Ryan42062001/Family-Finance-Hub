@@ -60,7 +60,7 @@ $cases=@(
   [pscustomobject]@{Name='OPTIONAL_BAD';Tokens=@($baseArgs)+@('-PreapprovedCacheSha256','NEVER_PRINT_ME');Stage='ARGUMENTS';Category='BLOCKED_RECOVERY_ARGUMENTS_VALUE'}
   [pscustomobject]@{Name='TOO_MANY';Tokens=@($baseArgs)+@('-RunToken',$goodToken,'-CliSha256',$goodCli);Stage='ARGUMENTS';Category='BLOCKED_RECOVERY_ARGUMENTS_COUNT'}
   [pscustomobject]@{Name='UNKNOWN_CASE';Tokens=@('-expectedauditedhead',$goodHead,'-ConsumedHead',$badConsumed,'-RunToken',$goodToken,'-CliSha256',$goodCli);Stage='ARGUMENTS';Category='BLOCKED_RECOVERY_ARGUMENTS_UNKNOWN'}
-  [pscustomobject]@{Name='COLON_SYNTAX';Tokens=@('-ExpectedAuditedHead:'+$goodHead,'-ConsumedHead',$badConsumed,'-RunToken',$goodToken,'-CliSha256',$goodCli);Stage='ARGUMENTS';Category='BLOCKED_RECOVERY_ARGUMENTS_KEY'}
+  [pscustomobject]@{Name='COLON_SYNTAX';Tokens=@('-ExpectedAuditedHead:'+$goodHead,'-ConsumedHead',$badConsumed,'-RunToken',$goodToken,'-CliSha256',$goodCli);Stage='ARGUMENTS';Category='BLOCKED_RECOVERY_ARGUMENTS_MISSING'}
   [pscustomobject]@{Name='VALID_FORMAT_GUARDED';Tokens=@($baseArgs);Stage='CONSUMED_HEAD';Category='BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'}
   [pscustomobject]@{Name='VALID_WITH_PIN_GUARDED';Tokens=@($baseArgs)+@('-PreapprovedCacheSha256',('d'*64));Stage='CONSUMED_HEAD';Category='BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'}
 )
