@@ -64,10 +64,10 @@ function Assert-FfhDiagnosticStagingRoot {
   $reduced=@($full -split [char]10 | Where-Object {
     $_ -notmatch '^F\|supabase\\migrations\\'
   }) -join [char]10
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
-  Assert-FfhNoReparsePath -Path $home
-  if ([FfhP01OwnedRoot]::Preflight($home,$leaf,$Journal.rootOwnership.fileId,
+  Assert-FfhNoReparsePath -Path $profileHome
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,$leaf,$Journal.rootOwnership.fileId,
       (Get-FfhRootMarker -Identity $Identity),$reduced) -cne 'PREFLIGHT_OK') {
     throw 'BLOCKED_DIAG_STAGING_TREE_NOT_PROVEN'
   }
