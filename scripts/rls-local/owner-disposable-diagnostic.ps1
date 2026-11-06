@@ -66,9 +66,16 @@ function Start-FfhDiagnosticPinnedDb {
     }
     return
   }
+  $cmdPath=Join-Path ([Environment]::SystemDirectory) 'cmd.exe'
+  if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
+    throw 'BLOCKED_DIAG_TRUSTED_CMD_MISSING'
+  }
+  Assert-FfhNoReparsePath -Path $cmdPath
   $info=[Diagnostics.ProcessStartInfo]::new()
-  $info.FileName=$Cli.Path
-  $info.Arguments='db start'
+  $info.FileName=$cmdPath
+  # Output is never printed: CLI can emit local secrets even on error.
+  # The Job Object still encloses both cmd.exe and the pinned child executable.
+  $info.Arguments='/d /s /c ""'+$Cli.Path+'" db start 1>NUL 2>NUL"'
   $info.WorkingDirectory=$Identity.root
   $info.UseShellExecute=$false
   $info.CreateNoWindow=$true
