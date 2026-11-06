@@ -32,7 +32,7 @@ function Complete-FfhDiagnosticMigrationStaging {
       [IO.FileAccess]::Write,[IO.FileShare]::None)
     try {$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}
     finally {$stream.Dispose()}
-    if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) {
+    if ((Get-FfhFileSha256 -Path $destination) -cne $file.sha256) {
       throw 'BLOCKED_DIAG_CREATED_MIGRATION_HASH_DRIFT'
     }
   }
