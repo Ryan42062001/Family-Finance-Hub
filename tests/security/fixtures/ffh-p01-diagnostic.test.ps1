@@ -457,3 +457,51 @@ if ($entry -notmatch 'ONE-SHOT-DIAGNOSTIC-GO' -or
     $entry -match '(?i)\b(?:Invoke-FfhPinnedLocalSupabase|Set-FfhSqlBoundary|run-owner\.ps1\s+-|prepare-fresh-owner\.ps1\s+-)\b' -or
     $entry -notmatch "Arguments='db start'") {throw 'MOCK_DIAG_SOURCE_SCOPE_INVALID'}
 Receipt 20
+
+
+# DG-21: the real production post-start confirmation registers only verified
+# labelled resources, observes DB healthy/idle, and persists a TEST receipt.
+try {
+  Prepare-DiagnosticMock
+  $script:mock.c=$true;$script:mock.v=$true;$script:mock.n=$true
+  $script:mock.running=$true
+  $j=Confirm-FfhDiagnosticStarted -Identity $script:identity -Source $null -FakeDocker $script:fakeDocker -FakeFilesystem $script:fakeFs
+  AssertIt ($j.diagnosticStatus -ceq 'START_VERIFIED' -and
+    $j.testResult -ceq 'PASS' -and $j.evidenceSaved -and
+    $j.sqlBoundary.status -ceq 'NOT_STARTED' -and
+    $j.gateAResult -ceq 'NOT_STARTED' -and $j.gateBResult -ceq 'NOT_STARTED' -and
+    $script:mutations.Count -eq 0) 'ACTUAL_START_CONFIRM'
+  $receipt=Join-Path $script:evidence ($script:identity.token+'.DIAG_TEST.json')
+  AssertIt (Test-Path -LiteralPath $receipt -PathType Leaf) 'TEST_RECEIPT_DURABLE'
+  Receipt 21
+} finally {Stop-MockCase}
+
+# DG-22: out-of-order state transitions cannot jump to VERIFIED.
+try {
+  Prepare-DiagnosticMock
+  MustBlock {Set-FfhDiagnosticJournal -Identity $script:identity -Status CLEANUP_VERIFIED -CleanupResult CLEANUP_VERIFIED}
+  $j=Read-FfhJournal -Identity $script:identity
+  AssertIt ($j.diagnosticStatus -ceq 'START_IN_FLIGHT' -and
+    $j.cleanupResult -cne 'CLEANUP_VERIFIED') 'NO_SKIP_STATE'
+  Receipt 22
+} finally {Stop-MockCase}
+
+# DG-23: a failed stop consumes the cleanup attempt; no blind retry allowed.
+try {
+  Prepare-DiagnosticMock;Mark-DiagnosticStarted
+  $script:mock.failStop=$true
+  MustBlock {Invoke-FfhDiagnosticCleanup -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  $script:mock.failStop=$false
+  MustBlock {Invoke-FfhDiagnosticCleanup -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  AssertIt (($script:mutations -join ',') -ceq 'stop' -and
+    $script:mock.root -ceq 'OWNED') 'NO_RETRY'
+  Receipt 23
+} finally {Stop-MockCase}
+
+# New entrypoint syntax is parsed in WinPS5.1 without running ANY top-level
+# operator action, Docker startup, native file disposition or SQL.
+$tokens=$null;$errors=$null
+[void][Management.Automation.Language.Parser]::ParseFile(
+  (Join-Path $repo 'scripts/rls-local/owner-disposable-diagnostic.ps1'),
+  [ref]$tokens,[ref]$errors)
+if (@($errors).Count -ne 0) {throw 'MOCK_DIAG_ENTRYPOINT_PARSE_ERROR'}
