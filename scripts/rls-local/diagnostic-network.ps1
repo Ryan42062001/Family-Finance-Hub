@@ -20,11 +20,21 @@ function Assert-FfhDiagnosticLoopbackNetwork {
   }
   try {$options=([string]$opt[0] | ConvertFrom-Json)}
   catch {throw 'BLOCKED_DIAG_NETWORK_OPTIONS_MALFORMED'}
+  if ($null -eq $options -or $options -isnot [pscustomobject]) {
+    throw 'BLOCKED_DIAG_NETWORK_OPTIONS_MISSING'
+  }
+  $names=@($options.PSObject.Properties.Name)
+  if ($names -cnotcontains 'com.docker.network.bridge.host_binding_ipv4') {
+    throw 'BLOCKED_DIAG_NETWORK_BIND_OPTION_MISSING'
+  }
+  $gw4=if ($names -ccontains 'com.docker.network.bridge.gateway_mode_ipv4') {
+    [string]$options.'com.docker.network.bridge.gateway_mode_ipv4'
+  } else {'nat'}
+  $gw6=if ($names -ccontains 'com.docker.network.bridge.gateway_mode_ipv6') {
+    [string]$options.'com.docker.network.bridge.gateway_mode_ipv6'
+  } else {'nat'}
   if ($options.'com.docker.network.bridge.host_binding_ipv4' -cne '127.0.0.1' -or
-      ($options.'com.docker.network.bridge.gateway_mode_ipv4' -and
-       $options.'com.docker.network.bridge.gateway_mode_ipv4' -cne 'nat') -or
-      ($options.'com.docker.network.bridge.gateway_mode_ipv6' -and
-       $options.'com.docker.network.bridge.gateway_mode_ipv6' -cne 'nat')) {
+      $gw4 -cne 'nat' -or $gw6 -cne 'nat') {
     throw 'BLOCKED_DIAG_NETWORK_NOT_LOOPBACK_ONLY'
   }
   return $true
