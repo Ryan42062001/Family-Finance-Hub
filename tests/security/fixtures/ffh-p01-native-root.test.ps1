@@ -157,6 +157,131 @@ try {
     throw 'SYNTH_FOREIGN_FOLDER_DELETED'
   }
   FileReceipt '07'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-08: an ordinary, lexicographically late foreign migration cannot cause
+  # the earlier permitted marker/config/migrations to be disposed.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $foreignChild=Join-Path $id.root 'supabase/migrations/zz_foreign.sql'
+  [IO.File]::WriteAllText($foreignChild,'nonowned')
+  ExpectCategory {NativeRetire $id $recorded} 'UNPERMITTED_PATH'
+  MarkerExists $id
+  if (-not (Test-Path -LiteralPath (Join-Path $id.root 'supabase/config.toml'))) {throw 'SYNTH_EARLY_FILE_DISPOSED'}
+  if (-not (Test-Path -LiteralPath $foreignChild)) {throw 'SYNTH_FOREIGN_FILE_REMOVED'}
+  FileReceipt '08'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-09: nested foreign ordinary directory + sentinel.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $foreignChild=Join-Path $id.root 'supabase/migrations/zz_foreign_dir'
+  [void](New-Item -ItemType Directory -Path $foreignChild)
+  [IO.File]::WriteAllText((Join-Path $foreignChild 'private.txt'),'preserve')
+  ExpectCategory {NativeRetire $id $recorded} 'UNPERMITTED_PATH'
+  MarkerExists $id
+  if (-not (Test-Path -LiteralPath (Join-Path $foreignChild 'private.txt'))) {throw 'SYNTH_FOREIGN_DIR_REMOVED'}
+  FileReceipt '09'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-10: unknown CLI-style content inside a permitted .temp directory.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $temp=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $temp)
+  [IO.File]::WriteAllText((Join-Path $temp 'local-cli-surprise'),'nonowned')
+  ExpectCategory {NativeRetire $id $recorded} 'UNPERMITTED_PATH'
+  MarkerExists $id
+  FileReceipt '10'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-11: a valid optional directory is a reparse junction to an outside sentinel.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $foreign=Join-Path $profileHome ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
+  [void](New-Item -ItemType Directory -Path $foreign)
+  $proof=Join-Path $foreign 'never-delete.txt'
+  [IO.File]::WriteAllText($proof,'stay')
+  $junction=Join-Path $id.root 'supabase/.temp'
+  $linkCmd=Start-Process -FilePath (Join-Path $env:WINDIR 'System32/cmd.exe') -ArgumentList ('/d /c mklink /J "'+$junction+'" "'+$foreign+'"') -WindowStyle Hidden -PassThru -Wait
+  if ($linkCmd.ExitCode -ne 0) {throw 'SYNTH_NESTED_JUNCTION_CREATE_FAILED'}
+  ExpectCategory {NativeRetire $id $recorded} 'REPARSE_OR_TYPE'
+  MarkerExists $id
+  if (-not (Test-Path -LiteralPath $proof)) {throw 'SYNTH_JUNCTION_SENTINEL_REMOVED'}
+  FileReceipt '11'
+  [IO.Directory]::Delete($junction)
+  Stop-NativeRoot $id;$id=$null
+  [IO.Directory]::Delete($foreign,$true);$foreign=$null
+
+  # FS-12: an exact expected file linked to an outside file is never adopted.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $foreign=Join-Path $profileHome ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
+  [void](New-Item -ItemType Directory -Path $foreign)
+  $proof=Join-Path $foreign 'config-sentinel.txt'
+  [IO.File]::WriteAllText($proof,'synthetic',[Text.UTF8Encoding]::new($false))
+  $target=Join-Path $id.root 'supabase/config.toml'
+  [IO.File]::Delete($target)
+  $cmd=Start-Process -FilePath (Join-Path $env:WINDIR 'System32/cmd.exe') -ArgumentList ('/d /c fsutil hardlink create "'+$target+'" "'+$proof+'"') -PassThru -Wait -WindowStyle Hidden
+  if ($cmd.ExitCode -ne 0) {throw 'SYNTH_HARDLINK_CREATE_FAILED'}
+  ExpectCategory {NativeRetire $id $recorded} 'HARDLINK'
+  MarkerExists $id
+  if (-not (Test-Path -LiteralPath $proof)) {throw 'SYNTH_HARDLINK_SENTINEL_REMOVED'}
+  FileReceipt '12'
+  Stop-NativeRoot $id;$id=$null
+  [IO.Directory]::Delete($foreign,$true);$foreign=$null
+
+  # FS-13: unexpected ACL principal on permitted file blocks without disposal.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $acl=[IO.File]::GetAccessControl($config)
+  $everyone=[Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+  $rule=[Security.AccessControl.FileSystemAccessRule]::new(
+    $everyone,[Security.AccessControl.FileSystemRights]::ReadData,
+    [Security.AccessControl.AccessControlType]::Allow)
+  $acl.AddAccessRule($rule)
+  [IO.File]::SetAccessControl($config,$acl)
+  ExpectCategory {NativeRetire $id $recorded} 'ACL_FOREIGN'
+  MarkerExists $id
+  FileReceipt '13'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-14: immutable expected hash mismatch is not merely a filename check.
+  $id=New-NativeRoot;$recorded=FileId $id
+  [IO.File]::WriteAllText((Join-Path $id.root 'supabase/config.toml'),'tampered')
+  ExpectCategory {NativeRetire $id $recorded} 'MANIFEST_HASH'
+  MarkerExists $id
+  FileReceipt '14'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-15: injected unapproved manifest path cannot authorize any file.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $bad=(Manifest $id)+[char]10+'F|supabase\migrations\not-actually-owned.txt|'+('0'*64)
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),$bad)} 'MANIFEST_UNKNOWN_PATH'
+  MarkerExists $id
+  FileReceipt '15'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-16: legacy four-argument destructive call is explicitly disabled.
+  $id=New-NativeRoot;$recorded=FileId $id
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id))} 'MANIFEST_REQUIRED'
+  MarkerExists $id
+  FileReceipt '16'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-17: excessive descendants must fail before marker removal or disposition.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $migs=Join-Path $id.root 'supabase/migrations'
+  foreach($n in 1..2050) {
+    [IO.File]::WriteAllText((Join-Path $migs ('noise'+$n+'.txt')),'x')
+  }
+  ExpectCategory {NativeRetire $id $recorded} 'LIMIT_SIBLINGS'
+  MarkerExists $id
+  FileReceipt '17'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-18: a fully verified tree with optional EMPTY CLI directory is retired.
+  $id=New-NativeRoot;$recorded=FileId $id
+  [void](New-Item -ItemType Directory -Path (Join-Path $id.root 'supabase/.temp'))
+  if ((NativeRetire $id $recorded) -cne 'RETIRED') {throw 'SYNTH_VALID_TREE_RETIRE_FAIL'}
+  CheckAbsent $id
+  FileReceipt '18'
+  $id=$null
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {
