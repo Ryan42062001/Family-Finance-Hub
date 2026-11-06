@@ -81,22 +81,45 @@ public static class FfhP01OwnedRoot {
          rule.AccessControlType!=AccessControlType.Allow)Fail("ACL_FOREIGN");
     }
   }
-  static string Sha(SafeFileHandle h) {
-    // Read from an already-held, share-WRITE-denied handle. FileStream would
-    // own and close the SafeFileHandle; ReadFile keeps it held until disposal.
+  const ulong MAX_CACHE_BYTES=96;
+  static bool IsRecoveryCache(string relative) {
+    return String.Equals(relative,@"supabase\.temp\cli-latest",StringComparison.Ordinal);
+  }
+  static ulong Length(Info i) {return ((ulong)i.sizeHi<<32)|i.sizeLo;}
+  static void AssertCacheLength(Info i) {
+    if(Length(i)>MAX_CACHE_BYTES)Fail("CACHE_SIZE");
+  }
+  static string Sha(SafeFileHandle h,bool recoveryCache=false) {
+    // A held Windows handle denies concurrent WRITE/DELETE sharing. For the
+    // exact recovery cache, validate kind/length BEFORE allocating or hashing;
+    // a 97-byte sentinel limits even an unexpected mid-read growth.
+    Info before=default(Info);
+    if(recoveryCache) {before=Describe(h,false);AssertCacheLength(before);}
     long next;
     if(!SetFilePointerEx(h,0,out next,0))Fail("HASH_SEEK");
     using(SHA256 hash=SHA256.Create()) {
-      byte[] buffer=new byte[8192];
+      byte[] buffer=new byte[recoveryCache?97:8192];
+      ulong total=0;
       while(true) {
         uint received;
         if(!ReadFile(h,buffer,(uint)buffer.Length,out received,IntPtr.Zero))
           Fail("HASH_READ");
         if(received==0)break;
+        total+=(ulong)received;
+        if(recoveryCache && total>MAX_CACHE_BYTES)Fail("CACHE_SIZE");
         hash.TransformBlock(buffer,0,(int)received,buffer,0);
       }
       hash.TransformFinalBlock(new byte[0],0,0);
       if(!SetFilePointerEx(h,0,out next,0))Fail("HASH_SEEK");
+      if(recoveryCache) {
+        Info after=Describe(h,false);
+        AssertCacheLength(after);
+        if(total!=Length(before) || Length(after)!=Length(before) ||
+           FileId(after)!=FileId(before) ||
+           after.created.lo!=before.created.lo || after.created.hi!=before.created.hi ||
+           after.written.lo!=before.written.lo || after.written.hi!=before.written.hi ||
+           after.attr!=before.attr || after.links!=before.links)Fail("CACHE_DRIFT");
+      }
       return BitConverter.ToString(hash.Hash).Replace("-","").ToLowerInvariant();
     }
   }
@@ -202,7 +225,9 @@ public static class FfhP01OwnedRoot {
       if(e.info.vol!=volume)Fail("VOLUME");
       Acl(child,dir,rel==".ffh-p01-owned-root");
       if(!dir) {
-        if(Sha(h)!=rule.digest)Fail("MANIFEST_HASH");
+        bool cache=IsRecoveryCache(rel);
+        if(cache)AssertCacheLength(e.info);
+        if(Sha(h,cache)!=rule.digest)Fail("MANIFEST_HASH");
       }
       seen.Add(rel,e);
       if(dir)Scan(child,rel,depth+1,volume,permit,seen,held);
@@ -220,7 +245,11 @@ public static class FfhP01OwnedRoot {
     Info i=Describe(e.handle,e.directory);
     if(FileId(i)!=FileId(e.info) || i.vol!=e.info.vol)Fail("TREE_RACE");
     Acl(e.path,e.directory,e.relative==".ffh-p01-owned-root");
-    if(!e.directory && Sha(e.handle)!=permit[e.relative].digest)Fail("TREE_RACE");
+    if(!e.directory) {
+      bool cache=IsRecoveryCache(e.relative);
+      if(cache)AssertCacheLength(i);
+      if(Sha(e.handle,cache)!=permit[e.relative].digest)Fail("TREE_RACE");
+    }
   }
   static void DisposeExact(SafeFileHandle h) {
     DispositionAttempts++;

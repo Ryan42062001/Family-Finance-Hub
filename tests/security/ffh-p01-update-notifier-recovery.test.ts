@@ -13,7 +13,7 @@ test("FFH-P01 pinned CLI notifier suppression and consumed recovery fail-closed 
   assert.ifError(run.error);
   assert.equal(run.status,0,(run.stdout??"")+"\n"+(run.stderr??""));
   const lines=(run.stdout??"").split(/\r?\n/).map(s=>s.trim()).filter(s=>/^RC-\d{2} PASS$/.test(s));
-  assert.deepEqual(lines,Array.from({length:17},(_,i)=>"RC-"+String(i+1).padStart(2,"0")+" PASS"));
+  assert.deepEqual(lines,Array.from({length:29},(_,i)=>"RC-"+String(i+1).padStart(2,"0")+" PASS"));
   assert.doesNotMatch(run.stdout??"",/NEVER_PRINT_ME|SYNTHETIC_ONLY/);
   for(const receipt of lines)console.log(receipt);
 });

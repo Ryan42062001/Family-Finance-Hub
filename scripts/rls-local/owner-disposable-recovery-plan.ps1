@@ -8,7 +8,7 @@ param(
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')][string]$ConsumedHead,
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{24}$')][string]$RunToken,
   [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$CliSha256,
-  [ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedCacheSha256
+  [ValidatePattern('^[a-f0-9]{64}$')][string]$PreapprovedCacheSha256
 )
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/source-provenance.ps1"
@@ -20,7 +20,7 @@ $ErrorActionPreference='Stop'
 
 function Invoke-FfhConsumedRecoveryPlan {
   param([string]$ExpectedAuditedHead,[string]$ConsumedHead,
-    [string]$RunToken,[string]$CliSha256,[string]$ExpectedCacheSha256)
+    [string]$RunToken,[string]$CliSha256,[string]$PreapprovedCacheSha256)
   # Prevent repurposing this forensic tool for another resource or run.
   if ($ConsumedHead -cne 'cba20f7fecea8b7dfdbcb10fb245765825ef97c0') {
     throw 'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'
@@ -51,9 +51,11 @@ function Invoke-FfhConsumedRecoveryPlan {
     throw 'BLOCKED_RECOVERY_EXISTING_EVIDENCE_OR_ROOT_MISSING'
   }
   Assert-FfhNoReparsePath -Path $identity.root
-  $j=Read-FfhJournal -Identity $identity
+  # Read through the recovery-specific existing-only evidence path: no
+  # transitive call to the normal creating Read-FfhJournal.
+  $j=Read-FfhRecoveryJournal -Identity $identity
   [void](Assert-FfhConsumedRecoveryJournal -Identity $identity -Journal $j -ConsumedHead $ConsumedHead -CliSha256 $CliSha256)
-  $cache=Get-FfhRecoveryCacheEvidence -Root $identity.root -ExpectedSha256 $ExpectedCacheSha256
+  $cache=Get-FfhRecoveryCacheEvidence -Root $identity.root -ExpectedSha256 $PreapprovedCacheSha256
   # Re-attest the exact Linux named pipe and full journalled resource set.
   $resource=@(Assert-FfhDiagnosticInventory -Identity $identity -Journal $j)
   if ($resource.Count -ne 3) {throw 'BLOCKED_RECOVERY_RESOURCE_INVENTORY_DRIFT'}
@@ -79,13 +81,22 @@ function Invoke-FfhConsumedRecoveryPlan {
       (Get-FfhRootMarker -Identity $identity),$permit) -cne 'PREFLIGHT_OK') {
     throw 'BLOCKED_RECOVERY_NATIVE_PREFLIGHT'
   }
+  # Re-read existing journal and receipts after native preflight. Never
+  # silently adopt a rewritten journal during read-only assessment.
+  $endJournal=Read-FfhRecoveryJournal -Identity $identity
+  [void](Assert-FfhConsumedRecoveryJournal -Identity $identity -Journal $endJournal -ConsumedHead $ConsumedHead -CliSha256 $CliSha256)
+  if (($j | ConvertTo-Json -Depth 30 -Compress) -cne
+      ($endJournal | ConvertTo-Json -Depth 30 -Compress)) {
+    throw 'BLOCKED_RECOVERY_JOURNAL_DRIFT_DURING_PLAN'
+  }
   # Preserve UNKNOWN first failure. Do NOT execute even read-only SQL without
   # its separately scoped host authorization, and never print Docker payloads.
-  Write-Output ('RECOVERY_PLAN=READ_ONLY_PREFLIGHT_PASS SOURCE_HEAD='+$ExpectedAuditedHead+
+  Write-Output ('RECOVERY_PLAN=READ_ONLY_EVIDENCE_ONLY SOURCE_HEAD='+$ExpectedAuditedHead+
     ' CONSUMED_HEAD='+$ConsumedHead+' CONSUMED_LEDGER=UNCHANGED'+
     ' FULL_JOURNAL_IDENTITY=VERIFIED EXACT_DOCKER_IDENTITY=VERIFIED'+
-    ' NATIVE_ROOT_PREFLIGHT=PASS CACHE_SHAPE='+$cache.shape+
-    ' CACHE_BYTES='+$cache.bytes+' CACHE_SHA256='+$cache.sha256+
+    ' NATIVE_ROOT_PREFLIGHT=PASS CACHE_STATUS='+$cache.status+
+    ' CACHE_SHAPE='+$cache.shape+
+    ' CACHE_BYTES='+$cache.bytes+' CACHE_SHA256=PRIVATE_NOT_PRINTED'+
     ' FIRST_FAILURE=UNKNOWN SQL_IDLE=NOT_AUTHORIZED'+
     ' DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO')
 }
@@ -98,7 +109,7 @@ function Get-FfhRecoveryFailureCategory {
   return 'UNEXPECTED_VERIFICATION_FAILURE'
 }
 try {
-  Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $ExpectedAuditedHead -ConsumedHead $ConsumedHead -RunToken $RunToken -CliSha256 $CliSha256 -ExpectedCacheSha256 $ExpectedCacheSha256
+  Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $ExpectedAuditedHead -ConsumedHead $ConsumedHead -RunToken $RunToken -CliSha256 $CliSha256 -PreapprovedCacheSha256 $PreapprovedCacheSha256
 } catch {
   # Never echo raw Docker/native/PowerShell exception strings or paths.
   $category=Get-FfhRecoveryFailureCategory -ErrorText ([string]$_.Exception.Message)

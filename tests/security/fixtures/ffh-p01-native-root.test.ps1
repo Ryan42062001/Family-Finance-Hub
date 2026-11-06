@@ -395,6 +395,41 @@ try {
     $recorded,(Get-FfhRootMarker -Identity $id),$specific)} 'UNPERMITTED_PATH'
   MarkerExists $id
   FileReceipt '26'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-27: even with a manifest SHA entry, a 128 MiB cache MUST reject
+  # size BEFORE native SHA streaming and BEFORE ANY disposition.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  $cacheFile=Join-Path $cacheDir 'cli-latest'
+  $large=[IO.FileStream]::new($cacheFile,[IO.FileMode]::CreateNew,
+    [IO.FileAccess]::Write,[IO.FileShare]::None)
+  try {$large.SetLength(128MB)} finally {$large.Dispose()}
+  $valid=(Manifest $id)+[char]10+('F|supabase\.temp\cli-latest|'+(ShaText 'v3.0.0'))
+  ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$valid)} 'CACHE_SIZE'
+  MarkerExists $id
+  FileReceipt '27'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-28: cache changes after a read-only preflight must be rejected
+  # during later fresh native held-handle preflight, with ZERO disposal.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  $cacheFile=Join-Path $cacheDir 'cli-latest'
+  [IO.File]::WriteAllText($cacheFile,'v3.0.0',[Text.UTF8Encoding]::new($false))
+  $valid=(Manifest $id)+[char]10+('F|supabase\.temp\cli-latest|'+(ShaText 'v3.0.0'))
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+      $recorded,(Get-FfhRootMarker -Identity $id),$valid) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_CACHE_INITIAL_PREFLIGHT_FAIL'
+  }
+  [IO.File]::WriteAllText($cacheFile,'v3.0.1',[Text.UTF8Encoding]::new($false))
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$valid)} 'MANIFEST_HASH'
+  MarkerExists $id
+  FileReceipt '28'
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {

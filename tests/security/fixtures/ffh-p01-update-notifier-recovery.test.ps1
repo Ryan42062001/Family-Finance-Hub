@@ -85,15 +85,25 @@ $evidence=Join-Path $base 'isolated-evidence'
 [void](New-Item -ItemType Directory -Path $dir -Force)
 [void](New-Item -ItemType Directory -Path $evidence)
 $cache=Join-Path $dir 'cli-latest'
-# Substitute the approved fixture-only evidence checker, never host paths.
-function Assert-FfhEvidenceEntry {
-  param($Identity,[string]$Path,[switch]$Optional)
-  $expected=[IO.Path]::GetFullPath($Path)
-  $parent=[IO.Path]::GetFullPath($Identity.evidence)
-  if (-not ([IO.Path]::GetDirectoryName($expected)).Equals(
-      $parent,[StringComparison]::OrdinalIgnoreCase)) {throw 'SYNTH_FOREIGN_EVIDENCE'}
-  if (-not $Optional -and -not (Test-Path -LiteralPath $expected -PathType Leaf)) {
-    throw 'SYNTH_EVIDENCE_MISSING'
+# Fixture-only scope/ACL substitution onto ONE GUID temp directory.
+# The production FileMode.Open reader and entry checks are exercised unchanged.
+function Assert-FfhRecoveryExistingDirectory {
+  param($Identity)
+  if (-not ([IO.Path]::GetFullPath($Identity.evidence)).Equals(
+      [IO.Path]::GetFullPath($evidence),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED_RECOVERY_EVIDENCE_SCOPE'
+  }
+  if (-not [IO.Directory]::Exists($Identity.evidence)) {
+    throw 'BLOCKED_RECOVERY_EVIDENCE_DIRECTORY_MISSING'
+  }
+  return $true
+}
+function Assert-FfhPrivateEvidenceAcl {
+  param([string]$Path)
+  if (-not ([IO.Path]::GetFullPath($Path)).StartsWith(
+      ([IO.Path]::GetFullPath($base)+[IO.Path]::DirectorySeparatorChar),
+      [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'SYNTH_FOREIGN_EVIDENCE_ACL_PATH'
   }
 }
 try {
@@ -128,10 +138,14 @@ try {
     cliVersion='2.122.0';diagnosticCliSha256=$cliHash;state='MANUAL_REVIEW'
     diagnosticStatus='MANUAL_REVIEW';testResult='UNKNOWN'
     cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW';gateAResult='NOT_STARTED'
-    gateBResult='NOT_STARTED';sqlBoundary=[pscustomobject]@{phase='NONE';status='NOT_STARTED'}
+    gateBResult='NOT_STARTED';sqlBoundary=[pscustomobject]@{
+      phase='NONE';mode='NONE';status='NOT_STARTED';sha=$sha;token=$id.token
+      containerId='';daemon='synthetic-daemon'
+    }
+    sequence=11;daemon='synthetic-daemon';evidenceSaved=$false
     ports=@(26000,26001);postStartMigrationCopies=15
     rootOwnership=[pscustomobject]@{fileId='12345678:abcdef0123456789';markerVersion=1}
-    rootRetirement=[pscustomobject]@{status='NOT_STARTED'}
+    rootRetirement=[pscustomobject]@{status='NOT_STARTED';fileId='';atUtc=''}
     resources=@(
       [pscustomobject]@{kind='containers';id=('c'*64);name=('/'+$id.container)}
       [pscustomobject]@{kind='volumes';id=('supabase_db_'+$id.project+'_data');name=('supabase_db_'+$id.project+'_data')}
@@ -178,6 +192,105 @@ try {
   if ((Get-FfhRecoveryFailureCategory -ErrorText 'secret=NEVER_PRINT_ME') -cne
       'UNEXPECTED_VERIFICATION_FAILURE') {throw 'SYNTH_RECOVERY_CATEGORY_NOT_SANITIZED'}
   Receipt 17
+  # REC-AUD-03: exact sequence and complete SQL-boundary metadata.
+  $j.sequence=10
+  MustBlock 'BLOCKED_RECOVERY_JOURNAL_IDENTITY_OR_STATE' {
+    Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+  }
+  $j.sequence=11
+  Receipt 18
+  $j.sqlBoundary.mode='Preflight'
+  MustBlock 'BLOCKED_RECOVERY_JOURNAL_IDENTITY_OR_STATE' {
+    Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+  }
+  $j.sqlBoundary.mode='NONE'
+  Receipt 19
+  $j.sqlBoundary.daemon='forged'
+  MustBlock 'BLOCKED_RECOVERY_JOURNAL_IDENTITY_OR_STATE' {
+    Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+  }
+  $j.sqlBoundary.daemon=$j.daemon
+  Receipt 20
+  $j.sqlBoundary.PSObject.Properties.Remove('token')
+  MustBlock 'BLOCKED_RECOVERY_JOURNAL_REQUIRED_FIELD' {
+    Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+  }
+  $j.sqlBoundary | Add-Member -NotePropertyName token -NotePropertyValue $id.token
+  Receipt 21
+  $j.sqlBoundary.containerId=('c'*64)
+  MustBlock 'BLOCKED_RECOVERY_JOURNAL_IDENTITY_OR_STATE' {
+    Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+  }
+  $j.sqlBoundary.containerId=''
+  Receipt 22
+
+  # REC-AUD-04: distinguish self-observed and externally expected hashes.
+  [IO.File]::WriteAllText($cache,'v3.0.0',[Text.UTF8Encoding]::new($false))
+  $observed=Get-FfhRecoveryCacheEvidence -Root $cacheRoot
+  if ($observed.status -cne 'CACHE_OBSERVED_UNPINNED') {
+    throw 'SYNTH_UNPINNED_NOT_DISTINGUISHED'
+  }
+  Receipt 23
+  $pinned=Get-FfhRecoveryCacheEvidence -Root $cacheRoot -ExpectedSha256 $observed.sha256
+  if ($pinned.status -cne 'CACHE_PINNED_VERIFIED' -or $pinned.sha256 -cne $observed.sha256) {
+    throw 'SYNTH_PINNED_CHECK_FAILED'
+  }
+  Receipt 24
+
+  # REC-AUD-01: large sparse-compatible fixture must stop at LENGTH, never
+  # allocate or read the entire untrusted file.
+  $big=[IO.FileStream]::new($cache,[IO.FileMode]::Open,
+    [IO.FileAccess]::Write,[IO.FileShare]::None)
+  try {$big.SetLength(128MB)} finally {$big.Dispose()}
+  MustBlock 'BLOCKED_RECOVERY_CACHE_SIZE' {
+    Get-FfhRecoveryCacheEvidence -Root $cacheRoot
+  }
+  Receipt 25
+  [IO.File]::WriteAllText($cache,'v3.0.0',[Text.UTF8Encoding]::new($false))
+
+  # REC-AUD-02: missing directory and journal must NEVER be created.
+  $missingEvidence=Join-Path $base 'never-created-evidence'
+  $fakeIdentity=[pscustomobject]@{evidence=$missingEvidence}
+  MustBlock 'BLOCKED_RECOVERY_EVIDENCE_SCOPE' {
+    Read-FfhRecoveryExistingJson -Identity $fakeIdentity -Path (Join-Path $missingEvidence 'journal.json')
+  }
+  if ([IO.Directory]::Exists($missingEvidence)) {throw 'SYNTH_MISSING_EVIDENCE_CREATED'}
+  Receipt 26
+
+  # Race injection: fixture-only entry checker removes the synthetic file
+  # between successful admission and FileMode.Open. Open must not recreate it.
+  $race=Join-Path $evidence 'race.json'
+  [IO.File]::WriteAllText($race,'{"ok":true}',[Text.UTF8Encoding]::new($false))
+  $originalEntry=(Get-Command Assert-FfhRecoveryExistingEntry).ScriptBlock
+  try {
+    function Assert-FfhRecoveryExistingEntry {
+      param($Identity,[string]$Path,[switch]$Optional)
+      if ([IO.File]::Exists($Path)) {[IO.File]::Delete($Path)}
+      return $true
+    }
+    $blocked=$false
+    try { [void](Read-FfhRecoveryExistingJson -Identity $id -Path $race) }
+    catch {$blocked=$true}
+    if (-not $blocked) {throw 'SYNTH_RACE_OPEN_WAS_NOT_BLOCKED'}
+  } finally {
+    Set-Item -Path Function:\Assert-FfhRecoveryExistingEntry -Value $originalEntry
+  }
+  if ([IO.File]::Exists($race) -or -not [IO.Directory]::Exists($evidence)) {
+    throw 'SYNTH_RACE_CREATED_FILE'
+  }
+  Receipt 27
+  $journalPath=Join-Path $evidence ($id.token+'.json')
+  MustBlock 'BLOCKED_RECOVERY_EVIDENCE_ENTRY_MISSING' {
+    Read-FfhRecoveryJournal -Identity $id
+  }
+  if ([IO.File]::Exists($journalPath)) {throw 'SYNTH_MISSING_JOURNAL_CREATED'}
+  Receipt 28
+  # The real ledger and FINAL receipt were never rewritten by recovery reads.
+  if (($ledger|ConvertTo-Json -Depth 10) -cne [IO.File]::ReadAllText($ledgerPath) -or
+      ($final|ConvertTo-Json -Depth 10) -cne [IO.File]::ReadAllText($finalPath)) {
+    throw 'SYNTH_READ_ONLY_MUTATED_EVIDENCE'
+  }
+  Receipt 29
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)
