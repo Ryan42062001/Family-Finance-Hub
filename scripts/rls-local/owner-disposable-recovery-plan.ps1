@@ -123,6 +123,7 @@ function Invoke-FfhConsumedRecoveryPlan {
 function Set-FfhRecoveryStage {
   param([Parameter(Mandatory=$true)][ValidateSet(
     'INITIALIZATION',
+    'OUTPUT_CONTRACT',
     'MODULE_IMPORT',
     'CONSUMED_HEAD',
     'ENVIRONMENT',
@@ -151,6 +152,7 @@ function Get-FfhRecoverySafeStage {
   param([string]$Stage)
   $known=@(
     'INITIALIZATION',
+    'OUTPUT_CONTRACT',
     'MODULE_IMPORT',
     'CONSUMED_HEAD',
     'ENVIRONMENT',
@@ -222,7 +224,8 @@ function Get-FfhRecoveryFailureCategory {
     'BLOCKED_RECOVERY_SOURCE_PERMIT_INVALID',
     'BLOCKED_RECOVERY_UNEXPECTED_TEST_RECEIPT',
     'BLOCKED_RECOVERY_VOLUME_IDENTITY',
-    'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'
+    'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD',
+    'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
   )
   if ($known -ccontains $ErrorText) {return $ErrorText}
   if ($ErrorText -cmatch '^BLOCKED_RECOVERY_') {
@@ -256,7 +259,16 @@ function Get-FfhRecoveryFailureCategory {
 function Invoke-FfhRecoveryPlanEntry {
   param([Parameter(Mandatory=$true)][scriptblock]$Action)
   try {
-    & $Action
+    # Constrain *all* host-readable helper streams, including native Git
+    # stderr, warnings, verbose/debug/info and unexpected stdout. Do not
+    # disclose data emitted by an inherited helper before a failure.
+    $observed=@(& $Action 2>$null 3>$null 4>$null 5>$null 6>$null)
+    Set-FfhRecoveryStage -Stage 'OUTPUT_CONTRACT'
+    $safe='^RECOVERY_PLAN=READ_ONLY_EVIDENCE_ONLY STAGE=COMPLETE CATEGORY=NONE SOURCE_HEAD=VERIFIED CONSUMED_HEAD=VERIFIED CONSUMED_LEDGER=UNCHANGED FULL_JOURNAL_IDENTITY=VERIFIED EXACT_DOCKER_IDENTITY=VERIFIED NATIVE_ROOT_PREFLIGHT=PASS CACHE_STATUS=CACHE_(OBSERVED_UNPINNED|PINNED_VERIFIED) CACHE_SHAPE=CLI_TAG_OR_EMPTY CACHE_SHA256=PRIVATE_NOT_PRINTED FIRST_FAILURE=UNKNOWN SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO$'
+    if ($observed.Count -ne 1 -or [string]$observed[0] -cnotmatch $safe) {
+      throw 'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
+    }
+    Write-Output ([string]$observed[0])
   } catch {
     # Preserve the FIRST failing stage, including inherited helper catches.
     # Exit nonzero without PowerShell's default private-path stack/error echo.

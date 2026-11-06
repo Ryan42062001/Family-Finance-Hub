@@ -361,7 +361,8 @@ try {
     throw 'SYNTH_STG_FORBIDDEN_MUTATION_OR_SQL_CALL'
   }
   if ($planAst.Extent.Text -notmatch "Set-FfhRecoveryStage -Stage 'MODULE_IMPORT'" -or
-      $planAst.Extent.Text -notmatch 'exit 1') {
+      $planAst.Extent.Text -notmatch 'exit 1' -or
+      $planAst.Extent.Text -notmatch '2>\$null 3>\$null 4>\$null 5>\$null 6>\$null') {
     throw 'SYNTH_STG_IMPORT_OR_NONZERO_EXIT_MISSING'
   }
   # Generate ONLY a synthetic child entrypoint in this GUID-scoped test root.
@@ -446,6 +447,23 @@ switch ($Case) {
       throw 'C:\PRIVATE_NEVER_PRINT_ME'
     }
   }
+  'EMITTED_STREAMS' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'SOURCE_CHECKOUT'
+      Write-Warning 'NEVER_PRINT_ME'
+      Write-Information 'NEVER_PRINT_ME' -InformationAction Continue
+      Write-Verbose 'NEVER_PRINT_ME' -Verbose
+      Write-Debug 'NEVER_PRINT_ME' -Debug
+      Write-Host 'NEVER_PRINT_ME'
+      throw 'BLOCKED: secret C:\PRIVATE_NEVER_PRINT_ME'
+    }
+  }
+  'UNEXPECTED_STDOUT' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'COMPLETE'
+      Write-Output 'NEVER_PRINT_ME C:\PRIVATE_NEVER_PRINT_ME'
+    }
+  }
   default {throw 'SYNTH_UNKNOWN_CASE'}
 }
 '@
@@ -465,6 +483,8 @@ switch ($Case) {
     [pscustomobject]@{Case='UNLISTED_RECOVERY';Stage='CACHE_APPROVAL';Category='RECOVERY_GUARD_UNCLASSIFIED'}
     [pscustomobject]@{Case='SOURCE_INHERITED';Stage='SOURCE_CHECKOUT';Category='INHERITED_GUARD_REJECTED'}
     [pscustomobject]@{Case='MODULE_IMPORT';Stage='MODULE_IMPORT';Category='UNEXPECTED_VERIFICATION_FAILURE'}
+    [pscustomobject]@{Case='EMITTED_STREAMS';Stage='SOURCE_CHECKOUT';Category='INHERITED_GUARD_REJECTED'}
+    [pscustomobject]@{Case='UNEXPECTED_STDOUT';Stage='OUTPUT_CONTRACT';Category='BLOCKED_RECOVERY_OUTPUT_CONTRACT'}
   )
   $num=31
   foreach($check in $checks) {
@@ -502,7 +522,7 @@ switch ($Case) {
       [IO.File]::Exists((Join-Path $evidence 'race.json'))) {
     throw 'SYNTH_STG_EVIDENCE_MUTATED'
   }
-  Receipt 44
+  Receipt 46
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)
