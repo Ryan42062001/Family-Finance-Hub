@@ -108,7 +108,7 @@ try {
   $marker=Join-Path $id.root '.ffh-p01-owned-root'
   [IO.File]::WriteAllText($marker,(Get-FfhRootMarker -Identity $new),[Text.UTF8Encoding]::new($false))
   Initialize-FfhPrivateEvidenceAcl -Path $marker -NewlyCreated
-  MustBlock {NativeRetire $id $stale}
+  ExpectCategory {NativeRetire $id $stale} 'ID_DRIFT'
   if (-not (Test-Path -Path $id.root)) {throw 'SYNTH_FOREIGN_REPLACEMENT_DELETED'}
   FileReceipt '02'
   Stop-NativeRoot $id;$id=$null
@@ -116,7 +116,7 @@ try {
   $id=New-NativeRoot
   $recorded=FileId $id
   [IO.File]::WriteAllText((Join-Path $id.root '.ffh-p01-owned-root'),'wrong-identity')
-  MustBlock {NativeRetire $id $recorded}
+  ExpectCategory {NativeRetire $id $recorded} 'MARKER_MISMATCH'
   FileReceipt '03'
   Stop-NativeRoot $id;$id=$null
   # FS-04: Reparse/junction inside owned directory cannot be followed.
@@ -130,7 +130,7 @@ try {
   if ($linkCmd.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $junction)) {
     throw 'SYNTH_JUNCTION_CREATION_FAILED'
   }
-  MustBlock {NativeRetire $id $recorded}
+  ExpectCategory {NativeRetire $id $recorded} 'REPARSE_OR_TYPE'
   if (-not (Test-Path -LiteralPath $proof)) {throw 'SYNTH_JUNCTION_FOREIGN_DELETED'}
   FileReceipt '04'
   [IO.Directory]::Delete($junction)
@@ -141,14 +141,14 @@ try {
   $acl=[IO.Directory]::GetAccessControl($id.root)
   $acl.SetAccessRuleProtection($false,$true)
   [IO.Directory]::SetAccessControl($id.root,$acl)
-  MustBlock {NativeRetire $id $recorded}
+  ExpectCategory {NativeRetire $id $recorded} 'ACL_OWNER'
   FileReceipt '05'
   Stop-NativeRoot $id;$id=$null
   # FS-06: Missing root is an absence proof, never a deletion of another path.
   $id=New-NativeRoot;$recorded=FileId $id
   if ((NativeRetire $id $recorded) -cne 'RETIRED') {throw 'SYNTH_EMPTY_RETIRE'}
   CheckAbsent $id
-  MustBlock {NativeRetire $id $recorded}
+  ExpectCategory {NativeRetire $id $recorded} 'ROOT_DISAPPEARED_BEFORE_RETIRE'
   CheckAbsent $id
   FileReceipt '06'
   # FS-07: A same-user foreign top-level folder may not be adopted.
@@ -156,7 +156,7 @@ try {
   $foreignChild=Join-Path $id.root 'unrelated-folder'
   [void](New-Item -ItemType Directory -Path $foreignChild)
   [IO.File]::WriteAllText((Join-Path $foreignChild 'foreign-data.txt'),'preserve')
-  MustBlock {NativeRetire $id $recorded}
+  ExpectCategory {NativeRetire $id $recorded} 'UNPERMITTED_PATH'
   if (-not (Test-Path -LiteralPath (Join-Path $foreignChild 'foreign-data.txt'))) {
     throw 'SYNTH_FOREIGN_FOLDER_DELETED'
   }
@@ -286,6 +286,46 @@ try {
   CheckAbsent $id
   FileReceipt '18'
   $id=$null
+
+  # FS-19: the exact fifteen real immutable migration files are accepted only
+  # with an explicit byte-hash entry EACH (no blanket migrations permission).
+  $id=New-NativeRoot;$recorded=FileId $id
+  $migrationSources=@(Get-ChildItem -LiteralPath (Join-Path $repo 'supabase/migrations') -Filter '*.sql' -File | Sort-Object Name)
+  if ($migrationSources.Count -ne 15) {throw 'SYNTH_CANONICAL_15_MISSING'}
+  $extraRows=@()
+  foreach($original in $migrationSources) {
+    $destination=Join-Path $id.root ('supabase/migrations/'+$original.Name)
+    Copy-Item -LiteralPath $original.FullName -Destination $destination
+    $hasher=[Security.Cryptography.SHA256]::Create()
+    $stream=[IO.File]::OpenRead($original.FullName)
+    try {
+      $hash=[BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()
+    } finally {$stream.Dispose();$hasher.Dispose()}
+    $extraRows+=('F|supabase\migrations\'+$original.Name+'|'+$hash)
+  }
+  $complete=(Manifest $id)+[char]10+($extraRows -join [char]10)
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),$complete) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_CANONICAL_15_PREFLIGHT_FAIL'
+  }
+  if (([FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),$complete)) -cne 'RETIRED') {
+    throw 'SYNTH_CANONICAL_15_RETIRE_FAIL'
+  }
+  CheckAbsent $id
+  FileReceipt '19'
+  $id=$null
+
+  # FS-20: a manifest-declared canonical file MISSING from disk blocks all
+  # deletion, including the earlier marker and valid migrations.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $source=$migrationSources[0]
+  $hasher=[Security.Cryptography.SHA256]::Create()
+  $stream=[IO.File]::OpenRead($source.FullName)
+  try {$hash=[BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+  finally {$stream.Dispose();$hasher.Dispose()}
+  $required=(Manifest $id)+[char]10+('F|supabase\migrations\'+$source.Name+'|'+$hash)
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),$required)} 'MANIFEST_INCOMPLETE'
+  MarkerExists $id
+  FileReceipt '20'
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {
