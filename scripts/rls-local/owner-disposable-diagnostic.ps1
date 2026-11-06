@@ -15,6 +15,11 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot/automatic-cleanup.ps1"
 . "$PSScriptRoot/cleanup-executor.ps1"
 . "$PSScriptRoot/diagnostic-lifecycle.ps1"
+# Never trust an opaque Job Object runner compiled in a prior interactive
+# shell. This entrypoint must execute in a fresh WinPS5.1 owner process.
+if ($null -ne ('FfhRlsJobRunner' -as [type])) {
+  throw 'BLOCKED_DIAG_PRELOADED_UNVERIFIED_PROCESS_RUNNER'
+}
 
 function Assert-FfhDiagnosticApprovedCheckout {
   param($Source)
@@ -225,25 +230,25 @@ function Invoke-FfhOwnerDisposableDiagnostic {
       'RUN_TOKEN='+$identity.token+' GATE_A=NOT_STARTED GATE_B=NOT_STARTED')
   } catch {
     # Fail closed; no retry and no opportunistic Docker/SQL/FS mutation.
+    $reportedTest='NOT_STARTED'
     if ($journalCreated) {
       try {
         $j=Read-FfhJournal -Identity $identity
-        if ($j.cleanupResult -cne 'CLEANUP_VERIFIED') {
-          $j.state='MANUAL_REVIEW'
-          $j.diagnosticStatus='MANUAL_REVIEW'
-          if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
-          $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
-          $j.sequence=[int]$j.sequence+1
-          Write-FfhJournal -Identity $identity -Journal $j
-        }
+        $j.state='MANUAL_REVIEW'
+        $j.diagnosticStatus='MANUAL_REVIEW'
+        if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
+        $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
+        $j.sequence=[int]$j.sequence+1
+        Write-FfhJournal -Identity $identity -Journal $j
+        $reportedTest=$j.testResult
         if (-not (Test-Path -LiteralPath (Join-Path $identity.evidence ($identity.token+'.DIAG_FINAL.json')))) {
           [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category FAIL_CLOSED)
         }
       } catch {$statusPersisted=$false}
     }
     $cleanup=if($journalCreated){'CLEANUP_BLOCKED_MANUAL_REVIEW'}else{'NOT_ATTEMPTED'}
-    if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED'}
-    Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT=UNKNOWN CLEANUP_RESULT='+$cleanup+
+    if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED';$reportedTest='UNKNOWN'}
+    Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT='+$reportedTest+' CLEANUP_RESULT='+$cleanup+
       ' RUN_TOKEN='+$identity.token+' MANUAL_REVIEW_REQUIRED=YES')
     throw 'BLOCKED_DIAG_NO_RETRY_INSPECT_PRIVATE_JOURNAL'
   } finally {
