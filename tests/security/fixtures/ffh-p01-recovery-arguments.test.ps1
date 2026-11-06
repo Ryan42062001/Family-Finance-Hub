@@ -114,10 +114,40 @@ try {
           ($out+$err) -match 'NEVER_PRINT_ME|PRIVATE_|SYNTHETIC_|ffh-p01-arguments-fixture') {
         # Error reporting deliberately includes no captured stdout/stderr or
         # arguments. Use only bounded case name, booleans and numeric exit.
+        # Report ONLY fixed-length uppercase stage/category tokens, never
+        # raw subprocess output or caller-supplied strings/paths.
+        $bounded='^RECOVERY_PLAN=BLOCKED STAGE=([A-Z_]{1,32}) CATEGORY=([A-Z_]{1,64}) SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES
+      }
+    } finally {$p.Dispose()}
+    $num++
+    Write-Output ('AR-'+$num.ToString('00')+' PASS')
+  }
+  if ([IO.File]::ReadAllText($marker) -cne 'SYNTHETIC_LEDGER_UNCHANGED' -or
+      [IO.File]::ReadAllText($receipt) -cne 'SYNTHETIC_FINAL_UNCHANGED') {
+    throw 'SYNTH_AR_EVIDENCE_WRITTEN'
+  }
+  Write-Output 'AR-21 PASS'
+} finally {
+  $canonical=[IO.Path]::GetFullPath($base)
+  $parent=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+  if (-not ([IO.Path]::GetDirectoryName($canonical)).Equals(
+      $parent,[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($canonical) -cnotmatch '^ffh-p01-arguments-fixture-[a-f0-9]{32}$') {
+    throw 'SYNTH_AR_TEMP_SCOPE_FAILED'
+  }
+  if ([IO.Directory]::Exists($canonical)) {[IO.Directory]::Delete($canonical,$true)}
+}
+
+        $observedStage='UNRECOGNIZED';$observedCategory='UNRECOGNIZED'
+        if ($out -cmatch $bounded) {
+          $observedStage=[string]$Matches[1]
+          $observedCategory=[string]$Matches[2]
+        }
         throw ('SYNTH_AR_FAILED_'+$testCase.Name+
           '_EXIT_'+$p.ExitCode+'_OUTEQ_'+($out -ceq $expected)+
           '_ERREMPTY_'+($err.Length -eq 0)+
-          '_PRIVATE_'+(($out+$err) -match 'NEVER_PRINT_ME|PRIVATE_|SYNTHETIC_'))
+          '_PRIVATE_'+(($out+$err) -match 'NEVER_PRINT_ME|PRIVATE_|SYNTHETIC_')+
+          '_STAGE_'+$observedStage+'_CATEGORY_'+$observedCategory)
       }
     } finally {$p.Dispose()}
     $num++
