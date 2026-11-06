@@ -62,6 +62,7 @@ function Start-FfhDiagnosticPinnedDb {
   if ($docker.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
     throw 'BLOCKED_DIAG_DOCKER_ENDPOINT_CHANGED'
   }
+  [void](Assert-FfhDiagnosticLaunchPreflight -Identity $Identity -Cli $Cli)
   if ($FakeStart) {
     $answer=@(& $FakeStart $Identity $Cli)
     if ($answer.Count -ne 1 -or $answer[0] -cne 'EXIT_ZERO') {
