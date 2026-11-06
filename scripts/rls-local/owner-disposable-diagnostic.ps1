@@ -148,6 +148,16 @@ function Confirm-FfhDiagnosticStarted {
     throw 'BLOCKED_DIAG_DAEMON_DRIFT'
   }
   Confirm-FfhBaseline -Journal $j -Fake $FakeDocker
+  $prior=@($j.resources)
+  if ($prior.Count -ne 1 -or $prior[0].kind -cne 'networks' -or
+      @($observed | Where-Object { $_.kind -ceq 'networks' -and
+        $_.id -ceq $prior[0].id -and $_.name -ceq $prior[0].name }).Count -ne 1) {
+    throw 'BLOCKED_DIAG_PRECREATED_LOOPBACK_NETWORK_DRIFT'
+  }
+  if ($null -eq $Source -or @($Source.migration_files).Count -ne 15 -or
+      $j.postStartMigrationCopies -ne 15) {
+    throw 'BLOCKED_DIAG_POST_START_SOURCE_PROVENANCE_NOT_PROVEN'
+  }
   $j.resources=@($observed | ForEach-Object {
     [pscustomobject]@{kind=$_.kind;id=$_.id;name=$_.name}
   })
