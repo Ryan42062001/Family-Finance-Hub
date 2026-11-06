@@ -47,7 +47,7 @@ function Resolve-FfhDiagnosticCachedCli {
       $metadata.version -cne '2.122.0') {
     throw 'BLOCKED_DIAG_CLI_PACKAGE_VERSION'
   }
-  $observedHash=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+  $observedHash=(Get-FfhFileSha256 -Path $exe)
   if ($CliSha256 -and ($CliSha256 -cnotmatch '^[a-f0-9]{64}$' -or
       $CliSha256 -cne $observedHash)) {throw 'BLOCKED_DIAG_CLI_HASH_DRIFT'}
   if ($FakeVersion) {
@@ -85,7 +85,7 @@ function Resolve-FfhDiagnosticCachedCli {
         throw 'BLOCKED_DIAG_VERSION_LITERAL_MISMATCH'
       }
     } finally {$proc.Dispose()}
-    if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $observedHash) {
+    if ((Get-FfhFileSha256 -Path $exe) -cne $observedHash) {
       throw 'BLOCKED_DIAG_CLI_HASH_CHANGED_DURING_VERSION'
     }
   }
