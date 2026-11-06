@@ -204,7 +204,6 @@ function Invoke-FfhOwnerDisposableDiagnostic {
         (@($j.protected) -join '|') -cne ($legacy -join '|')) {
       throw 'BLOCKED_DIAG_PREFLIGHT_STATE_CHANGED'
     }
-    $j.runKind='ONE_SHOT_DIAGNOSTIC'
     $j | Add-Member -MemberType NoteProperty -Name 'runKind' -Value 'ONE_SHOT_DIAGNOSTIC' -Force
     $j | Add-Member -MemberType NoteProperty -Name 'diagnosticStatus' -Value 'PRECREATION_COMMITTED' -Force
     $j | Add-Member -MemberType NoteProperty -Name 'diagnosticCliSha256' -Value $cli.Sha256 -Force
