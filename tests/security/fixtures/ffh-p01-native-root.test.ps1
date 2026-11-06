@@ -326,6 +326,19 @@ try {
   ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),$required)} 'MANIFEST_INCOMPLETE'
   MarkerExists $id
   FileReceipt '20'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-22: a valid independently accepted tree is altered between separate
+  # read-only preflight and retirement. Retire MUST re-preflight and reject
+  # before the first disposition, even with the same root filesystem ID.
+  $id=New-NativeRoot;$recorded=FileId $id
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_RACE_SETUP_PREFLIGHT_NOT_VALID'
+  }
+  [IO.File]::WriteAllText((Join-Path $id.root 'supabase/config.toml'),'post-preflight replacement')
+  ExpectCategory {NativeRetire $id $recorded} 'MANIFEST_HASH'
+  MarkerExists $id
+  FileReceipt '22'
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {
