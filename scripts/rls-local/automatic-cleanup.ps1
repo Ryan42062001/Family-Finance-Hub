@@ -468,34 +468,65 @@ function Select-FfhRunPorts {
   }
   foreach ($port in @(54332,54333)) { [void]$used.Add($port) }
   $random=[Security.Cryptography.RandomNumberGenerator]::Create()
+  $lastCategory='NO_ELIGIBLE_CANDIDATE'
   try {
     $bytes=New-Object byte[] 4
     for ($attempt=0;$attempt -lt 128;$attempt++) {
       $random.GetBytes($bytes)
       $candidate=20000+([BitConverter]::ToUInt32($bytes,0) % 40000)
       if ($FakeCandidate) { $candidate=[int](& $FakeCandidate $attempt) }
-      if ($candidate -gt 59998 -or $used.Contains([int]$candidate) -or
-          $used.Contains([int]($candidate+1))) { continue }
-      if ($FakeProbe) {
-        if ([bool](& $FakeProbe $candidate ([int]($candidate+1)))) {
-          return @([int]$candidate,[int]($candidate+1))
-        }
+      if ($candidate -lt 20000 -or $candidate -gt 59998) {
+        $lastCategory='CANDIDATE_OUT_OF_RANGE'
         continue
       }
-      $listeners=@()
-      try {
-        foreach ($p in @($candidate,$candidate+1)) {
-          $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,[int]$p)
-          $listener.Start()
-          $listeners+= $listener
+      if ($used.Contains([int]$candidate) -or $used.Contains([int]($candidate + 1))) {
+        $lastCategory='KNOWN_PORT_CONFLICT'
+        continue
+      }
+      if ($FakeProbe) {
+        if ([bool](& $FakeProbe $candidate ([int]($candidate + 1)))) {
+          return @([int]$candidate,[int]($candidate + 1))
         }
-        return @([int]$candidate,[int]($candidate+1))
-      } catch { } finally {
-        foreach ($listener in $listeners) { $listener.Stop() }
+        $lastCategory='FAKE_PROBE_REJECTED'
+        continue
+      }
+      $listeners=New-Object 'System.Collections.Generic.List[System.Net.Sockets.TcpListener]'
+      $pairBound=$false
+      try {
+        # The explicit parentheses are essential: PowerShell's comma operator
+        # otherwise changes the arithmetic and can attempt a duplicate bind.
+        foreach ($p in @([int]$candidate, [int]($candidate + 1))) {
+          $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,[int]$p)
+          # Register before Start(): even a failed Start() must be stopped.
+          $listeners.Add($listener)
+          $listener.Start()
+        }
+        $pairBound=$true
+      } catch {
+        $base=$_.Exception.GetBaseException()
+        if ($base -isnot [Net.Sockets.SocketException]) {
+          throw 'BLOCKED_PORT_SELECTOR_UNEXPECTED_BIND_EXCEPTION'
+        }
+        switch ([string]$base.SocketErrorCode) {
+          'AddressAlreadyInUse' { $lastCategory='SOCKET_BIND_CONFLICT'; break }
+          'AccessDenied' { $lastCategory='SOCKET_BIND_DENIED'; break }
+          'AddressNotAvailable' { $lastCategory='SOCKET_ADDRESS_UNAVAILABLE'; break }
+          default { throw 'BLOCKED_PORT_SELECTOR_UNEXPECTED_SOCKET_ERROR' }
+        }
+      } finally {
+        # Stop *every* listener regardless of whether a prior Stop fails.
+        $releaseFailed=$false
+        foreach ($listener in $listeners) {
+          try { $listener.Stop() } catch { $releaseFailed=$true }
+        }
+        if ($releaseFailed) {throw 'BLOCKED_PORT_SELECTOR_LISTENER_RELEASE_FAILED'}
+      }
+      if ($pairBound) {
+        return @([int]$candidate,[int]($candidate + 1))
       }
     }
   } finally { $random.Dispose() }
-  throw 'BLOCKED: no verified unoccupied port pair'
+  throw ('BLOCKED_PORT_SELECTOR_NO_VERIFIED_PAIR CATEGORY='+$lastCategory)
 }
 function New-FfhPrecreationJournal {
   param($Identity,$Ports,[scriptblock]$Fake)
