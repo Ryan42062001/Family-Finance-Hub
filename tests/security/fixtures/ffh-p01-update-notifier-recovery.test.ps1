@@ -451,26 +451,27 @@ switch ($Case) {
 '@
   [IO.File]::WriteAllText($harness,($head+[char]10+($parts -join [char]10)+[char]10+$cases),
     [Text.UTF8Encoding]::new($false))
+  # PSCustomObject cases avoid WinPS5.1 pipeline flattening nested arrays.
   $checks=@(
-    @('WRONG_HEAD','CONSUMED_HEAD','BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD')
-    @('ENV_GUARD','ENVIRONMENT','INHERITED_GUARD_REJECTED')
-    @('EVIDENCE_MISSING','EXISTING_EVIDENCE','BLOCKED_RECOVERY_EVIDENCE_DIRECTORY_MISSING')
-    @('TERMINAL_DRIFT','TERMINAL_RECEIPTS','BLOCKED_RECOVERY_FINAL_RECEIPT_DRIFT')
-    @('CACHE_LARGE','CACHE_INSPECTION','BLOCKED_RECOVERY_CACHE_SIZE')
-    @('NATIVE_INHERITED','NATIVE_PREFLIGHT','NATIVE_GUARD_REJECTED')
-    @('DOCKER_INHERITED','DOCKER_INVENTORY','DIAGNOSTIC_GUARD_REJECTED')
-    @('UNEXPECTED_SECRET','CROSS_SHA_PERMIT','UNEXPECTED_VERIFICATION_FAILURE')
-    @('IO_SECRET','JOURNAL_READ','READ_IO_FAILURE')
-    @('UNLISTED_RECOVERY','CACHE_APPROVAL','RECOVERY_GUARD_UNCLASSIFIED')
-    @('SOURCE_INHERITED','SOURCE_CHECKOUT','INHERITED_GUARD_REJECTED')
-    @('MODULE_IMPORT','MODULE_IMPORT','UNEXPECTED_VERIFICATION_FAILURE')
+    [pscustomobject]@{Case='WRONG_HEAD';Stage='CONSUMED_HEAD';Category='BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'}
+    [pscustomobject]@{Case='ENV_GUARD';Stage='ENVIRONMENT';Category='INHERITED_GUARD_REJECTED'}
+    [pscustomobject]@{Case='EVIDENCE_MISSING';Stage='EXISTING_EVIDENCE';Category='BLOCKED_RECOVERY_EVIDENCE_DIRECTORY_MISSING'}
+    [pscustomobject]@{Case='TERMINAL_DRIFT';Stage='TERMINAL_RECEIPTS';Category='BLOCKED_RECOVERY_FINAL_RECEIPT_DRIFT'}
+    [pscustomobject]@{Case='CACHE_LARGE';Stage='CACHE_INSPECTION';Category='BLOCKED_RECOVERY_CACHE_SIZE'}
+    [pscustomobject]@{Case='NATIVE_INHERITED';Stage='NATIVE_PREFLIGHT';Category='NATIVE_GUARD_REJECTED'}
+    [pscustomobject]@{Case='DOCKER_INHERITED';Stage='DOCKER_INVENTORY';Category='DIAGNOSTIC_GUARD_REJECTED'}
+    [pscustomobject]@{Case='UNEXPECTED_SECRET';Stage='CROSS_SHA_PERMIT';Category='UNEXPECTED_VERIFICATION_FAILURE'}
+    [pscustomobject]@{Case='IO_SECRET';Stage='JOURNAL_READ';Category='READ_IO_FAILURE'}
+    [pscustomobject]@{Case='UNLISTED_RECOVERY';Stage='CACHE_APPROVAL';Category='RECOVERY_GUARD_UNCLASSIFIED'}
+    [pscustomobject]@{Case='SOURCE_INHERITED';Stage='SOURCE_CHECKOUT';Category='INHERITED_GUARD_REJECTED'}
+    [pscustomobject]@{Case='MODULE_IMPORT';Stage='MODULE_IMPORT';Category='UNEXPECTED_VERIFICATION_FAILURE'}
   )
   $num=31
   foreach($check in $checks) {
     $psi=[Diagnostics.ProcessStartInfo]::new()
     $psi.FileName=Join-Path $PSHOME 'powershell.exe'
     $psi.Arguments='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+
-      $harness+'" -Case '+$check[0]
+      $harness+'" -Case '+$check.Case
     $psi.UseShellExecute=$false
     $psi.RedirectStandardOutput=$true
     $psi.RedirectStandardError=$true
@@ -484,11 +485,11 @@ switch ($Case) {
       }
       $stdout=$proc.StandardOutput.ReadToEnd().Trim()
       $stderr=$proc.StandardError.ReadToEnd().Trim()
-      $expected='RECOVERY_PLAN=BLOCKED STAGE='+$check[1]+' CATEGORY='+$check[2]+
+      $expected='RECOVERY_PLAN=BLOCKED STAGE='+$check.Stage+' CATEGORY='+$check.Category+
         ' SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES'
       if ($proc.ExitCode -ne 1 -or $stdout -cne $expected -or $stderr.Length -ne 0 -or
           $stdout -match 'NEVER_PRINT_ME|PRIVATE_|cba20f7f|[a-f0-9]{64}') {
-        throw ('SYNTH_STG_EXIT_OR_SANITIZATION_'+$check[0])
+        throw ('SYNTH_STG_EXIT_OR_SANITIZATION_'+$check.Case)
       }
     } finally {$proc.Dispose()}
     $num++
