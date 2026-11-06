@@ -309,7 +309,10 @@ function Get-FfhOwnedRootNative {
       $expected[0] -cne $actual[0] -or $LASTEXITCODE -ne 0) {
     throw 'BLOCKED_ROOT_NATIVE_GIT_PROVENANCE'
   }
-  $hash=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+  $digest=[Security.Cryptography.SHA256]::Create()
+  $stream=[IO.File]::OpenRead($file)
+  try {$hash=[BitConverter]::ToString($digest.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+  finally {$stream.Dispose();$digest.Dispose()}
   $type='FfhP01OwnedRoot' -as [type]
   if ($null -ne $type) {
     if ($script:FfhRootNativeHash -cne $hash -or
