@@ -1,0 +1,58 @@
+# FFH-P01 #83 — Consumed One-Shot Diagnostic / Notifier Cache Recovery
+
+**Disposition:** SOURCE-ONLY / AUDIT PENDING / OWNER-HOST RECOVERY HELD. Original Owner-approved ONE diagnostic Run is CONSUMED. DO NOT retry it, delete the cache, stop Docker, reset the ledger, or run SQL at this stage.
+
+Manager binding: https://github.com/Ryan42062001/Family-Finance-Hub/pull/84#issuecomment-6694533242
+Consumed immutable SHA: cba20f7fecea8b7dfdbcb10fb245765825ef97c0
+Parent release immutable SHA: 344c4c7ac1f46d8b1fd2d81b2b4a391cbd136983
+
+## Established forensic facts and diagnostic limits
+
+The consumed Owner attempt ended MANUAL_REVIEW at journal sequence 11 with TEST_RESULT=UNKNOWN, CLEANUP_RESULT=CLEANUP_BLOCKED_MANUAL_REVIEW, FINAL failure receipt present, TEST receipt missing. A protected FFH-RLS-Test identity baseline matched. Owner read-only evidence found one exact journaled running/healthy disposable container, one volume, one network, localhost-only 5432/tcp bindings, all 15 canonical migration files copied after startup, and formal SQL boundary NOT_STARTED. The disposable root contains exactly one reported ordinary non-reparse file in supabase/.temp named cli-latest. Its content/length/hash were not yet attested. No first exception was disclosed by the old generic catch: the FIRST FAILURE REMAINS UNKNOWN. Even a valid-looking cache filename is not proof of safe contents.
+
+Pinned Supabase CLI tag v2.122.0 documents an update-notifier ten-hour cache at supabase/.temp/cli-latest in legacy mode and an opt-out SUPABASE_NO_UPDATE_NOTIFIER=1. Relevant pinned source (not moving develop):
+- https://github.com/supabase/cli/blob/v2.122.0/apps/cli/docs/supabase-home.md
+- https://github.com/supabase/cli/blob/v2.122.0/apps/cli/src/command-internal/upgrade-notice.ts
+- https://github.com/supabase/cli/blob/v2.122.0/apps/cli-go/cmd/root.go
+
+The cache is a DEFINITE incompatible child for the existing strict root permit. It is only a POSSIBLE source of the initial failure, because label/inventory/health/SQL admission and root preflight occurred in sequence.
+
+## Future-run source prevention, no further Run authorization
+
+The existing exact cached CLI SHA-256/version, trusted cmd.exe command, db start arguments, suppressed stdout/stderr, bounded Windows Job Object, localhost-only Docker endpoint and migration-free startup remain unchanged. The launcher removes inherited SUPABASE_* variables, then adds only SUPABASE_NO_UPDATE_NOTIFIER=1 for that child process. No version change, npx/download, hosted endpoint, relaxed root allowlist or second diagnostic is approved. The ordinary production Get-FfhRootPermitSpec still permits .temp only if EMPTY.
+
+A future first failure now captures the original error BEFORE nested catch handling and maps it to a fixed sanitized category. The category is persisted in the outside-root journal and FINAL receipt, and printed without raw exceptions, environment data or private filesystem values. Old consumed sequence-11 journal has no such evidence and MUST NOT be backfilled.
+
+A recovery-only native parser recognizes the single exact path supabase\.temp\cli-latest only when a separate explicit SHA256-file manifest entry is provided. It does not accept generic .temp children, does not change the ordinary permit builder, and retains native held-handle identity, ACL/owner, hardlink/reparse, hash, volume and race checks. Synthetic FS-23 through FS-26 verify valid pinned cache, original permit rejection, bad SHA and extra sibling rejection.
+
+## Separate owner-host recovery plan — stages and authorization boundaries
+
+### Stage 0 (NOW): source commit, Windows CI, independent audit
+
+Only nonproduction feature source edits, isolated synthetic fixtures, exact-head FAST and ONE focused fresh security audit are authorized. Verify diff, recovery gates and all holds. Do not touch the existing Audit checkout, ledger, journal, cli-latest file, Docker resources, database, source or root.
+
+### Stage 1 (FUTURE NEW READ-ONLY OWNER APPROVAL): one forensic recovery Plan
+
+The added scripts/rls-local/owner-disposable-recovery-plan.ps1 has NO Run, Execute, retirement, SQL or mutation action. It operates only against the consumed immutable SHA and requires a separate CLEAN checkout at the NEW auditor-accepted SHA in the exact sibling path %USERPROFILE%\Family-Finance-Hub-P01-Recovery (never the original Audit checkout). It accepts the original 24-hex token, pinned CLI binary hash and optional separately reviewed cache hash. Example for a later explicitly authorized operator only:
+
+    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$env:USERPROFILE\Family-Finance-Hub-P01-Recovery\scripts\rls-local\owner-disposable-recovery-plan.ps1" -ExpectedAuditedHead <FRESH_AUDITED_SHA> -ConsumedHead cba20f7fecea8b7dfdbcb10fb245765825ef97c0 -RunToken <ORIGINAL_TOKEN_24HEX> -CliSha256 <ORIGINAL_PINNED_CLI_SHA256>
+
+Read-only checks require full journal source SHA/token/run kind/project/root/container/evidence, MANUAL_REVIEW / UNKNOWN / NOT_STARTED SQL and formal gates, original consumed ledger, failure FINAL receipt and absent TEST receipt, full immutable IDs and dual labels for one exact container/volume/network, local Linux npipe daemon, protected baseline, mounts, network peers and loopback bridge options, healthy running Postgres, exact localhost-only port publications and absence of other ports. They verify one exact regular file in .temp, size/strict UTF8 version-tag-or-empty content and SHA256 but never print file contents. They verify fifteen OLD-SHA Git migration objects against current verified source objects, deterministic original config/marker/creation receipts, native exact root file-ID and exhaustive read-only permitted tree (including just that one hashed cache). Read-only output has FIRST_FAILURE=UNKNOWN, SQL_IDLE=NOT_AUTHORIZED and DELETION=BLOCKED.
+
+The initial read-only result is ONLY evidence for Manager review. Its observed cache digest must be independently frozen and compared in a second scoped check, not dynamically adopted for deletion. A changing file, missing/mismatched ledger, extra sibling, foreign ACL, reparse/hardlink, hash drift, changed full Docker ID/label/daemon/port, health or protected baseline fails closed. Obtain two separately captured redacted inventories of the exact resources. Do not print sensitive Docker inspect payloads, cache contents or secrets.
+
+### Stage 2 (NOT YET AUTHORIZED): new narrow SQL-idle attestation
+
+An explicit new Manager/Owner approval must first authorize narrowly scoped, bounded read-only pg_stat_activity client-idle queries on the full exact journaled DB container ID. Two independent zero-client checks are required, with fresh complete journal, health, Docker ID/dual-labels, daemon, mounts, networks, port locality, protected FFH-RLS-Test baseline and migration state checks before and between them. No formal Gate A/B, migration execution, remote SQL or using a healthy container as a substitute for a true zero-client attestation. Unknown or active SQL STOPs.
+
+### Stage 3 (NOT IMPLEMENTED / NOT AUTHORIZED): one-time destructive recovery
+
+A DIFFERENT independent audited source implementation, new Manager contract and explicit Owner approval are mandatory for real cleanup. The executor must first write an outside-root SHA/token-bound recovery intent with independently approved cache SHA/byte count, exact immutable full Docker IDs, original root identity, source and journal hashes, clear operator authorization and first-failure UNKNOWN preserved. It must take the existing lifecycle lock, re-run all Stage 1/2 checks, use the *frozen approved cache hash* in a native preflight and revalidate before each action. After two SQL idle proofs, stop ONLY exact journaled running container gracefully (never force), verify stopped, remove exact container ID and verify absence, ensure volume unattached/owned and remove exact volume, verify absence, ensure network isolated and remove exact network ID, verify absence; recheck protected baseline and SQL safety. Only then MAY fresh handle-bound native retirement use the complete 15 migration/marker/config/receipt manifest plus approved cache entry, re-preflight and prove root absence. Every mutation gets durable IN_FLIGHT intent first; ambiguous interruption, partial deletion, daemon drift or race means STOP/MANUAL_REVIEW, NEVER blind retry. Do not modify the original consumed one-shot ledger or falsify the original UNKNOWN test result. No path-recursive cleanup or adoption of foreign content. Require final Docker/root absence and independent protected-baseline verification before any separate cleanup VERIFIED claim.
+
+Stage 3 is DESIGN ONLY at this checkpoint. It MUST NOT be implemented as a hidden call to the prior normal diagnostic cleanup, which rejects MANUAL_REVIEW and has no original first-failure proof. No code in the new forensic Plan executes native Retire, docker exec, Docker stop/rm, SQL or journal writes.
+
+## Synthetic tests, evidence and residual risk
+
+Windows PowerShell 5.1 fixtures verify real ProcessStartInfo environment scrubbing and opt-out with mocked Job Object callback (no CLI invoked), category sanitization, read-only cache shape/hash/foreign child/size/contents, consumed journal/ledger/FINAL receipt anti-retry and drift, and held-handle native exact-cache preflight/retirement on NEW synthetic GUID roots only. Native synthetic retirement is strictly limited to CI-generated fixture roots. Actual Owner-host SQL idle, run recovery, contents, original first error and destructive cleanup remain UNVERIFIED.
+
+**HOLD:** FFH-P01 PUNCH_LIST/HIGH/BLOCKED. No second Owner Run, owner-host Docker/SQL/FS mutation, manual cli-latest deletion, ledger reset, Gate A #6, Gate B/913, FULL PHASE, merges, main/parent/hosted/production mutation, spending, Private Beta or legacy FFH-RLS-Test mutation.

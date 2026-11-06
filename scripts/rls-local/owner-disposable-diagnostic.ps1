@@ -90,6 +90,10 @@ function Start-FfhDiagnosticPinnedDb {
   }
   $info.EnvironmentVariables['DOCKER_HOST']=$docker.Endpoint
   $info.EnvironmentVariables['DO_NOT_TRACK']='1'
+  # Pinned CLI 2.122.0's legacy post-run release check writes
+  # supabase/.temp/cli-latest unless explicitly suppressed.  The
+  # inherited SUPABASE_* scrub remains in place; re-add only this opt-out.
+  $info.EnvironmentVariables['SUPABASE_NO_UPDATE_NOTIFIER']='1'
   if ((Invoke-FfhNativeJobChild -StartInfo $info) -cne 'EXIT_ZERO') {
     throw 'BLOCKED_DIAG_START_NONZERO_TIMEOUT_OR_INDETERMINATE'
   }
@@ -184,6 +188,19 @@ function Confirm-FfhDiagnosticStarted {
   return $j
 }
 
+# Preserve the FIRST thrown category, without copying exception text, native
+# stderr, host paths or embedded credentials into the outside-root journal.
+function Get-FfhDiagnosticFailureCategory {
+  param([Parameter(Mandatory=$true)]$Failure)
+  $message=[string]$Failure.Exception.Message
+  if ($message -cmatch '^(BLOCKED_(?:DIAG|ROOT|PORT_SELECTOR)_[A-Z0-9_]{1,39})(?:$|[ :])') {
+    $category=[string]$Matches[1]
+    if ($category.Length -le 55) {return $category}
+    return 'CATEGORY_LENGTH_EXCEEDED'
+  }
+  if ($message -cmatch '^BLOCKED: ') {return 'ADMISSION_BLOCKED_UNCLASSIFIED'}
+  return 'UNEXPECTED_EXCEPTION'
+}
 function Invoke-FfhOwnerDisposableDiagnostic {
   param([string]$Mode,[string]$ExpectedHead,[string]$CliExecutable,
     [string]$CliSha256,[string]$ExplicitAuthorization)
@@ -255,6 +272,8 @@ function Invoke-FfhOwnerDisposableDiagnostic {
     Write-Output ('DIAG_RESULT=PASS TEST_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED '+
       'RUN_TOKEN='+$identity.token+' GATE_A=NOT_STARTED GATE_B=NOT_STARTED')
   } catch {
+    # Capture original exception BEFORE any nested catch changes $_.
+    $firstCategory=Get-FfhDiagnosticFailureCategory -Failure $_
     # Fail closed; no retry and no opportunistic Docker/SQL/FS mutation.
     $reportedTest='NOT_STARTED'
     if ($journalCreated) {
@@ -262,20 +281,24 @@ function Invoke-FfhOwnerDisposableDiagnostic {
         $j=Read-FfhJournal -Identity $identity
         $j.state='MANUAL_REVIEW'
         $j.diagnosticStatus='MANUAL_REVIEW'
+        if (-not ($j.PSObject.Properties.Name -ccontains 'firstFailureCategory')) {
+          $j | Add-Member -MemberType NoteProperty -Name firstFailureCategory -Value $firstCategory
+        }
         if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
         $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
         $j.sequence=[int]$j.sequence+1
         Write-FfhJournal -Identity $identity -Journal $j
         $reportedTest=$j.testResult
         if (-not (Test-Path -LiteralPath (Join-Path $identity.evidence ($identity.token+'.DIAG_FINAL.json')))) {
-          [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category FAIL_CLOSED)
+          [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category $firstCategory)
         }
       } catch {$statusPersisted=$false}
     }
     $cleanup=if($journalCreated){'CLEANUP_BLOCKED_MANUAL_REVIEW'}else{'NOT_ATTEMPTED'}
     if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED';$reportedTest='UNKNOWN'}
     Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT='+$reportedTest+' CLEANUP_RESULT='+$cleanup+
-      ' RUN_TOKEN='+$identity.token+' MANUAL_REVIEW_REQUIRED=YES')
+      ' RUN_TOKEN='+$identity.token+' FIRST_FAILURE_CATEGORY='+$firstCategory+
+      ' MANUAL_REVIEW_REQUIRED=YES')
     throw 'BLOCKED_DIAG_NO_RETRY_INSPECT_PRIVATE_JOURNAL'
   } finally {
     if ($null -ne $lock) {$lock.Dispose()}

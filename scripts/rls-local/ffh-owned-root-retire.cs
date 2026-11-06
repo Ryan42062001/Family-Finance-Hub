@@ -159,12 +159,19 @@ public static class FfhP01OwnedRoot {
         rel=="ffh-p01-local-provenance.sha256" ||
         rel==@"supabase\config.toml" ||
         rel=="supabase" || rel==@"supabase\migrations" || rel==@"supabase\.temp" ||
+        // A recovery-only manifest MAY declare this one exact file by its
+        // independently authorized SHA-256. The normal permit never adds it.
+        rel==@"supabase\.temp\cli-latest" ||
         Regex.IsMatch(rel,@"^supabase\\migrations\\(?:0001|[0-9]{14})_[a-z0-9_]+\.sql$");
       if(!known)Fail("MANIFEST_UNKNOWN_PATH");
       bool dir=(rel=="supabase" || rel==@"supabase\migrations" || rel==@"supabase\.temp");
       if((v[0]=="F")==dir || (v[0]=="O" && rel!=@"supabase\.temp"))Fail("MANIFEST_INVALID");
+      if(rel==@"supabase\.temp\cli-latest" && v[0]!="F")Fail("MANIFEST_INVALID");
       items.Add(rel,new Permit{kind=v[0],digest=v[2],required=v[0]!="O"});
     }
+    if(items.ContainsKey(@"supabase\.temp\cli-latest") &&
+       (!items.ContainsKey(@"supabase\.temp") || items[@"supabase\.temp"].kind!="O"))
+      Fail("MANIFEST_INCOMPLETE");
     if(items.Count<4 || items.Count>24 ||
        !items.ContainsKey(".ffh-p01-owned-root") ||
        !items.ContainsKey("supabase") || !items.ContainsKey(@"supabase\migrations") ||

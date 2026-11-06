@@ -339,6 +339,62 @@ try {
   ExpectCategory {NativeRetire $id $recorded} 'MANIFEST_HASH'
   MarkerExists $id
   FileReceipt '22'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-23: one exact hash-pinned cache file is recognized ONLY when supplied
+  # in a recovery-specific manifest. Native preflight and disposal remain
+  # exhaustive, held-handle and ACL protected (synthetic CI root ONLY).
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  $cachePath=Join-Path $cacheDir 'cli-latest'
+  [IO.File]::WriteAllText($cachePath,'v3.0.0',[Text.UTF8Encoding]::new($false))
+  $specific=(Manifest $id)+[char]10+('F|supabase\.temp\cli-latest|'+(ShaText 'v3.0.0'))
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),$recorded,
+      (Get-FfhRootMarker -Identity $id),$specific) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_RECOVERY_PINNED_PREFLIGHT_FAILED'
+  }
+  if ([FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$recorded,
+      (Get-FfhRootMarker -Identity $id),$specific) -cne 'RETIRED') {
+    throw 'SYNTH_RECOVERY_PINNED_RETIRE_FAILED'
+  }
+  CheckAbsent $id
+  FileReceipt '23'
+  $id=$null
+
+  # FS-24: name alone never permits cache deletion; default .temp is EMPTY.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  [IO.File]::WriteAllText((Join-Path $cacheDir 'cli-latest'),'v3.0.0',[Text.UTF8Encoding]::new($false))
+  ExpectCategory {NativeRetire $id $recorded} 'UNPERMITTED_PATH'
+  MarkerExists $id
+  FileReceipt '24'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-25: an independent expected SHA mismatch must block before disposal.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  [IO.File]::WriteAllText((Join-Path $cacheDir 'cli-latest'),'v3.0.0',[Text.UTF8Encoding]::new($false))
+  $wrong=(Manifest $id)+[char]10+('F|supabase\.temp\cli-latest|'+(ShaText 'v99.0.0'))
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$wrong)} 'MANIFEST_HASH'
+  MarkerExists $id
+  FileReceipt '25'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-26: additional .temp siblings remain foreign even with a valid cache.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $cacheDir=Join-Path $id.root 'supabase/.temp'
+  [void](New-Item -ItemType Directory -Path $cacheDir)
+  [IO.File]::WriteAllText((Join-Path $cacheDir 'cli-latest'),'v3.0.0',[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $cacheDir 'foreign.db'),'x',[Text.UTF8Encoding]::new($false))
+  $specific=(Manifest $id)+[char]10+('F|supabase\.temp\cli-latest|'+(ShaText 'v3.0.0'))
+  ExpectCategory {[FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$specific)} 'UNPERMITTED_PATH'
+  MarkerExists $id
+  FileReceipt '26'
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {

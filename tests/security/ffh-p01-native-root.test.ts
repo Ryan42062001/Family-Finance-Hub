@@ -10,7 +10,7 @@ test("FFH-P01 native Windows root identity/reparse/ACL/absence tests",()=>{
   assert.ifError(r.error);
   assert.equal(r.status,0,r.stdout+"\n"+r.stderr);
   const lines=r.stdout.split(/\r?\n/).filter(x=>/^FS-\d\d PASS$/.test(x.trim())).map(x=>x.trim());
-  assert.deepEqual(lines,[...Array.from({length:20},(_,i)=>"FS-"+String(i+1).padStart(2,"0")+" PASS"),"FS-22 PASS"]);
+  assert.deepEqual(lines,[...Array.from({length:20},(_,i)=>"FS-"+String(i+1).padStart(2,"0")+" PASS"),...Array.from({length:5},(_,i)=>"FS-"+String(i+22).padStart(2,"0")+" PASS")]);
   for(const receipt of lines) console.log(receipt);
 });
 
