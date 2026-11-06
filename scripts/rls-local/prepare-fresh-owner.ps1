@@ -169,8 +169,9 @@ $receipt = [ordered]@{
   migration_application = 'NOT_YET_VERIFIED'
 }
 $receiptPath = Join-Path $root 'ffh-p01-local-provenance.json'
-[IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
-                        [Text.UTF8Encoding]::new($false))
+$receiptJson=($receipt | ConvertTo-Json -Depth 8)
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Receipt -Content $receiptJson
+  [IO.File]::WriteAllText($receiptPath,$receiptJson,[Text.UTF8Encoding]::new($false))
 # Only the explicitly new project is affected. Normal stdout and stderr of
 # local CLI commands are suppressed because they can contain generated keys.
 Push-Location $root
@@ -217,11 +218,12 @@ try {
     -DockerBinding $dockerBinding -Source $source -Identity $identity `
     -ContainerId $admittedContainerId
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
-  [IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
-                          [Text.UTF8Encoding]::new($false))
+  $receiptJson=($receipt | ConvertTo-Json -Depth 8)
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Receipt -Content $receiptJson
+  [IO.File]::WriteAllText($receiptPath,$receiptJson,[Text.UTF8Encoding]::new($false))
   $receiptSha = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
-  [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),
-                          $receiptSha,[Text.UTF8Encoding]::new($false))
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Checksum -Content $receiptSha
+  [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),$receiptSha,[Text.UTF8Encoding]::new($false))
   [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
   Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'
   Write-Output (Get-FfhDurableRunStatus -Identity $identity)
