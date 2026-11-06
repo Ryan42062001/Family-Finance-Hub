@@ -521,3 +521,32 @@ $tokens=$null;$errors=$null
   (Join-Path $repo 'scripts/rls-local/owner-disposable-diagnostic.ps1'),
   [ref]$tokens,[ref]$errors)
 if (@($errors).Count -ne 0) {throw 'MOCK_DIAG_ENTRYPOINT_PARSE_ERROR'}
+
+# DG-24/25: production Plan body under strict test-only adapters. Its own
+# read-only output must not create a journal, consume approval or call Docker.
+function Assert-FfhNoRemoteConfiguration {}
+function Assert-FfhDockerEnvironment {}
+function Assert-FfhLocalDockerDesktop {
+  return [pscustomobject]@{Executable='NEVER_INVOKED';Endpoint='npipe:////./pipe/dockerDesktopLinuxEngine'}
+}
+function Assert-FfhSourceCheckout {
+  param([string]$ExpectedHead,[switch]$AllowDetachedHeadForDiagnostic)
+  if (-not $AllowDetachedHeadForDiagnostic -or $ExpectedHead -cne ('a'*40)) {throw 'MOCK_PLAN_SOURCE'}
+  return [pscustomobject]@{repo=$repo;migration_files=@();all_files=@()}
+}
+function Assert-FfhDiagnosticApprovedCheckout {param($Source)}
+function Resolve-FfhDiagnosticCachedCli {
+  param([string]$CliExecutable,[string]$CliSha256)
+  return [pscustomobject]@{Path='MOCK_NEVER_RUN';Sha256=('a'*64);Version='2.122.0'}
+}
+function Select-FfhRunPorts {param($Identity);return @(26430,26431)}
+function Assert-FfhDiagnosticNoPriorAttempt {param($Identity)}
+function Get-FfhObservedDaemon {param($Fake);return 'MOCK_VERIFIED_DAEMON'}
+function Get-FfhProtectedInventory {param($Fake);return @('C:legacy FFH-RLS-Test','V:legacy FFH-RLS-Test','N:legacy FFH-RLS-Test')}
+$planLines=@(Invoke-FfhOwnerDisposableDiagnostic -Mode Plan -ExpectedHead ('a'*40) -CliExecutable 'MOCK_NEVER_RUN' -CliSha256 ('a'*64))
+AssertIt (@($planLines | Where-Object {$_ -match '^PLAN_ONLY=NO_MUTATION' }).Count -eq 1) 'PLAN_OUTPUT'
+AssertIt (@($planLines | Where-Object {$_ -match '^DIAG_PREFLIGHT=PASS MODE=Plan' }).Count -eq 1) 'PLAN_PREFLIGHT'
+Receipt 24
+MustBlock {Invoke-FfhOwnerDisposableDiagnostic -Mode Run -ExpectedHead ('a'*40) -ExplicitAuthorization 'FFH-P01-ONE-SHOT-DIAGNOSTIC-GO'}
+MustBlock {Invoke-FfhOwnerDisposableDiagnostic -Mode Run -ExpectedHead ('a'*40) -CliSha256 ('a'*64)}
+Receipt 25
