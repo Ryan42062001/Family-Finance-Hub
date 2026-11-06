@@ -262,6 +262,9 @@ public static class FfhP01OwnedRoot {
             if(e.directory && children.Length!=0)Fail("TREE_RACE");
           }
           DisposeExact(e.handle);
+          // FILE_DISPOSITION_INFO completes unlink only after final handle
+          // closes. Release verified children before parent's emptiness check.
+          e.Dispose();
         }
       } finally {
         foreach(Entry e in held)e.Dispose();
