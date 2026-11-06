@@ -719,3 +719,35 @@ try {
   }
   Receipt 33
 } finally {Stop-MockCase}
+
+
+function Prepare-LaunchPreflightMock {
+  Prepare-DiagnosticMock
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.diagnosticStatus='ROOT_CREATED';$j.state='DIAG_ROOT_CREATED';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  [void](New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs)
+  [void](Set-FfhDiagnosticJournal -Identity $script:identity -Status START_IN_FLIGHT -TestResult RUNNING)
+  $path=Join-Path $script:base 'synthetic-cli.exe'
+  [IO.File]::WriteAllText($path,'SYNTHETIC_PLACEHOLDER_NOT_EXECUTED')
+  $sha=Get-FfhFileSha256 -Path $path
+  return [pscustomobject]@{Path=$path;Sha256=$sha;Version='2.122.0'}
+}
+try {
+  $cli=Prepare-LaunchPreflightMock
+  $attested=Assert-FfhDiagnosticLaunchPreflight -Identity $script:identity -Cli $cli -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
+  AssertIt ($attested -and $script:mutations.Count -eq 1 -and
+    $script:mutations[0] -ceq 'network create') 'LAUNCH_PREFLIGHT'
+  [IO.File]::WriteAllText($cli.Path,'SYNTHETIC_REPLACED_AFTER_PLAN')
+  MustBlock {Assert-FfhDiagnosticLaunchPreflight -Identity $script:identity -Cli $cli -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  AssertIt ($script:mutations.Count -eq 1 -and $script:mock.root -ceq 'OWNED') 'CLI_CHANGED_BEFORE_START'
+  Receipt 34
+} finally {Stop-MockCase}
+
+try {
+  $cli=Prepare-LaunchPreflightMock
+  $script:mock.daemon='DIFFERENT_DOCKER_DAEMON'
+  MustBlock {Assert-FfhDiagnosticLaunchPreflight -Identity $script:identity -Cli $cli -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  AssertIt ($script:mutations.Count -eq 1 -and $script:mock.root -ceq 'OWNED') 'DAEMON_DRIFT_BEFORE_START'
+  Receipt 35
+} finally {Stop-MockCase}
