@@ -2,16 +2,76 @@
 # already-consumed owner diagnostic. Never starts a second Run.
 # This script has NO mutation mode and must not be run on the owner host until
 # the independent auditor and Manager authorize its read-only assessment.
-[CmdletBinding()]
-param(
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')][string]$ExpectedAuditedHead,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{40}$')][string]$ConsumedHead,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{24}$')][string]$RunToken,
-  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$CliSha256,
-  [ValidatePattern('^[a-f0-9]{64}$')][string]$PreapprovedCacheSha256
-)
+# SEC-STAGE-01: NO script-level param()/CmdletBinding/ValidatePattern.
+# WinPS5.1 -File binding happens before the first statement and can print
+# untrusted values. Capture only raw tokens; validate inside guarded ARGUMENTS.
+$script:FfhRecoveryInvocationArgs=@($args)
 $ErrorActionPreference='Stop'
 $script:FfhRecoveryStage='INITIALIZATION'
+
+# No external command, module import, filesystem or environment access.
+# All string checks are literal, case-sensitive and bounded before use.
+function Read-FfhRecoveryPlanArguments {
+  param([object[]]$RawArgs)
+  $required=@('ExpectedAuditedHead','ConsumedHead','RunToken','CliSha256')
+  if ($null -eq $RawArgs -or $RawArgs.Count -eq 0) {
+    throw 'BLOCKED_RECOVERY_ARGUMENTS_MISSING'
+  }
+  if ($RawArgs.Count -gt 10 -or ($RawArgs.Count % 2) -ne 0) {
+    throw 'BLOCKED_RECOVERY_ARGUMENTS_COUNT'
+  }
+  if ($RawArgs.Count -lt 8) {
+    throw 'BLOCKED_RECOVERY_ARGUMENTS_MISSING'
+  }
+  $seen=@{}
+  for($i=0;$i -lt $RawArgs.Count;$i+=2) {
+    $keyToken=$RawArgs[$i]
+    if ($null -eq $keyToken -or $keyToken -isnot [string] -or
+        $keyToken.Length -gt 30) {
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_KEY'
+    }
+    $key=[string]$keyToken
+    if ($key -cnotmatch '^-(ExpectedAuditedHead|ConsumedHead|RunToken|CliSha256|PreapprovedCacheSha256)$') {
+      if ($key -cmatch '^-[A-Za-z][A-Za-z0-9]{0,29}$') {
+        throw 'BLOCKED_RECOVERY_ARGUMENTS_UNKNOWN'
+      }
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_POSITIONAL'
+    }
+    $name=[string]$Matches[1]
+    if ($seen.ContainsKey($name)) {
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_DUPLICATE'
+    }
+    $valueToken=$RawArgs[$i+1]
+    if ($null -eq $valueToken -or $valueToken -isnot [string] -or
+        $valueToken.Length -gt 64) {
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_VALUE'
+    }
+    $value=[string]$valueToken
+    $pattern=if ($name -ceq 'RunToken') {'^[a-f0-9]{24}$'}
+      elseif ($name -ceq 'ExpectedAuditedHead' -or $name -ceq 'ConsumedHead') {'^[a-f0-9]{40}$'}
+      else {'^[a-f0-9]{64}$'}
+    if ($value -cnotmatch $pattern) {
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_VALUE'
+    }
+    $seen.Add($name,$value)
+  }
+  foreach($name in $required) {
+    if (-not $seen.ContainsKey($name)) {
+      throw 'BLOCKED_RECOVERY_ARGUMENTS_MISSING'
+    }
+  }
+  $approvedPin=''
+  if ($seen.ContainsKey('PreapprovedCacheSha256')) {
+    $approvedPin=[string]$seen['PreapprovedCacheSha256']
+  }
+  return [pscustomobject]@{
+    ExpectedAuditedHead=[string]$seen['ExpectedAuditedHead']
+    ConsumedHead=[string]$seen['ConsumedHead']
+    RunToken=[string]$seen['RunToken']
+    CliSha256=[string]$seen['CliSha256']
+    PreapprovedCacheSha256=$approvedPin
+  }
+}
 
 function Invoke-FfhConsumedRecoveryPlan {
   param([string]$ExpectedAuditedHead,[string]$ConsumedHead,
@@ -123,6 +183,7 @@ function Invoke-FfhConsumedRecoveryPlan {
 function Set-FfhRecoveryStage {
   param([Parameter(Mandatory=$true)][ValidateSet(
     'INITIALIZATION',
+    'ARGUMENTS',
     'OUTPUT_CONTRACT',
     'MODULE_IMPORT',
     'CONSUMED_HEAD',
@@ -152,6 +213,7 @@ function Get-FfhRecoverySafeStage {
   param([string]$Stage)
   $known=@(
     'INITIALIZATION',
+    'ARGUMENTS',
     'OUTPUT_CONTRACT',
     'MODULE_IMPORT',
     'CONSUMED_HEAD',
@@ -225,7 +287,14 @@ function Get-FfhRecoveryFailureCategory {
     'BLOCKED_RECOVERY_UNEXPECTED_TEST_RECEIPT',
     'BLOCKED_RECOVERY_VOLUME_IDENTITY',
     'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD',
-    'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
+    'BLOCKED_RECOVERY_OUTPUT_CONTRACT',
+    'BLOCKED_RECOVERY_ARGUMENTS_MISSING',
+    'BLOCKED_RECOVERY_ARGUMENTS_COUNT',
+    'BLOCKED_RECOVERY_ARGUMENTS_KEY',
+    'BLOCKED_RECOVERY_ARGUMENTS_UNKNOWN',
+    'BLOCKED_RECOVERY_ARGUMENTS_POSITIONAL',
+    'BLOCKED_RECOVERY_ARGUMENTS_DUPLICATE',
+    'BLOCKED_RECOVERY_ARGUMENTS_VALUE'
   )
   if ($known -ccontains $ErrorText) {return $ErrorText}
   if ($ErrorText -cmatch '^BLOCKED_RECOVERY_') {
@@ -281,6 +350,9 @@ function Invoke-FfhRecoveryPlanEntry {
   }
 }
 Invoke-FfhRecoveryPlanEntry -Action {
+  Set-FfhRecoveryStage -Stage 'ARGUMENTS'
+  $validated=Read-FfhRecoveryPlanArguments -RawArgs $script:FfhRecoveryInvocationArgs
+  $script:FfhRecoveryInvocationArgs=$null
   Set-FfhRecoveryStage -Stage 'MODULE_IMPORT'
   . "$PSScriptRoot/source-provenance.ps1"
   . "$PSScriptRoot/automatic-cleanup.ps1"
@@ -288,5 +360,5 @@ Invoke-FfhRecoveryPlanEntry -Action {
   . "$PSScriptRoot/diagnostic-lifecycle.ps1"
   . "$PSScriptRoot/diagnostic-network.ps1"
   . "$PSScriptRoot/diagnostic-recovery-readonly.ps1"
-  Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $ExpectedAuditedHead -ConsumedHead $ConsumedHead -RunToken $RunToken -CliSha256 $CliSha256 -PreapprovedCacheSha256 $PreapprovedCacheSha256
+  Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $validated.ExpectedAuditedHead -ConsumedHead $validated.ConsumedHead -RunToken $validated.RunToken -CliSha256 $validated.CliSha256 -PreapprovedCacheSha256 $validated.PreapprovedCacheSha256
 }
