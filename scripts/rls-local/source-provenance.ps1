@@ -2,6 +2,18 @@
 # fresh-database preparation and matrix execution. Importing this file
 # defines functions only. No Docker/SQL/hosted access or mutations occur.
 Set-StrictMode -Version Latest
+# WinPS5.1 CI has no reliable Get-FileHash discovery. Bind immutable
+# evidence hashes to the exact local file handle using .NET SHA-256 instead.
+function Get-FfhFileSha256 {
+  param([Parameter(Mandatory=$true)][string]$Path)
+  $absolute=[IO.Path]::GetFullPath($Path)
+  $stream=[IO.FileStream]::new($absolute,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $hasher=[Security.Cryptography.SHA256]::Create()
+  try {
+    return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()
+  } finally {$hasher.Dispose();$stream.Dispose()}
+}
 
 function Assert-FfhNoRemoteConfiguration {
   foreach ($name in @(
@@ -92,7 +104,7 @@ function Assert-FfhSourceCheckout {
       [pscustomobject]@{
         path = ($relative -replace '\\','/')
         git_blob = ([string]$expectedObject).Trim()
-        sha256 = (Get-FileHash -LiteralPath $absolute -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-FfhFileSha256 -Path $absolute
       }
     }
   )
