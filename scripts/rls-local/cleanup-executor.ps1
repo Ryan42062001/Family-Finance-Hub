@@ -376,6 +376,13 @@ function Assert-FfhOwnedRootPreflight {
     if ($observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: native root file ID changed before Docker'
     }
+    # RR-01: any unmanifested nested child must block BEFORE any Docker mutation.
+    $permit=Get-FfhRootPermitSpec -Identity $Identity -Journal $Journal
+    if ([FfhP01OwnedRoot]::Preflight($profileHome,$leaf,
+        $Journal.rootOwnership.fileId,(Get-FfhRootMarker -Identity $Identity),
+        $permit) -cne 'PREFLIGHT_OK') {
+      throw 'BLOCKED_ROOT_NONDESTRUCTIVE_PREFLIGHT'
+    }
   }
 }
 function Invoke-FfhOwnedRootRetirement {
@@ -415,8 +422,11 @@ function Invoke-FfhOwnedRootRetirement {
     if ($observed -cne $Journal.rootOwnership.fileId) {
       throw 'BLOCKED: root file ID mismatch'
     }
+    # The immutable permit is derived only from trusted source blobs and
+    # durable SHA/token-bound creation hashes, never from discovered children.
+    $permit=Get-FfhRootPermitSpec -Identity $Identity -Journal $Journal
     if ([FfhP01OwnedRoot]::Retire($profileHome,$leaf,$Journal.rootOwnership.fileId,
-        (Get-FfhRootMarker -Identity $Identity)) -cne 'RETIRED') {
+        (Get-FfhRootMarker -Identity $Identity),$permit) -cne 'RETIRED') {
       throw 'BLOCKED: native retirement indeterminate'
     }
   }
