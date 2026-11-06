@@ -61,6 +61,7 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/owner-host-metadata-inventory.ps1',
     'scripts/rls-local/owner-disposable-diagnostic.ps1',
     'scripts/rls-local/diagnostic-lifecycle.ps1',
+    'scripts/rls-local/diagnostic-network.ps1',
     'scripts/rls-local/automatic-cleanup-policy.mjs',
     'scripts/rls-local/run.sh',
     '.github/workflows/ci.yml',
