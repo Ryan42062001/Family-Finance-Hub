@@ -702,3 +702,20 @@ if ($treeFunction.Count -ne 1 -or
   throw 'MOCK_STAGING_MIGRATION_APPLICATION_RISK'
 }
 Receipt 32
+
+
+# DG-33: ambient Supabase network/stack override must never redirect the
+# exact-owned loopback bridge or produce even a Plan preflight PASS.
+try {
+  Prepare-DiagnosticMock
+  $prior=[Environment]::GetEnvironmentVariable('SUPABASE_NETWORK_ID','Process')
+  try {
+    [Environment]::SetEnvironmentVariable('SUPABASE_NETWORK_ID','FOREIGN_UNTRUSTED_NET','Process')
+    MustBlock {Assert-FfhDiagnosticNoSupabaseOverrides}
+    MustBlock {Invoke-FfhOwnerDisposableDiagnostic -Mode Plan -ExpectedHead ('a'*40)}
+    AssertIt ($script:mutations.Count -eq 0) 'NO_OVERRIDE_MUTATION'
+  } finally {
+    [Environment]::SetEnvironmentVariable('SUPABASE_NETWORK_ID',$prior,'Process')
+  }
+  Receipt 33
+} finally {Stop-MockCase}
