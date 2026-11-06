@@ -15,6 +15,7 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot/automatic-cleanup.ps1"
 . "$PSScriptRoot/cleanup-executor.ps1"
 . "$PSScriptRoot/diagnostic-lifecycle.ps1"
+. "$PSScriptRoot/diagnostic-network.ps1"
 # Never trust an opaque Job Object runner compiled in a prior interactive
 # shell. This entrypoint must execute in a fresh WinPS5.1 owner process.
 if ($null -ne ('FfhRlsJobRunner' -as [type])) {
