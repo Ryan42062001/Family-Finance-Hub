@@ -32,7 +32,14 @@ try {
   if ($LASTEXITCODE -ne 0) {throw 'INTEGRATION_TEMP_LOCAL_CLONE_FAILED'}
   & git -C $clone checkout --detach --quiet $sha
   if ($LASTEXITCODE -ne 0) {throw 'INTEGRATION_TEMP_DETACH_FAILED'}
-  if (([string](& git -C $clone branch --show-current)).Trim() -cne '') {
+  # Actual WinPS5.1 native Git returns NO rows in detached HEAD; a
+  # ([string]$null).Trim() expression is itself an incorrect test.
+  $branchRows=@(& git -C $clone branch --show-current)
+  $branchExit=$LASTEXITCODE
+  if ($branchExit -ne 0 -or
+      @($branchRows | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_)
+      }).Count -ne 0) {
     throw 'INTEGRATION_CLONE_NOT_DETACHED'
   }
   [IO.Directory]::SetCurrentDirectory($clone)
