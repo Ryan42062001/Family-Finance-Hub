@@ -365,7 +365,7 @@ function New-FfhDiagnosticOwnedLoopbackNetwork {
   }
   # Before ANY Docker write, source/root, daemon, namespace and protected base
   # have been positively proved and no own network is in use.
-  Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
+  Assert-FfhDiagnosticStagingRoot -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
   Assert-FfhPrecreationNamespace -Identity $Identity -Fake $Fake
   Confirm-FfhBaseline -Journal $j -Fake $Fake
   if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
