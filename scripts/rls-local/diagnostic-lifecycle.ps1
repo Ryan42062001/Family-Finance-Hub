@@ -65,6 +65,29 @@ function Resolve-FfhDiagnosticCachedCli {
     if ((Invoke-FfhNativeJobChild -StartInfo $p -VersionProbe) -cne 'EXIT_ZERO') {
       throw 'BLOCKED_DIAG_CLI_VERSION'
     }
+    # Successful exit is not an actual version proof. Capture literal output
+    # through a bounded read-only second --version call, never printing keys.
+    $p.RedirectStandardOutput=$true
+    $p.RedirectStandardError=$true
+    $proc=[Diagnostics.Process]::new()
+    try {
+      $proc.StartInfo=$p
+      if (-not $proc.Start()) {throw 'BLOCKED_DIAG_VERSION_START'}
+      $stdout=$proc.StandardOutput.ReadToEndAsync()
+      $stderr=$proc.StandardError.ReadToEndAsync()
+      if (-not $proc.WaitForExit(15000)) {
+        try {$proc.Kill()} catch {}
+        throw 'BLOCKED_DIAG_VERSION_TIMEOUT'
+      }
+      if ($proc.ExitCode -ne 0 -or
+          ([string]$stdout.Result).Trim() -cne '2.122.0' -or
+          ([string]$stderr.Result).Length -gt 8192) {
+        throw 'BLOCKED_DIAG_VERSION_LITERAL_MISMATCH'
+      }
+    } finally {$proc.Dispose()}
+    if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne $observedHash) {
+      throw 'BLOCKED_DIAG_CLI_HASH_CHANGED_DURING_VERSION'
+    }
   }
   return [pscustomobject]@{Path=$exe;Sha256=$observedHash;Version='2.122.0'}
 }
