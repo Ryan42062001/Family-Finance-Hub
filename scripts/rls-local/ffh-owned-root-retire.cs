@@ -157,6 +157,7 @@ public static class FfhP01OwnedRoot {
       bool known=rel==".ffh-p01-owned-root" ||
         rel=="ffh-p01-local-provenance.json" ||
         rel=="ffh-p01-local-provenance.sha256" ||
+        rel==@"supabase\config.toml" ||
         rel=="supabase" || rel==@"supabase\migrations" || rel==@"supabase\.temp" ||
         Regex.IsMatch(rel,@"^supabase\\migrations\\(?:0001|[0-9]{14})_[a-z0-9_]+\.sql$");
       if(!known)Fail("MANIFEST_UNKNOWN_PATH");
