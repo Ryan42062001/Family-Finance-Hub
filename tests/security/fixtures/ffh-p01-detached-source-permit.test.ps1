@@ -204,6 +204,14 @@ public static class FfhP01OwnedRoot {
   AssertIt ([FfhP01OwnedRoot]::PreflightCalls -eq ($before+1) -and
     $script:nativeCalls -eq 1 -and
     $script:deleteCalls -eq 0) 'REAL_STAGING_FUNCTION_REACHED_NATIVE_PREFLIGHT'
+  # Also pin the equivalent cached-CLI resolver fix: $HOME is automatic,
+  # case-insensitive and READ-ONLY on WinPS5.1.
+  $netSource=Get-Content -LiteralPath (Join-Path $clone 'scripts/rls-local/diagnostic-network.ps1') -Raw
+  $cliSource=Get-Content -LiteralPath (Join-Path $clone 'scripts/rls-local/diagnostic-lifecycle.ps1') -Raw
+  AssertIt ($netSource -notmatch '(?im)^\s*\$home\s*=' -and
+    $cliSource -notmatch '(?im)^\s*\$home\s*=' -and
+    $netSource.Contains('$profileHome=') -and
+    $cliSource.Contains('$profileHome=')) 'WINPS_READONLY_HOME_NOT_ASSIGNED'
   Receipt 4
 
   # On a DETACHED SHA, non-diagnostic runKind must not be a permission bypass.
