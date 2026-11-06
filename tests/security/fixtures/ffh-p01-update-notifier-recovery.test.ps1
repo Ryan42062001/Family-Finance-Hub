@@ -301,6 +301,207 @@ try {
     Assert-FfhRecoveryAuditedCacheApproval -ExpectedSha256 $observed.sha256
   }
   Receipt 31
+
+  # New STG-xx receipts are real WinPS5.1 child processes. Extract the
+  # PRODUCTION entrypoint, category/stage mapper and consumed-plan function
+  # from the tracked Plan AST; do not invoke the Plan against Owner evidence.
+  $planFile=Join-Path $repo 'scripts/rls-local/owner-disposable-recovery-plan.ps1'
+  $pt=$null;$pe=$null
+  $planAst=[Management.Automation.Language.Parser]::ParseFile($planFile,[ref]$pt,[ref]$pe)
+  if (@($pe).Count -ne 0) {throw 'SYNTH_STG_PLAN_PARSE_FAILED'}
+  $names=@('Set-FfhRecoveryStage','Get-FfhRecoverySafeStage',
+    'Get-FfhRecoveryFailureCategory','Invoke-FfhRecoveryPlanEntry',
+    'Invoke-FfhConsumedRecoveryPlan')
+  $parts=@()
+  foreach($name in $names) {
+    $fn=@($planAst.FindAll({param($node)
+      $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+      $node.Name -ceq $name
+    },$false))
+    if ($fn.Count -ne 1) {throw ('SYNTH_STG_PLAN_FUNCTION_MISSING_'+$name)}
+    $parts+= $fn[0].Extent.Text
+  }
+  $planBody=(@($planAst.FindAll({param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'Invoke-FfhConsumedRecoveryPlan'
+  },$false))[0]).Extent.Text
+  # All security-admission stages must be assigned IN THE production Plan.
+  $stageMap=[ordered]@{
+    CONSUMED_HEAD='BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'
+    ENVIRONMENT='Assert-FfhNoRemoteConfiguration'
+    SOURCE_CHECKOUT='Assert-FfhSourceCheckout'
+    CHECKOUT_SCOPE='BLOCKED_RECOVERY_SEPARATE_CHECKOUT_REQUIRED'
+    RUN_IDENTITY='Get-FfhRunIdentity'
+    EXISTING_EVIDENCE='BLOCKED_RECOVERY_EXISTING_EVIDENCE_OR_ROOT_MISSING'
+    JOURNAL_READ='Read-FfhRecoveryJournal'
+    TERMINAL_STATE='Assert-FfhConsumedRecoveryJournal'
+    CACHE_APPROVAL='Assert-FfhRecoveryAuditedCacheApproval'
+    CACHE_INSPECTION='Get-FfhRecoveryCacheEvidence'
+    DOCKER_INVENTORY='Assert-FfhDiagnosticInventory'
+    DATABASE_HEALTH='Assert-FfhDiagnosticDatabase'
+    PROTECTED_BASELINE='Confirm-FfhBaseline'
+    CROSS_SHA_PERMIT='Get-FfhRecoveryReadOnlyPermit'
+    NATIVE_LOAD='Get-FfhOwnedRootNative'
+    NATIVE_INSPECT='[FfhP01OwnedRoot]::Inspect'
+    NATIVE_PREFLIGHT='[FfhP01OwnedRoot]::Preflight'
+    TERMINAL_REREAD='Read-FfhRecoveryJournal'
+    TERMINAL_RECEIPTS='Assert-FfhConsumedRecoveryJournal'
+  }
+  $last=-1
+  foreach($entry in $stageMap.GetEnumerator()) {
+    $stageStart=$planBody.IndexOf(("Set-FfhRecoveryStage -Stage '"+$entry.Key+"'"),[StringComparison]::Ordinal)
+    if ($stageStart -le $last) {throw ('SYNTH_STG_STAGE_MISSING_OR_ORDER_'+$entry.Key)}
+    $operation=$planBody.IndexOf([string]$entry.Value,$stageStart,[StringComparison]::Ordinal)
+    if ($operation -lt $stageStart -or $operation -gt ($stageStart+950)) {
+      throw ('SYNTH_STG_ACTION_MISSING_'+$entry.Key)
+    }
+    $last=$stageStart
+  }
+  if ($planBody -cmatch '(?i)::Retire\s*\(|Invoke-FfhDockerAction\b|Get-FfhDiagnosticSqlIdle\b|Write-FfhJournal\b|Set-FfhRunState\b') {
+    throw 'SYNTH_STG_FORBIDDEN_MUTATION_OR_SQL_CALL'
+  }
+  if ($planAst.Extent.Text -notmatch "Set-FfhRecoveryStage -Stage 'MODULE_IMPORT'" -or
+      $planAst.Extent.Text -notmatch 'exit 1') {
+    throw 'SYNTH_STG_IMPORT_OR_NONZERO_EXIT_MISSING'
+  }
+  # Generate ONLY a synthetic child entrypoint in this GUID-scoped test root.
+  $harness=Join-Path $base 'synthetic-stage-entry.ps1'
+  $head=@'
+[CmdletBinding()]param([Parameter(Mandatory=$true)][string]$Case)
+$ErrorActionPreference='Stop'
+$script:FfhRecoveryStage='INITIALIZATION'
+'@
+  $cases=@'
+function Assert-FfhNoRemoteConfiguration {
+  throw 'BLOCKED: secret=NEVER_PRINT_ME profile=C:\PRIVATE_NEVER_PRINT_ME'
+}
+switch ($Case) {
+  'WRONG_HEAD' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Invoke-FfhConsumedRecoveryPlan -ConsumedHead ('0'*40)
+    }
+  }
+  'ENV_GUARD' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Invoke-FfhConsumedRecoveryPlan -ConsumedHead 'cba20f7fecea8b7dfdbcb10fb245765825ef97c0'
+    }
+  }
+  'EVIDENCE_MISSING' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'EXISTING_EVIDENCE'
+      throw 'BLOCKED_RECOVERY_EVIDENCE_DIRECTORY_MISSING'
+    }
+  }
+  'TERMINAL_DRIFT' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'TERMINAL_RECEIPTS'
+      throw 'BLOCKED_RECOVERY_FINAL_RECEIPT_DRIFT'
+    }
+  }
+  'CACHE_LARGE' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'CACHE_INSPECTION'
+      throw 'BLOCKED_RECOVERY_CACHE_SIZE'
+    }
+  }
+  'NATIVE_INHERITED' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'NATIVE_PREFLIGHT'
+      throw 'BLOCKED_ROOT_OPEN_5_NEVER_PRINT_ME'
+    }
+  }
+  'DOCKER_INHERITED' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'DOCKER_INVENTORY'
+      throw 'BLOCKED_DIAG_DUAL_LABEL_SET_DRIFT_NEVER_PRINT_ME'
+    }
+  }
+  'UNEXPECTED_SECRET' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'CROSS_SHA_PERMIT'
+      throw 'private C:\PRIVATE_NEVER_PRINT_ME id=NEVER_PRINT_ME'
+    }
+  }
+  'IO_SECRET' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'JOURNAL_READ'
+      throw ([IO.IOException]::new('C:\PRIVATE_NEVER_PRINT_ME'))
+    }
+  }
+  'UNLISTED_RECOVERY' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'CACHE_APPROVAL'
+      throw 'BLOCKED_RECOVERY_UNLISTED_NEVER_PRINT_ME'
+    }
+  }
+  'SOURCE_INHERITED' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'SOURCE_CHECKOUT'
+      throw 'BLOCKED: git source failed C:\PRIVATE_NEVER_PRINT_ME'
+    }
+  }
+  'MODULE_IMPORT' {
+    Invoke-FfhRecoveryPlanEntry -Action {
+      Set-FfhRecoveryStage -Stage 'MODULE_IMPORT'
+      throw 'C:\PRIVATE_NEVER_PRINT_ME'
+    }
+  }
+  default {throw 'SYNTH_UNKNOWN_CASE'}
+}
+'@
+  [IO.File]::WriteAllText($harness,($head+[char]10+($parts -join [char]10)+[char]10+$cases),
+    [Text.UTF8Encoding]::new($false))
+  $checks=@(
+    @('WRONG_HEAD','CONSUMED_HEAD','BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD')
+    @('ENV_GUARD','ENVIRONMENT','INHERITED_GUARD_REJECTED')
+    @('EVIDENCE_MISSING','EXISTING_EVIDENCE','BLOCKED_RECOVERY_EVIDENCE_DIRECTORY_MISSING')
+    @('TERMINAL_DRIFT','TERMINAL_RECEIPTS','BLOCKED_RECOVERY_FINAL_RECEIPT_DRIFT')
+    @('CACHE_LARGE','CACHE_INSPECTION','BLOCKED_RECOVERY_CACHE_SIZE')
+    @('NATIVE_INHERITED','NATIVE_PREFLIGHT','NATIVE_GUARD_REJECTED')
+    @('DOCKER_INHERITED','DOCKER_INVENTORY','DIAGNOSTIC_GUARD_REJECTED')
+    @('UNEXPECTED_SECRET','CROSS_SHA_PERMIT','UNEXPECTED_VERIFICATION_FAILURE')
+    @('IO_SECRET','JOURNAL_READ','READ_IO_FAILURE')
+    @('UNLISTED_RECOVERY','CACHE_APPROVAL','RECOVERY_GUARD_UNCLASSIFIED')
+    @('SOURCE_INHERITED','SOURCE_CHECKOUT','INHERITED_GUARD_REJECTED')
+    @('MODULE_IMPORT','MODULE_IMPORT','UNEXPECTED_VERIFICATION_FAILURE')
+  )
+  $num=31
+  foreach($check in $checks) {
+    $psi=[Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName=Join-Path $PSHOME 'powershell.exe'
+    $psi.Arguments='-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'+
+      $harness+'" -Case '+$check[0]
+    $psi.UseShellExecute=$false
+    $psi.RedirectStandardOutput=$true
+    $psi.RedirectStandardError=$true
+    $psi.CreateNoWindow=$true
+    $proc=[Diagnostics.Process]::new()
+    try {
+      $proc.StartInfo=$psi
+      if (-not $proc.Start()) {throw 'SYNTH_STG_PROCESS_START'}
+      if (-not $proc.WaitForExit(30000)) {
+        $proc.Kill();throw 'SYNTH_STG_PROCESS_TIMEOUT'
+      }
+      $stdout=$proc.StandardOutput.ReadToEnd().Trim()
+      $stderr=$proc.StandardError.ReadToEnd().Trim()
+      $expected='RECOVERY_PLAN=BLOCKED STAGE='+$check[1]+' CATEGORY='+$check[2]+
+        ' SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES'
+      if ($proc.ExitCode -ne 1 -or $stdout -cne $expected -or $stderr.Length -ne 0 -or
+          $stdout -match 'NEVER_PRINT_ME|PRIVATE_|cba20f7f|[a-f0-9]{64}') {
+        throw ('SYNTH_STG_EXIT_OR_SANITIZATION_'+$check[0])
+      }
+    } finally {$proc.Dispose()}
+    $num++
+    Receipt $num
+  }
+  # No production resource was invoked; the fixture-owned ledger and FINAL
+  # receipt remain byte-identical after every subprocess and synthetic race.
+  if (($ledger|ConvertTo-Json -Depth 10) -cne [IO.File]::ReadAllText($ledgerPath) -or
+      ($final|ConvertTo-Json -Depth 10) -cne [IO.File]::ReadAllText($finalPath) -or
+      [IO.File]::Exists((Join-Path $evidence 'race.json'))) {
+    throw 'SYNTH_STG_EVIDENCE_MUTATED'
+  }
+  Receipt 44
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)
