@@ -131,3 +131,40 @@ function New-FfhDiagnosticOwnedLoopbackNetwork {
   Write-FfhJournal -Identity $Identity -Journal $j
   return $j
 }
+
+# Last read-only barrier immediately before CLI creates a DB container.
+# The cached executable, recorded loopback bridge, daemon and protected
+# resources must still match exactly. No adoption or blind retry.
+function Assert-FfhDiagnosticLaunchPreflight {
+  param($Identity,$Cli,[scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  if ($Cli.Sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+      -not (Test-Path -LiteralPath $Cli.Path -PathType Leaf) -or
+      (Get-FfhFileSha256 -Path $Cli.Path) -cne $Cli.Sha256) {
+    throw 'BLOCKED_DIAG_CLI_CHANGED_BEFORE_START'
+  }
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $j.diagnosticStatus -cne 'START_IN_FLIGHT' -or
+      $j.state -cne 'DIAG_START_IN_FLIGHT' -or
+      $j.sqlBoundary.status -cne 'NOT_STARTED' -or
+      @($j.resources).Count -ne 1 -or
+      $j.resources[0].kind -cne 'networks') {
+    throw 'BLOCKED_DIAG_PRESTART_IDENTITY_NOT_PROVEN'
+  }
+  Assert-FfhDiagnosticStagingRoot -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
+  $owned=@(Assert-FfhDiagnosticInventory -Identity $Identity -Journal $j -Fake $Fake)
+  if ($owned.Count -ne 1 -or $owned[0].kind -cne 'networks' -or
+      $owned[0].id -cne $j.resources[0].id) {
+    throw 'BLOCKED_DIAG_NETWORK_DRIFT_BEFORE_START'
+  }
+  $peers=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$j.resources[0].id,
+    '--format','{{json .Containers}}') -Fake $Fake)
+  if ($peers.Count -ne 1 -or $peers[0] -cnotin @('{}','null')) {
+    throw 'BLOCKED_DIAG_NETWORK_PEER_BEFORE_START'
+  }
+  if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
+    throw 'BLOCKED_DIAG_DAEMON_DRIFT_BEFORE_START'
+  }
+  Confirm-FfhBaseline -Journal $j -Fake $Fake
+  return $true
+}
