@@ -165,6 +165,95 @@ function Confirm-FfhDiagnosticStarted {
 function Invoke-FfhOwnerDisposableDiagnostic {
   param([string]$Mode,[string]$ExpectedHead,[string]$CliExecutable,
     [string]$CliSha256,[string]$ExplicitAuthorization)
+  if ($Mode -ceq 'Run' -and $CliSha256 -cnotmatch '^[a-f0-9]{64}
+    throw 'BLOCKED_DIAG_EXPLICIT_ONE_SHOT_GO_REQUIRED'
+  }
+  Assert-FfhNoRemoteConfiguration
+  Assert-FfhDockerEnvironment
+  [void](Assert-FfhLocalDockerDesktop)
+  $source=Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead -AllowDetachedHeadForDiagnostic
+  Assert-FfhDiagnosticApprovedCheckout -Source $source
+  $cli=Resolve-FfhDiagnosticCachedCli -CliExecutable $CliExecutable -CliSha256 $CliSha256
+  $identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
+  $ports=@(Select-FfhRunPorts -Identity $identity)
+  # PLAN and RUN independently verify no namespace collision; plan reserves
+  # neither its displayed random token nor ports.
+  Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
+  $daemon=Get-FfhObservedDaemon
+  $legacy=@(Get-FfhProtectedInventory)
+  if ((Get-FfhObservedDaemon) -cne $daemon) {throw 'BLOCKED_DIAG_DAEMON_DRIFT'}
+  Write-Output ('DIAG_PREFLIGHT=PASS MODE='+$Mode+' SOURCE_SHA='+$ExpectedHead+
+    ' CLI_VERSION=2.122.0 CLI_SHA256='+$cli.Sha256+
+    ' PROTECTED_ENTRY_COUNT='+$legacy.Count+' DB_HOST_IP=127.0.0.1')
+  if ($Mode -ceq 'Plan') {
+    Write-Output ('PLAN_ONLY=NO_MUTATION PLANNED_PROJECT='+$identity.project+
+      ' PLANNED_RUN_TOKEN='+$identity.token+
+      ' PLANNED_ROOT='+$identity.root+
+      ' TENTATIVE_DB_PORT='+$ports[0]+' TENTATIVE_SHADOW_PORT='+$ports[1]+
+      ' PLANNED_COMMAND=db_start PLANNED_CLEANUP=EXACT_OWNED_ONLY')
+    return
+  }
+  $lock=$null;$journalCreated=$false;$statusPersisted=$true
+  try {
+    $lock=Enter-FfhLifecycleLock -Identity $identity
+    # Reattest under the exclusive lifecycle lock.
+    Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
+    $j=New-FfhPrecreationJournal -Identity $identity -Ports $ports
+    $journalCreated=$true
+    if ($j.daemon -cne $daemon -or
+        (@($j.protected) -join '|') -cne ($legacy -join '|')) {
+      throw 'BLOCKED_DIAG_PREFLIGHT_STATE_CHANGED'
+    }
+    $j | Add-Member -MemberType NoteProperty -Name 'runKind' -Value 'ONE_SHOT_DIAGNOSTIC' -Force
+    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticStatus' -Value 'PRECREATION_COMMITTED' -Force
+    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticCliSha256' -Value $cli.Sha256 -Force
+    $j.sequence=[int]$j.sequence+1
+    Write-FfhJournal -Identity $identity -Journal $j
+    New-FfhDiagnosticOneShotLedger -Identity $identity -Cli $cli
+    [void](New-FfhDiagnosticTree -Identity $identity -Source $source -Ports $ports -Cli $cli)
+    $j=Set-FfhDiagnosticJournal -Identity $identity -Status ROOT_CREATED
+    # Verify copied exact permit tree before the first CLI/Docker mutation.
+    Assert-FfhOwnedRootPreflight -Identity $identity -Journal $j
+    $j=Set-FfhDiagnosticJournal -Identity $identity -Status START_IN_FLIGHT -TestResult RUNNING
+    Start-FfhDiagnosticPinnedDb -Identity $identity -Cli $cli
+    $j=Confirm-FfhDiagnosticStarted -Identity $identity -Source $source
+    $result=Invoke-FfhDiagnosticCleanup -Identity $identity
+    if ($result -cne 'CLEANUP_VERIFIED') {throw 'BLOCKED_DIAG_CLEANUP_UNVERIFIED'}
+    $j=Read-FfhJournal -Identity $identity
+    [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category NONE)
+    Write-Output ('DIAG_RESULT=PASS TEST_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED '+
+      'RUN_TOKEN='+$identity.token+' GATE_A=NOT_STARTED GATE_B=NOT_STARTED')
+  } catch {
+    # Fail closed; no retry and no opportunistic Docker/SQL/FS mutation.
+    if ($journalCreated) {
+      try {
+        $j=Read-FfhJournal -Identity $identity
+        if ($j.cleanupResult -cne 'CLEANUP_VERIFIED') {
+          $j.state='MANUAL_REVIEW'
+          $j.diagnosticStatus='MANUAL_REVIEW'
+          if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
+          $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
+          $j.sequence=[int]$j.sequence+1
+          Write-FfhJournal -Identity $identity -Journal $j
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $identity.evidence ($identity.token+'.DIAG_FINAL.json')))) {
+          [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category FAIL_CLOSED)
+        }
+      } catch {$statusPersisted=$false}
+    }
+    $cleanup=if($journalCreated){'CLEANUP_BLOCKED_MANUAL_REVIEW'}else{'NOT_ATTEMPTED'}
+    if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED'}
+    Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT=UNKNOWN CLEANUP_RESULT='+$cleanup+
+      ' RUN_TOKEN='+$identity.token+' MANUAL_REVIEW_REQUIRED=YES')
+    throw 'BLOCKED_DIAG_NO_RETRY_INSPECT_PRIVATE_JOURNAL'
+  } finally {
+    if ($null -ne $lock) {$lock.Dispose()}
+  }
+}
+Invoke-FfhOwnerDisposableDiagnostic -Mode $Mode -ExpectedHead $ExpectedHead -CliExecutable $CliExecutable -CliSha256 $CliSha256 -ExplicitAuthorization $ExplicitAuthorization
+) {
+    throw 'BLOCKED_DIAG_RUN_REQUIRES_PLAN_PINNED_CLI_SHA256'
+  }
   if ($Mode -ceq 'Run' -and $ExplicitAuthorization -cne 'FFH-P01-ONE-SHOT-DIAGNOSTIC-GO') {
     throw 'BLOCKED_DIAG_EXPLICIT_ONE_SHOT_GO_REQUIRED'
   }
