@@ -344,7 +344,9 @@ function Get-FfhRootPermitSpec {
       @($Journal.ports).Count -ne 2) {
     throw 'BLOCKED_ROOT_PERMIT_JOURNAL_INCOMPLETE'
   }
-  $src=Assert-FfhSourceCheckout -ExpectedHead $Identity.sha
+  $isDiagnostic=($Journal.PSObject.Properties.Name -ccontains 'runKind' -and
+    $Journal.runKind -ceq 'ONE_SHOT_DIAGNOSTIC')
+  $src=Assert-FfhSourceCheckout -ExpectedHead $Identity.sha -AllowDetachedHeadForDiagnostic:$isDiagnostic
   if (@($src.migration_files).Count -ne 15) {throw 'BLOCKED_ROOT_PERMIT_MIGRATIONS_INCOMPLETE'}
   $encoder=[Text.UTF8Encoding]::new($false)
   $hasher=[Security.Cryptography.SHA256]::Create()
