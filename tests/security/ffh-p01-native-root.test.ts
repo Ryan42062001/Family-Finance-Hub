@@ -11,6 +11,7 @@ test("FFH-P01 native Windows root identity/reparse/ACL/absence tests",()=>{
   assert.equal(r.status,0,r.stdout+"\n"+r.stderr);
   const lines=r.stdout.split(/\r?\n/).filter(x=>/^FS-\d\d PASS$/.test(x.trim())).map(x=>x.trim());
   assert.deepEqual(lines,Array.from({length:20},(_,i)=>"FS-"+String(i+1).padStart(2,"0")+" PASS"));
+  for(const receipt of lines) console.log(receipt);
 });
 
 test("FFH-RR-04 rejects an already-loaded stale FfhP01OwnedRoot class before native disposal",()=>{
@@ -21,4 +22,5 @@ test("FFH-RR-04 rejects an already-loaded stale FfhP01OwnedRoot class before nat
   assert.ifError(r.error);
   assert.equal(r.status,0,r.stdout+"\n"+r.stderr);
   assert.match(r.stdout,/^FS-21 PASS$/m);
+  console.log("FS-21 PASS");
 });
