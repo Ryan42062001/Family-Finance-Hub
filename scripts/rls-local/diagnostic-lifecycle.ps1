@@ -93,6 +93,337 @@ function Assert-FfhDiagnosticNoPriorAttempt {
   # CLI-only labels are insufficient: detect Compose-only project name too.
   Assert-FfhDiagnosticLabelBijection -Identity $Identity -Fake $Fake -ExpectEmpty
 }
+# The exact released Supabase 2.122.0 db-start uses Docker PortBindings with
+# HostPort but NO HostIP; Docker defaults that to 0.0.0.0 on unconfigured
+# networks. This owned pre-created bridge enforces loopback BEFORE db start.
+function Assert-FfhDiagnosticLoopbackNetwork {
+  param($Identity,$NetworkId,[scriptblock]$Fake)
+  if ($NetworkId -cnotmatch '^[a-f0-9]{64}
+  param($Identity,[ValidateSet('containers','volumes','networks')]$Kind,
+    [ValidateSet('cli','compose')][string]$Label,[scriptblock]$Fake)
+  $key=if($Label -ceq 'cli'){'com.supabase.cli.project'}else{'com.docker.compose.project'}
+  $filter='label='+$key+'='+$Identity.project
+  switch ($Kind) {
+    'containers' {$args=@('ps','-a','--no-trunc','--filter',$filter,'--format','{{.ID}}')}
+    'volumes' {$args=@('volume','ls','--filter',$filter,'--format','{{.Name}}')}
+    'networks' {$args=@('network','ls','--no-trunc','--filter',$filter,'--format','{{.ID}}')}
+  }
+  return @(Invoke-FfhDockerRead -Arguments $args -Fake $Fake)
+}
+function Assert-FfhDiagnosticLabelBijection {
+  param($Identity,[scriptblock]$Fake,[switch]$ExpectEmpty)
+  $results=@()
+  foreach($kind in @('containers','volumes','networks')) {
+    $cli=@(Get-FfhDiagnosticLabelledNames -Identity $Identity -Kind $kind -Label cli -Fake $Fake | Sort-Object)
+    $compose=@(Get-FfhDiagnosticLabelledNames -Identity $Identity -Kind $kind -Label compose -Fake $Fake | Sort-Object)
+    if (($cli -join '|') -cne ($compose -join '|') -or
+        @($cli | Select-Object -Unique).Count -ne $cli.Count) {
+      throw 'BLOCKED_DIAG_DUAL_LABEL_SET_DRIFT'
+    }
+    if ($ExpectEmpty -and $cli.Count) {throw 'BLOCKED_DIAG_PREEXISTING_PROJECT_RESOURCE'}
+    foreach ($id in $cli) {$results+= [pscustomobject]@{kind=$kind;id=[string]$id}}
+  }
+  return @($results)
+}
+function Assert-FfhDiagnosticInventory {
+  param($Identity,$Journal,[scriptblock]$Fake)
+  if ($Journal.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $Journal.sqlBoundary.status -cne 'NOT_STARTED' -or
+      $Journal.gateAResult -cne 'NOT_STARTED' -or
+      $Journal.gateBResult -cne 'NOT_STARTED') {
+    throw 'BLOCKED_DIAG_FORMAL_GATE_JOURNAL_CONTAMINATION'
+  }
+  $dual=@(Assert-FfhDiagnosticLabelBijection -Identity $Identity -Fake $Fake)
+  $owned=@(Assert-FfhExactInventory -Identity $Identity -Journal $Journal -Fake $Fake)
+  foreach($net in @($owned | Where-Object kind -eq networks)) {
+    [void](Assert-FfhDiagnosticLoopbackNetwork -Identity $Identity -NetworkId $net.id -Fake $Fake)
+  }
+  if ($dual.Count -ne $owned.Count) {throw 'BLOCKED_DIAG_LABEL_INVENTORY_MISMATCH'}
+  foreach($r in $dual) {
+    if (@($owned | Where-Object { $_.kind -ceq $r.kind -and $_.id -ceq $r.id -and
+      $_.name -notmatch '(?i)FFH-RLS-Test' }).Count -ne 1) {
+      throw 'BLOCKED_DIAG_LABEL_KIND_OR_ID_DRIFT'
+    }
+  }
+  return @($owned)
+}
+function Assert-FfhDiagnosticDatabase {
+  param($Identity,$Journal,[scriptblock]$Fake,[switch]$AllowStopped)
+  $resources=@(Assert-FfhDiagnosticInventory -Identity $Identity -Journal $Journal -Fake $Fake)
+  $db=@($resources | Where-Object { $_.kind -ceq 'containers' })
+  if ($db.Count -ne 1 -or
+      $db[0].name -cne ('/'+$Identity.container) -or
+      $db[0].id -cnotmatch '^[a-f0-9]{64}$') {
+    throw 'BLOCKED_DIAG_CONTAINER_CARDINALITY_OR_ID'
+  }
+  $cid=[string]$db[0].id
+  $raw=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{json .State}}') -Fake $Fake)
+  $bindings=@(Invoke-FfhDockerRead -Arguments @('inspect',$cid,'--format','{{json .NetworkSettings.Ports}}') -Fake $Fake)
+  if ($raw.Count -ne 1 -or $bindings.Count -ne 1) {throw 'BLOCKED_DIAG_CONTAINER_INSPECT'}
+  try {$state=([string]$raw[0] | ConvertFrom-Json);$ports=([string]$bindings[0] | ConvertFrom-Json)}
+  catch {throw 'BLOCKED_DIAG_CONTAINER_INSPECT_JSON'}
+  if (-not $state.Running) {
+    if ($AllowStopped) {return $cid}
+    throw 'BLOCKED_DIAG_CONTAINER_NOT_RUNNING'
+  }
+  if ($state.Health.Status -cne 'healthy') {throw 'BLOCKED_DIAG_DB_NOT_HEALTHY'}
+  $portProperties=@($ports.PSObject.Properties)
+  foreach($p in $portProperties) {
+    $live=@($p.Value | Where-Object { $null -ne $_ })
+    if ($p.Name -cne '5432/tcp' -and $live.Count) {throw 'BLOCKED_DIAG_OTHER_PUBLISHED_PORT'}
+  }
+  $dbports=@($ports.'5432/tcp' | Where-Object { $null -ne $_ })
+  if ($dbports.Count -lt 1 -or $dbports.Count -gt 2) {throw 'BLOCKED_DIAG_DB_PORT_COUNT'}
+  foreach($item in $dbports) {
+    if ([string]$item.HostIp -cnotin @('127.0.0.1','::1') -or
+        [string]$item.HostPort -cne [string]$Journal.ports[0]) {
+      throw 'BLOCKED_DIAG_NONLOCAL_OR_DRIFTED_PORT'
+    }
+  }
+  return $cid
+}
+function Get-FfhDiagnosticSqlIdle {
+  param($Identity,$Journal,[scriptblock]$Fake)
+  if ($Journal.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $Journal.sqlBoundary.status -cne 'NOT_STARTED' -or
+      $Journal.gateAResult -cne 'NOT_STARTED' -or
+      $Journal.gateBResult -cne 'NOT_STARTED' -or
+      $Journal.diagnosticStatus -cnotin @('START_VERIFIED','CLEANUP_RUNNING')) {
+    throw 'BLOCKED_DIAG_IDLE_STATE_INVALID'
+  }
+  $cid=Assert-FfhDiagnosticDatabase -Identity $Identity -Journal $Journal -Fake $Fake
+  $sql="SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend' AND pid <> pg_backend_pid()"
+  $v=@(Invoke-FfhDockerRead -Arguments @('exec','-i',$cid,'psql','-U','postgres','-d','postgres','-t','-A','-c',$sql) -Fake $Fake)
+  if ($v.Count -ne 1 -or ([string]$v[0]).Trim() -cne '0') {
+    throw 'BLOCKED_DIAG_SQL_IDLE_UNKNOWN'
+  }
+  if ((Get-FfhObservedDaemon -Fake $Fake) -cne $Journal.daemon) {
+    throw 'BLOCKED_DIAG_DAEMON_DRIFT'
+  }
+  Confirm-FfhBaseline -Journal $Journal -Fake $Fake
+  return $cid
+}
+function Write-FfhDiagnosticReceipt {
+  param($Identity,$Journal,[ValidateSet('TEST','FINAL')][string]$Stage,
+    [string]$Category)
+  if ($Journal.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $Category -cnotmatch '^[A-Z0-9_]{1,55}$') {throw 'BLOCKED_DIAG_RECEIPT_INVALID'}
+  $dest=Join-Path $Identity.evidence ($Identity.token+'.DIAG_'+$Stage+'.json')
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $dest -Optional
+  if (Test-Path -LiteralPath $dest) {throw 'BLOCKED_DIAG_RECEIPT_ALREADY_EXISTS'}
+  $receipt=[ordered]@{
+    schema=1;kind='ONE_SHOT_DIAGNOSTIC';sourceSha=$Identity.sha
+    runToken=$Identity.token;stage=$Stage
+    testResult=$Journal.testResult;cleanupResult=$Journal.cleanupResult
+    category=$Category;atUtc=[DateTime]::UtcNow.ToString('o')
+    gateA='NOT_STARTED';gateB='NOT_STARTED'
+  }
+  $tmp=$dest+'.tmp-'+(New-FfhRunToken)
+  $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($receipt | ConvertTo-Json -Depth 5))
+  $fs=[IO.FileStream]::new($tmp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+  try {$fs.Write($bytes,0,$bytes.Length);$fs.Flush($true)} finally {$fs.Dispose()}
+  Initialize-FfhPrivateEvidenceAcl -Path $tmp -NewlyCreated
+  [IO.File]::Move($tmp,$dest)
+  Assert-FfhEvidenceEntry -Identity $Identity -Path $dest
+  return $dest
+}
+function Set-FfhDiagnosticJournal {
+  param($Identity,[string]$Status,[string]$TestResult,[string]$CleanupResult)
+  $j=Read-FfhJournal -Identity $Identity
+  $transitions=@{
+    PRECREATION_COMMITTED=@('ROOT_CREATED')
+    ROOT_CREATED=@('NETWORK_CREATE_IN_FLIGHT')
+    NETWORK_CREATE_IN_FLIGHT=@('NETWORK_READY')
+    NETWORK_READY=@('START_IN_FLIGHT')
+    START_IN_FLIGHT=@('START_VERIFIED')
+    START_VERIFIED=@('CLEANUP_RUNNING')
+    CLEANUP_RUNNING=@('CLEANUP_VERIFIED')
+  }
+  if ($j.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $j.sqlBoundary.status -cne 'NOT_STARTED' -or
+      $j.gateAResult -cne 'NOT_STARTED' -or
+      $j.gateBResult -cne 'NOT_STARTED' -or
+      $Status -cnotin @($transitions[[string]$j.diagnosticStatus])) {
+    throw 'BLOCKED_DIAG_INVALID_STATE_TRANSITION'
+  }
+  $j.diagnosticStatus=$Status;$j.state='DIAG_'+$Status
+  if ($TestResult) {$j.testResult=$TestResult}
+  if ($CleanupResult) {$j.cleanupResult=$CleanupResult}
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  return $j
+}
+function Invoke-FfhDiagnosticCleanup {
+  param($Identity,[scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  # Caller must have already persisted TEST receipt. No formal Gate A/B path.
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $j.diagnosticStatus -cne 'START_VERIFIED' -or
+      $j.testResult -cne 'PASS' -or
+      -not $j.evidenceSaved -or
+      $j.rootRetirement.status -cne 'NOT_STARTED' -or
+      $j.sqlBoundary.status -cne 'NOT_STARTED') {
+    throw 'BLOCKED_DIAG_CLEANUP_ADMISSION_INVALID'
+  }
+  [void](Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem)
+  $cid=Get-FfhDiagnosticSqlIdle -Identity $Identity -Journal $j -Fake $Fake
+  $j=Set-FfhDiagnosticJournal -Identity $Identity -Status CLEANUP_RUNNING -CleanupResult CLEANUP_PENDING
+  # A second independent idle attestation before first destructive Docker action.
+  if ((Get-FfhDiagnosticSqlIdle -Identity $Identity -Journal $j -Fake $Fake) -cne $cid) {
+    throw 'BLOCKED_DIAG_SQL_IDLE_CHANGED'
+  }
+  $db=@($j.resources | Where-Object { $_.kind -ceq 'containers' })
+  if ($db.Count -ne 1 -or $db[0].id -cne $cid) {throw 'BLOCKED_DIAG_DOCKER_IDENTITY_CHANGED'}
+  # Any ambiguous stop/timeout: no blind rm and no retry.
+  $j.state='DIAG_MUTATION_IN_FLIGHT';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  Invoke-FfhExactDockerCommand -Arguments @('stop','--time=-1',$cid) -Fake $Fake
+  $j=Read-FfhJournal -Identity $Identity
+  $j.state='DIAG_CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  $verified=@(Assert-FfhDiagnosticInventory -Identity $Identity -Journal $j -Fake $Fake)
+  $stopped=@($verified | Where-Object { $_.kind -ceq 'containers' })
+  if ($stopped.Count -ne 1 -or $stopped[0].id -cne $cid -or $stopped[0].running) {
+    throw 'BLOCKED_DIAG_STOP_NOT_VERIFIED'
+  }
+  foreach($kind in @('containers','volumes','networks')) {
+    foreach ($r in @($j.resources | Where-Object { $_.kind -ceq $kind })) {
+      $before=@(Assert-FfhDiagnosticInventory -Identity $Identity -Journal $j -Fake $Fake)
+      $matching=@($before | Where-Object { $_.kind -ceq $kind -and $_.id -ceq $r.id -and $_.name -ceq $r.name })
+      if ($matching.Count -ne 1 -or ($kind -ceq 'containers' -and $matching[0].running)) {
+        throw 'BLOCKED_DIAG_RESOURCE_DRIFT_BEFORE_DELETE'
+      }
+      Confirm-FfhBaseline -Journal $j -Fake $Fake
+      if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {throw 'BLOCKED_DIAG_DAEMON_DRIFT'}
+      $arguments=switch($kind) {
+        'containers' {@('rm',$r.id)}
+        'volumes' {@('volume','rm',$r.name)}
+        'networks' {@('network','rm',$r.id)}
+      }
+      $j.state='DIAG_MUTATION_IN_FLIGHT';$j.sequence=[int]$j.sequence+1
+      Write-FfhJournal -Identity $Identity -Journal $j
+      Invoke-FfhExactDockerCommand -Arguments $arguments -Fake $Fake
+      $probe=if ($kind -ceq 'volumes') {$r.name} else {$r.id}
+      Test-FfhExactAbsent -Kind $kind -Id $probe -Fake $Fake
+      $j=Read-FfhJournal -Identity $Identity
+      $j.resources=@($j.resources | Where-Object {
+        -not ($_.kind -ceq $r.kind -and $_.id -ceq $r.id -and $_.name -ceq $r.name)
+      })
+      $j.state='DIAG_CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+      Write-FfhJournal -Identity $Identity -Journal $j
+    }
+  }
+  if (@(Assert-FfhDiagnosticInventory -Identity $Identity -Journal $j -Fake $Fake).Count -ne 0) {
+    throw 'BLOCKED_DIAG_RESIDUAL_DOCKER_RESOURCES'
+  }
+  Assert-FfhPrecreationNamespace -Identity $Identity -Fake $Fake
+  Confirm-FfhBaseline -Journal $j -Fake $Fake
+  # Existing immutable Win32/native implementation requires CLEANUP_RUNNING.
+  # This state is diagnostic-only, never an admitted formal SQL gate.
+  $j.state='CLEANUP_RUNNING';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  Invoke-FfhOwnedRootRetirement -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.rootRetirement.status -cne 'ABSENT_VERIFIED' -or
+      @($j.resources).Count -ne 0) {throw 'BLOCKED_DIAG_ROOT_NOT_VERIFIED_ABSENT'}
+  Confirm-FfhBaseline -Journal $j -Fake $Fake
+  Assert-FfhPrecreationNamespace -Identity $Identity -Fake $Fake
+  [void](Test-FfhVerifiedRootAbsent -Identity $Identity -FakeFilesystem $FakeFilesystem)
+  $j=Set-FfhDiagnosticJournal -Identity $Identity -Status CLEANUP_VERIFIED -CleanupResult CLEANUP_VERIFIED
+  $j.state='CLEANUP_VERIFIED';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  return 'CLEANUP_VERIFIED'
+}
+) {throw 'BLOCKED_DIAG_NETWORK_ID_INVALID'}
+  $networkName='supabase_network_'+$Identity.project
+  $row=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{.Name}}') -Fake $Fake)
+  $option=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{json .Options}}') -Fake $Fake)
+  $peers=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{json .Containers}}') -Fake $Fake)
+  if ($row.Count -ne 1 -or $row[0] -cne $networkName -or
+      $option.Count -ne 1 -or $peers.Count -ne 1) {
+    throw 'BLOCKED_DIAG_NETWORK_READBACK_INCOMPLETE'
+  }
+  try {
+    $options=([string]$option[0] | ConvertFrom-Json)
+    $peerObject=([string]$peers[0] | ConvertFrom-Json)
+  } catch {throw 'BLOCKED_DIAG_NETWORK_OPTIONS_MALFORMED'}
+  if ($options.'com.docker.network.bridge.host_binding_ipv4' -cne '127.0.0.1') {
+    throw 'BLOCKED_DIAG_NETWORK_NOT_LOOPBACK_ONLY'
+  }
+  # Peer checks for the active run happen in Assert-FfhExactInventory.
+  # Before startup, the network must have ZERO endpoints.
+  return $true
+}
+function New-FfhDiagnosticOwnedLoopbackNetwork {
+  param($Identity,[scriptblock]$Fake,[scriptblock]$FakeFilesystem)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
+      $j.diagnosticStatus -cne 'ROOT_CREATED' -or
+      @($j.resources).Count -ne 0 -or
+      $j.rootOwnership.markerVersion -ne 1) {
+    throw 'BLOCKED_DIAG_NETWORK_START_STATE_INVALID'
+  }
+  # Before ANY Docker write, source/root, daemon, namespace and protected base
+  # have been positively proved and no own network is in use.
+  Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
+  Assert-FfhPrecreationNamespace -Identity $Identity -Fake $Fake
+  Confirm-FfhBaseline -Journal $j -Fake $Fake
+  if ((Get-FfhObservedDaemon -Fake $Fake) -cne $j.daemon) {
+    throw 'BLOCKED_DIAG_DAEMON_DRIFT'
+  }
+  $j.diagnosticStatus='NETWORK_CREATE_IN_FLIGHT'
+  $j.state='DIAG_MUTATION_IN_FLIGHT'
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  $networkName='supabase_network_'+$Identity.project
+  $args=@(
+    'network','create','--driver','bridge','--opt',
+    'com.docker.network.bridge.host_binding_ipv4=127.0.0.1',
+    '--label',('com.supabase.cli.project='+$Identity.project),
+    '--label',('com.docker.compose.project='+$Identity.project),
+    $networkName
+  )
+  Invoke-FfhExactDockerCommand -Arguments $args -Fake $Fake
+  $observed=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $Fake)
+  $net=@($observed | Where-Object {$_.kind -ceq 'networks'})
+  if ($net.Count -ne 1 -or $observed.Count -ne 1 -or
+      $net[0].name -cne $networkName) {
+    throw 'BLOCKED_DIAG_NETWORK_CREATION_IDENTITY_UNKNOWN'
+  }
+  [void](Assert-FfhDiagnosticLoopbackNetwork -Identity $Identity -NetworkId $net[0].id -Fake $Fake)
+  $peers=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$net[0].id,
+    '--format','{{json .Containers}}') -Fake $Fake)
+  if ($peers.Count -ne 1 -or $peers[0] -cnotin @('{}','null')) {
+    throw 'BLOCKED_DIAG_CREATED_NETWORK_NOT_EMPTY'
+  }
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.diagnosticStatus -cne 'NETWORK_CREATE_IN_FLIGHT') {
+    throw 'BLOCKED_DIAG_NETWORK_JOURNAL_DRIFT'
+  }
+  $j.resources=@([pscustomobject]@{kind='networks';id=$net[0].id;name=$net[0].name})
+  $j.diagnosticStatus='NETWORK_READY'
+  $j.state='DIAG_NETWORK_READY'
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
+  return $j
+}
+# For a migration-free db start, stage only marker/config/receipt first.
+# The 15 actual source migrations are copied AFTER db start, not executed.
+function Assert-FfhDiagnosticStagingRoot {
+  param($Identity,$Journal,[scriptblock]$FakeFilesystem)
+  if ($FakeFilesystem) {return (Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $Journal -FakeFilesystem $FakeFilesystem)}
+  [void](Get-FfhOwnedRootNative)
+  $full=Get-FfhRootPermitSpec -Identity $Identity -Journal $Journal
+  $reduced=@($full -split [char]10 | Where-Object {
+    $_ -notmatch '^F\|supabase\\migrations\\'
+  }) -join [char]10
+  $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $leaf='FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token
+  if ([FfhP01OwnedRoot]::Preflight($profileHome,$leaf,$Journal.rootOwnership.fileId,
+      (Get-FfhRootMarker -Identity $Identity),$reduced) -cne 'PREFLIGHT_OK') {
+    throw 'BLOCKED_DIAG_STAGING_TREE_NOT_PROVEN'
+  }
+}
 function Get-FfhDiagnosticLabelledNames {
   param($Identity,[ValidateSet('containers','volumes','networks')]$Kind,
     [ValidateSet('cli','compose')][string]$Label,[scriptblock]$Fake)
