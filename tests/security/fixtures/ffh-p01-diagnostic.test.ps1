@@ -11,6 +11,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../'))
 . (Join-Path $repo 'scripts/rls-local/automatic-cleanup.ps1')
 . (Join-Path $repo 'scripts/rls-local/cleanup-executor.ps1')
 . (Join-Path $repo 'scripts/rls-local/diagnostic-lifecycle.ps1')
+. (Join-Path $repo 'scripts/rls-local/diagnostic-network.ps1')
 # Bind exact production function bodies without executing the owner's
 # top-level operator entrypoint (which is intentionally mutating in Run).
 $entryPath=Join-Path $repo 'scripts/rls-local/owner-disposable-diagnostic.ps1'
