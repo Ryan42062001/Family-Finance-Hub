@@ -5,10 +5,10 @@
 # normal creating writer/admission helpers in this recovery path.
 function Assert-FfhRecoveryExistingDirectory {
   param($Identity)
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
-  $expected=Join-Path $home 'FFH-P01-RLS-Evidence'
+  $profileRoot=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $expected=Join-Path $profileRoot 'FFH-P01-RLS-Evidence'
   if ([IO.Path]::GetFullPath([string]$Identity.evidence) -cne $expected -or
-      $Identity.root -cne (Join-Path $home ('FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token)) -or
+      $Identity.root -cne (Join-Path $profileRoot ('FFH-P01-RLS-Fresh-'+$Identity.sha.Substring(0,12)+'-'+$Identity.token)) -or
       $Identity.root -match '(?i)FFH-RLS-Test') {
     throw 'BLOCKED_RECOVERY_EVIDENCE_SCOPE'
   }
