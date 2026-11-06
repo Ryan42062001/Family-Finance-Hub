@@ -12,6 +12,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../'))
 . (Join-Path $repo 'scripts/rls-local/cleanup-executor.ps1')
 . (Join-Path $repo 'scripts/rls-local/diagnostic-lifecycle.ps1')
 . (Join-Path $repo 'scripts/rls-local/diagnostic-network.ps1')
+. (Join-Path $repo 'scripts/rls-local/diagnostic-migration-stage.ps1')
 # Bind exact production function bodies without executing the owner's
 # top-level operator entrypoint (which is intentionally mutating in Run).
 $entryPath=Join-Path $repo 'scripts/rls-local/owner-disposable-diagnostic.ps1'
@@ -634,3 +635,70 @@ try {
   AssertIt ($j.state -ceq 'DIAG_MUTATION_IN_FLIGHT' -and $script:mock.n) 'IPV6_BRIDGE_DENIED'
   Receipt 29
 } finally {Stop-MockCase}
+
+
+function Prepare-SyntheticMigrationStage {
+  Prepare-DiagnosticMock
+  $root=Join-Path $script:base 'FFH-P01-RLS-Fresh-Synthetic-Only'
+  $migrations=Join-Path $root 'supabase\migrations'
+  [void](New-Item -ItemType Directory -Path $migrations -Force)
+  $sourceRoot=Join-Path $script:base 'source'
+  $sourceMigrations=Join-Path $sourceRoot 'supabase\migrations'
+  [void](New-Item -ItemType Directory -Path $sourceMigrations -Force)
+  $script:identity.root=$root
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.root=$root;$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $rows=@()
+  foreach($i in 1..15) {
+    $name=('20261106010000_synthetic_'+$i.ToString('00')+'.sql')
+    $path='supabase/migrations/'+$name
+    $text='-- SYNTHETIC_ONLY_'+$i
+    $sourceFile=Join-Path $sourceMigrations $name
+    [IO.File]::WriteAllText($sourceFile,$text,[Text.UTF8Encoding]::new($false))
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try {
+      $digest=[BitConverter]::ToString(
+        $sha.ComputeHash([Text.UTF8Encoding]::new($false).GetBytes($text))).Replace('-','').ToLowerInvariant()
+    } finally {$sha.Dispose()}
+    $rows+= [pscustomobject]@{path=$path;sha256=$digest}
+  }
+  return [pscustomobject]@{repo=$sourceRoot;migration_files=$rows}
+}
+try {
+  $synthetic=Prepare-SyntheticMigrationStage
+  Complete-FfhDiagnosticMigrationStaging -Identity $script:identity -Source $synthetic
+  $j=Read-FfhJournal -Identity $script:identity
+  $dest=Join-Path $script:identity.root 'supabase\migrations'
+  AssertIt ($j.postStartMigrationCopies -eq 15 -and
+    @((Get-ChildItem -LiteralPath $dest -File)).Count -eq 15 -and
+    $script:mutations.Count -eq 0 -and
+    $j.gateAResult -ceq 'NOT_STARTED' -and $j.sqlBoundary.status -ceq 'NOT_STARTED') 'LATE_COPY_ONLY'
+  Receipt 30
+} finally {Stop-MockCase}
+
+try {
+  $synthetic=Prepare-SyntheticMigrationStage
+  $foreign=Join-Path $script:identity.root 'supabase\migrations\foreign.txt'
+  [IO.File]::WriteAllText($foreign,'NOT OURS')
+  MustBlock {Complete-FfhDiagnosticMigrationStaging -Identity $script:identity -Source $synthetic}
+  $dest=Join-Path $script:identity.root 'supabase\migrations'
+  AssertIt ((Get-Content -LiteralPath $foreign -Raw) -eq 'NOT OURS' -and
+    @((Get-ChildItem -LiteralPath $dest -File)).Count -eq 1 -and
+    $script:mutations.Count -eq 0) 'FOREIGN_STAGING_PRESERVED'
+  Receipt 31
+} finally {Stop-MockCase}
+
+# Static AST guarantee: zero application migrations in root before db start.
+$treeFunction=@($entryAst.FindAll({
+  param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'New-FfhDiagnosticTree'
+},$false))
+if ($treeFunction.Count -ne 1 -or
+    $treeFunction[0].Extent.Text -match 'Copy-Item' -or
+    $treeFunction[0].Extent.Text -notmatch 'migrations_copied_before_start=0' -or
+    $entry -notmatch 'Complete-FfhDiagnosticMigrationStaging -Identity') {
+  throw 'MOCK_STAGING_MIGRATION_APPLICATION_RISK'
+}
+Receipt 32
