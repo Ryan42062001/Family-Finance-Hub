@@ -471,7 +471,7 @@ $entry=Get-Content -LiteralPath (Join-Path $repo 'scripts/rls-local/owner-dispos
 if ($entry -notmatch 'ONE-SHOT-DIAGNOSTIC-GO' -or
     $entry -notmatch 'Assert-FfhSourceCheckout -ExpectedHead \$ExpectedHead -AllowDetachedHeadForDiagnostic' -or
     $entry -match '(?i)\b(?:Invoke-FfhPinnedLocalSupabase|Set-FfhSqlBoundary|run-owner\.ps1\s+-|prepare-fresh-owner\.ps1\s+-)\b' -or
-    $entry -notmatch "Arguments='db start'") {throw 'MOCK_DIAG_SOURCE_SCOPE_INVALID'}
+    $entry -notmatch 'db start 1>NUL 2>NUL') {throw 'MOCK_DIAG_SOURCE_SCOPE_INVALID'}
 Receipt 20
 
 
