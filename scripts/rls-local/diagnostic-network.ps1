@@ -2,6 +2,17 @@
 # Dot-source only. This is NOT a formal Gate A/B SQL admission.
 Set-StrictMode -Version Latest
 
+# The released CLI also honors SUPABASE_NETWORK_ID / EXPERIMENTAL_STACK
+# and DB_PORT overrides. Any ambient override could redirect the project
+# away from our verified loopback bridge; never silently inherit it.
+function Assert-FfhDiagnosticNoSupabaseOverrides {
+  foreach($entry in @([Environment]::GetEnvironmentVariables('Process').Keys)) {
+    if ([string]$entry -match '^(?i:SUPABASE_)') {
+      throw 'BLOCKED_DIAG_UNTRUSTED_SUPABASE_ENV_OVERRIDE'
+    }
+  }
+}
+
 # Supabase CLI db start 2.122.0 omits HostIP in published DB port
 # bindings. Docker bridge defaults to all interfaces unless created with
 # a loopback default BEFORE startup.
