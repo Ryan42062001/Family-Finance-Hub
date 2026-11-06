@@ -274,6 +274,13 @@ public static class FfhP01OwnedRoot {
     @((Get-ChildItem -LiteralPath $evidence -File -Filter '*.json')).Count -eq 1 -and
     -not (Test-Path -LiteralPath $ledger)) 'ZERO_MUTATION_OR_ONE_SHOT_CONSUMPTION'
   Receipt 12
+} catch {
+  # Preserve the genuine source/fixture failure line; a later safe fixture
+  # cleanup must never mask the original integration exception.
+  [Console]::Error.WriteLine('INTEGRATION_FAIL_AT ' +
+    [string]$_.InvocationInfo.PositionMessage + ' STACK ' +
+    [string]$_.ScriptStackTrace + ' MESSAGE ' + [string]$_.Exception.Message)
+  throw
 } finally {
   [IO.Directory]::SetCurrentDirectory($originalLocation)
   Set-Location -LiteralPath $origin
