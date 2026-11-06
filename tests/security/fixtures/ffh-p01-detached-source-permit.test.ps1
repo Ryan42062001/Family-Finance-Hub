@@ -25,6 +25,7 @@ $evidence=Join-Path $fixture 'synthetic-private-evidence'
 $originalLocation=[IO.Directory]::GetCurrentDirectory()
 $script:dockerCreates=0;$script:sqlExecutes=0;$script:deleteCalls=0;$script:nativeCalls=0
 $script:planChecks=0
+$originalBlockedEnvironment=@{}
 try {
   [void](New-Item -ItemType Directory -Path $fixture -ErrorAction Stop)
   # Copy Git objects from the CI runner ONLY. No network, no hosted Supabase.
@@ -107,6 +108,18 @@ try {
   function Invoke-FfhNativeJobChild {param($StartInfo);$script:sqlExecutes++;throw 'INTEGRATION_FORBIDDEN_PROCESS_START'}
   function Set-FfhSqlBoundary {$script:sqlExecutes++;throw 'INTEGRATION_FORBIDDEN_SQL'}
   function Invoke-FfhOwnedRootRetirement {$script:deleteCalls++;throw 'INTEGRATION_FORBIDDEN_ROOT_RETIRE'}
+
+  # CI runners legitimately inject PGUSER or other DB/SDK selectors.
+  # For the synthetic Plan-only fixture, save and clear those values ONLY in
+  # this isolated WinPS test child; restore them in finally. Production
+  # Assert-FfhNoRemoteConfiguration remains real and fail-closed.
+  foreach($name in @([Environment]::GetEnvironmentVariables('Process').Keys)) {
+    $key=[string]$name
+    if ($key -match '^(?i:SUPABASE_|DOCKER_|PGHOST$|PGSERVICE$|PGPORT$|PGDATABASE$|PGUSER$|PGPASSWORD$|DATABASE_URL$)') {
+      $originalBlockedEnvironment[$key]=[Environment]::GetEnvironmentVariable($key,'Process')
+      [Environment]::SetEnvironmentVariable($key,$null,'Process')
+    }
+  }
 
   # Capture index bytes AND precise mtime. On this real detached clone, Plan
   # uses git --no-optional-locks and must not create index.lock or a journal.
@@ -289,6 +302,10 @@ public static class FfhP01OwnedRoot {
     [string]$_.ScriptStackTrace + ' MESSAGE ' + [string]$_.Exception.Message)
   throw
 } finally {
+  foreach($key in @($originalBlockedEnvironment.Keys)) {
+    [Environment]::SetEnvironmentVariable([string]$key,
+      [string]$originalBlockedEnvironment[$key],'Process')
+  }
   [IO.Directory]::SetCurrentDirectory($originalLocation)
   Set-Location -LiteralPath $origin
   $safe=[IO.Path]::GetFullPath($fixture)
