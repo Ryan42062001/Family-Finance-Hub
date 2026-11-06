@@ -91,8 +91,7 @@ function Invoke-FfhConsumedRecoveryPlan {
 }
 function Get-FfhRecoveryFailureCategory {
   param([string]$ErrorText)
-  if ($ErrorText -cmatch '^(BLOCKED_RECOVERY_[A-Z0-9_]{1,38})
-) {
+  if ($ErrorText -cmatch '^(BLOCKED_RECOVERY_[A-Z0-9_]{1,38})$') {
     $value=[string]$Matches[1]
     if ($value.Length -le 55) {return $value}
   }
