@@ -19,6 +19,7 @@ test("RLS-AC-06: all 28 WinPS lifecycle fake-Docker adversarial scenarios execut
   const receipts=result.stdout.split(/\r?\n/).map(x=>x.trim()).filter(x=>/^AC-\d\d PASS$/.test(x));
   assert.deepEqual(receipts,expected.map(x=>x+" PASS"),
     "Every case requires a distinct executable PASS receipt");
+  for(const receipt of receipts) console.log(receipt);
   assert.doesNotMatch(result.stdout,/password|private key|service.role|connection string/i);
 });
 test("RLS-AC-06: owner entrypoints reference Gate B independent finalizer and no root path delete",()=>{
