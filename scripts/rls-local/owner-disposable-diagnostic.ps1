@@ -16,6 +16,7 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot/cleanup-executor.ps1"
 . "$PSScriptRoot/diagnostic-lifecycle.ps1"
 . "$PSScriptRoot/diagnostic-network.ps1"
+. "$PSScriptRoot/diagnostic-migration-stage.ps1"
 # Never trust an opaque Job Object runner compiled in a prior interactive
 # shell. This entrypoint must execute in a fresh WinPS5.1 owner process.
 if ($null -ne ('FfhRlsJobRunner' -as [type])) {
@@ -101,11 +102,16 @@ function New-FfhDiagnosticTree {
   $m=Join-Path $s 'migrations'
   [void](New-Item -ItemType Directory -Path $s -ErrorAction Stop)
   [void](New-Item -ItemType Directory -Path $m -ErrorAction Stop)
-  # DO NOT copy application migrations before supabase db start: released
-  # CLI 2.122.0 automatically applies migrations found in this folder.
-  # They are copied byte-for-byte only AFTER the one-shot startup has finished.
-  if (@(Get-ChildItem -LiteralPath $m -Force).Count -ne 0) {
-    throw 'BLOCKED_DIAG_MIGRATION_STAGING_NOT_EMPTY'
+  foreach($file in @($Source.migration_files)) {
+    $src=Join-Path $Source.repo $file.path
+    $dest=Join-Path $root ($file.path -replace '/','\')
+    Copy-Item -LiteralPath $src -Destination $dest -ErrorAction Stop
+    if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) {
+      throw 'BLOCKED_DIAG_COPIED_MIGRATION_DRIFT'
+    }
+  }
+  if (@(Get-ChildItem -LiteralPath $m -File -Filter '*.sql').Count -ne 15) {
+    throw 'BLOCKED_DIAG_NOT_EXACTLY_15_MIGRATIONS'
   }
   $config=(Get-FfhFreshConfig -ExpectedHead $Identity.sha -RunToken $Identity.token -DbPort ([int]$Ports[0]) -ShadowPort ([int]$Ports[1]))
   [IO.File]::WriteAllText((Join-Path $s 'config.toml'),$config,[Text.UTF8Encoding]::new($false))
@@ -114,7 +120,7 @@ function New-FfhDiagnosticTree {
     source_sha=$Identity.sha;run_token=$Identity.token
     project_id=$Identity.project;cli_version='2.122.0'
     cli_sha256=$Cli.Sha256;db_port=[int]$Ports[0];shadow_port=[int]$Ports[1]
-    migrations_copied_before_start=0;application_migrations='NOT_EXECUTED';gateA='NOT_EXECUTED';gateB='NOT_EXECUTED'
+    migrations_copied=15;gateA='NOT_EXECUTED';gateB='NOT_EXECUTED'
     sql_migration_reset='NEVER_INVOKED'
   }
   $receiptJson=($receipt | ConvertTo-Json -Depth 6)
@@ -126,336 +132,6 @@ function New-FfhDiagnosticTree {
 
 # Assert all test observations BEFORE claiming diagnostic PASS; result and
 # cleanup receipts stay distinct, and no formal SQL COMPLETE is ever written.
-function Complete-FfhDiagnosticMigrationStaging {
-  param($Identity,$Source)
-  $j=Read-FfhJournal -Identity $Identity
-  if ($j.runKind -cne 'ONE_SHOT_DIAGNOSTIC' -or
-      $j.diagnosticStatus -cne 'START_IN_FLIGHT' -or
-      $j.sqlBoundary.status -cne 'NOT_STARTED' -or
-      @($Source.migration_files).Count -ne 15) {
-    throw 'BLOCKED_DIAG_AFTER_START_MIGRATION_STAGING_INVALID'
-  }
-  $m=Join-Path $Identity.root 'supabase/migrations'
-  Assert-FfhNoReparsePath -Path $m
-  if (@(Get-ChildItem -LiteralPath $m -Force).Count -ne 0) {
-    throw 'BLOCKED_DIAG_MIGRATIONS_NOT_EMPTY_AFTER_START'
-  }
-  foreach($file in @($Source.migration_files | Sort-Object path)) {
-    if ($file.path -cnotmatch '^supabase/migrations/(0001|[0-9]{14})_[a-z0-9_]+\.sql
-  param($Identity,$Source,[scriptblock]$FakeDocker,[scriptblock]$FakeFilesystem)
-  $j=Read-FfhJournal -Identity $Identity
-  if ($j.diagnosticStatus -cne 'START_IN_FLIGHT' -or
-      $j.testResult -cne 'RUNNING') {throw 'BLOCKED_DIAG_START_STATE_CHANGED'}
-  $dual=@(Assert-FfhDiagnosticLabelBijection -Identity $Identity -Fake $FakeDocker)
-  $observed=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $FakeDocker)
-  if ($observed.Count -ne $dual.Count -or $observed.Count -lt 1 -or
-      @($observed | Where-Object kind -eq containers).Count -ne 1 -or
-      @($observed | Where-Object kind -eq networks).Count -gt 1 -or
-      @($observed | Where-Object kind -eq volumes).Count -gt 3) {
-    throw 'BLOCKED_DIAG_UNRECOGNIZED_RESOURCE_SHAPE'
-  }
-  foreach($entry in $observed) {
-    if (@($dual | Where-Object { $_.kind -ceq $entry.kind -and $_.id -ceq $entry.id }).Count -ne 1) {
-      throw 'BLOCKED_DIAG_LABEL_OR_KIND_MISMATCH'
-    }
-  }
-  if ((Get-FfhObservedDaemon -Fake $FakeDocker) -cne $j.daemon) {
-    throw 'BLOCKED_DIAG_DAEMON_DRIFT'
-  }
-  Confirm-FfhBaseline -Journal $j -Fake $FakeDocker
-  $prior=@($j.resources)
-  if ($prior.Count -ne 1 -or $prior[0].kind -cne 'networks' -or
-      @($observed | Where-Object { $_.kind -ceq 'networks' -and
-        $_.id -ceq $prior[0].id -and $_.name -ceq $prior[0].name }).Count -ne 1) {
-    throw 'BLOCKED_DIAG_PRECREATED_LOOPBACK_NETWORK_DRIFT'
-  }
-  if ($null -eq $Source -or @($Source.migration_files).Count -ne 15 -or
-      $j.postStartMigrationCopies -ne 15) {
-    throw 'BLOCKED_DIAG_POST_START_SOURCE_PROVENANCE_NOT_PROVEN'
-  }
-  $j.resources=@($observed | ForEach-Object {
-    [pscustomobject]@{kind=$_.kind;id=$_.id;name=$_.name}
-  })
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  $j=Set-FfhDiagnosticJournal -Identity $Identity -Status START_VERIFIED
-  [void](Assert-FfhDiagnosticDatabase -Identity $Identity -Journal $j -Fake $FakeDocker)
-  [void](Get-FfhDiagnosticSqlIdle -Identity $Identity -Journal $j -Fake $FakeDocker)
-  # Any unexpected CLI-generated .temp/file, config/migration drift, foreign
-  # ACL, junction or stale marker blocks BEFORE Docker cleanup or file removal.
-  Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
-  $j.testResult='PASS'
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  [void](Write-FfhDiagnosticReceipt -Identity $Identity -Journal $j -Stage TEST -Category NONE)
-  $j=Read-FfhJournal -Identity $Identity
-  $j.evidenceSaved=$true
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  return $j
-}
-
-function Invoke-FfhOwnerDisposableDiagnostic {
-  param([string]$Mode,[string]$ExpectedHead,[string]$CliExecutable,
-    [string]$CliSha256,[string]$ExplicitAuthorization)
-  if ($Mode -ceq 'Run' -and $CliSha256 -cnotmatch '^[a-f0-9]{64}$') {
-    throw 'BLOCKED_DIAG_RUN_REQUIRES_PLAN_PINNED_CLI_SHA256'
-  }
-  if ($Mode -ceq 'Run' -and $ExplicitAuthorization -cne 'FFH-P01-ONE-SHOT-DIAGNOSTIC-GO') {
-    throw 'BLOCKED_DIAG_EXPLICIT_ONE_SHOT_GO_REQUIRED'
-  }
-  Assert-FfhNoRemoteConfiguration
-  Assert-FfhDockerEnvironment
-  [void](Assert-FfhLocalDockerDesktop)
-  $source=Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead -AllowDetachedHeadForDiagnostic
-  Assert-FfhDiagnosticApprovedCheckout -Source $source
-  $cli=Resolve-FfhDiagnosticCachedCli -CliExecutable $CliExecutable -CliSha256 $CliSha256
-  $identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
-  $ports=@(Select-FfhRunPorts -Identity $identity)
-  # PLAN and RUN independently verify no namespace collision; plan reserves
-  # neither its displayed random token nor ports.
-  Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
-  $daemon=Get-FfhObservedDaemon
-  $legacy=@(Get-FfhProtectedInventory)
-  if ((Get-FfhObservedDaemon) -cne $daemon) {throw 'BLOCKED_DIAG_DAEMON_DRIFT'}
-  Write-Output ('DIAG_PREFLIGHT=PASS MODE='+$Mode+' SOURCE_SHA='+$ExpectedHead+
-    ' CLI_VERSION=2.122.0 CLI_SHA256='+$cli.Sha256+
-    ' PROTECTED_ENTRY_COUNT='+$legacy.Count+' DB_HOST_IP=127.0.0.1')
-  if ($Mode -ceq 'Plan') {
-    Write-Output ('PLAN_ONLY=NO_MUTATION PLANNED_PROJECT='+$identity.project+
-      ' PLANNED_RUN_TOKEN='+$identity.token+
-      ' PLANNED_ROOT='+$identity.root+
-      ' TENTATIVE_DB_PORT='+$ports[0]+' TENTATIVE_SHADOW_PORT='+$ports[1]+
-      ' PLANNED_COMMAND=db_start PLANNED_CLEANUP=EXACT_OWNED_ONLY')
-    return
-  }
-  $lock=$null;$journalCreated=$false;$statusPersisted=$true
-  try {
-    $lock=Enter-FfhLifecycleLock -Identity $identity
-    # Reattest under the exclusive lifecycle lock.
-    Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
-    $j=New-FfhPrecreationJournal -Identity $identity -Ports $ports
-    $journalCreated=$true
-    if ($j.daemon -cne $daemon -or
-        (@($j.protected) -join '|') -cne ($legacy -join '|')) {
-      throw 'BLOCKED_DIAG_PREFLIGHT_STATE_CHANGED'
-    }
-    $j | Add-Member -MemberType NoteProperty -Name 'runKind' -Value 'ONE_SHOT_DIAGNOSTIC' -Force
-    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticStatus' -Value 'PRECREATION_COMMITTED' -Force
-    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticCliSha256' -Value $cli.Sha256 -Force
-    $j.sequence=[int]$j.sequence+1
-    Write-FfhJournal -Identity $identity -Journal $j
-    New-FfhDiagnosticOneShotLedger -Identity $identity -Cli $cli
-    [void](New-FfhDiagnosticTree -Identity $identity -Source $source -Ports $ports -Cli $cli)
-    $j=Set-FfhDiagnosticJournal -Identity $identity -Status ROOT_CREATED
-    # Before any Docker action, verify the marker/config/receipt staging
-    # tree; the 15 canonical SQL migrations are intentionally NOT present yet.
-    Assert-FfhDiagnosticStagingRoot -Identity $identity -Journal $j
-    $j=New-FfhDiagnosticOwnedLoopbackNetwork -Identity $identity
-    $j=Set-FfhDiagnosticJournal -Identity $identity -Status START_IN_FLIGHT -TestResult RUNNING
-    Start-FfhDiagnosticPinnedDb -Identity $identity -Cli $cli
-    # CLI db start automatically applies any migrations present before launch.
-    # Add immutable canonical copies only AFTER the CLI process is fully done.
-    Complete-FfhDiagnosticMigrationStaging -Identity $identity -Source $source
-    $j=Confirm-FfhDiagnosticStarted -Identity $identity -Source $source
-    $result=Invoke-FfhDiagnosticCleanup -Identity $identity
-    if ($result -cne 'CLEANUP_VERIFIED') {throw 'BLOCKED_DIAG_CLEANUP_UNVERIFIED'}
-    $j=Read-FfhJournal -Identity $identity
-    [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category NONE)
-    Write-Output ('DIAG_RESULT=PASS TEST_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED '+
-      'RUN_TOKEN='+$identity.token+' GATE_A=NOT_STARTED GATE_B=NOT_STARTED')
-  } catch {
-    # Fail closed; no retry and no opportunistic Docker/SQL/FS mutation.
-    $reportedTest='NOT_STARTED'
-    if ($journalCreated) {
-      try {
-        $j=Read-FfhJournal -Identity $identity
-        $j.state='MANUAL_REVIEW'
-        $j.diagnosticStatus='MANUAL_REVIEW'
-        if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
-        $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
-        $j.sequence=[int]$j.sequence+1
-        Write-FfhJournal -Identity $identity -Journal $j
-        $reportedTest=$j.testResult
-        if (-not (Test-Path -LiteralPath (Join-Path $identity.evidence ($identity.token+'.DIAG_FINAL.json')))) {
-          [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category FAIL_CLOSED)
-        }
-      } catch {$statusPersisted=$false}
-    }
-    $cleanup=if($journalCreated){'CLEANUP_BLOCKED_MANUAL_REVIEW'}else{'NOT_ATTEMPTED'}
-    if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED';$reportedTest='UNKNOWN'}
-    Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT='+$reportedTest+' CLEANUP_RESULT='+$cleanup+
-      ' RUN_TOKEN='+$identity.token+' MANUAL_REVIEW_REQUIRED=YES')
-    throw 'BLOCKED_DIAG_NO_RETRY_INSPECT_PRIVATE_JOURNAL'
-  } finally {
-    if ($null -ne $lock) {$lock.Dispose()}
-  }
-}
-Invoke-FfhOwnerDisposableDiagnostic -Mode $Mode -ExpectedHead $ExpectedHead -CliExecutable $CliExecutable -CliSha256 $CliSha256 -ExplicitAuthorization $ExplicitAuthorization
- -or
-        $file.sha256 -cnotmatch '^[a-f0-9]{64}
-  param($Identity,$Source,[scriptblock]$FakeDocker,[scriptblock]$FakeFilesystem)
-  $j=Read-FfhJournal -Identity $Identity
-  if ($j.diagnosticStatus -cne 'START_IN_FLIGHT' -or
-      $j.testResult -cne 'RUNNING') {throw 'BLOCKED_DIAG_START_STATE_CHANGED'}
-  $dual=@(Assert-FfhDiagnosticLabelBijection -Identity $Identity -Fake $FakeDocker)
-  $observed=@(Get-FfhResourceSnapshot -Identity $Identity -Fake $FakeDocker)
-  if ($observed.Count -ne $dual.Count -or $observed.Count -lt 1 -or
-      @($observed | Where-Object kind -eq containers).Count -ne 1 -or
-      @($observed | Where-Object kind -eq networks).Count -gt 1 -or
-      @($observed | Where-Object kind -eq volumes).Count -gt 3) {
-    throw 'BLOCKED_DIAG_UNRECOGNIZED_RESOURCE_SHAPE'
-  }
-  foreach($entry in $observed) {
-    if (@($dual | Where-Object { $_.kind -ceq $entry.kind -and $_.id -ceq $entry.id }).Count -ne 1) {
-      throw 'BLOCKED_DIAG_LABEL_OR_KIND_MISMATCH'
-    }
-  }
-  if ((Get-FfhObservedDaemon -Fake $FakeDocker) -cne $j.daemon) {
-    throw 'BLOCKED_DIAG_DAEMON_DRIFT'
-  }
-  Confirm-FfhBaseline -Journal $j -Fake $FakeDocker
-  $j.resources=@($observed | ForEach-Object {
-    [pscustomobject]@{kind=$_.kind;id=$_.id;name=$_.name}
-  })
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  $j=Set-FfhDiagnosticJournal -Identity $Identity -Status START_VERIFIED
-  [void](Assert-FfhDiagnosticDatabase -Identity $Identity -Journal $j -Fake $FakeDocker)
-  [void](Get-FfhDiagnosticSqlIdle -Identity $Identity -Journal $j -Fake $FakeDocker)
-  # Any unexpected CLI-generated .temp/file, config/migration drift, foreign
-  # ACL, junction or stale marker blocks BEFORE Docker cleanup or file removal.
-  Assert-FfhOwnedRootPreflight -Identity $Identity -Journal $j -FakeFilesystem $FakeFilesystem
-  $j.testResult='PASS'
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  [void](Write-FfhDiagnosticReceipt -Identity $Identity -Journal $j -Stage TEST -Category NONE)
-  $j=Read-FfhJournal -Identity $Identity
-  $j.evidenceSaved=$true
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-  return $j
-}
-
-function Invoke-FfhOwnerDisposableDiagnostic {
-  param([string]$Mode,[string]$ExpectedHead,[string]$CliExecutable,
-    [string]$CliSha256,[string]$ExplicitAuthorization)
-  if ($Mode -ceq 'Run' -and $CliSha256 -cnotmatch '^[a-f0-9]{64}$') {
-    throw 'BLOCKED_DIAG_RUN_REQUIRES_PLAN_PINNED_CLI_SHA256'
-  }
-  if ($Mode -ceq 'Run' -and $ExplicitAuthorization -cne 'FFH-P01-ONE-SHOT-DIAGNOSTIC-GO') {
-    throw 'BLOCKED_DIAG_EXPLICIT_ONE_SHOT_GO_REQUIRED'
-  }
-  Assert-FfhNoRemoteConfiguration
-  Assert-FfhDockerEnvironment
-  [void](Assert-FfhLocalDockerDesktop)
-  $source=Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead -AllowDetachedHeadForDiagnostic
-  Assert-FfhDiagnosticApprovedCheckout -Source $source
-  $cli=Resolve-FfhDiagnosticCachedCli -CliExecutable $CliExecutable -CliSha256 $CliSha256
-  $identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
-  $ports=@(Select-FfhRunPorts -Identity $identity)
-  # PLAN and RUN independently verify no namespace collision; plan reserves
-  # neither its displayed random token nor ports.
-  Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
-  $daemon=Get-FfhObservedDaemon
-  $legacy=@(Get-FfhProtectedInventory)
-  if ((Get-FfhObservedDaemon) -cne $daemon) {throw 'BLOCKED_DIAG_DAEMON_DRIFT'}
-  Write-Output ('DIAG_PREFLIGHT=PASS MODE='+$Mode+' SOURCE_SHA='+$ExpectedHead+
-    ' CLI_VERSION=2.122.0 CLI_SHA256='+$cli.Sha256+
-    ' PROTECTED_ENTRY_COUNT='+$legacy.Count+' DB_HOST_IP=127.0.0.1')
-  if ($Mode -ceq 'Plan') {
-    Write-Output ('PLAN_ONLY=NO_MUTATION PLANNED_PROJECT='+$identity.project+
-      ' PLANNED_RUN_TOKEN='+$identity.token+
-      ' PLANNED_ROOT='+$identity.root+
-      ' TENTATIVE_DB_PORT='+$ports[0]+' TENTATIVE_SHADOW_PORT='+$ports[1]+
-      ' PLANNED_COMMAND=db_start PLANNED_CLEANUP=EXACT_OWNED_ONLY')
-    return
-  }
-  $lock=$null;$journalCreated=$false;$statusPersisted=$true
-  try {
-    $lock=Enter-FfhLifecycleLock -Identity $identity
-    # Reattest under the exclusive lifecycle lock.
-    Assert-FfhDiagnosticNoPriorAttempt -Identity $identity
-    $j=New-FfhPrecreationJournal -Identity $identity -Ports $ports
-    $journalCreated=$true
-    if ($j.daemon -cne $daemon -or
-        (@($j.protected) -join '|') -cne ($legacy -join '|')) {
-      throw 'BLOCKED_DIAG_PREFLIGHT_STATE_CHANGED'
-    }
-    $j | Add-Member -MemberType NoteProperty -Name 'runKind' -Value 'ONE_SHOT_DIAGNOSTIC' -Force
-    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticStatus' -Value 'PRECREATION_COMMITTED' -Force
-    $j | Add-Member -MemberType NoteProperty -Name 'diagnosticCliSha256' -Value $cli.Sha256 -Force
-    $j.sequence=[int]$j.sequence+1
-    Write-FfhJournal -Identity $identity -Journal $j
-    New-FfhDiagnosticOneShotLedger -Identity $identity -Cli $cli
-    [void](New-FfhDiagnosticTree -Identity $identity -Source $source -Ports $ports -Cli $cli)
-    $j=Set-FfhDiagnosticJournal -Identity $identity -Status ROOT_CREATED
-    # Verify copied exact permit tree before the first CLI/Docker mutation.
-    Assert-FfhOwnedRootPreflight -Identity $identity -Journal $j
-    $j=Set-FfhDiagnosticJournal -Identity $identity -Status START_IN_FLIGHT -TestResult RUNNING
-    Start-FfhDiagnosticPinnedDb -Identity $identity -Cli $cli
-    $j=Confirm-FfhDiagnosticStarted -Identity $identity -Source $source
-    $result=Invoke-FfhDiagnosticCleanup -Identity $identity
-    if ($result -cne 'CLEANUP_VERIFIED') {throw 'BLOCKED_DIAG_CLEANUP_UNVERIFIED'}
-    $j=Read-FfhJournal -Identity $identity
-    [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category NONE)
-    Write-Output ('DIAG_RESULT=PASS TEST_RESULT=PASS CLEANUP_RESULT=CLEANUP_VERIFIED '+
-      'RUN_TOKEN='+$identity.token+' GATE_A=NOT_STARTED GATE_B=NOT_STARTED')
-  } catch {
-    # Fail closed; no retry and no opportunistic Docker/SQL/FS mutation.
-    $reportedTest='NOT_STARTED'
-    if ($journalCreated) {
-      try {
-        $j=Read-FfhJournal -Identity $identity
-        $j.state='MANUAL_REVIEW'
-        $j.diagnosticStatus='MANUAL_REVIEW'
-        if ($j.testResult -ceq 'RUNNING') {$j.testResult='UNKNOWN'}
-        $j.cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW'
-        $j.sequence=[int]$j.sequence+1
-        Write-FfhJournal -Identity $identity -Journal $j
-        $reportedTest=$j.testResult
-        if (-not (Test-Path -LiteralPath (Join-Path $identity.evidence ($identity.token+'.DIAG_FINAL.json')))) {
-          [void](Write-FfhDiagnosticReceipt -Identity $identity -Journal $j -Stage FINAL -Category FAIL_CLOSED)
-        }
-      } catch {$statusPersisted=$false}
-    }
-    $cleanup=if($journalCreated){'CLEANUP_BLOCKED_MANUAL_REVIEW'}else{'NOT_ATTEMPTED'}
-    if (-not $statusPersisted) {$cleanup='UNKNOWN_JOURNAL_UNVERIFIED';$reportedTest='UNKNOWN'}
-    Write-Output ('DIAG_RESULT=BLOCKED TEST_RESULT='+$reportedTest+' CLEANUP_RESULT='+$cleanup+
-      ' RUN_TOKEN='+$identity.token+' MANUAL_REVIEW_REQUIRED=YES')
-    throw 'BLOCKED_DIAG_NO_RETRY_INSPECT_PRIVATE_JOURNAL'
-  } finally {
-    if ($null -ne $lock) {$lock.Dispose()}
-  }
-}
-Invoke-FfhOwnerDisposableDiagnostic -Mode $Mode -ExpectedHead $ExpectedHead -CliExecutable $CliExecutable -CliSha256 $CliSha256 -ExplicitAuthorization $ExplicitAuthorization
-) {
-      throw 'BLOCKED_DIAG_SOURCE_MIGRATION_NOT_CANONICAL'
-    }
-    $src=Join-Path $Source.repo $file.path
-    Assert-FfhNoReparsePath -Path $src
-    $data=[IO.File]::ReadAllBytes($src)
-    $sha=[Security.Cryptography.SHA256]::Create()
-    try {$digest=[BitConverter]::ToString($sha.ComputeHash($data)).Replace('-','').ToLowerInvariant()}
-    finally {$sha.Dispose()}
-    if ($digest -cne $file.sha256) {throw 'BLOCKED_DIAG_SOURCE_MIGRATION_CHANGED'}
-    $dest=Join-Path $Identity.root ($file.path -replace '/','\')
-    $fs=[IO.FileStream]::new($dest,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-    try {$fs.Write($data,0,$data.Length);$fs.Flush($true)}
-    finally {$fs.Dispose()}
-    if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) {
-      throw 'BLOCKED_DIAG_CREATED_MIGRATION_HASH_DRIFT'
-    }
-  }
-  if (@(Get-ChildItem -LiteralPath $m -Force).Count -ne 15) {
-    throw 'BLOCKED_DIAG_SOURCE_MIGRATION_SET_INCOMPLETE'
-  }
-  # No db reset, no CLI migration command, no Gate A SQL preflight.
-  $j=Read-FfhJournal -Identity $Identity
-  $j | Add-Member -MemberType NoteProperty -Name 'postStartMigrationCopies' -Value 15 -Force
-  $j.sequence=[int]$j.sequence+1
-  Write-FfhJournal -Identity $Identity -Journal $j
-}
 function Confirm-FfhDiagnosticStarted {
   param($Identity,$Source,[scriptblock]$FakeDocker,[scriptblock]$FakeFilesystem)
   $j=Read-FfhJournal -Identity $Identity
