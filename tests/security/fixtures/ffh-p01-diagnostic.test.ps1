@@ -121,6 +121,13 @@ $script:fakeDocker={
     }
   }
   if ($verb -ceq 'network') {
+    if ($argv[1] -ceq 'create') {
+      [void]$script:actionArgs.Add(($argv -join ' '))
+      [void]$script:mutations.Add('network create')
+      if ($script:mock.n -or $script:mock.failNetworkCreate) {return 'BLOCKED'}
+      $script:mock.n=$true
+      return 'EXIT_ZERO'
+    }
     if ($argv[1] -ceq 'ls') {
       if(-not $script:mock.n) {return}
       if($joined.Contains('{{.ID}} {{.Name}}')) {return ($script:nid+' '+$script:mock.nname)}
@@ -132,6 +139,10 @@ $script:fakeDocker={
       if ($fmt -ceq '{{.Id}}') {return $script:nid}
       if ($fmt -ceq '{{json .Labels}}') {return (Get-MockLabels)}
       if ($fmt -ceq '{{.Driver}}') {return 'bridge'}
+      if ($fmt -ceq '{{json .Options}}') {
+        if ($script:mock.unsafeBridge) {return '{"com.docker.network.bridge.host_binding_ipv4":"0.0.0.0"}'}
+        return '{"com.docker.network.bridge.host_binding_ipv4":"127.0.0.1"}'
+      }
       if ($fmt -ceq '{{json .Containers}}') {
         $c=@{}
         if($script:mock.c) {$c[$script:cid]=@{Name=$script:identity.container}}
@@ -217,8 +228,8 @@ function Start-MockCase {
   $script:mock=[pscustomobject]@{
     daemon='mock-docker-engine-1234'; c=$false;v=$false;n=$false;running=$false
     legacy=$true;foreignVolume=$false;foreignNetwork=$false;foreignMount=$false
-    badCompose=$false;failStop=$false;failRm=$false;sqlActive=$false;sqlTimeout=$false
-    root='OWNED';wrongPort=$false;nonLocalPort=$false;composeOnly=$false;vname=('supabase_db_'+$script:identity.project+'_data')
+    badCompose=$false;failStop=$false;failRm=$false;failNetworkCreate=$false;sqlActive=$false;sqlTimeout=$false
+    root='OWNED';wrongPort=$false;nonLocalPort=$false;composeOnly=$false;unsafeBridge=$false;vname=('supabase_db_'+$script:identity.project+'_data')
     nname=('supabase_network_'+$script:identity.project)
   }
   $script:mutations.Clear()
@@ -481,7 +492,13 @@ try {
   Prepare-DiagnosticMock
   $script:mock.c=$true;$script:mock.v=$true;$script:mock.n=$true
   $script:mock.running=$true
-  $j=Confirm-FfhDiagnosticStarted -Identity $script:identity -Source $null -FakeDocker $script:fakeDocker -FakeFilesystem $script:fakeFs
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.resources=@([pscustomobject]@{kind='networks';id=$script:nid;name=$script:mock.nname})
+  $j | Add-Member -MemberType NoteProperty -Name postStartMigrationCopies -Value 15 -Force
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $syntheticSource=[pscustomobject]@{migration_files=@(1..15)}
+  $j=Confirm-FfhDiagnosticStarted -Identity $script:identity -Source $syntheticSource -FakeDocker $script:fakeDocker -FakeFilesystem $script:fakeFs
   AssertIt ($j.diagnosticStatus -ceq 'START_VERIFIED' -and
     $j.testResult -ceq 'PASS' -and $j.evidenceSaved -and
     $j.sqlBoundary.status -ceq 'NOT_STARTED' -and
@@ -550,3 +567,51 @@ Receipt 24
 MustBlock {Invoke-FfhOwnerDisposableDiagnostic -Mode Run -ExpectedHead ('a'*40) -ExplicitAuthorization 'FFH-P01-ONE-SHOT-DIAGNOSTIC-GO'}
 MustBlock {Invoke-FfhOwnerDisposableDiagnostic -Mode Run -ExpectedHead ('a'*40) -CliSha256 ('a'*64)}
 Receipt 25
+
+
+# DG-26: a loopback-only owned bridge is constructed with exactly one command
+# and journaled before CLI startup, with immutable dual labels and options.
+try {
+  Prepare-DiagnosticMock
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.diagnosticStatus='ROOT_CREATED';$j.state='DIAG_ROOT_CREATED';$j.testResult='NOT_STARTED'
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $created=New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs
+  AssertIt ($created.diagnosticStatus -ceq 'NETWORK_READY' -and
+    @($created.resources).Count -eq 1 -and
+    $created.resources[0].id -ceq $script:nid -and
+    $script:mock.n -and $script:mutations.Count -eq 1) 'JOURNALED_LOOPBACK_NET'
+  $cmd=[string]$script:actionArgs[0]
+  AssertIt ($cmd -match 'com.docker.network.bridge.host_binding_ipv4=127.0.0.1' -and
+    $cmd -match [regex]::Escape('com.supabase.cli.project='+$script:identity.project) -and
+    $cmd -match [regex]::Escape('com.docker.compose.project='+$script:identity.project) -and
+    $cmd.EndsWith($script:mock.nname)) 'LOOPBACK_NETWORK_VECTOR'
+  Receipt 26
+} finally {Stop-MockCase}
+
+# DG-27: a Docker daemon that does NOT retain the loopback network option
+# never grants permission to start a database.
+try {
+  Prepare-DiagnosticMock
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.diagnosticStatus='ROOT_CREATED';$j.state='DIAG_ROOT_CREATED';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $script:mock.unsafeBridge=$true
+  MustBlock {New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  $j=Read-FfhJournal -Identity $script:identity
+  AssertIt ($j.state -ceq 'DIAG_MUTATION_IN_FLIGHT' -and $script:mock.n) 'IN_FLIGHT_UNSAFE_NETWORK'
+  Receipt 27
+} finally {Stop-MockCase}
+
+# DG-28: an already present foreign project network is never adopted.
+try {
+  Prepare-DiagnosticMock
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.diagnosticStatus='ROOT_CREATED';$j.state='DIAG_ROOT_CREATED';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $script:mock.n=$true
+  MustBlock {New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  AssertIt ($script:mutations.Count -eq 0) 'NO_NETWORK_ADOPTION'
+  Receipt 28
+} finally {Stop-MockCase}
