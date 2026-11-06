@@ -129,7 +129,7 @@ try {
     diagnosticStatus='MANUAL_REVIEW';testResult='UNKNOWN'
     cleanupResult='CLEANUP_BLOCKED_MANUAL_REVIEW';gateAResult='NOT_STARTED'
     gateBResult='NOT_STARTED';sqlBoundary=[pscustomobject]@{phase='NONE';status='NOT_STARTED'}
-    postStartMigrationCopies=15
+    ports=@(26000,26001);postStartMigrationCopies=15
     rootOwnership=[pscustomobject]@{fileId='12345678:abcdef0123456789';markerVersion=1}
     rootRetirement=[pscustomobject]@{status='NOT_STARTED'}
     resources=@(
@@ -162,6 +162,22 @@ try {
   [IO.File]::WriteAllText($finalPath,($final|ConvertTo-Json -Depth 10))
   MustBlock 'BLOCKED_RECOVERY_FINAL_RECEIPT_DRIFT' {Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash}
   Receipt 15
+  $entryPath=Join-Path $repo 'scripts/rls-local/owner-disposable-recovery-plan.ps1'
+  $et=$null;$ee=$null
+  $ea=[Management.Automation.Language.Parser]::ParseFile($entryPath,[ref]$et,[ref]$ee)
+  if (@($ee).Count -ne 0) {throw 'SYNTH_RECOVERY_ENTRY_PARSE_INVALID'}
+  $f=@($ea.FindAll({param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'Get-FfhRecoveryFailureCategory'
+  },$false))
+  if ($f.Count -ne 1) {throw 'SYNTH_RECOVERY_ERROR_CATEGORY_FUNCTION_MISSING'}
+  Invoke-Expression $f[0].Extent.Text
+  if ((Get-FfhRecoveryFailureCategory -ErrorText 'BLOCKED_RECOVERY_CACHE_HASH_DRIFT') -cne
+      'BLOCKED_RECOVERY_CACHE_HASH_DRIFT') {throw 'SYNTH_RECOVERY_CATEGORY_NOT_PRESERVED'}
+  Receipt 16
+  if ((Get-FfhRecoveryFailureCategory -ErrorText 'secret=NEVER_PRINT_ME') -cne
+      'UNEXPECTED_VERIFICATION_FAILURE') {throw 'SYNTH_RECOVERY_CATEGORY_NOT_SANITIZED'}
+  Receipt 17
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)

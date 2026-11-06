@@ -29,7 +29,14 @@ function Invoke-FfhConsumedRecoveryPlan {
   Assert-FfhDiagnosticNoSupabaseOverrides
   Assert-FfhDockerEnvironment
   [void](Assert-FfhLocalDockerDesktop)
-  $source=Assert-FfhSourceCheckout -ExpectedHead $ExpectedAuditedHead -AllowDetachedHeadForDiagnostic
+  # Bind source verification to THIS audited script's own checkout,
+  # never the caller's arbitrary working directory or original Audit tree.
+  $sourceRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+  $initialLocation=Get-Location
+  try {
+    Set-Location -LiteralPath $sourceRoot
+    $source=Assert-FfhSourceCheckout -ExpectedHead $ExpectedAuditedHead -AllowDetachedHeadForDiagnostic
+  } finally {Set-Location -LiteralPath $initialLocation.Path}
   $profile=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $approved=Join-Path $profile 'Family-Finance-Hub-P01-Recovery'
   if (-not ([IO.Path]::GetFullPath($source.repo)).Equals(
@@ -43,6 +50,7 @@ function Invoke-FfhConsumedRecoveryPlan {
       -not (Test-Path -LiteralPath $identity.root -PathType Container)) {
     throw 'BLOCKED_RECOVERY_EXISTING_EVIDENCE_OR_ROOT_MISSING'
   }
+  Assert-FfhNoReparsePath -Path $identity.root
   $j=Read-FfhJournal -Identity $identity
   [void](Assert-FfhConsumedRecoveryJournal -Identity $identity -Journal $j -ConsumedHead $ConsumedHead -CliSha256 $CliSha256)
   $cache=Get-FfhRecoveryCacheEvidence -Root $identity.root -ExpectedSha256 $ExpectedCacheSha256
@@ -81,4 +89,21 @@ function Invoke-FfhConsumedRecoveryPlan {
     ' FIRST_FAILURE=UNKNOWN SQL_IDLE=NOT_AUTHORIZED'+
     ' DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO')
 }
-Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $ExpectedAuditedHead -ConsumedHead $ConsumedHead -RunToken $RunToken -CliSha256 $CliSha256 -ExpectedCacheSha256 $ExpectedCacheSha256
+function Get-FfhRecoveryFailureCategory {
+  param([string]$ErrorText)
+  if ($ErrorText -cmatch '^(BLOCKED_RECOVERY_[A-Z0-9_]{1,38})
+) {
+    $value=[string]$Matches[1]
+    if ($value.Length -le 55) {return $value}
+  }
+  return 'UNEXPECTED_VERIFICATION_FAILURE'
+}
+try {
+  Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $ExpectedAuditedHead -ConsumedHead $ConsumedHead -RunToken $RunToken -CliSha256 $CliSha256 -ExpectedCacheSha256 $ExpectedCacheSha256
+} catch {
+  # Never echo raw Docker/native/PowerShell exception strings or paths.
+  $category=Get-FfhRecoveryFailureCategory -ErrorText ([string]$_.Exception.Message)
+  Write-Output ('RECOVERY_PLAN=BLOCKED CATEGORY='+$category+
+    ' SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES')
+  throw 'BLOCKED_RECOVERY_READ_ONLY_VERIFICATION_FAILED'
+}
