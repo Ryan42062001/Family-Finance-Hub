@@ -139,6 +139,10 @@ $script:fakeDocker={
       if ($fmt -ceq '{{.Id}}') {return $script:nid}
       if ($fmt -ceq '{{json .Labels}}') {return (Get-MockLabels)}
       if ($fmt -ceq '{{.Driver}}') {return 'bridge'}
+      if ($fmt -ceq '{{.EnableIPv6}}') {
+        if ($script:mock.ipv6Bridge) {return 'true'}
+        return 'false'
+      }
       if ($fmt -ceq '{{json .Options}}') {
         if ($script:mock.unsafeBridge) {return '{"com.docker.network.bridge.host_binding_ipv4":"0.0.0.0"}'}
         return '{"com.docker.network.bridge.host_binding_ipv4":"127.0.0.1"}'
@@ -229,7 +233,7 @@ function Start-MockCase {
     daemon='mock-docker-engine-1234'; c=$false;v=$false;n=$false;running=$false
     legacy=$true;foreignVolume=$false;foreignNetwork=$false;foreignMount=$false
     badCompose=$false;failStop=$false;failRm=$false;failNetworkCreate=$false;sqlActive=$false;sqlTimeout=$false
-    root='OWNED';wrongPort=$false;nonLocalPort=$false;composeOnly=$false;unsafeBridge=$false;vname=('supabase_db_'+$script:identity.project+'_data')
+    root='OWNED';wrongPort=$false;nonLocalPort=$false;composeOnly=$false;unsafeBridge=$false;ipv6Bridge=$false;vname=('supabase_db_'+$script:identity.project+'_data')
     nname=('supabase_network_'+$script:identity.project)
   }
   $script:mutations.Clear()
@@ -614,4 +618,18 @@ try {
   MustBlock {New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
   AssertIt ($script:mutations.Count -eq 0) 'NO_NETWORK_ADOPTION'
   Receipt 28
+} finally {Stop-MockCase}
+
+
+# DG-29: even correct IPv4 loopback option must reject enabled IPv6 bridge.
+try {
+  Prepare-DiagnosticMock
+  $j=Read-FfhJournal -Identity $script:identity
+  $j.diagnosticStatus='ROOT_CREATED';$j.state='DIAG_ROOT_CREATED';$j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $script:identity -Journal $j
+  $script:mock.ipv6Bridge=$true
+  MustBlock {New-FfhDiagnosticOwnedLoopbackNetwork -Identity $script:identity -Fake $script:fakeDocker -FakeFilesystem $script:fakeFs}
+  $j=Read-FfhJournal -Identity $script:identity
+  AssertIt ($j.state -ceq 'DIAG_MUTATION_IN_FLIGHT' -and $script:mock.n) 'IPV6_BRIDGE_DENIED'
+  Receipt 29
 } finally {Stop-MockCase}
