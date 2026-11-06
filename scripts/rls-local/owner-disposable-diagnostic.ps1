@@ -102,16 +102,10 @@ function New-FfhDiagnosticTree {
   $m=Join-Path $s 'migrations'
   [void](New-Item -ItemType Directory -Path $s -ErrorAction Stop)
   [void](New-Item -ItemType Directory -Path $m -ErrorAction Stop)
-  foreach($file in @($Source.migration_files)) {
-    $src=Join-Path $Source.repo $file.path
-    $dest=Join-Path $root ($file.path -replace '/','\')
-    Copy-Item -LiteralPath $src -Destination $dest -ErrorAction Stop
-    if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) {
-      throw 'BLOCKED_DIAG_COPIED_MIGRATION_DRIFT'
-    }
-  }
-  if (@(Get-ChildItem -LiteralPath $m -File -Filter '*.sql').Count -ne 15) {
-    throw 'BLOCKED_DIAG_NOT_EXACTLY_15_MIGRATIONS'
+  # Keep app migrations ABSENT while CLI db start runs: pinned Supabase
+  # v2.122.0 implicitly applies all migrations found at startup.
+  if (@(Get-ChildItem -LiteralPath $m -Force).Count -ne 0) {
+    throw 'BLOCKED_DIAG_MIGRATION_STAGING_NOT_EMPTY'
   }
   $config=(Get-FfhFreshConfig -ExpectedHead $Identity.sha -RunToken $Identity.token -DbPort ([int]$Ports[0]) -ShadowPort ([int]$Ports[1]))
   [IO.File]::WriteAllText((Join-Path $s 'config.toml'),$config,[Text.UTF8Encoding]::new($false))
@@ -120,7 +114,7 @@ function New-FfhDiagnosticTree {
     source_sha=$Identity.sha;run_token=$Identity.token
     project_id=$Identity.project;cli_version='2.122.0'
     cli_sha256=$Cli.Sha256;db_port=[int]$Ports[0];shadow_port=[int]$Ports[1]
-    migrations_copied=15;gateA='NOT_EXECUTED';gateB='NOT_EXECUTED'
+    migrations_copied_before_start=0;application_migrations='NOT_EXECUTED';gateA='NOT_EXECUTED';gateB='NOT_EXECUTED'
     sql_migration_reset='NEVER_INVOKED'
   }
   $receiptJson=($receipt | ConvertTo-Json -Depth 6)
