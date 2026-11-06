@@ -1,6 +1,8 @@
 # FFH-P01 #83: disposable local run lifecycle (Windows PowerShell 5.1).
 # No operation is invoked merely by dot-sourcing this file.
 Set-StrictMode -Version Latest
+$script:FfhRootNativeHash=''
+$script:FfhRootNativeType=$null
 $script:FfhLabelCli = 'com.supabase.cli.project'
 $script:FfhLabelCompose = 'com.docker.compose.project'
 $script:FfhPipe = 'npipe:////./pipe/dockerDesktopLinuxEngine'
@@ -290,21 +292,102 @@ function Set-FfhSqlBoundary {
 
 # Loaded only on demand after the immutable source and exclusive lifecycle
 # locks are established; loading alone never touches the filesystem.
+# Reject unverified preloaded .NET types. A trusted type must originate from
+# this same dot-source instance and immutable HEAD's exact C# Git blob.
 function Get-FfhOwnedRootNative {
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'BLOCKED_ROOT_WINDOWS_REQUIRED'
   }
-  $type='FfhP01OwnedRoot' -as [type]
-  if ($null -eq $type) {
-    $file=Join-Path $PSScriptRoot 'ffh-owned-root-retire.cs'
-    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
-      throw 'BLOCKED_ROOT_NATIVE_SOURCE_MISSING'
-    }
-    Add-Type -Path $file -ErrorAction Stop
-    $type='FfhP01OwnedRoot' -as [type]
+  $file=Join-Path $PSScriptRoot 'ffh-owned-root-retire.cs'
+  if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+    throw 'BLOCKED_ROOT_NATIVE_SOURCE_MISSING'
   }
+  $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+  $expected=@(& git -C $repo rev-parse --verify 'HEAD:scripts/rls-local/ffh-owned-root-retire.cs')
+  $actual=@(& git -C $repo hash-object -- $file)
+  if ($expected.Count -ne 1 -or $actual.Count -ne 1 -or
+      $expected[0] -cne $actual[0] -or $LASTEXITCODE -ne 0) {
+    throw 'BLOCKED_ROOT_NATIVE_GIT_PROVENANCE'
+  }
+  $hash=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+  $type='FfhP01OwnedRoot' -as [type]
+  if ($null -ne $type) {
+    if ($script:FfhRootNativeHash -cne $hash -or
+        $null -eq $script:FfhRootNativeType -or
+        $script:FfhRootNativeType -ne $type) {
+      throw 'BLOCKED_ROOT_NATIVE_PRELOADED_OR_STALE'
+    }
+    return $type
+  }
+  if ($script:FfhRootNativeHash -or $null -ne $script:FfhRootNativeType) {
+    throw 'BLOCKED_ROOT_NATIVE_CACHED_IDENTITY_DRIFT'
+  }
+  Add-Type -Path $file -ErrorAction Stop
+  $type='FfhP01OwnedRoot' -as [type]
   if ($null -eq $type) {throw 'BLOCKED_ROOT_NATIVE_TYPE_MISSING'}
+  $script:FfhRootNativeHash=$hash
+  $script:FfhRootNativeType=$type
   return $type
+}
+# Exact immutable-source permit set. CLI .temp may exist only if EMPTY.
+# Unknown CLI-generated children are never silently adopted.
+function Get-FfhRootPermitSpec {
+  param($Identity,$Journal)
+  if ($Journal.version -ne 2 -or $Journal.sha -cne $Identity.sha -or
+      $Journal.token -cne $Identity.token -or $Journal.root -cne $Identity.root -or
+      $Journal.project -cne $Identity.project -or
+      $Journal.rootReceiptSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+      $Journal.rootReceiptCheckSha256 -cnotmatch '^(|[a-f0-9]{64})$' -or
+      @($Journal.ports).Count -ne 2) {
+    throw 'BLOCKED_ROOT_PERMIT_JOURNAL_INCOMPLETE'
+  }
+  $src=Assert-FfhSourceCheckout -ExpectedHead $Identity.sha
+  if (@($src.migration_files).Count -ne 15) {throw 'BLOCKED_ROOT_PERMIT_MIGRATIONS_INCOMPLETE'}
+  $encoder=[Text.UTF8Encoding]::new($false)
+  $hasher=[Security.Cryptography.SHA256]::Create()
+  try {
+    $markerHash=[BitConverter]::ToString($hasher.ComputeHash(
+      $encoder.GetBytes((Get-FfhRootMarker -Identity $Identity)))).Replace('-','').ToLowerInvariant()
+    $config=(Get-FfhFreshConfig -ExpectedHead $Identity.sha -RunToken $Identity.token -DbPort ([int]$Journal.ports[0]) -ShadowPort ([int]$Journal.ports[1]))
+    $configHash=[BitConverter]::ToString($hasher.ComputeHash(
+      $encoder.GetBytes($config))).Replace('-','').ToLowerInvariant()
+  } finally {$hasher.Dispose()}
+  $rows=@(
+    ('F|.ffh-p01-owned-root|'+$markerHash)
+    'D|supabase|-'
+    'D|supabase\migrations|-'
+    'O|supabase\.temp|-'
+    ('F|supabase\config.toml|'+$configHash)
+    ('F|ffh-p01-local-provenance.json|'+$Journal.rootReceiptSha256)
+  )
+  foreach ($file in @($src.migration_files | Sort-Object path)) {
+    if ($file.path -cnotmatch '^supabase/migrations/(0001|[0-9]{14})_[a-z0-9_]+\.sql$' -or
+        $file.sha256 -cnotmatch '^[a-f0-9]{64}$') {
+      throw 'BLOCKED_ROOT_PERMIT_MIGRATION_IDENTITY'
+    }
+    $rows+=('F|'+($file.path -replace '/','\')+'|'+$file.sha256)
+  }
+  if ($Journal.rootReceiptCheckSha256) {
+    $rows+=('F|ffh-p01-local-provenance.sha256|'+$Journal.rootReceiptCheckSha256)
+  }
+  return ($rows -join [char]10)
+}
+function Set-FfhRootReceiptPermit {
+  param($Identity,[ValidateSet('Receipt','Checksum')][string]$Kind,[string]$Content)
+  $j=Read-FfhJournal -Identity $Identity
+  if ($j.rootOwnership.markerVersion -ne 1 -or
+      $j.root -cne $Identity.root -or
+      $j.state -cnotin @('PRECREATION_COMMITTED','GATE_A_RUNNING')) {
+    throw 'BLOCKED_ROOT_PERMIT_WRONG_CREATION_PHASE'
+  }
+  $bytes=[Text.UTF8Encoding]::new($false).GetBytes($Content)
+  $sha=[Security.Cryptography.SHA256]::Create()
+  try {$digest=[BitConverter]::ToString($sha.ComputeHash($bytes)).Replace('-','').ToLowerInvariant()}
+  finally {$sha.Dispose()}
+  if ($Kind -ceq 'Receipt') {$j.rootReceiptSha256=$digest}
+  else {$j.rootReceiptCheckSha256=$digest}
+  $j.sequence=[int]$j.sequence+1
+  Write-FfhJournal -Identity $Identity -Journal $j
 }
 function Get-FfhRootMarker {
   param($Identity)
@@ -428,7 +511,8 @@ function New-FfhPrecreationJournal {
     sqlBoundary=[pscustomobject]@{phase='NONE';mode='NONE';status='NOT_STARTED';
       sha=$Identity.sha;token=$Identity.token;containerId='';daemon=$daemon}
     resources=@(); gates=@(); evidenceSaved=$false
-    rootOwnership=$null;rootRetirement=[pscustomobject]@{status='NOT_STARTED';fileId='';atUtc=''}
+    rootOwnership=$null;rootReceiptSha256='';rootReceiptCheckSha256=''
+    rootRetirement=[pscustomobject]@{status='NOT_STARTED';fileId='';atUtc=''}
   }
   Write-FfhJournal -Identity $Identity -Journal $j
   return $j
