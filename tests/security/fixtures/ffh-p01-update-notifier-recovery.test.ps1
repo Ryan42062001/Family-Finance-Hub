@@ -291,6 +291,16 @@ try {
     throw 'SYNTH_READ_ONLY_MUTATED_EVIDENCE'
   }
   Receipt 29
+
+  # REC-AUD-04 source-frozen approval: operator cannot self-certify a digest
+  # just by passing the hash observed in the same fixture.
+  $approved=Assert-FfhRecoveryAuditedCacheApproval -ExpectedSha256 ''
+  if (-not $approved) {throw 'SYNTH_UNPINNED_READ_ONLY_REFUSED'}
+  Receipt 30
+  MustBlock 'BLOCKED_RECOVERY_CACHE_PIN_NOT_PREAPPROVED' {
+    Assert-FfhRecoveryAuditedCacheApproval -ExpectedSha256 $observed.sha256
+  }
+  Receipt 31
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)

@@ -55,6 +55,7 @@ function Invoke-FfhConsumedRecoveryPlan {
   # transitive call to the normal creating Read-FfhJournal.
   $j=Read-FfhRecoveryJournal -Identity $identity
   [void](Assert-FfhConsumedRecoveryJournal -Identity $identity -Journal $j -ConsumedHead $ConsumedHead -CliSha256 $CliSha256)
+  [void](Assert-FfhRecoveryAuditedCacheApproval -ExpectedSha256 $PreapprovedCacheSha256)
   $cache=Get-FfhRecoveryCacheEvidence -Root $identity.root -ExpectedSha256 $PreapprovedCacheSha256
   # Re-attest the exact Linux named pipe and full journalled resource set.
   $resource=@(Assert-FfhDiagnosticInventory -Identity $identity -Journal $j)

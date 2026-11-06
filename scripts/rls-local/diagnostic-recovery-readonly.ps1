@@ -199,6 +199,24 @@ function Assert-FfhConsumedRecoveryJournal {
   }
   return $true
 }
+# REC-AUD-04: the Manager has NOT independently approved the Owner cache
+# digest. An operator-supplied value can never certify its own provenance.
+# Only a separately authorized, immutable, exact-SHA-audited source change
+# may set this literal to a Manager-approved 64-hex cache digest.
+# Empty = fail closed for ANY purported pinned-cache approval.
+function Assert-FfhRecoveryAuditedCacheApproval {
+  param([string]$ExpectedSha256)
+  $approvedInAuditedSource=''
+  if ($ExpectedSha256) {
+    if ($ExpectedSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        $approvedInAuditedSource -cnotmatch '^[a-f0-9]{64}$' -or
+        $ExpectedSha256 -cne $approvedInAuditedSource) {
+      throw 'BLOCKED_RECOVERY_CACHE_PIN_NOT_PREAPPROVED'
+    }
+  }
+  return $true
+}
+
 function Get-FfhRecoveryCacheEvidence {
   param([string]$Root,[string]$ExpectedSha256)
   if ($ExpectedSha256 -and $ExpectedSha256 -cnotmatch '^[a-f0-9]{64}$') {
