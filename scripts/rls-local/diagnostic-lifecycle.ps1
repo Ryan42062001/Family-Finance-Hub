@@ -363,8 +363,10 @@ function Invoke-FfhDiagnosticCleanup {
   $networkName='supabase_network_'+$Identity.project
   $row=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{.Name}}') -Fake $Fake)
   $option=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{json .Options}}') -Fake $Fake)
+  $ipv6=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{.EnableIPv6}}') -Fake $Fake)
   $peers=@(Invoke-FfhDockerRead -Arguments @('network','inspect',$NetworkId,'--format','{{json .Containers}}') -Fake $Fake)
   if ($row.Count -ne 1 -or $row[0] -cne $networkName -or
+      $ipv6.Count -ne 1 -or $ipv6[0] -cne 'false' -or
       $option.Count -ne 1 -or $peers.Count -ne 1) {
     throw 'BLOCKED_DIAG_NETWORK_READBACK_INCOMPLETE'
   }
@@ -372,7 +374,11 @@ function Invoke-FfhDiagnosticCleanup {
     $options=([string]$option[0] | ConvertFrom-Json)
     $peerObject=([string]$peers[0] | ConvertFrom-Json)
   } catch {throw 'BLOCKED_DIAG_NETWORK_OPTIONS_MALFORMED'}
-  if ($options.'com.docker.network.bridge.host_binding_ipv4' -cne '127.0.0.1') {
+  if ($options.'com.docker.network.bridge.host_binding_ipv4' -cne '127.0.0.1' -or
+      ($options.'com.docker.network.bridge.gateway_mode_ipv4' -and
+       $options.'com.docker.network.bridge.gateway_mode_ipv4' -cne 'nat') -or
+      ($options.'com.docker.network.bridge.gateway_mode_ipv6' -and
+       $options.'com.docker.network.bridge.gateway_mode_ipv6' -cne 'nat')) {
     throw 'BLOCKED_DIAG_NETWORK_NOT_LOOPBACK_ONLY'
   }
   # Peer checks for the active run happen in Assert-FfhExactInventory.
