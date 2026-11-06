@@ -40,7 +40,11 @@ function Manifest($id) {
   ) -join [char]10)
 }
 function FailureCategory([scriptblock]$action) {
-  try {[void](& $action)} catch {return [string]$_.Exception.Message}
+  try {[void](& $action)} catch {
+    $err=$_.Exception
+    while ($null -ne $err.InnerException) {$err=$err.InnerException}
+    return [string]$err.Message
+  }
   return 'SYNTH_NO_BLOCK'
 }
 function ExpectCategory([scriptblock]$action,[string]$category) {
