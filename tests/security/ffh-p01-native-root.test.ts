@@ -10,5 +10,15 @@ test("FFH-P01 native Windows root identity/reparse/ACL/absence tests",()=>{
   assert.ifError(r.error);
   assert.equal(r.status,0,r.stdout+"\n"+r.stderr);
   const lines=r.stdout.split(/\r?\n/).filter(x=>/^FS-\d\d PASS$/.test(x.trim())).map(x=>x.trim());
-  assert.deepEqual(lines,Array.from({length:7},(_,i)=>"FS-"+String(i+1).padStart(2,"0")+" PASS"));
+  assert.deepEqual(lines,Array.from({length:18},(_,i)=>"FS-"+String(i+1).padStart(2,"0")+" PASS"));
+});
+
+test("FFH-RR-04 rejects an already-loaded stale FfhP01OwnedRoot class before native disposal",()=>{
+  const interpreter=process.platform==="win32"?"powershell.exe":"pwsh";
+  const r=spawnSync(interpreter,["-NoLogo","-NoProfile","-NonInteractive","-File",
+    "tests/security/fixtures/ffh-p01-native-preloaded-type.ps1"],
+    {encoding:"utf8",windowsHide:true,timeout:30_000});
+  assert.ifError(r.error);
+  assert.equal(r.status,0,r.stdout+"\n"+r.stderr);
+  assert.match(r.stdout,/^FS-19 PASS$/m);
 });
