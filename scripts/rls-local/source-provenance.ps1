@@ -46,7 +46,14 @@ function Assert-FfhSourceCheckout {
   # Entire checkout, not just two SQL files. Includes tracked modifications,
   # staged modifications and untracked/non-ignored files. Ignored files are
   # separately gated below for a linked project/config.
-  $status = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+  # DG-AUD-02: diagnostic Plan must not refresh/rewrite Git's index.
+  # Scope --no-optional-locks ONLY to the diagnostic source validation;
+  # formal Gate A/B retain their unchanged source-checking path.
+  if ($AllowDetachedHeadForDiagnostic) {
+    $status = @(& git --no-optional-locks -C $root status --porcelain=v1 --untracked-files=all)
+  } else {
+    $status = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+  }
   if ($LASTEXITCODE -ne 0 -or $status.Count -ne 0) {
     throw 'BLOCKED: full source checkout is not clean'
   }
