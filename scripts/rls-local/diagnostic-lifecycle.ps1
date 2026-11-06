@@ -8,7 +8,7 @@ function Resolve-FfhDiagnosticCachedCli {
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'BLOCKED_DIAG_WINDOWS_ONLY'
   }
-  $home=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $profileHome=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
   $local=[IO.Path]::GetFullPath([Environment]::GetFolderPath('LocalApplicationData')).TrimEnd('\')
   $cache=[IO.Path]::GetFullPath((Join-Path $local 'npm-cache\_npx')).TrimEnd('\')
   if (-not $CliExecutable) {
@@ -57,7 +57,7 @@ function Resolve-FfhDiagnosticCachedCli {
   } else {
     $p=[Diagnostics.ProcessStartInfo]::new()
     $p.FileName=$exe;$p.Arguments='--version'
-    $p.WorkingDirectory=$home;$p.UseShellExecute=$false;$p.CreateNoWindow=$true
+    $p.WorkingDirectory=$profileHome;$p.UseShellExecute=$false;$p.CreateNoWindow=$true
     foreach ($key in @($p.EnvironmentVariables.Keys)) {
       if ([string]$key -match '^(?i:DOCKER_)') {$p.EnvironmentVariables.Remove($key)}
     }
