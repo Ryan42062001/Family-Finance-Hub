@@ -16,13 +16,49 @@ function New-NativeRoot {
   $marker=Join-Path $id.root '.ffh-p01-owned-root'
   [IO.File]::WriteAllText($marker,(Get-FfhRootMarker -Identity $id),[Text.UTF8Encoding]::new($false))
   Initialize-FfhPrivateEvidenceAcl -Path $marker -NewlyCreated
+  [void](New-Item -ItemType Directory -Path (Join-Path $id.root 'supabase'))
+  [void](New-Item -ItemType Directory -Path (Join-Path $id.root 'supabase/migrations'))
+  [IO.File]::WriteAllText((Join-Path $id.root 'supabase/config.toml'),'synthetic',[Text.UTF8Encoding]::new($false))
   return $id
 }
 function FileId($id) {
   return [FfhP01OwnedRoot]::Inspect($profileHome,(Split-Path $id.root -Leaf),(Get-FfhRootMarker -Identity $id))
 }
+function ShaText([string]$text) {
+  $h=[Security.Cryptography.SHA256]::Create()
+  try {
+    return [BitConverter]::ToString($h.ComputeHash([Text.UTF8Encoding]::new($false).GetBytes($text))).Replace('-','').ToLowerInvariant()
+  } finally {$h.Dispose()}
+}
+function Manifest($id) {
+  return (@(
+    ('F|.ffh-p01-owned-root|'+(ShaText (Get-FfhRootMarker -Identity $id)))
+    'D|supabase|-'
+    'D|supabase\migrations|-'
+    'O|supabase\.temp|-'
+    ('F|supabase\config.toml|'+(ShaText 'synthetic'))
+  ) -join [char]10)
+}
+function FailureCategory([scriptblock]$action) {
+  try {[void](& $action)} catch {return [string]$_.Exception.Message}
+  return 'SYNTH_NO_BLOCK'
+}
+function ExpectCategory([scriptblock]$action,[string]$category) {
+  $observed=FailureCategory $action
+  if ($observed -notmatch ('^BLOCKED_ROOT_'+[regex]::Escape($category)+'(?:$|_)')) {
+    throw ('SYNTH_CATEGORY_MISMATCH expected='+$category+' observed='+$observed)
+  }
+  if ([FfhP01OwnedRoot]::DispositionAttempts -ne 0) {
+    throw 'SYNTH_PREMATURE_NATIVE_DISPOSITION'
+  }
+}
+function MarkerExists($id) {
+  if (-not (Test-Path -LiteralPath (Join-Path $id.root '.ffh-p01-owned-root') -PathType Leaf)) {
+    throw 'SYNTH_OWNERSHIP_MARKER_REMOVED_ON_PREFLIGHT_FAILURE'
+  }
+}
 function NativeRetire($id,[string]$fileId) {
-  return [FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$fileId,(Get-FfhRootMarker -Identity $id))
+  return [FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),$fileId,(Get-FfhRootMarker -Identity $id),(Manifest $id))
 }
 function MustBlock([scriptblock]$action) {
   $did=$false
@@ -52,8 +88,6 @@ try {
   # FS-01: Native load, exact owned marker, ACL, two ordinary child levels.
   $id=New-NativeRoot
   $dir=Join-Path $id.root 'supabase'
-  [void](New-Item -ItemType Directory -Path $dir)
-  [IO.File]::WriteAllText((Join-Path $dir 'config.toml'),'synthetic')
   $recorded=FileId $id
   if ($recorded -cnotmatch '^[a-f0-9]{8}:[a-f0-9]{16}$') {throw 'SYNTH_NO_FILESYSTEM_ID'}
   if ((NativeRetire $id $recorded) -cne 'RETIRED') {throw 'SYNTH_RETIRE_FAILED'}
@@ -87,7 +121,7 @@ try {
   [void](New-Item -ItemType Directory -Path $foreign)
   $proof=Join-Path $foreign 'never-delete.txt'
   [IO.File]::WriteAllText($proof,'preserved')
-  $junction=Join-Path $id.root 'aa-junction'
+  $junction=Join-Path $id.root 'supabase/.temp'
   $linkCmd=Start-Process -FilePath (Join-Path $env:WINDIR 'System32/cmd.exe') -ArgumentList ('/d /c mklink /J "'+$junction+'" "'+$foreign+'"') -WindowStyle Hidden -PassThru -Wait
   if ($linkCmd.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $junction)) {
     throw 'SYNTH_JUNCTION_CREATION_FAILED'
