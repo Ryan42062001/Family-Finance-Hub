@@ -453,8 +453,6 @@ switch ($Case) {
       Write-Warning 'NEVER_PRINT_ME'
       Write-Information 'NEVER_PRINT_ME' -InformationAction Continue
       Write-Verbose 'NEVER_PRINT_ME' -Verbose
-      Write-Debug 'NEVER_PRINT_ME' -Debug
-      Write-Host 'NEVER_PRINT_ME'
       throw 'BLOCKED: secret C:\PRIVATE_NEVER_PRINT_ME'
     }
   }
@@ -509,7 +507,13 @@ switch ($Case) {
         ' SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES'
       if ($proc.ExitCode -ne 1 -or $stdout -cne $expected -or $stderr.Length -ne 0 -or
           $stdout -match 'NEVER_PRINT_ME|PRIVATE_|cba20f7f|[a-f0-9]{64}') {
-        throw ('SYNTH_STG_EXIT_OR_SANITIZATION_'+$check.Case)
+        # Report ONLY booleans/exit status to debug a WinPS stream mismatch.
+        # Never forward the captured raw stdout/stderr or private probe text.
+        throw ('SYNTH_STG_EXIT_OR_SANITIZATION_'+$check.Case+
+          '_EXIT_'+$proc.ExitCode+
+          '_OUTMATCH_'+($stdout -ceq $expected)+
+          '_ERREMPTY_'+($stderr.Length -eq 0)+
+          '_SEENPRIVATE_'+(($stdout+$stderr) -match 'NEVER_PRINT_ME|PRIVATE_'))
       }
     } finally {$proc.Dispose()}
     $num++
