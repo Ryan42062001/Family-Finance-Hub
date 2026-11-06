@@ -55,6 +55,7 @@ function New-FfhDiagnosticOneShotLedger {
 
 function Start-FfhDiagnosticPinnedDb {
   param($Identity,$Cli,[scriptblock]$FakeStart)
+  Assert-FfhDiagnosticNoSupabaseOverrides
   Assert-FfhNoRemoteConfiguration
   Assert-FfhDockerEnvironment
   $docker=Assert-FfhLocalDockerDesktop
@@ -82,7 +83,9 @@ function Start-FfhDiagnosticPinnedDb {
   $info.UseShellExecute=$false
   $info.CreateNoWindow=$true
   foreach($key in @($info.EnvironmentVariables.Keys)) {
-    if ([string]$key -match '^(?i:DOCKER_)') {$info.EnvironmentVariables.Remove($key)}
+    if ([string]$key -match '^(?i:DOCKER_|SUPABASE_)') {
+      $info.EnvironmentVariables.Remove($key)
+    }
   }
   $info.EnvironmentVariables['DOCKER_HOST']=$docker.Endpoint
   $info.EnvironmentVariables['DO_NOT_TRACK']='1'
@@ -183,6 +186,7 @@ function Confirm-FfhDiagnosticStarted {
 function Invoke-FfhOwnerDisposableDiagnostic {
   param([string]$Mode,[string]$ExpectedHead,[string]$CliExecutable,
     [string]$CliSha256,[string]$ExplicitAuthorization)
+  Assert-FfhDiagnosticNoSupabaseOverrides
   if ($Mode -ceq 'Run' -and $CliSha256 -cnotmatch '^[a-f0-9]{64}$') {
     throw 'BLOCKED_DIAG_RUN_REQUIRES_PLAN_PINNED_CLI_SHA256'
   }
