@@ -233,10 +233,15 @@ function Invoke-FfhOwnerDisposableDiagnostic {
     New-FfhDiagnosticOneShotLedger -Identity $identity -Cli $cli
     [void](New-FfhDiagnosticTree -Identity $identity -Source $source -Ports $ports -Cli $cli)
     $j=Set-FfhDiagnosticJournal -Identity $identity -Status ROOT_CREATED
-    # Verify copied exact permit tree before the first CLI/Docker mutation.
-    Assert-FfhOwnedRootPreflight -Identity $identity -Journal $j
+    # Verify marker/config/receipt in a migration-free staging tree.
+    Assert-FfhDiagnosticStagingRoot -Identity $identity -Journal $j
+    # Exact-owned bridge option is verified before any published DB port.
+    $j=New-FfhDiagnosticOwnedLoopbackNetwork -Identity $identity
     $j=Set-FfhDiagnosticJournal -Identity $identity -Status START_IN_FLIGHT -TestResult RUNNING
     Start-FfhDiagnosticPinnedDb -Identity $identity -Cli $cli
+    # db start implicitly applies migrations. Copy all 15 immutable SQL
+    # files ONLY after the CLI job has completely exited.
+    Complete-FfhDiagnosticMigrationStaging -Identity $identity -Source $source
     $j=Confirm-FfhDiagnosticStarted -Identity $identity -Source $source
     $result=Invoke-FfhDiagnosticCleanup -Identity $identity
     if ($result -cne 'CLEANUP_VERIFIED') {throw 'BLOCKED_DIAG_CLEANUP_UNVERIFIED'}
