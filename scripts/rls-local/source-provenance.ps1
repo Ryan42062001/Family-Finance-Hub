@@ -16,7 +16,8 @@ function Assert-FfhNoRemoteConfiguration {
 }
 
 function Assert-FfhSourceCheckout {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,
+    [switch]$AllowDetachedHeadForDiagnostic)
   if ($ExpectedHead -cnotmatch '^[0-9a-f]{40}$') { throw 'BLOCKED: full immutable SHA required' }
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'BLOCKED: Git unavailable' }
   $root = (& git rev-parse --show-toplevel 2>$null)
@@ -25,7 +26,8 @@ function Assert-FfhSourceCheckout {
   $head = (& git -C $root rev-parse HEAD).Trim()
   $branch = (& git -C $root branch --show-current).Trim()
   if ($LASTEXITCODE -ne 0 -or $head -cne $ExpectedHead -or
-      $branch -cnotin @('phase/ffh-p01-release-readiness','feature/ffh-p01-automatic-test-cleanup')) {
+      ($branch -cnotin @('phase/ffh-p01-release-readiness','feature/ffh-p01-automatic-test-cleanup') -and
+       -not ($AllowDetachedHeadForDiagnostic -and $branch -ceq ''))) {
     throw 'BLOCKED: source HEAD or original phase branch mismatch'
   }
   # Entire checkout, not just two SQL files. Includes tracked modifications,
@@ -56,6 +58,8 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/cleanup-executor.ps1',
     'scripts/rls-local/ffh-owned-root-retire.cs',
     'scripts/rls-local/owner-host-metadata-inventory.ps1',
+    'scripts/rls-local/owner-disposable-diagnostic.ps1',
+    'scripts/rls-local/diagnostic-lifecycle.ps1',
     'scripts/rls-local/automatic-cleanup-policy.mjs',
     'scripts/rls-local/run.sh',
     '.github/workflows/ci.yml',
