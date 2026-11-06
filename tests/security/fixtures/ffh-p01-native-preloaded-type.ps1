@@ -11,4 +11,4 @@ catch {
   } else {throw}
 }
 if (-not $blocked) {throw 'SYNTH_PRELOADED_CLASS_WAS_ACCEPTED'}
-Write-Output 'FS-19 PASS'
+Write-Output 'FS-21 PASS'
