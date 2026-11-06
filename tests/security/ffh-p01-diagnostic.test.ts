@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {spawnSync} from "node:child_process";
 
-test("FFH-P01 one-shot diagnostic actual WinPS5.1 fake Docker/FS 25-case matrix",()=>{
+test("FFH-P01 one-shot diagnostic actual WinPS5.1 fake Docker/FS 28-case matrix",()=>{
   if(process.platform!=="win32"){return;}
   const run=spawnSync("powershell.exe",["-NoLogo","-NoProfile","-NonInteractive",
     "-ExecutionPolicy","Bypass","-File","tests/security/fixtures/ffh-p01-diagnostic.test.ps1"],{
@@ -11,7 +11,7 @@ test("FFH-P01 one-shot diagnostic actual WinPS5.1 fake Docker/FS 25-case matrix"
   assert.ifError(run.error);
   assert.equal(run.status,0,(run.stdout??"")+"\n"+(run.stderr??""));
   const lines=(run.stdout??"").split(/\r?\n/).map(s=>s.trim()).filter(s=>/^DG-\d{2} PASS$/.test(s));
-  const expected=Array.from({length:25},(_,i)=>"DG-"+String(i+1).padStart(2,"0")+" PASS");
+  const expected=Array.from({length:28},(_,i)=>"DG-"+String(i+1).padStart(2,"0")+" PASS");
   assert.deepEqual(lines,expected);
   for(const receipt of lines)console.log(receipt);
 });
