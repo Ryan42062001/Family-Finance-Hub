@@ -29,6 +29,12 @@ public static class FfhP01OwnedRoot {
   [DllImport("kernel32.dll",SetLastError=true)]
   [return:MarshalAs(UnmanagedType.Bool)]
   static extern bool SetFileInformationByHandle(SafeFileHandle h,int kind,ref byte value,uint length);
+  [DllImport("kernel32.dll",SetLastError=true)]
+  [return:MarshalAs(UnmanagedType.Bool)]
+  static extern bool SetFilePointerEx(SafeFileHandle h,long distance,out long next,uint origin);
+  [DllImport("kernel32.dll",SetLastError=true)]
+  [return:MarshalAs(UnmanagedType.Bool)]
+  static extern bool ReadFile(SafeFileHandle h,byte[] buffer,uint length,out uint received,IntPtr overlapped);
   static void Fail(string category) {throw new InvalidOperationException("BLOCKED_ROOT_"+category);}
   static SafeFileHandle OpenPath(string path,bool delete,bool allowMissing) {
     // No share-WRITE or share-DELETE: reject existing writers and hold namespace objects.
@@ -76,12 +82,22 @@ public static class FfhP01OwnedRoot {
     }
   }
   static string Sha(SafeFileHandle h) {
-    // Hash from the exact held file handle, never a new path lookup.
-    using(FileStream f=new FileStream(h,FileAccess.Read,4096,false)) {
-      using(SHA256 hash=SHA256.Create()) {
-        f.Position=0;
-        return BitConverter.ToString(hash.ComputeHash(f)).Replace("-","").ToLowerInvariant();
+    // Read from an already-held, share-WRITE-denied handle. FileStream would
+    // own and close the SafeFileHandle; ReadFile keeps it held until disposal.
+    long next;
+    if(!SetFilePointerEx(h,0,out next,0))Fail("HASH_SEEK");
+    using(SHA256 hash=SHA256.Create()) {
+      byte[] buffer=new byte[8192];
+      while(true) {
+        uint received;
+        if(!ReadFile(h,buffer,(uint)buffer.Length,out received,IntPtr.Zero))
+          Fail("HASH_READ");
+        if(received==0)break;
+        hash.TransformBlock(buffer,0,(int)received,buffer,0);
       }
+      hash.TransformFinalBlock(new byte[0],0,0);
+      if(!SetFilePointerEx(h,0,out next,0))Fail("HASH_SEEK");
+      return BitConverter.ToString(hash.Hash).Replace("-","").ToLowerInvariant();
     }
   }
   static string Check(string root,SafeFileHandle h,string marker) {
