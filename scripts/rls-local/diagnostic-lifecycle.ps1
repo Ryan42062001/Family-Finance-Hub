@@ -46,8 +46,9 @@ function Resolve-FfhDiagnosticCachedCli {
   if ($CliSha256 -and ($CliSha256 -cnotmatch '^[a-f0-9]{64}$' -or
       $CliSha256 -cne $observedHash)) {throw 'BLOCKED_DIAG_CLI_HASH_DRIFT'}
   if ($FakeVersion) {
-    if (@(& $FakeVersion $exe).Count -ne 1 -or
-        (& $FakeVersion $exe) -cne '2.122.0') {throw 'BLOCKED_DIAG_CLI_VERSION'}
+    $actualVersion=@(& $FakeVersion $exe)
+    if ($actualVersion.Count -ne 1 -or
+        [string]$actualVersion[0] -cne '2.122.0') {throw 'BLOCKED_DIAG_CLI_VERSION'}
   } else {
     $p=[Diagnostics.ProcessStartInfo]::new()
     $p.FileName=$exe;$p.Arguments='--version'
