@@ -27,14 +27,15 @@ git -C $repo checkout --detach <FINAL_AUDITED_40_HEX_SHA>
 Set-Location $repo
 git status --short
 $sha = (git rev-parse HEAD).Trim()
-.\scripts\rls-local\owner-disposable-diagnostic.ps1 -Mode Plan -ExpectedHead $sha
+$entry = Join-Path $repo 'scripts\rls-local\owner-disposable-diagnostic.ps1'
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $entry -Mode Plan -ExpectedHead $sha
 ```
 
-Record the **full 64-character `CLI_SHA256=`** printed by Plan locally. Then make exactly one deliberate invocation:
+Each invocation must start in a **fresh Windows PowerShell 5.1 process**; an already-loaded native Job Object type is rejected. Record the **full 64-character `CLI_SHA256=`** printed by Plan locally. Then make exactly one deliberate invocation:
 
 ```powershell
 $cliHash = '<COPY_64_HEX_CLI_SHA256_FROM_PLAN>'
-.\scripts\rls-local\owner-disposable-diagnostic.ps1 -Mode Run -ExpectedHead $sha -CliSha256 $cliHash -ExplicitAuthorization FFH-P01-ONE-SHOT-DIAGNOSTIC-GO
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $entry -Mode Run -ExpectedHead $sha -CliSha256 $cliHash -ExplicitAuthorization FFH-P01-ONE-SHOT-DIAGNOSTIC-GO
 ```
 
 If Plan reports **multiple/missing cached CLIs**, first locate an already present exact binary read-only, for example under `$env:LOCALAPPDATA\npm-cache\_npx\...\node_modules\supabase\bin\supabase.exe`, and repeat Plan with `-CliExecutable '<FULL_EXISTING_CACHED_EXE_PATH>'`. Pass the same `-CliExecutable` and printed SHA in Run. Do not use a `npx --yes` wrapper or select the first executable from arbitrary PATH.
