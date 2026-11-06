@@ -283,5 +283,21 @@ public static class FfhP01OwnedRoot {
       [IO.Path]::GetFileName($safe) -cnotmatch '^ffh-p01-permit-[0-9a-f]{32}$') {
     throw 'INTEGRATION_CLEANUP_UNOWNED_PATH_REFUSED'
   }
-  if ([IO.Directory]::Exists($safe)) {[IO.Directory]::Delete($safe,$true)}
+  if ([IO.Directory]::Exists($safe)) {
+    # Git pack/idx objects in a temporary --no-hardlinks clone can be
+    # read-only. Clear that attribute ONLY inside the exact GUID-named
+    # disposable fixture after checking for reparse redirection.
+    $entries=@(Get-ChildItem -LiteralPath $safe -Force -Recurse -ErrorAction Stop)
+    foreach($entry in $entries) {
+      if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw 'INTEGRATION_TEMP_CLONE_REPARSE_REQUIRES_REVIEW'
+      }
+      if (-not $entry.PSIsContainer -and
+          ($entry.Attributes -band [IO.FileAttributes]::ReadOnly)) {
+        [IO.File]::SetAttributes($entry.FullName,
+          ($entry.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly)))
+      }
+    }
+    [IO.Directory]::Delete($safe,$true)
+  }
 }
