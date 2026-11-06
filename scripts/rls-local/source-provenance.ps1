@@ -36,9 +36,19 @@ function Assert-FfhSourceCheckout {
   if ($LASTEXITCODE -ne 0 -or -not $root) { throw 'BLOCKED: no Git checkout' }
   $root = [IO.Path]::GetFullPath(([string]$root).Trim())
   $head = (& git -C $root rev-parse HEAD).Trim()
-  # Detached HEAD emits zero stdout lines in WinPS5.1: do not call Trim() on null.
-  $branch = ([string](& git -C $root branch --show-current)).Trim()
-  if ($LASTEXITCODE -ne 0 -or $head -cne $ExpectedHead -or
+  # Detached HEAD emits ZERO stdout lines in native WinPS5.1, and
+  # casting no output to [string] can still yield null. Materialize rows
+  # and call Trim only on a verified non-null entry.
+  $branchRows = @(& git -C $root branch --show-current)
+  $branchExit = $LASTEXITCODE
+  if ($branchExit -ne 0 -or $branchRows.Count -gt 1) {
+    throw 'BLOCKED: ambiguous Git branch or discovery failure'
+  }
+  $branch = ''
+  if ($branchRows.Count -eq 1 -and $null -ne $branchRows[0]) {
+    $branch = ([string]$branchRows[0]).Trim()
+  }
+  if ($head -cne $ExpectedHead -or
       ($branch -cnotin @('phase/ffh-p01-release-readiness','feature/ffh-p01-automatic-test-cleanup') -and
        -not ($AllowDetachedHeadForDiagnostic -and $branch -ceq ''))) {
     throw 'BLOCKED: source HEAD or original phase branch mismatch'
