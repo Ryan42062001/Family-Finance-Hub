@@ -564,7 +564,13 @@ function Resolve-FfhDiagnosticCachedCli {
 }
 function Select-FfhRunPorts {param($Identity);return @(26430,26431)}
 function Assert-FfhDiagnosticNoPriorAttempt {param($Identity)}
-function Get-FfhObservedDaemon {param($Fake);return 'MOCK_VERIFIED_DAEMON'}
+# Preserve actual fake Docker daemon identity when the call is fake-backed.
+# Plan's no-fake adapter remains a constant read-only fixture.
+function Get-FfhObservedDaemon {
+  param($Fake)
+  if ($Fake) {return $script:mock.daemon}
+  return 'MOCK_VERIFIED_DAEMON'
+}
 function Get-FfhProtectedInventory {param($Fake);return @('C:legacy FFH-RLS-Test','V:legacy FFH-RLS-Test','N:legacy FFH-RLS-Test')}
 $planLines=@(Invoke-FfhOwnerDisposableDiagnostic -Mode Plan -ExpectedHead ('a'*40) -CliExecutable 'MOCK_NEVER_RUN' -CliSha256 ('a'*64))
 AssertIt (@($planLines | Where-Object {$_ -match '^PLAN_ONLY=NO_MUTATION' }).Count -eq 1) 'PLAN_OUTPUT'
