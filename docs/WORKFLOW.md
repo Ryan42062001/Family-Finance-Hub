@@ -1,5 +1,12 @@
 # Speed Workflow V2.1 — Family Finance Hub
 
+## 2026-11-07 Owner sequencing amendment — progress first
+
+Once merged into the protected default branch, [PROGRESS_FIRST_POLICY.md](PROGRESS_FIRST_POLICY.md) is the controlling **audit timing** amendment to this workflow. Build, test and owner-preview planned feature functionality first; track real functional acceptance separately from unresolved security/release audit debt. Perform **one comprehensive fresh independent integrated-product audit**, consolidated remediation and targeted fresh re-audit before the next final release. Earlier blanket instructions requiring an independent auditor and immutable FULL freeze **for each ordinary MEDIUM/HIGH feature before subsequent unrelated feature work** are superseded as to sequencing only, not erased as historical evidence. Feature stages may be recorded as `FEATURE_ACCEPTED_PENDING_FINAL_AUDIT`; do not call an unmerged PR or unverified security proof PASS or CLOSED.
+
+Retain ordinary branch CI/tests, exact-SHA evidence when measured, human previews, protected branches and explicit Owner merges. Known critical/exploitable defects, live-production incidents and private-data/identity/destructive boundaries must be fixed or isolated before using affected functionality. No deferred final audit is permission for unsafe live operations, new privileges, real sensitive-data access, forced merges, cost, deployment or bypass of existing automated validators; update validators through a separate reviewed change when needed. Existing immutable audit failures remain release-blocking until genuinely remediated and re-audited.
+
+
 ## Execution mode — owner policy (2026-10-24)
 
 - **Regular Chat is the default execution environment** for the Project Manager, the single Primary Builder for a phase, and each fresh Independent Auditor. Builder and Auditor must remain independent conversations when an independent audit is required.
