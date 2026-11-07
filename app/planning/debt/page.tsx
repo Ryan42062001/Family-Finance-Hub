@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MobilePlanningMenu from "@/components/planning/MobilePlanningMenu";
 import { redirect } from "next/navigation";
 import DebtPayoffCalculator from "@/components/planning/DebtPayoffCalculator";
 import { createClient } from "@/lib/supabase/server";
@@ -18,7 +19,8 @@ export default async function DebtPlanningPage() {
   const debts = (data ?? []).map((debt) => ({ id: debt.id, name: debt.name, debtType: debt.debt_type, balance: Number(debt.current_balance ?? 0), annualInterestRate: Number(debt.interest_rate ?? 0), minimumPayment: Number(debt.minimum_payment ?? 0) }));
 
   return <main className="page-shell">
-    <section className="hero-card"><div><p className="eyebrow">Phase 4 planning tools</p><h1>Debt payoff calculator</h1><p className="muted">Model one debt with extra payments or compare avalanche and snowball strategies across your saved non-mortgage debts.</p></div><div className="hero-actions"><Link className="secondary-button" href="/planning">Back to planning</Link><Link className="secondary-button" href="/dashboard">Dashboard</Link></div></section>
+    <section className="hero-card"><div><p className="eyebrow">Planning tool</p><h1>Debt payoff calculator</h1><p className="muted">Model one debt with extra payments or compare avalanche and snowball strategies across your saved non-mortgage debts.</p></div><div className="hero-actions"><Link className="secondary-button" href="/planning">Back to planning</Link><Link className="secondary-button" href="/dashboard">Dashboard</Link></div></section>
+    <MobilePlanningMenu />
     <DebtPayoffCalculator debts={debts} />
   </main>;
 }

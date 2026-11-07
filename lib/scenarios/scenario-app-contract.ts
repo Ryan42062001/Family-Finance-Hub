@@ -140,7 +140,26 @@ export type ScenarioPairComparisonDTO = {
   issues: ScenarioValidationIssue[];
 };
 
-export type ScenarioEntityOption = { id: string; label: string };
+export type ScenarioEntityOption = {
+  id: string;
+  label: string;
+  baseline?: {
+    monthlyTakeHomeAmount?: number;
+    monthlyAmount?: number;
+    balance?: number;
+    minimumPayment?: number;
+    annualInterestRate?: number | null;
+    targetAmount?: number;
+    currentAmount?: number;
+    plannedMonthlyContribution?: number | null;
+    monthlyEmployeeContribution?: number;
+    annualContributionTarget?: number | null;
+    plannedRetirementAge?: number | null;
+    deductibleAmount?: number | null;
+    familyDeductibleAmount?: number | null;
+    outOfPocketMax?: number | null;
+  };
+};
 
 export type ScenarioLabBootstrap = {
   baseline: ScenarioBaselineDescriptor;

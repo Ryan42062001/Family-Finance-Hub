@@ -1,6 +1,9 @@
 const DEFAULT_DESTINATION = "/dashboard";
 const MAX_DESTINATION_LENGTH = 2048;
 const ENCODED_SEPARATOR = /%(?:2f|5c|25)/i;
+// Percent-encoded ASCII C0 controls (00-1F) and DEL (7F) cannot be
+// allowed through URL parsing as a redirect destination.
+const ENCODED_CONTROL = /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i;
 const UNSAFE_CHARACTER = /[\\\u0000-\u001f\u007f\s]/;
 const NESTED_REDIRECT_KEYS = new Set([
   "callback",
@@ -40,7 +43,8 @@ export function safeInternalDestination(
     !value.startsWith("/") ||
     value.startsWith("//") ||
     UNSAFE_CHARACTER.test(value) ||
-    ENCODED_SEPARATOR.test(value)
+    ENCODED_SEPARATOR.test(value) ||
+    ENCODED_CONTROL.test(value)
   ) {
     return fallbackUrl;
   }

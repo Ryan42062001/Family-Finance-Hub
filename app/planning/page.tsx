@@ -56,22 +56,11 @@ export default async function PlanningPage() {
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <div><p className="eyebrow">Phase 4 planning tools</p><h1>Household planning lab</h1><p className="muted">Use saved household data as a starting point, adjust assumptions locally, and compare outcomes without changing your live profile.</p></div>
+        <div><p className="eyebrow">Explore without changing your profile</p><h1>Household planning tools</h1><p className="muted">Start with saved household data, adjust assumptions locally, and compare outcomes without changing your live profile.</p></div>
         <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
       </section>
 
-      <section className="panel">
-        <p className="eyebrow">All planning tools</p>
-        <h2>Choose a calculator</h2>
-        <div className="hero-actions">
-          <a className="secondary-button" href="#emergency-fund">Emergency fund</a>
-          <a className="secondary-button" href="#mortgage">Mortgage payoff</a>
-          <a className="secondary-button" href="#savings-goal">Savings goal</a>
-          <Link className="secondary-button" href="/planning/retirement">Retirement pacing</Link>
-          <Link className="secondary-button" href="/planning/debt">Debt payoff</Link>
-          <Link className="secondary-button" href="/planning/paycheck">Paycheck planner</Link>
-        </div>
-      </section>
+
 
       <PlanningCalculators defaults={defaults} />
     </main>
