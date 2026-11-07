@@ -1,9 +1,10 @@
 # Family Finance Hub agent guidance
 
-## Owner progress-first override — 2026-11-07
+## Owner progress-first override — 2026-11-07 (refined)
 
-**Read [docs/PROGRESS_FIRST_POLICY.md](docs/PROGRESS_FIRST_POLICY.md) first.** The Product Owner prioritizes delivery of working functionality across the project, followed by one comprehensive independent audit, batched remediation and targeted re-audit before the next release. Earlier phase-by-phase audit timing is superseded **only after this governance PR merges**. All existing source-of-truth, known security failures, safe development tests, CI, Owner merge approval, secrets, production, personal-data and provider boundaries remain binding. Never claim deferred findings PASS, skip required tests or ignore a known exploitable boundary.
+**Read [docs/PROGRESS_FIRST_POLICY.md](docs/PROGRESS_FIRST_POLICY.md) first.** For **every phase or major feature**, build and run real functional/CI checks, then have a **fresh independent auditor perform one short changed-scope end-of-phase audit**. Resolve **BLOCKER/CRITICAL/HIGH** immediately, with targeted re-audit; document **MEDIUM/LOW/NIT** in the final-audit backlog and keep building after Owner approval. At final integration/release, run **one comprehensive independent whole-product audit, remediation and re-audit**. No duplicated full-architecture campaign per feature.
 
+Never mark unverified/failed evidence PASS or silently downgrade known severity, bypass protected branch CI/validator, expose personal/financial health data, grant unknown privileges, change a live provider/deployment, or merge without explicit Owner authorization. Known serious exploits/live failures require immediate isolation or repair. Existing project-specific safety and release contracts remain binding. This amendment becomes authoritative on the default branch only after its governance PR is approved and merged.
 
 ## Primary Builder execution mode
 
