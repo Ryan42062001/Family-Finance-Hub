@@ -134,8 +134,16 @@ $changedAcl.SetAccessRuleProtection($true,$true)
 [IO.File]::SetAccessControl($meta,$changedAcl)
 Assert-StgCi ((Get-StgCiRow $meta).Acl -cne $manifest.Index[$meta].Acl)
 Expect-Blocked 4 'ACL_DRIFT'
-[IO.File]::SetAccessControl($meta,$originalAcl)
-Assert-StgCiManifest $manifest
+# FileSecurity persists only the sections marked modified; passing the pristine
+# unmodified object to SetAccessControl can be a NO-OP. Explicitly restore
+# the saved binary descriptor on a fresh mutable instance and retain mtime.
+$restoreAcl=[IO.File]::GetAccessControl($meta)
+$restoreAcl.SetSecurityDescriptorBinaryForm($originalAcl.GetSecurityDescriptorBinaryForm())
+[IO.File]::SetAccessControl($meta,$restoreAcl)
+[IO.File]::SetLastWriteTimeUtc($meta,[DateTime]::new([long]$manifest.Index[$meta].Modified,[DateTimeKind]::Utc))
+Assert-StgCi ((Get-StgCiRow $meta).Acl -ceq $manifest.Index[$meta].Acl)
+try {Assert-StgCiManifest $manifest}
+catch {throw 'STGC_RESTORE_ACL_BLOCKED'}
 # 5: tracked checkout dirty; no Git --force removal.
 $trackedFile=Join-Path $wt 'package.json'
 $originalBytes=[IO.File]::ReadAllBytes($trackedFile)
@@ -144,7 +152,8 @@ $originalModified=[IO.File]::GetLastWriteTimeUtc($trackedFile)
 Expect-Blocked 5 'WORKTREE_DIRTY'
 [IO.File]::WriteAllBytes($trackedFile,$originalBytes)
 [IO.File]::SetLastWriteTimeUtc($trackedFile,$originalModified)
-Assert-StgCiManifest $manifest
+try {Assert-StgCiManifest $manifest}
+catch {throw 'STGC_RESTORE_WORKTREE_BLOCKED'}
 # 6: ticket replaced with SAME BYTES; immutable Windows object ID must reject.
 $held=Join-Path $base 'original-ticket-held'
 [IO.File]::Move($ticket,$held)
@@ -154,7 +163,8 @@ Expect-Blocked 6 'TICKET_REPLACED'
 Assert-StgCi ([IO.File]::ReadAllText($ticket) -ceq $head)
 [IO.File]::Delete($ticket)
 [IO.File]::Move($held,$ticket)
-Assert-StgCiManifest $manifest
+try {Assert-StgCiManifest $manifest}
+catch {throw 'STGC_RESTORE_TICKET_BLOCKED'}
 # 7: same checkout files but changed detached HEAD must block without mutation.
 $earlier=(& git -C $wt rev-parse HEAD^).Trim()
 Assert-StgCi ($LASTEXITCODE -eq 0 -and $earlier -cne $head)
@@ -163,7 +173,8 @@ Assert-StgCi ($LASTEXITCODE -eq 0)
 Expect-Blocked 7 'WORKTREE_HEAD_DRIFT'
 & git -C $wt update-ref HEAD $head
 Assert-StgCi ($LASTEXITCODE -eq 0)
-Assert-StgCiManifest $manifest
+try {Assert-StgCiManifest $manifest}
+catch {throw 'STGC_RESTORE_HEAD_BLOCKED'}
 # 8: simulated interruption after one verified disposition; remaining material
 # stays INTACT for manual review, never auto-resumed or force-cleaned.
 Expect-Blocked 8 'INTERRUPTED_TEARDOWN' 1
