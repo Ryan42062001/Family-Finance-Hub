@@ -85,8 +85,13 @@ function Run-Plan([string]$Case,[string]$Fault,[string]$ExpectedStage,
     if ($proc.ExitCode -ne $Exit -or $lines.Count -ne 1 -or
         $stderr.Length -ne 0 -or
         ($stdout+$stderr) -match 'PRIVATE_NEVER_PRINT_CI_SECRET|C:\\Users\\|D:\\a\\| at .*\.ps1:') {
+      $safeLine='NO_SAFE_OUTPUT'
+      if ($lines.Count -eq 1 -and
+          $lines[0] -cmatch '^RECOVERY_PLAN=BLOCKED STAGE=[A-Z_]+ CATEGORY=[A-Z_]+ SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES$') {
+        $safeLine=[string]$lines[0]
+      }
       throw ('STG_CONTRACT_'+$Case+'_EXIT_'+$proc.ExitCode+'_LINES_'+$lines.Count+
-        '_ERR_'+$stderr.Length)
+        '_ERR_'+$stderr.Length+'_SAFE_'+$safeLine)
     }
     $line=$lines[0]
     if ($Exit -eq 0) {
