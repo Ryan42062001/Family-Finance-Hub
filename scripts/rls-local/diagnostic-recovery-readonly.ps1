@@ -337,6 +337,10 @@ function Get-FfhRecoveryReadOnlyPermit {
     'D|supabase|-'
     'D|supabase\migrations|-'
     'O|supabase\.temp|-'
+    # Pinned CLI v2.122.0 db start creates this exact four-byte ASCII main marker.
+    # This pair is recovery READ-ONLY evidence, never destructive Retire authority.
+    'D|supabase\.branches|-'
+    'F|supabase\.branches\_current_branch|0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605'
     ('F|supabase\config.toml|'+$configDigest)
     ('F|ffh-p01-local-provenance.json|'+$Journal.rootReceiptSha256)
   )

@@ -31,6 +31,9 @@ $ledgerPath=Join-Path $id.evidence '.ffh-p01-one-shot-diagnostic.json'
 $finalPath=Join-Path $id.evidence ($token+'.DIAG_FINAL.json')
 $cachePath=Join-Path $id.root 'supabase\.temp\cli-latest'
 $rootReceipt=Join-Path $id.root 'ffh-p01-local-provenance.json'
+$rootCheck=Join-Path $id.root 'ffh-p01-local-provenance.sha256'
+$branchDir=Join-Path $id.root 'supabase\.branches'
+$branchFile=Join-Path $branchDir '_current_branch'
 $configPath=Join-Path $id.root 'supabase\config.toml'
 $markerPath=Join-Path $id.root '.ffh-p01-owned-root'
 $utf8=[Text.UTF8Encoding]::new($false)
@@ -167,6 +170,10 @@ try {
   Initialize-FfhPrivateEvidenceAcl -Path $id.root -NewlyCreated
   [void][IO.Directory]::CreateDirectory((Join-Path $id.root 'supabase\migrations'))
   [void][IO.Directory]::CreateDirectory((Join-Path $id.root 'supabase\.temp'))
+  [void][IO.Directory]::CreateDirectory($branchDir)
+  Write-Utf8 -Path $branchFile -Value 'main'
+  if (([IO.FileInfo]::new($branchFile)).Length -ne 4 -or
+      (Digest $branchFile) -cne '0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605') {throw 'STG_BRANCH_PIN_INVALID'}
   Write-Utf8 -Path $markerPath -Value (Get-FfhRootMarker -Identity $id)
   Initialize-FfhPrivateEvidenceAcl -Path $markerPath -NewlyCreated
   Write-Utf8 -Path $configPath -Value (Get-FfhFreshConfig -ExpectedHead $old -RunToken $token -DbPort 26000 -ShadowPort 26001)
@@ -336,6 +343,38 @@ try {
   if ((Snapshot) -cne $before) {throw 'STG_MUTATION_NATIVE_OPEN_SHARE_CONFLICT'}
   Write-Output 'STG-37 PASS NATIVE_OPEN_SHARE_CONFLICT STAGE=NATIVE_PREFLIGHT'
 
+
+  # Actual production -File recovery Plan on CI-owned synthetic source/evidence.
+  # No Retire, SQL, Docker mutations, Owner laptop or unowned file action.
+  try {
+    Write-Utf8 $branchFile 'evil' # Four bytes, wrong content.
+    ExecuteCase 38 'BRANCH_WRONG_FOUR_BYTES' '' 'NATIVE_PREFLIGHT' 'NATIVE_MANIFEST_HASH_REJECTED'
+  } finally {Write-Utf8 $branchFile 'main'}
+  try {
+    [IO.File]::Delete($branchFile)
+    ExecuteCase 39 'BRANCH_REQUIRED_FILE_MISSING' '' 'NATIVE_PREFLIGHT' 'NATIVE_GUARD_REJECTED'
+  } finally {Write-Utf8 $branchFile 'main'}
+  $branchExtra=Join-Path $branchDir 'zz_foreign'
+  try {
+    Write-Utf8 $branchExtra 'x'
+    ExecuteCase 40 'BRANCH_FOREIGN_CHILD' '' 'NATIVE_PREFLIGHT' 'NATIVE_GUARD_REJECTED'
+  } finally {
+    if ([IO.File]::Exists($branchExtra)) {[IO.File]::Delete($branchExtra)}
+  }
+  try {
+    Write-Utf8 $rootCheck 'synthetic provenance hash receipt'
+    $mut=$j | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+    $mut.rootReceiptCheckSha256=Digest $rootCheck
+    Write-Utf8 $journalPath ($mut | ConvertTo-Json -Depth 30)
+    ExecuteCase 41 'BRANCH_WITH_OPTIONAL_PROVENANCE_SHA' '' 'COMPLETE' 'NONE' 0
+    Write-Utf8 $rootCheck 'synthetic provenance hash receipT'
+    ExecuteCase 42 'OPTIONAL_PROVENANCE_HASH_DRIFT' '' 'NATIVE_PREFLIGHT' 'NATIVE_MANIFEST_HASH_REJECTED'
+  } finally {
+    Write-Utf8 $journalPath $jText
+    if ([IO.File]::Exists($rootCheck)) {[IO.File]::Delete($rootCheck)}
+  }
+  ExecuteCase 43 'BRANCH_FINAL_RECOVERY_COMPLETE' '' 'COMPLETE' 'NONE' 0
+
   # Do not adopt unexpected entries: derive the complete checkout allowlist
   # from the genuine detached Git index, PLUS the independently validated
   # canonical 15-migration source manifest and exact fixture-created leaves.
@@ -363,6 +402,7 @@ try {
   foreach($pair in @(
       @($journalPath,$jText),@($ledgerPath,$ledgerText),@($finalPath,$finalText),
       @($cachePath,'v2.122.0'),@($rootReceipt,$rootData),
+       @($branchFile,'main'),
       @($configPath,(Get-FfhFreshConfig -ExpectedHead $old -RunToken $token -DbPort 26000 -ShadowPort 26001)),
       @($markerPath,(Get-FfhRootMarker -Identity $id)),@($ticket,$head)
     )) {
@@ -370,7 +410,7 @@ try {
       [IO.File]::ReadAllText([string]$pair[0]) -ceq [string]$pair[1])
   }
   $expectedLeaves=@($checkoutFiles)+@($copies)+@(
-    $journalPath,$ledgerPath,$finalPath,$cachePath,$rootReceipt,$configPath,$markerPath
+    $journalPath,$ledgerPath,$finalPath,$cachePath,$rootReceipt,$configPath,$markerPath,$branchFile
   )
   $fixtureManifest=New-StgCiManifest -Roots @($approved,$id.root,$id.evidence) -Ticket $ticket -ExpectedFiles $expectedLeaves -Worktree $approved -Head $head -Repository $repo
 
@@ -379,11 +419,11 @@ try {
   # incomplete or untrusted manifest. Fail CLOSED and retain uncertain evidence.
   if ($null -eq $fixtureManifest) {throw 'STG_CLEANUP_BLOCKED'}
   $ownedFiles=@($journalPath,$ledgerPath,$finalPath,$cachePath,
-    $rootReceipt,$configPath,$markerPath)+@($copies)
+    $rootReceipt,$configPath,$markerPath,$branchFile)+@($copies)
   $ownedDirs=@($id.evidence,
     (Join-Path $id.root 'supabase\migrations'),
     (Join-Path $id.root 'supabase\.temp'),
-    (Join-Path $id.root 'supabase'),$id.root)
+    $branchDir,(Join-Path $id.root 'supabase'),$id.root)
   try {
     Invoke-StgCiContainedTeardown -Manifest $fixtureManifest -OwnedFiles $ownedFiles -OwnedDirs $ownedDirs
   } catch {throw 'STG_CLEANUP_BLOCKED'}

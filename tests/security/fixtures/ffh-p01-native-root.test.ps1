@@ -39,6 +39,30 @@ function Manifest($id) {
     ('F|supabase\config.toml|'+(ShaText 'synthetic'))
   ) -join [char]10)
 }
+# Pinned immutable v2.122.0 branch-state marker. This helper is ONLY used
+# for independent read-only native tests, never the destructive default permit.
+function Add-BranchState($id) {
+  $folder=Join-Path $id.root 'supabase/.branches'
+  [void][IO.Directory]::CreateDirectory($folder)
+  [IO.File]::WriteAllBytes((Join-Path $folder '_current_branch'),[Text.Encoding]::ASCII.GetBytes('main'))
+  if (([IO.FileInfo]::new((Join-Path $folder '_current_branch'))).Length -ne 4 -or
+      (ShaText 'main') -cne '0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605') {
+    throw 'SYNTH_PINNED_UPSTREAM_BRANCH_INVALID'
+  }
+}
+function BranchManifest($id) {
+  return ((Manifest $id)+[char]10+'D|supabase\.branches|-'+[char]10+
+    'F|supabase\.branches\_current_branch|0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605')
+}
+function NativeBranchPreflight($id,[string]$recorded,[string]$spec) {
+  return [FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$spec)
+}
+function NativeBranchRetire($id,[string]$recorded,[string]$spec) {
+  return [FfhP01OwnedRoot]::Retire($profileHome,(Split-Path $id.root -Leaf),
+    $recorded,(Get-FfhRootMarker -Identity $id),$spec)
+}
+
 function FailureCategory([scriptblock]$action) {
   try {[void](& $action)} catch {
     $err=$_.Exception
@@ -591,6 +615,137 @@ try {
   MarkerExists $id
   FileReceipt '35'
   Stop-NativeRoot $id;$id=$null
+
+  # FS-36..50: exact pinned Supabase CLI branch state is READ-ONLY only.
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $branch=Join-Path $id.root 'supabase/.branches'
+  $state=Join-Path $branch '_current_branch'
+  $spec=BranchManifest $id
+  if ((NativeBranchPreflight $id $recorded $spec) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_BRANCH_VALID_PREFLIGHT_FAILED'
+  }
+  ExpectCategory {NativeBranchRetire $id $recorded $spec} 'MANIFEST_UNKNOWN_PATH'
+  MarkerExists $id
+  FileReceipt '36'
+  Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $state=Join-Path $id.root 'supabase/.branches/_current_branch'
+  [IO.File]::WriteAllBytes($state,[Text.Encoding]::ASCII.GetBytes('evil'))
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'MANIFEST_HASH'
+  MarkerExists $id;FileReceipt '37';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $state=Join-Path $id.root 'supabase/.branches/_current_branch'
+  [IO.File]::WriteAllBytes($state,[Text.Encoding]::ASCII.GetBytes('mainx'))
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'BRANCH_SIZE'
+  MarkerExists $id;FileReceipt '38';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $state=Join-Path $id.root 'supabase/.branches/_current_branch'
+  [IO.File]::Delete($state)
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'MANIFEST_INCOMPLETE'
+  MarkerExists $id;FileReceipt '39';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  [IO.File]::WriteAllText((Join-Path $id.root 'supabase/.branches/zz_other'),'foreign')
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'UNPERMITTED_PATH'
+  MarkerExists $id;FileReceipt '40';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  [void][IO.Directory]::CreateDirectory((Join-Path $id.root 'supabase/.branches/zz_other'))
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'UNPERMITTED_PATH'
+  MarkerExists $id;FileReceipt '41';Stop-NativeRoot $id;$id=$null
+
+  # Two-step rename deliberately changes case on case-insensitive Windows.
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $branch=Join-Path $id.root 'supabase/.branches'
+  [IO.File]::Move((Join-Path $branch '_current_branch'),(Join-Path $branch 'case_hold'))
+  [IO.File]::Move((Join-Path $branch 'case_hold'),(Join-Path $branch '_CURRENT_BRANCH'))
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'UNPERMITTED_PATH'
+  MarkerExists $id;FileReceipt '42';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $branch=Join-Path $id.root 'supabase/.branches'
+  [IO.Directory]::Move($branch,(Join-Path $id.root 'supabase/branch_hold'))
+  [IO.Directory]::Move((Join-Path $id.root 'supabase/branch_hold'),
+    (Join-Path $id.root 'supabase/.BRANCHES'))
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'UNPERMITTED_PATH'
+  MarkerExists $id;FileReceipt '43';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $bad=(BranchManifest $id).Replace('_current_branch','_CURRENT_BRANCH')
+  ExpectCategory {NativeBranchPreflight $id $recorded $bad} 'MANIFEST_UNKNOWN_PATH'
+  $bad=(BranchManifest $id)+[char]10+
+    ('F|supabase\.branches\_current_branch\extra|'+('0'*64))
+  ExpectCategory {NativeBranchPreflight $id $recorded $bad} 'MANIFEST_UNKNOWN_PATH'
+  MarkerExists $id;FileReceipt '44';Stop-NativeRoot $id;$id=$null
+
+  # Reparse point is the PERMITTED directory itself (not merely a foreign child).
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $foreign=Join-Path $profileHome ('FFH-P01-Synthetic-Foreign-'+(New-FfhRunToken))
+  [void][IO.Directory]::CreateDirectory($foreign)
+  $proof=Join-Path $foreign '_current_branch'
+  [IO.File]::WriteAllText($proof,'main',[Text.Encoding]::ASCII)
+  $branch=Join-Path $id.root 'supabase/.branches'
+  [IO.Directory]::Delete($branch,$true)
+  $link=Start-Process -FilePath (Join-Path $env:WINDIR 'System32/cmd.exe') -ArgumentList (
+    '/d /c mklink /J "'+$branch+'" "'+$foreign+'"') -WindowStyle Hidden -PassThru -Wait
+  if ($link.ExitCode -ne 0) {throw 'SYNTH_BRANCH_JUNCTION_CREATION_FAILED'}
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'REPARSE_OR_TYPE'
+  if (-not [IO.File]::Exists($proof)) {throw 'SYNTH_BRANCH_FOREIGN_PROOF_GONE'}
+  MarkerExists $id;FileReceipt '45'
+  [IO.Directory]::Delete($branch)
+  Stop-NativeRoot $id;$id=$null
+  [IO.Directory]::Delete($foreign,$true);$foreign=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $branch=Join-Path $id.root 'supabase/.branches'
+  $source=Join-Path $branch '_current_branch'
+  $other=Join-Path $branch 'zz_hardlink'
+  $link=Start-Process -FilePath (Join-Path $env:WINDIR 'System32/cmd.exe') -ArgumentList (
+    '/d /c fsutil hardlink create "'+$other+'" "'+$source+'"') -WindowStyle Hidden -PassThru -Wait
+  if ($link.ExitCode -ne 0) {throw 'SYNTH_BRANCH_HARDLINK_CREATE_FAILED'}
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'HARDLINK'
+  MarkerExists $id;FileReceipt '46';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $state=Join-Path $id.root 'supabase/.branches/_current_branch'
+  $acl=[IO.File]::GetAccessControl($state)
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+    [Security.Principal.SecurityIdentifier]::new('S-1-1-0'),
+    [Security.AccessControl.FileSystemRights]::ReadData,
+    [Security.AccessControl.AccessControlType]::Allow))
+  [IO.File]::SetAccessControl($state,$acl)
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'ACL_FOREIGN'
+  MarkerExists $id;FileReceipt '47';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $spec=BranchManifest $id
+  if ((NativeBranchPreflight $id $recorded $spec) -cne 'PREFLIGHT_OK') {
+    throw 'SYNTH_BRANCH_INITIAL_PREFLIGHT_FAILED'
+  }
+  [IO.File]::WriteAllBytes((Join-Path $id.root 'supabase/.branches/_current_branch'),
+    [Text.Encoding]::ASCII.GetBytes('evil'))
+  ExpectCategory {NativeBranchPreflight $id $recorded $spec} 'MANIFEST_HASH'
+  MarkerExists $id;FileReceipt '48';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $state=Join-Path $id.root 'supabase/.branches/_current_branch'
+  $hold=[IO.FileStream]::new($state,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::None)
+  try {
+    ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'OPEN_32'
+  } finally {$hold.Dispose()}
+  MarkerExists $id;FileReceipt '49';Stop-NativeRoot $id;$id=$null
+
+  $id=New-NativeRoot;Add-BranchState $id;$recorded=FileId $id
+  $branch=Join-Path $id.root 'supabase/.branches'
+  [IO.Directory]::Delete($branch,$true)
+  [IO.File]::WriteAllText($branch,'not a directory')
+  ExpectCategory {NativeBranchPreflight $id $recorded (BranchManifest $id)} 'REPARSE_OR_TYPE'
+  MarkerExists $id;FileReceipt '50';Stop-NativeRoot $id;$id=$null
+
 
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}

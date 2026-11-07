@@ -164,7 +164,12 @@ public static class FfhP01OwnedRoot {
     public int depth;
     public void Dispose() {if(handle!=null)handle.Dispose();}
   }
-  static Dictionary<string,Permit> ParsePermit(string specification) {
+  // Permit CLI branch state only during read-only Preflight, NEVER during Retire.
+  const string BRANCH_SHA="0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605";
+  static bool IsBranchState(string relative) {
+    return String.Equals(relative,@"supabase\.branches\_current_branch",StringComparison.Ordinal);
+  }
+  static Dictionary<string,Permit> ParsePermit(string specification,bool readOnly) {
     if(String.IsNullOrWhiteSpace(specification) || specification.Length>8192)Fail("MANIFEST_INVALID");
     var items=new Dictionary<string,Permit>(StringComparer.OrdinalIgnoreCase);
     foreach(string line in specification.Split(new[]{'\n'},StringSplitOptions.RemoveEmptyEntries)) {
@@ -185,17 +190,29 @@ public static class FfhP01OwnedRoot {
         // A recovery-only manifest MAY declare this one exact file by its
         // independently authorized SHA-256. The normal permit never adds it.
         rel==@"supabase\.temp\cli-latest" ||
+        rel==@"supabase\.branches" || rel==@"supabase\.branches\_current_branch" ||
         Regex.IsMatch(rel,@"^supabase\\migrations\\(?:0001|[0-9]{14})_[a-z0-9_]+\.sql$");
-      if(!known)Fail("MANIFEST_UNKNOWN_PATH");
-      bool dir=(rel=="supabase" || rel==@"supabase\migrations" || rel==@"supabase\.temp");
+      if(!known || (!readOnly && (rel==@"supabase\.branches" || IsBranchState(rel))))
+        Fail("MANIFEST_UNKNOWN_PATH");
+      bool dir=(rel=="supabase" || rel==@"supabase\migrations" ||
+        rel==@"supabase\.temp" || rel==@"supabase\.branches");
       if((v[0]=="F")==dir || (v[0]=="O" && rel!=@"supabase\.temp"))Fail("MANIFEST_INVALID");
       if(rel==@"supabase\.temp\cli-latest" && v[0]!="F")Fail("MANIFEST_INVALID");
+      if(rel==@"supabase\.branches" && v[0]!="D")Fail("MANIFEST_INVALID");
+      if(IsBranchState(rel) && (v[0]!="F" || v[2]!=BRANCH_SHA))Fail("MANIFEST_INVALID");
       items.Add(rel,new Permit{kind=v[0],digest=v[2],required=v[0]!="O"});
     }
     if(items.ContainsKey(@"supabase\.temp\cli-latest") &&
        (!items.ContainsKey(@"supabase\.temp") || items[@"supabase\.temp"].kind!="O"))
       Fail("MANIFEST_INCOMPLETE");
-    if(items.Count<4 || items.Count>24 ||
+    // Only the paired recovery read-only entries allow a maximum 25 rows,
+    // including the optional provenance SHA receipt; legacy cap stays 24.
+    bool branch=items.ContainsKey(@"supabase\.branches");
+    bool branchFile=items.ContainsKey(@"supabase\.branches\_current_branch");
+    if(branch!=branchFile)Fail("MANIFEST_INCOMPLETE");
+    if(branch && (!readOnly || items[@"supabase\.branches"].kind!="D" ||
+        items[@"supabase\.branches\_current_branch"].kind!="F"))Fail("MANIFEST_INVALID");
+    if(items.Count<4 || items.Count>(branch?25:24) ||
        !items.ContainsKey(".ffh-p01-owned-root") ||
        !items.ContainsKey("supabase") || !items.ContainsKey(@"supabase\migrations") ||
        items[".ffh-p01-owned-root"].kind!="F" ||
@@ -229,6 +246,7 @@ public static class FfhP01OwnedRoot {
       if(!dir) {
         bool cache=IsRecoveryCache(rel);
         if(cache)AssertCacheLength(e.info);
+        if(IsBranchState(rel) && Length(e.info)!=4)Fail("BRANCH_SIZE");
         if(Sha(h,cache)!=rule.digest)Fail("MANIFEST_HASH");
       }
       seen.Add(rel,e);
@@ -250,6 +268,7 @@ public static class FfhP01OwnedRoot {
     if(!e.directory) {
       bool cache=IsRecoveryCache(e.relative);
       if(cache)AssertCacheLength(i);
+      if(IsBranchState(e.relative) && Length(i)!=4)Fail("BRANCH_SIZE");
       if(Sha(e.handle,cache)!=permit[e.relative].digest)Fail("TREE_RACE");
     }
   }
@@ -262,7 +281,7 @@ public static class FfhP01OwnedRoot {
   static string Execute(string parent,string leaf,string expected,string marker,string manifest,bool delete) {
     DispositionAttempts=0;
     string root=Full(parent,leaf);
-    var permit=ParsePermit(manifest);
+    var permit=ParsePermit(manifest,!delete);
     var held=new List<Entry>();
     using(SafeFileHandle p=OpenPath(parent,false,false)) {
       Info parentInfo=Describe(p,true);
