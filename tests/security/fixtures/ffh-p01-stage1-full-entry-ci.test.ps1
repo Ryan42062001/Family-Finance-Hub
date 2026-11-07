@@ -232,7 +232,12 @@ try {
   try {
     [IO.File]::Delete($journalPath)
     ExecuteCase 5 'JOURNAL_MISSING' '' 'JOURNAL_READ' 'BLOCKED_RECOVERY_EVIDENCE_ENTRY_MISSING'
-  } finally {Write-Utf8 $journalPath $jText}
+  } finally {
+    Write-Utf8 $journalPath $jText
+    # The missing-file fault deleted the ACL-protected journal itself.
+    # Recreated CI-owned synthetic evidence requires its original private DACL.
+    Initialize-FfhPrivateEvidenceAcl -Path $journalPath -NewlyCreated
+  }
   try {
     $mut=$j | ConvertTo-Json -Depth 30 | ConvertFrom-Json
     $mut.sequence=10
