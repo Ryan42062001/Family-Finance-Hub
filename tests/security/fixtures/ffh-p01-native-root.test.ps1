@@ -496,28 +496,71 @@ try {
   FileReceipt '32'
   Stop-NativeRoot $id;$id=$null
 
-  # FS-33: real NTFS owner-only READ DACL excludes DELETE, including the
-  # config file's parent's DELETE_CHILD. ACL validator still accepts only
-  # approved principals/ALLOW entries; Retire must NOT weaken its DELETE check.
+  # FS-33: real NTFS read-only DACL without DELETE or DELETE_CHILD.
+  # A pre-acquired exact-object WRITE_DAC handle safely restores the original
+  # DACL after testing. No Owner path, elevation, process impersonation, or
+  # blanket ACL manipulation: these objects were CREATED by this CI fixture.
+  Add-Type -TypeDefinition @'
+using System;
+using System.Security.AccessControl;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public sealed class FfhCiAclRestoreHold : IDisposable {
+  private SafeFileHandle h;
+  private byte[] aclBytes;
+  private bool inherited;
+  [DllImport("kernel32.dll", EntryPoint="CreateFileW", CharSet=CharSet.Unicode, SetLastError=true)]
+  private static extern SafeFileHandle CreateFile(string path,uint access,uint share,
+    IntPtr security,uint creation,uint flags,IntPtr template);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern uint SetSecurityInfo(SafeFileHandle handle,uint kind,uint info,
+    IntPtr owner,IntPtr group,IntPtr acl,IntPtr sacl);
+  public FfhCiAclRestoreHold(string path,bool directory,byte[] originalDescriptor) {
+    RawSecurityDescriptor original=new RawSecurityDescriptor(originalDescriptor,0);
+    if(original.DiscretionaryAcl==null)throw new InvalidOperationException("SYNTH_FS33_NO_DACL");
+    aclBytes=new byte[original.DiscretionaryAcl.BinaryLength];
+    original.DiscretionaryAcl.GetBinaryForm(aclBytes,0);
+    inherited=(original.ControlFlags & ControlFlags.DiscretionaryAclProtected)==0;
+    // WRITE_DAC, not data write/delete. SHARE_ALL permits the native
+    // read-only Preflight to independently verify the exact held object.
+    h=CreateFile(path,0x00040000u,7u,IntPtr.Zero,3u,
+      directory?0x02200000u:0x00200000u,IntPtr.Zero);
+    if(h.IsInvalid){h.Dispose();throw new InvalidOperationException("SYNTH_FS33_OPEN_WRITE_DAC");}
+  }
+  public void Restore() {
+    IntPtr p=Marshal.AllocHGlobal(aclBytes.Length);
+    try {
+      Marshal.Copy(aclBytes,0,p,aclBytes.Length);
+      // SE_FILE_OBJECT + DACL_SECURITY_INFORMATION plus original
+      // inherited/protected DACL mode, via the SAME pre-opened object handle.
+      uint selector=4u | (inherited?0x20000000u:0x80000000u);
+      if(SetSecurityInfo(h,1u,selector,IntPtr.Zero,IntPtr.Zero,p,IntPtr.Zero)!=0u)
+        throw new InvalidOperationException("SYNTH_FS33_HELD_DACL_RESTORE");
+    } finally {Marshal.FreeHGlobal(p);}
+  }
+  public void Dispose(){if(h!=null)h.Dispose();}
+}
+'@ -ErrorAction Stop
   $id=New-NativeRoot;$recorded=FileId $id
   $config=Join-Path $id.root 'supabase/config.toml'
   $supabase=Join-Path $id.root 'supabase'
-  # Only this ephemeral CI-owned fixture is modified. Its restrictive
-  # DELETE-less ACL is intentionally temporary and must be reverted to the
-  # known private allow-only state before any fixture teardown.
+  $originalFileAcl=[IO.File]::GetAccessControl($config)
+  $originalDirAcl=[IO.Directory]::GetAccessControl($supabase)
+  $heldConfig=$null;$heldSupabase=$null
   try {
+    $heldSupabase=[FfhCiAclRestoreHold]::new($supabase,$true,
+      $originalDirAcl.GetSecurityDescriptorBinaryForm())
+    $heldConfig=[FfhCiAclRestoreHold]::new($config,$false,
+      $originalFileAcl.GetSecurityDescriptorBinaryForm())
     $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User
     $fileAcl=[IO.File]::GetAccessControl($config)
     $dirAcl=[IO.Directory]::GetAccessControl($supabase)
     foreach($acl in @($fileAcl,$dirAcl)) {
-      # WinPS GitHub runners can create children owned by Administrators.
-      # Before restricting their DACL, make the newly-created CI fixture's
-      # current user the explicit owner. NTFS owners retain WRITE_DAC for safe
-      # restoration even when DELETE is absent.
-      $acl.SetOwner($ownerSid)
       $acl.SetAccessRuleProtection($true,$false)
-      $rules=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
-      foreach($rule in $rules) {[void]$acl.RemoveAccessRuleSpecific($rule)}
+      foreach($rule in @($acl.GetAccessRules($true,$false,
+          [Security.Principal.SecurityIdentifier]))) {
+        [void]$acl.RemoveAccessRuleSpecific($rule)
+      }
       $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
         $ownerSid,[Security.AccessControl.FileSystemRights]::ReadAndExecute,
         [Security.AccessControl.AccessControlType]::Allow))
@@ -534,12 +577,19 @@ try {
     MarkerExists $id
     Write-Output 'FS-33 DESTRUCTIVE_DELETE_REFUSED'
   } finally {
-    # Reapplying an inherited ACL snapshot after restricting the parent can
-    # leave the child without DELETE rights, masking the test's real result.
-    # Restore explicit private FULL rights to these exact newly-created CI
-    # fixture entries; production/Owner paths are NEVER handled here.
-    Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
-    Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
+    # Restore BOTH independently; never discard the other held descriptor on
+    # a single failure. These are only this test's exact two freshly-created
+    # objects, and no blanket root mutation or foreign path is attempted.
+    $restoreFail=$false
+    try {
+      if($null -ne $heldConfig) {$heldConfig.Restore()}
+    } catch {$restoreFail=$true}
+    try {
+      if($null -ne $heldSupabase) {$heldSupabase.Restore()}
+    } catch {$restoreFail=$true}
+    if($null -ne $heldConfig) {$heldConfig.Dispose()}
+    if($null -ne $heldSupabase) {$heldSupabase.Dispose()}
+    if($restoreFail) {throw 'SYNTH_FS33_HELD_ACL_RESTORE_FAILED'}
     Write-Output 'FS-33 ACL_RESTORED'
   }
   FileReceipt '33'
