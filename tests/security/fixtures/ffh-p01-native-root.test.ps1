@@ -496,101 +496,47 @@ try {
   FileReceipt '32'
   Stop-NativeRoot $id;$id=$null
 
-  # FS-33: real NTFS read-only DACL without DELETE or DELETE_CHILD.
-  # A pre-acquired exact-object WRITE_DAC handle safely restores the original
-  # DACL after testing. No Owner path, elevation, process impersonation, or
-  # blanket ACL manipulation: these objects were CREATED by this CI fixture.
-  Add-Type -TypeDefinition @'
-using System;
-using System.Security.AccessControl;
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
-public sealed class FfhCiAclRestoreHold : IDisposable {
-  private SafeFileHandle h;
-  private byte[] aclBytes;
-  private bool inherited;
-  [DllImport("kernel32.dll", EntryPoint="CreateFileW", CharSet=CharSet.Unicode, SetLastError=true)]
-  private static extern SafeFileHandle CreateFile(string path,uint access,uint share,
-    IntPtr security,uint creation,uint flags,IntPtr template);
-  [DllImport("advapi32.dll", SetLastError=true)]
-  private static extern uint SetSecurityInfo(SafeFileHandle handle,uint kind,uint info,
-    IntPtr owner,IntPtr group,IntPtr acl,IntPtr sacl);
-  public FfhCiAclRestoreHold(string path,bool directory,byte[] originalDescriptor) {
-    RawSecurityDescriptor original=new RawSecurityDescriptor(originalDescriptor,0);
-    if(original.DiscretionaryAcl==null)throw new InvalidOperationException("SYNTH_FS33_NO_DACL");
-    aclBytes=new byte[original.DiscretionaryAcl.BinaryLength];
-    original.DiscretionaryAcl.GetBinaryForm(aclBytes,0);
-    inherited=(original.ControlFlags & ControlFlags.DiscretionaryAclProtected)==0;
-    // WRITE_DAC, not data write/delete. SHARE_ALL permits the native
-    // read-only Preflight to independently verify the exact held object.
-    h=CreateFile(path,0x00040000u,7u,IntPtr.Zero,3u,
-      directory?0x02200000u:0x00200000u,IntPtr.Zero);
-    if(h.IsInvalid){h.Dispose();throw new InvalidOperationException("SYNTH_FS33_OPEN_WRITE_DAC");}
-  }
-  public void Restore() {
-    IntPtr p=Marshal.AllocHGlobal(aclBytes.Length);
-    try {
-      Marshal.Copy(aclBytes,0,p,aclBytes.Length);
-      // SE_FILE_OBJECT + DACL_SECURITY_INFORMATION plus original
-      // inherited/protected DACL mode, via the SAME pre-opened object handle.
-      uint selector=4u | (inherited?0x20000000u:0x80000000u);
-      if(SetSecurityInfo(h,1u,selector,IntPtr.Zero,IntPtr.Zero,p,IntPtr.Zero)!=0u)
-        throw new InvalidOperationException("SYNTH_FS33_HELD_DACL_RESTORE");
-    } finally {Marshal.FreeHGlobal(p);}
-  }
-  public void Dispose(){if(h!=null)h.Dispose();}
-}
-'@ -ErrorAction Stop
+  # FS-33: a real NTFS DACL can grant data READ and WRITE_DAC for
+  # deterministic CI fixture restoration, while excluding DELETE on the file
+  # and DELETE_CHILD on its parent. Preflight needs READ only; Retire must still
+  # request DELETE on every held child before attempting any disposition.
+  # ChangePermissions is fixture-only WRITE_DAC, NOT data WRITE or DELETE.
   $id=New-NativeRoot;$recorded=FileId $id
   $config=Join-Path $id.root 'supabase/config.toml'
   $supabase=Join-Path $id.root 'supabase'
+  $migrations=Join-Path $supabase 'migrations'
   $originalFileAcl=[IO.File]::GetAccessControl($config)
   $originalDirAcl=[IO.Directory]::GetAccessControl($supabase)
-  $heldConfig=$null;$heldSupabase=$null
   try {
-    $heldSupabase=[FfhCiAclRestoreHold]::new($supabase,$true,
-      $originalDirAcl.GetSecurityDescriptorBinaryForm())
-    $heldConfig=[FfhCiAclRestoreHold]::new($config,$false,
-      $originalFileAcl.GetSecurityDescriptorBinaryForm())
     $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User
-    $fileAcl=[IO.File]::GetAccessControl($config)
-    $dirAcl=[IO.Directory]::GetAccessControl($supabase)
-    foreach($acl in @($fileAcl,$dirAcl)) {
+    $rights=[Security.AccessControl.FileSystemRights]::ReadAndExecute -bor
+      [Security.AccessControl.FileSystemRights]::ChangePermissions
+    foreach($acl in @($originalDirAcl,$originalFileAcl)) {
+      # Both objects belong to this newly-created synthetic test root.
+      # Explicitly preserve WRITE_DAC so the original state can be restored.
       $acl.SetAccessRuleProtection($true,$false)
       foreach($rule in @($acl.GetAccessRules($true,$false,
           [Security.Principal.SecurityIdentifier]))) {
         [void]$acl.RemoveAccessRuleSpecific($rule)
       }
       $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
-        $ownerSid,[Security.AccessControl.FileSystemRights]::ReadAndExecute,
-        [Security.AccessControl.AccessControlType]::Allow))
+        $ownerSid,$rights,[Security.AccessControl.AccessControlType]::Allow))
     }
-    [IO.Directory]::SetAccessControl($supabase,$dirAcl)
-    [IO.File]::SetAccessControl($config,$fileAcl)
-    Write-Output 'FS-33 RESTRICTED_DACL_APPLIED'
+    [IO.Directory]::SetAccessControl($supabase,$originalDirAcl)
+    [IO.File]::SetAccessControl($config,$originalFileAcl)
     if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
         $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
       throw 'SYNTH_READ_DACL_PREFLIGHT_FAILED'
     }
-    Write-Output 'FS-33 READ_PREFLIGHT_OK'
     ExpectCategory {NativeRetire $id $recorded} 'OPEN_5'
     MarkerExists $id
-    Write-Output 'FS-33 DESTRUCTIVE_DELETE_REFUSED'
   } finally {
-    # Restore BOTH independently; never discard the other held descriptor on
-    # a single failure. These are only this test's exact two freshly-created
-    # objects, and no blanket root mutation or foreign path is attempted.
-    $restoreFail=$false
-    try {
-      if($null -ne $heldConfig) {$heldConfig.Restore()}
-    } catch {$restoreFail=$true}
-    try {
-      if($null -ne $heldSupabase) {$heldSupabase.Restore()}
-    } catch {$restoreFail=$true}
-    if($null -ne $heldConfig) {$heldConfig.Dispose()}
-    if($null -ne $heldSupabase) {$heldSupabase.Dispose()}
-    if($restoreFail) {throw 'SYNTH_FS33_HELD_ACL_RESTORE_FAILED'}
-    Write-Output 'FS-33 ACL_RESTORED'
+    # WRITE_DAC remains granted during this exact-object, CI-only cleanup.
+    # Reset these two entries and the one fixture-owned descendant so
+    # inherited DACL propagation cannot prevent ephemeral-root teardown.
+    Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
+    Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
+    Initialize-FfhPrivateEvidenceAcl -Path $migrations -NewlyCreated
   }
   FileReceipt '33'
   Stop-NativeRoot $id;$id=$null
