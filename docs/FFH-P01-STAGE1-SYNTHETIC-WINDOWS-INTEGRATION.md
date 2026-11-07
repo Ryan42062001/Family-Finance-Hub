@@ -100,11 +100,13 @@ foreign nested file, nested NTFS junction with preserved external sentinel,
 a 16th unexpected migration, ACL inheritance drift, dirty Git worktree,
 same-byte replaced CI ticket with new Windows file identity, changed
 worktree HEAD (without modifying checkout files), and a deliberately
-interrupted teardown. The fault-injection setup itself restores each
-recognized synthetic mutation *after* proving that the preflight performed
-no disposal. The interruption intentionally preserves the known remaining
-test material on the disposable runner for manual review and does not claim
-atomic rollback. These cases are independent of `STG-01..35`, whose original
+interrupted teardown. The nested foreign file, junction, extra migration, dirty checkout, ticket
+and HEAD fault injections are individually restored after proving zero
+preflight dispositions. ACL drift uses a **separate** CI-owned manifest and
+is deliberately **not** repaired or adopted after a blocked preflight; its
+objects remain on the disposable runner for review. The interruption uses
+the still-pristine primary fixture, preserves its known remaining material
+for manual review and does not claim atomic rollback. These cases are independent of `STG-01..35`, whose original
 two `COMPLETE` paths and synthetic labeling remain unchanged.
 
 **Receipt rule:** Only a completed, exact-SHA Windows FAST result is evidence

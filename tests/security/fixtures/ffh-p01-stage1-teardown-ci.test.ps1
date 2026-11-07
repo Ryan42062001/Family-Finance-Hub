@@ -127,54 +127,69 @@ Assert-StgCi ([IO.File]::ReadAllText($extra) -ceq $sentinel)
 [IO.File]::Delete($extra)
 [IO.Directory]::SetLastWriteTimeUtc((Join-Path $root 'supabase\migrations'),$migrationTime)
 Assert-StgCiManifest $manifest
-# 4: ACL inheritance identity drift without changing file bytes.
-$originalAcl=[IO.File]::GetAccessControl($meta)
-$changedAcl=[IO.File]::GetAccessControl($meta)
-$changedAcl.SetAccessRuleProtection($true,$true)
-[IO.File]::SetAccessControl($meta,$changedAcl)
-Assert-StgCi ((Get-StgCiRow $meta).Acl -cne $manifest.Index[$meta].Acl)
-Expect-Blocked 4 'ACL_DRIFT'
-# FileSecurity persists only the sections marked modified; passing the pristine
-# unmodified object to SetAccessControl can be a NO-OP. Explicitly restore
-# the saved binary descriptor on a fresh mutable instance and retain mtime.
-$restoreAcl=[IO.File]::GetAccessControl($meta)
-$restoreAcl.SetSecurityDescriptorBinaryForm($originalAcl.GetSecurityDescriptorBinaryForm())
-[IO.File]::SetAccessControl($meta,$restoreAcl)
-[IO.File]::SetLastWriteTimeUtc($meta,[DateTime]::new([long]$manifest.Index[$meta].Modified,[DateTimeKind]::Utc))
-Assert-StgCi ((Get-StgCiRow $meta).Acl -ceq $manifest.Index[$meta].Acl)
-try {Assert-StgCiManifest $manifest}
-catch {throw 'STGC_RESTORE_ACL_BLOCKED'}
-# 5: tracked checkout dirty; no Git --force removal.
+# 4: tracked checkout dirty; no Git --force removal.
 $trackedFile=Join-Path $wt 'package.json'
 $originalBytes=[IO.File]::ReadAllBytes($trackedFile)
 $originalModified=[IO.File]::GetLastWriteTimeUtc($trackedFile)
 [IO.File]::AppendAllText($trackedFile,'TEST_DIRTY_CHECKOUT',$utf8)
-Expect-Blocked 5 'WORKTREE_DIRTY'
+Expect-Blocked 4 'WORKTREE_DIRTY'
 [IO.File]::WriteAllBytes($trackedFile,$originalBytes)
 [IO.File]::SetLastWriteTimeUtc($trackedFile,$originalModified)
 try {Assert-StgCiManifest $manifest}
 catch {throw 'STGC_RESTORE_WORKTREE_BLOCKED'}
-# 6: ticket replaced with SAME BYTES; immutable Windows object ID must reject.
+# 5: ticket replaced with SAME BYTES; immutable Windows object ID must reject.
 $held=Join-Path $base 'original-ticket-held'
 [IO.File]::Move($ticket,$held)
 Write-TestFile $ticket $head
 Assert-StgCi ((Get-StgCiRow $ticket).ObjectId -cne $manifest.Index[$ticket].ObjectId)
-Expect-Blocked 6 'TICKET_REPLACED'
+Expect-Blocked 5 'TICKET_REPLACED'
 Assert-StgCi ([IO.File]::ReadAllText($ticket) -ceq $head)
 [IO.File]::Delete($ticket)
 [IO.File]::Move($held,$ticket)
 try {Assert-StgCiManifest $manifest}
 catch {throw 'STGC_RESTORE_TICKET_BLOCKED'}
-# 7: same checkout files but changed detached HEAD must block without mutation.
+# 6: same checkout files but changed detached HEAD must block without mutation.
 $earlier=(& git -C $wt rev-parse HEAD^).Trim()
 Assert-StgCi ($LASTEXITCODE -eq 0 -and $earlier -cne $head)
 & git -C $wt update-ref HEAD $earlier
 Assert-StgCi ($LASTEXITCODE -eq 0)
-Expect-Blocked 7 'WORKTREE_HEAD_DRIFT'
+Expect-Blocked 6 'WORKTREE_HEAD_DRIFT'
 & git -C $wt update-ref HEAD $head
 Assert-StgCi ($LASTEXITCODE -eq 0)
 try {Assert-StgCiManifest $manifest}
 catch {throw 'STGC_RESTORE_HEAD_BLOCKED'}
+# 7: independent ACL drift on a SEPARATE fully test-owned fixture.
+# The drifted descriptor is deliberately retained on this ephemeral runner:
+# a fail-closed test must never re-adopt or force-reset ambiguous ACL state.
+$aclRoot=Join-Path $base 'acl-root'
+$aclEvidence=Join-Path $base 'acl-evidence'
+$aclTicket=Join-Path $base 'acl-ticket'
+[void][IO.Directory]::CreateDirectory($aclRoot)
+[void][IO.Directory]::CreateDirectory($aclEvidence)
+$aclMeta=Join-Path $aclRoot 'acl.json'
+$aclReceipt=Join-Path $aclEvidence 'receipt.json'
+Write-TestFile $aclMeta '{"acl":"owned"}'
+Write-TestFile $aclReceipt '{"acl":"independent"}'
+Write-TestFile $aclTicket $head
+$aclManifest=New-StgCiManifest -Roots @($wt,$aclRoot,$aclEvidence) -Ticket $aclTicket -ExpectedFiles (@($sourcePaths)+@($aclMeta,$aclReceipt)) -Worktree $wt -Head $head -Repository $repo
+$originalDescriptor=(Get-StgCiRow $aclMeta).Acl
+$aclChange=[IO.File]::GetAccessControl($aclMeta)
+$aclChange.SetAccessRuleProtection($true,$true)
+[IO.File]::SetAccessControl($aclMeta,$aclChange)
+Assert-StgCi ((Get-StgCiRow $aclMeta).Acl -cne $originalDescriptor)
+$aclBlocked=$false
+try {
+  Invoke-StgCiContainedTeardown -Manifest $aclManifest -OwnedFiles @($aclReceipt,$aclMeta) -OwnedDirs @($aclEvidence,$aclRoot)
+} catch {
+  if ([string]$_.Exception.Message -notmatch 'STG_CLEANUP_BLOCKED') {throw}
+  $aclBlocked=$true
+}
+Assert-StgCi ($aclBlocked -and [IO.File]::Exists($aclMeta) -and
+  [IO.File]::Exists($aclReceipt) -and [IO.File]::Exists($aclTicket) -and
+  [IO.File]::Exists($journal) -and [IO.File]::Exists($meta) -and
+  [IO.Directory]::Exists($wt) -and [IO.File]::ReadAllText($outside) -ceq $sentinel)
+Write-Output 'STGC-07 PASS ACL_DRIFT STG_CLEANUP_BLOCKED'
+Assert-StgCiManifest $manifest
 # 8: simulated interruption after one verified disposition; remaining material
 # stays INTACT for manual review, never auto-resumed or force-cleaned.
 Expect-Blocked 8 'INTERRUPTED_TEARDOWN' 1
