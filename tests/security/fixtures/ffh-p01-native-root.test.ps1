@@ -502,8 +502,9 @@ try {
   $id=New-NativeRoot;$recorded=FileId $id
   $config=Join-Path $id.root 'supabase/config.toml'
   $supabase=Join-Path $id.root 'supabase'
-  $originalFileAcl=[IO.File]::GetAccessControl($config)
-  $originalDirAcl=[IO.Directory]::GetAccessControl($supabase)
+  # Only this ephemeral CI-owned fixture is modified. Its restrictive
+  # DELETE-less ACL is intentionally temporary and must be reverted to the
+  # known private allow-only state before any fixture teardown.
   try {
     $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User
     $fileAcl=[IO.File]::GetAccessControl($config)
@@ -525,8 +526,12 @@ try {
     ExpectCategory {NativeRetire $id $recorded} 'OPEN_5'
     MarkerExists $id
   } finally {
-    [IO.File]::SetAccessControl($config,$originalFileAcl)
-    [IO.Directory]::SetAccessControl($supabase,$originalDirAcl)
+    # Reapplying an inherited ACL snapshot after restricting the parent can
+    # leave the child without DELETE rights, masking the test's real result.
+    # Restore explicit private FULL rights to these exact newly-created CI
+    # fixture entries; production/Owner paths are NEVER handled here.
+    Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
+    Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
   }
   FileReceipt '33'
   Stop-NativeRoot $id;$id=$null
