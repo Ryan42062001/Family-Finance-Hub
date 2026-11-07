@@ -510,6 +510,11 @@ try {
     $fileAcl=[IO.File]::GetAccessControl($config)
     $dirAcl=[IO.Directory]::GetAccessControl($supabase)
     foreach($acl in @($fileAcl,$dirAcl)) {
+      # WinPS GitHub runners can create children owned by Administrators.
+      # Before restricting their DACL, make the newly-created CI fixture's
+      # current user the explicit owner. NTFS owners retain WRITE_DAC for safe
+      # restoration even when DELETE is absent.
+      $acl.SetOwner($ownerSid)
       $acl.SetAccessRuleProtection($true,$false)
       $rules=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
       foreach($rule in $rules) {[void]$acl.RemoveAccessRuleSpecific($rule)}
@@ -519,12 +524,15 @@ try {
     }
     [IO.Directory]::SetAccessControl($supabase,$dirAcl)
     [IO.File]::SetAccessControl($config,$fileAcl)
+    Write-Output 'FS-33 RESTRICTED_DACL_APPLIED'
     if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
         $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
       throw 'SYNTH_READ_DACL_PREFLIGHT_FAILED'
     }
+    Write-Output 'FS-33 READ_PREFLIGHT_OK'
     ExpectCategory {NativeRetire $id $recorded} 'OPEN_5'
     MarkerExists $id
+    Write-Output 'FS-33 DESTRUCTIVE_DELETE_REFUSED'
   } finally {
     # Reapplying an inherited ACL snapshot after restricting the parent can
     # leave the child without DELETE rights, masking the test's real result.
@@ -532,6 +540,7 @@ try {
     # fixture entries; production/Owner paths are NEVER handled here.
     Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
     Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
+    Write-Output 'FS-33 ACL_RESTORED'
   }
   FileReceipt '33'
   Stop-NativeRoot $id;$id=$null
