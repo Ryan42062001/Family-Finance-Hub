@@ -138,11 +138,13 @@ if ([IO.Directory]::Exists($approved) -or [IO.Directory]::Exists($id.root) -or
 }
 try {
   # The actual Plan verifies EXACT source checkout and historical Git blobs.
-  $out=@(& git -C $repo worktree add --detach $approved HEAD 2>&1)
-  if ($LASTEXITCODE -ne 0 -or -not [IO.Directory]::Exists($approved)) {
+  # WinPS5.1 treats git's *normal* worktree progress stderr as an
+  # ErrorRecord under Stop: request quiet mode and never merge stderr.
+  & git -C $repo worktree add --quiet --detach $approved HEAD 2>$null | Out-Null
+  $created=[IO.Directory]::Exists($approved)
+  if ($LASTEXITCODE -ne 0 -or -not $created) {
     throw 'STG_GIT_WORKTREE_CREATE_FAILED'
   }
-  $created=$true
   $loc=Get-Location
   try {
     Set-Location -LiteralPath $approved
