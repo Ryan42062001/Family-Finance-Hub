@@ -11,7 +11,7 @@ function Block([string]$category,[scriptblock]$action) {
   $caught=$false
   try {[void](& $action)} catch {
     if ($_.Exception.Message -cne $category) {
-      throw ('KI_UNEXPECTED_CATEGORY_'+$category)
+      throw ('KI_UNEXPECTED_CATEGORY_'+$category+'_ACTUAL_'+$_.Exception.Message)
     }
     $caught=$true
   }
@@ -161,7 +161,10 @@ Block 'BLOCKED: unlabeled or ambiguous named resource' {
 }
 $script:nrows=@($script:nid+' '+$script:nname)
 Receipt 7
-$script:crows=@($script:cid+' '+$script:cname,$script:cid+' '+$script:cname)
+$script:crows=@(($script:cid+' '+$script:cname),($script:cid+' '+$script:cname))
+if (@(Get-FfhFullResourceNamespace -Fake $script:fake).Count -ne 5) {
+  throw 'KI_DUPLICATE_NAMESPACE_ROW_COUNT'
+}
 Block 'BLOCKED: exact project resource namespace missing or duplicated' {
   Assert-FfhExactInventory -Identity $script:i -Journal $script:journal -Fake $script:fake
 }
