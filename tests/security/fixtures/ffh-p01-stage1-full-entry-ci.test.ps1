@@ -65,6 +65,13 @@ function Run-Plan([string]$Case,[string]$Fault,[string]$ExpectedStage,
   $info.Arguments=$arguments
   $info.UseShellExecute=$false;$info.CreateNoWindow=$true
   $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+  # A CI runner can carry unrelated service configuration. A synthetic
+  # child must start clean, then explicit adversarial variables are injected.
+  foreach($name in @($info.EnvironmentVariables.Keys)) {
+    if ([string]$name -match '^(?i:DOCKER_|SUPABASE_|PGHOST$|PGSERVICE$|PGPORT$|PGDATABASE$|PGUSER$|PGPASSWORD$|DATABASE_URL$)') {
+      $info.EnvironmentVariables.Remove([string]$name)
+    }
+  }
   $info.EnvironmentVariables['FFH_P01_CI_STAGE1']='INTEGRATION_ONLY'
   $info.EnvironmentVariables['FFH_P01_CI_STAGE1_TICKET']=$ticket
   $info.EnvironmentVariables['FFH_P01_CI_STAGE1_FAULT']=$Fault
@@ -219,7 +226,7 @@ try {
   # CI-only snapshot before/after EACH real PowerShell child invocation.
   ExecuteCase 1 'COMPLETE_SHARED_CONTAINER_VOLUME_NATIVE_PREFLIGHT' '' 'COMPLETE' 'NONE' 0
   ExecuteCase 2 'WRONG_CONSUMED_HEAD' '' 'CONSUMED_HEAD' 'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD' 1 $head ('e'*40)
-  ExecuteCase 3 'REMOTE_ENV_REJECTED' '' 'ENVIRONMENT' 'INHERITED_GUARD_REJECTED' 1 $head $old '' 'DATABASE_URL'
+  ExecuteCase 3 'REMOTE_ENV_REJECTED' '' 'ENVIRONMENT' 'CI_ENV_REMOTE_FAILED' 1 $head $old '' 'DATABASE_URL'
   ExecuteCase 4 'SOURCE_SHA_MISMATCH' '' 'SOURCE_CHECKOUT' 'INHERITED_GUARD_REJECTED' 1 ('e'*40)
   # Every mutation below is TEST SETUP only and is immediately restored.
   try {

@@ -9,6 +9,7 @@ $script:FfhRecoveryInvocationArgs=@($args)
 $ErrorActionPreference='Stop'
 $script:FfhRecoveryStage='INITIALIZATION'
 $script:FfhRecoverySyntheticCI=$false
+$script:FfhRecoveryCiEnvironmentProbe='NONE'
 
 # No external command, module import, filesystem or environment access.
 # All string checks are literal, case-sensitive and bounded before use.
@@ -120,10 +121,15 @@ function Invoke-FfhConsumedRecoveryPlan {
     throw 'BLOCKED_RECOVERY_WRONG_CONSUMED_HEAD'
   }
   Set-FfhRecoveryStage -Stage 'ENVIRONMENT'
+  $script:FfhRecoveryCiEnvironmentProbe='REMOTE'
   Assert-FfhNoRemoteConfiguration
+  $script:FfhRecoveryCiEnvironmentProbe='SUPABASE'
   Assert-FfhDiagnosticNoSupabaseOverrides
+  $script:FfhRecoveryCiEnvironmentProbe='DOCKER_ENV'
   Assert-FfhDockerEnvironment
+  $script:FfhRecoveryCiEnvironmentProbe='DOCKER_LOCAL'
   [void](Assert-FfhLocalDockerDesktop)
+  $script:FfhRecoveryCiEnvironmentProbe='NONE'
   # Bind source verification to THIS audited script's own checkout,
   # never the caller's arbitrary working directory or original Audit tree.
   Set-FfhRecoveryStage -Stage 'SOURCE_CHECKOUT'
@@ -392,6 +398,12 @@ function Invoke-FfhRecoveryPlanEntry {
     $failure=$_
     $stage=Get-FfhRecoverySafeStage -Stage ([string]$script:FfhRecoveryStage)
     $category=Get-FfhRecoveryFailureCategory -ErrorText ([string]$failure.Exception.Message) -Failure $failure
+    # No private exception is exposed. Only CI-synthetic receipts distinguish
+    # the *name* of an existing production ENVIRONMENT guard for diagnosis.
+    if ($script:FfhRecoverySyntheticCI -and $stage -ceq 'ENVIRONMENT' -and
+        $script:FfhRecoveryCiEnvironmentProbe -cin @('REMOTE','SUPABASE','DOCKER_ENV','DOCKER_LOCAL')) {
+      $category='CI_ENV_'+$script:FfhRecoveryCiEnvironmentProbe+'_FAILED'
+    }
     Write-Output ('RECOVERY_PLAN=BLOCKED STAGE='+$stage+' CATEGORY='+$category+
       ' SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED NO_MUTATION=YES')
     exit 1
@@ -413,10 +425,16 @@ Invoke-FfhRecoveryPlanEntry -Action {
     # Dot-source in THIS guarded action's scope, where the production helpers
     # were just imported. A nested function-local import would evaporate.
     . $ciAdapter
-    $syntheticDocker=(Get-Command Assert-FfhLocalDockerDesktop -CommandType Function).Definition
-    if ($syntheticDocker -cnotmatch 'CI_SYNTHETIC_NO_EXTERNAL_PROCESS') {
+    $syntheticDocker=(Get-Command Assert-FfhLocalDockerDesktop -CommandType Function).ScriptBlock
+    $syntheticRead=(Get-Command Invoke-FfhDockerRead -CommandType Function).ScriptBlock
+    if ($syntheticDocker.ToString() -cnotmatch 'CI_SYNTHETIC_NO_EXTERNAL_PROCESS' -or
+        $syntheticRead.ToString() -cnotmatch 'FfhCiFault') {
       throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
     }
+    # Bind fake read-only metadata functions into this isolated child script's
+    # scope: nested imported functions must not resolve the parent originals.
+    Set-Item -Path Function:\script:Assert-FfhLocalDockerDesktop -Value $syntheticDocker
+    Set-Item -Path Function:\script:Invoke-FfhDockerRead -Value $syntheticRead
     $script:FfhRecoverySyntheticCI=$true
   }
   Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $validated.ExpectedAuditedHead -ConsumedHead $validated.ConsumedHead -RunToken $validated.RunToken -CliSha256 $validated.CliSha256 -PreapprovedCacheSha256 $validated.PreapprovedCacheSha256
