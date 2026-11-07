@@ -301,7 +301,7 @@ try {
   } finally {Write-Utf8 $journalPath $jText}
   try {
     Write-Utf8 $configPath 'PRIVATE_NEVER_PRINT_CI_SECRET'
-    ExecuteCase 26 'NATIVE_PREFLIGHT_HASH' '' 'NATIVE_PREFLIGHT' 'NATIVE_GUARD_REJECTED'
+    ExecuteCase 26 'NATIVE_PREFLIGHT_HASH' '' 'NATIVE_PREFLIGHT' 'UNEXPECTED_VERIFICATION_FAILURE'
   } finally {Write-Utf8 $configPath (Get-FfhFreshConfig -ExpectedHead $old -RunToken $token -DbPort 26000 -ShadowPort 26001)}
   ExecuteCase 27 'UNEXPECTED_DOCKER_ERROR_SANITIZED' 'STREAM_LEAK' 'DOCKER_INVENTORY' 'UNEXPECTED_VERIFICATION_FAILURE'
   ExecuteCase 28 'FINAL_COMPLETE_REVALIDATION' '' 'COMPLETE' 'NONE' 0
