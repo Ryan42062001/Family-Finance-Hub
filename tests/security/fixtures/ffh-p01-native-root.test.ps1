@@ -496,47 +496,65 @@ try {
   FileReceipt '32'
   Stop-NativeRoot $id;$id=$null
 
-  # FS-33: a real NTFS DACL can grant data READ and WRITE_DAC for
-  # deterministic CI fixture restoration, while excluding DELETE on the file
-  # and DELETE_CHILD on its parent. Preflight needs READ only; Retire must still
-  # request DELETE on every held child before attempting any disposition.
-  # ChangePermissions is fixture-only WRITE_DAC, NOT data WRITE or DELETE.
+  # FS-33: a real NTFS DACL grants data READ and fixture-only WRITE_DAC
+  # but denies DELETE on a file and DELETE_CHILD on its parent. All descendants
+  # are first made private and inheritance-protected inside this new synthetic
+  # CI root, so parent ACL propagation cannot inadvertently lock them out.
+  # No Owner-host path, Docker, SQL, production Retire, or foreign path is used.
   $id=New-NativeRoot;$recorded=FileId $id
   $config=Join-Path $id.root 'supabase/config.toml'
   $supabase=Join-Path $id.root 'supabase'
   $migrations=Join-Path $supabase 'migrations'
-  $originalFileAcl=[IO.File]::GetAccessControl($config)
-  $originalDirAcl=[IO.Directory]::GetAccessControl($supabase)
+  $phase='CHILD_ISOLATION'
   try {
-    $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+    # Newly created children only: pin original private ACLs independent of
+    # subsequent parent DACL changes; bind their owner to the current CI user.
+    Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
+    Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
+    Initialize-FfhPrivateEvidenceAcl -Path $migrations -NewlyCreated
+    Write-Output 'FS-33 CHILD_ACL_ISOLATED'
+    $phase='RESTRICT_DACL'
+    $who=[Security.Principal.WindowsIdentity]::GetCurrent().User
     $rights=[Security.AccessControl.FileSystemRights]::ReadAndExecute -bor
       [Security.AccessControl.FileSystemRights]::ChangePermissions
-    foreach($acl in @($originalDirAcl,$originalFileAcl)) {
-      # Both objects belong to this newly-created synthetic test root.
-      # Explicitly preserve WRITE_DAC so the original state can be restored.
+    $fileAcl=[IO.File]::GetAccessControl($config)
+    $dirAcl=[IO.Directory]::GetAccessControl($supabase)
+    foreach($acl in @($fileAcl,$dirAcl)) {
       $acl.SetAccessRuleProtection($true,$false)
       foreach($rule in @($acl.GetAccessRules($true,$false,
           [Security.Principal.SecurityIdentifier]))) {
         [void]$acl.RemoveAccessRuleSpecific($rule)
       }
       $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
-        $ownerSid,$rights,[Security.AccessControl.AccessControlType]::Allow))
+        $who,$rights,[Security.AccessControl.AccessControlType]::Allow))
     }
-    [IO.Directory]::SetAccessControl($supabase,$originalDirAcl)
-    [IO.File]::SetAccessControl($config,$originalFileAcl)
+    [IO.File]::SetAccessControl($config,$fileAcl)
+    [IO.Directory]::SetAccessControl($supabase,$dirAcl)
+    Write-Output 'FS-33 RESTRICTED_DELETE_RIGHTS'
+    $phase='NATIVE_READ_PREFLIGHT'
     if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
         $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
       throw 'SYNTH_READ_DACL_PREFLIGHT_FAILED'
     }
+    Write-Output 'FS-33 READ_PREFLIGHT_OK'
+    $phase='NATIVE_RETIRE_ACCESS'
     ExpectCategory {NativeRetire $id $recorded} 'OPEN_5'
     MarkerExists $id
+    Write-Output 'FS-33 DELETE_REFUSED_BEFORE_DISPOSITION'
+  } catch {
+    Write-Output ('FS-33 FAILED_STAGE='+$phase)
+    throw
   } finally {
-    # WRITE_DAC remains granted during this exact-object, CI-only cleanup.
-    # Reset these two entries and the one fixture-owned descendant so
-    # inherited DACL propagation cannot prevent ephemeral-root teardown.
+    # Restore exact fixture-owned private ACLs while WRITE_DAC is still held
+    # via the explicitly granted ChangePermissions right (not DELETE).
+    # No attempt to traverse or modify any unowned file is permitted.
+    Write-Output 'FS-33 RESTORE_START'
     Initialize-FfhPrivateEvidenceAcl -Path $supabase -NewlyCreated
+    Write-Output 'FS-33 RESTORED_PARENT'
     Initialize-FfhPrivateEvidenceAcl -Path $config -NewlyCreated
+    Write-Output 'FS-33 RESTORED_CONFIG'
     Initialize-FfhPrivateEvidenceAcl -Path $migrations -NewlyCreated
+    Write-Output 'FS-33 RESTORED_MIGRATIONS'
   }
   FileReceipt '33'
   Stop-NativeRoot $id;$id=$null
