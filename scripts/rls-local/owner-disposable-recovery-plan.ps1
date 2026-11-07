@@ -109,8 +109,7 @@ function Enable-FfhRecoverySyntheticCiDocker {
   if (-not (Test-Path -LiteralPath $adapter -PathType Leaf)) {
     throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
   }
-  . $adapter
-  $script:FfhRecoverySyntheticCI=$true
+  return $adapter
 }
 function Invoke-FfhConsumedRecoveryPlan {
   param([string]$ExpectedAuditedHead,[string]$ConsumedHead,
@@ -409,6 +408,16 @@ Invoke-FfhRecoveryPlanEntry -Action {
   . "$PSScriptRoot/diagnostic-lifecycle.ps1"
   . "$PSScriptRoot/diagnostic-network.ps1"
   . "$PSScriptRoot/diagnostic-recovery-readonly.ps1"
-  Enable-FfhRecoverySyntheticCiDocker -AuditedHead $validated.ExpectedAuditedHead
+  $ciAdapter=Enable-FfhRecoverySyntheticCiDocker -AuditedHead $validated.ExpectedAuditedHead
+  if ($ciAdapter) {
+    # Dot-source in THIS guarded action's scope, where the production helpers
+    # were just imported. A nested function-local import would evaporate.
+    . $ciAdapter
+    $syntheticDocker=(Get-Command Assert-FfhLocalDockerDesktop -CommandType Function).Definition
+    if ($syntheticDocker -cnotmatch 'CI_SYNTHETIC_NO_EXTERNAL_PROCESS') {
+      throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
+    }
+    $script:FfhRecoverySyntheticCI=$true
+  }
   Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $validated.ExpectedAuditedHead -ConsumedHead $validated.ConsumedHead -RunToken $validated.RunToken -CliSha256 $validated.CliSha256 -PreapprovedCacheSha256 $validated.PreapprovedCacheSha256
 }

@@ -24,7 +24,7 @@ if ($script:FfhCiFault -ceq 'MODULE_IMPORT') {
 }
 $script:FfhCiLabels='{"com.supabase.cli.project":"'+$script:FfhCiProject+
   '","com.docker.compose.project":"'+$script:FfhCiProject+'"}'
-function script:Assert-FfhLocalDockerDesktop {
+function Assert-FfhLocalDockerDesktop {
   Assert-FfhDockerEnvironment
   if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
@@ -34,7 +34,7 @@ function script:Assert-FfhLocalDockerDesktop {
     Executable='CI_SYNTHETIC_NO_EXTERNAL_PROCESS'
   }
 }
-function script:Invoke-FfhDockerRead {
+function Invoke-FfhDockerRead {
   param([string[]]$Arguments,[scriptblock]$Fake)
   if ($null -ne $Fake -or $null -eq $Arguments -or $Arguments.Count -lt 2) {
     throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
