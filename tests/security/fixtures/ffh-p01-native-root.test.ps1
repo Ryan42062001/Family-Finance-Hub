@@ -471,7 +471,7 @@ try {
   $id=New-NativeRoot;$recorded=FileId $id
   $config=Join-Path $id.root 'supabase/config.toml'
   $hold=[IO.FileStream]::new($config,[IO.FileMode]::Open,
-    [IO.FileAccess]::Write,[IO.FileShare]::ReadWriteDelete)
+    [IO.FileAccess]::Write,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
   try {
     ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
       (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
@@ -556,7 +556,7 @@ try {
   try {$digest=[BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
   finally {$stream.Dispose();$hasher.Dispose()}
   $manifestWithMissing=(Manifest $id)+[char]10+
-    ('F|supabase\\migrations\\'+$first.Name+'|'+$digest)
+    ('F|supabase\migrations\'+$first.Name+'|'+$digest)
   ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
     (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
     $manifestWithMissing)} 'MANIFEST_INCOMPLETE'
