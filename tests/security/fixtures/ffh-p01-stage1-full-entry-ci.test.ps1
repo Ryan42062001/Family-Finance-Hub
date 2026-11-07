@@ -20,6 +20,7 @@ $old='cba20f7fecea8b7dfdbcb10fb245765825ef97c0'
 if ($LASTEXITCODE -ne 0) {throw 'STG_HISTORY_MISSING_DO_NOT_FAKE_PERMIT'}
 . (Join-Path $repo 'scripts/rls-local/source-provenance.ps1')
 . (Join-Path $repo 'scripts/rls-local/automatic-cleanup.ps1')
+. (Join-Path $PSScriptRoot 'ffh-p01-stage1-ci-contained-teardown.ps1')
 $profileRoot=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
 $approved=Join-Path $profileRoot 'Family-Finance-Hub-P01-Recovery'
 $token='b'*24;$cliHash='a'*64
@@ -34,6 +35,7 @@ $configPath=Join-Path $id.root 'supabase\config.toml'
 $markerPath=Join-Path $id.root '.ffh-p01-owned-root'
 $utf8=[Text.UTF8Encoding]::new($false)
 $created=$false;$rootCreated=$false;$evidenceCreated=$false
+$fixtureManifest=$null
 function Write-Utf8([string]$Path,[string]$Value) {
   [IO.File]::WriteAllText($Path,$Value,$utf8)
 }
@@ -122,16 +124,11 @@ function Run-Plan([string]$Case,[string]$Fault,[string]$ExpectedStage,
   } finally {$proc.Dispose()}
 }
 function Snapshot {
-  $paths=@($journalPath,$ledgerPath,$finalPath,$cachePath,$rootReceipt,$configPath,$markerPath)
-  $rows=@()
-  foreach($path in $paths) {
-    if ([IO.File]::Exists($path)) {
-      $rows+=($path+'|'+(Digest $path)+'|'+[IO.File]::GetLastWriteTimeUtc($path).Ticks)
-    } else {$rows+=($path+'|ABSENT')}
-  }
-  $rows+=('EVIDENCE='+(@([IO.Directory]::GetFileSystemEntries($id.evidence)) | Sort-Object) -join ',')
-  $rows+=('ROOT='+(@([IO.Directory]::GetFileSystemEntries($id.root)) | Sort-Object) -join ',')
-  return ($rows -join [char]10)
+  # Full-depth, all entries including the clean source worktree and private
+  # evidence, real NTFS identities, ACL security descriptors, times and bytes.
+  # The before/after comparison is local to each deliberate fault mutation.
+  $rows=@(Get-StgCiRows -Roots @($approved,$id.root,$id.evidence) -Ticket $ticket)
+  return (ConvertTo-Json -InputObject $rows -Depth 8 -Compress)
 }
 function ExecuteCase([int]$N,[string]$Case,[string]$Fault,
   [string]$Stage,[string]$Category,[int]$Exit=1,
@@ -317,23 +314,56 @@ try {
   ExecuteCase 33 'STRICT_OUTPUT_CONTRACT' 'OUTPUT_EXTRA' 'OUTPUT_CONTRACT' 'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
   ExecuteCase 34 'SANITIZED_CI_MODULE_IMPORT' 'MODULE_IMPORT' 'MODULE_IMPORT' 'UNEXPECTED_VERIFICATION_FAILURE'
   ExecuteCase 35 'LATE_PROTECTED_BASELINE' 'PROTECTED_LATE' 'PROTECTED_BASELINE' 'INHERITED_GUARD_REJECTED'
+
+  # Do not adopt unexpected entries: derive the complete checkout allowlist
+  # from the genuine detached Git index, PLUS the independently validated
+  # canonical 15-migration source manifest and exact fixture-created leaves.
+  Assert-StgCiWorktree $approved $head
+  $tracked=@(& git -C $approved -c core.quotePath=false ls-files)
+  Assert-StgCi ($LASTEXITCODE -eq 0 -and $tracked.Count -gt 10)
+  $checkoutFiles=@((Join-Path $approved '.git'))
+  foreach($rel in $tracked) {
+    Assert-StgCi (-not [IO.Path]::IsPathRooted($rel) -and
+      $rel -cnotmatch '(^|/)\.\.?(/|$)' -and -not $rel.Contains('\') -and
+      -not $rel.Contains('"'))
+    $checkoutFiles+=(Join-Path $approved ($rel -replace '/','\'))
+  }
+  Assert-StgCi (@($src.migration_files).Count -eq 15)
+  $copies=@()
+  foreach($mig in @($src.migration_files)) {
+    $copy=Join-Path $id.root ($mig.path -replace '/','\')
+    Assert-StgCi ([IO.File]::Exists($copy) -and
+      (Digest $copy) -ceq [string]$mig.sha256)
+    $copies+=$copy
+  }
+  # Fixture fault restoration must restore ALL expected bytes, not just the
+  # seven former top-level snapshot leaves; identities are captured once ALL
+  # cases have ended, because STG-05 deliberately recreates the journal.
+  foreach($pair in @(
+      @($journalPath,$jText),@($ledgerPath,$ledgerText),@($finalPath,$finalText),
+      @($cachePath,'v2.122.0'),@($rootReceipt,$rootData),
+      @($configPath,(Get-FfhFreshConfig -ExpectedHead $old -RunToken $token -DbPort 26000 -ShadowPort 26001)),
+      @($markerPath,(Get-FfhRootMarker -Identity $id)),@($ticket,$head)
+    )) {
+    Assert-StgCi ([IO.File]::Exists([string]$pair[0]) -and
+      [IO.File]::ReadAllText([string]$pair[0]) -ceq [string]$pair[1])
+  }
+  $expectedLeaves=@($checkoutFiles)+@($copies)+@(
+    $journalPath,$ledgerPath,$finalPath,$cachePath,$rootReceipt,$configPath,$markerPath
+  )
+  $fixtureManifest=New-StgCiManifest -Roots @($approved,$id.root,$id.evidence) -Ticket $ticket -ExpectedFiles $expectedLeaves -Worktree $approved -Head $head -Repository $repo
+
 } finally {
-  # Test-created paths only, on a uniquely gated ephemeral GH runner.
-  if ($evidenceCreated -and [IO.Directory]::Exists($id.evidence)) {
-    if ([IO.Path]::GetFileName($id.evidence) -cne 'FFH-P01-RLS-Evidence') {
-      throw 'STG_CLEANUP_EVIDENCE_SCOPE'
-    }
-    [IO.Directory]::Delete($id.evidence,$true)
-  }
-  if ($rootCreated -and [IO.Directory]::Exists($id.root)) {
-    if ([IO.Path]::GetFileName($id.root) -cne ('FFH-P01-RLS-Fresh-'+$old.Substring(0,12)+'-'+$token)) {
-      throw 'STG_CLEANUP_ROOT_SCOPE'
-    }
-    [IO.Directory]::Delete($id.root,$true)
-  }
-  if ($created -and [IO.Directory]::Exists($approved)) {
-    & git -C $repo worktree remove --force $approved 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) {throw 'STG_WORKTREE_REMOVE_FAILED'}
-  }
-  if ([IO.File]::Exists($ticket)) {[IO.File]::Delete($ticket)}
+  # No blanket recursion, wildcard deletion, force-Git or teardown on an
+  # incomplete or untrusted manifest. Fail CLOSED and retain uncertain evidence.
+  if ($null -eq $fixtureManifest) {throw 'STG_CLEANUP_BLOCKED'}
+  $ownedFiles=@($journalPath,$ledgerPath,$finalPath,$cachePath,
+    $rootReceipt,$configPath,$markerPath)+@($copies)
+  $ownedDirs=@($id.evidence,
+    (Join-Path $id.root 'supabase\migrations'),
+    (Join-Path $id.root 'supabase\.temp'),
+    (Join-Path $id.root 'supabase'),$id.root)
+  try {
+    Invoke-StgCiContainedTeardown -Manifest $fixtureManifest -OwnedFiles $ownedFiles -OwnedDirs $ownedDirs
+  } catch {throw 'STG_CLEANUP_BLOCKED'}
 }

@@ -8,7 +8,7 @@ The actual source script, its arguments parser, stage telemetry, inherited modul
 
 The CI-only adapter is loaded after the production module imports when a ticket under `RUNNER_TEMP`, a clean detached checkout physically under the disposable runner's UserProfile, and the GitHub Windows runner flags all match. The ticket pins the **actual** checkout HEAD. The test creates the isolated, known-path evidence directory and disposable root only if completely absent and removes only its self-created fixture objects after all children exit. No Owner paths, Docker daemon, SQL, hosted APIs or protected `FFH-RLS-Test` resources are touched. Synthetic privileged env flags are not security attestations by themselves, and a local impersonation of CI could yield only an explicitly marked synthetic result; the final auditor must assess this separation.
 
-For source checks, the CI checkout is full-depth so the unchanged historical `cba20f7fecea8b7dfdbcb10fb245765825ef97c0` source-provenance Git blob and **15 immutable migration blobs** can be compared to the new exact HEAD by the real production function. The test creates the genuine root marker with protected ACL, exact config bytes, a 15-migration copy tree, source receipt, 96-byte-limited `supabase/.temp/cli-latest`, consumed sequence-11 journal, one-shot consumed ledger and failed FINAL receipt, and asks the original native C# code to identify the physical root file ID. Each child invocation is checked for zero content/timestamp changes to the held journal/ledger/FINAL/cache/root-fixture sentinel files and stable evidence/root namespace listings.
+For source checks, the CI checkout is full-depth so the unchanged historical `cba20f7fecea8b7dfdbcb10fb245765825ef97c0` source-provenance Git blob and **15 immutable migration blobs** can be compared to the new exact HEAD by the real production function. The test creates the genuine root marker with protected ACL, exact config bytes, a 15-migration copy tree, source receipt, 96-byte-limited `supabase/.temp/cli-latest`, consumed sequence-11 journal, one-shot consumed ledger and failed FINAL receipt, and asks the original native C# code to identify the physical root file ID. Each child invocation is checked using full-depth root, evidence, source worktree and ticket snapshots including all entries, bytes, timestamps, NTFS object identities and ACLs; deliberately mutated synthetic fixtures are compared before/after their individual invocations.
 
 ## Actual stage-by-stage evidence matrix
 
@@ -54,3 +54,62 @@ Each `STG-nn` is a genuine child **-File** process with its own exit code and si
 The separate fast security suite still exercises KI-01..25, RC-01..57, JR-01..08, AR-01..21, native FS-27/28, real localhost PORT-01..05, all existing SQL/Docker admission and one-shot terminal controls. Nonproduction FAST runs release 18/18, ordinary 980/980, security >=208/208, dedicated full-entry integration, typecheck and lint, but **FULL PHASE remains SKIPPED**.
 
 The test's synthetic Docker environment is **not** a check of the Owner's actual daemon, labels, drivers, mounts, consumers, peers, bridge settings, port bindings, PostgreSQL health, native ACL state or active SQL clients. No Stage 2 SQL-idle verification or Stage 3 destructive cleanup is simulated as Owner authority. All Owner-host authorizations (original Run, read-only Plans and metadata diagnostic) are CONSUMED. Next actual Owner-host read-only Plan needs a fresh independent end-to-end audit PASS at the exact SHA and a new explicit Owner approval; do not do piecemeal Owner retries. FFH-P01 remains PUNCH_LIST / HIGH / BLOCKED.
+
+## E2E-CI-01 — CI-only exact-owned containment correction (follow-up candidate)
+
+The former test-fixture teardown used recursive Directory.Delete and forced Git
+worktree removal after checking only selected top-level files. This is **not**
+evidence of a production Plan flaw. The dedicated, test-only
+`ffh-p01-stage1-ci-contained-teardown.ps1` now requires an allowlisted complete
+manifest built from `git ls-files`, the detached exact-HEAD checkout's `.git`
+file, the actual **15 source SHA-256-matched migration copies**, known root
+marker/config/receipt/cache, three private evidence receipts and the pinned
+CI-ticket file. Any other nested file or directory is unknown and must block.
+
+The Windows manifest records **every object** (file and directory), including
+the entire tracked source tree and ticket: canonical path, type, reparse flag,
+Windows volume/file ID, link count, attributes, security-descriptor hash
+(owner/DACL/inheritance), creation and modification timestamps, file size and
+SHA-256. The full-tree snapshot is taken before and after **each** STG
+production `powershell.exe -File` invocation, including deliberately modified
+negative-fixture state; the fixture must restore canonical original bytes
+and exact 15 migrations before the final cleanup manifest is captured. The
+worktree must remain exact-HEAD and `git status --porcelain` clean. No
+unknown or reparse child may be adopted into the manifest.
+
+The final teardown first rechecks **all** declared objects before disposition.
+For each CI-created leaf, it rechecks the remaining complete tree, exact
+identity/ACL/bytes and no unknown entries; the Windows deletion disposition
+operates on an **exact-ID verified held handle**, never recursively. Only
+expected empty directories are then disposed, individually and nonrecursively,
+in bottom-up order. Directory last-write changes caused solely by admitted
+deletions are accounted for after the first disposition; directory IDs,
+creation times and ACLs remain pinned. The Git checkout is revalidated in full
+and removed only by ordinary exact-path `git worktree remove` (no force).
+The unchanged-identity ticket is disposed last.
+
+If full admission fails, **zero** fixture objects are deliberately disposed.
+If an interruption occurs after partial admitted disposal, the routine throws
+the sanitized `STG_CLEANUP_BLOCKED` category, never auto-resumes or re-adopts
+the remnants, and leaves ambiguous content untouched for CI-runner/manual
+review. This is an ephemeral GitHub-hosted runner test only; it does not
+authorize cleanup of Owner-held roots or an Owner-host Stage 1 repeat.
+
+The separate genuine Windows PowerShell 5.1 `STGC-01..08` set exercises
+foreign nested file, nested NTFS junction with preserved external sentinel,
+a 16th unexpected migration, ACL inheritance drift, dirty Git worktree,
+same-byte replaced CI ticket with new Windows file identity, changed
+worktree HEAD (without modifying checkout files), and a deliberately
+interrupted teardown. The fault-injection setup itself restores each
+recognized synthetic mutation *after* proving that the preflight performed
+no disposal. The interruption intentionally preserves the known remaining
+test material on the disposable runner for manual review and does not claim
+atomic rollback. These cases are independent of `STG-01..35`, whose original
+two `COMPLETE` paths and synthetic labeling remain unchanged.
+
+**Receipt rule:** Only a completed, exact-SHA Windows FAST result is evidence
+for `STGC-01..08` and unchanged `STG-01..35`; this source document alone
+is not a PASS. No live Owner-host ACL/SID, concurrent hostile filesystem race,
+real Docker inventory, SQL idle state or deletion permission is established.
+FULL PHASE remains SKIPPED and FFH-P01 remains PUNCH_LIST/HIGH/BLOCKED pending
+fresh independent focused security review and separately authorized Owner GO.
