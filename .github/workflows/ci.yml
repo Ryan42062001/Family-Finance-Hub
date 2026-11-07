@@ -33,6 +33,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0 # synthetic read-only Stage 1 verifies historical immutable blobs
       - name: Verify exact checkout
         shell: pwsh
         env:
@@ -46,6 +47,12 @@ jobs:
       - run: node scripts/validate-release-candidate.mjs
       - run: node --test scripts/validate-release-candidate.test.mjs
       - run: npm test
+      # Dedicated step: CI-owned profile; do not overlap parallel JR security fixture.
+      # Run early to expose Windows integration blockers before long security CI.
+      - name: Full-entry synthetic Stage 1 WinPS5.1 (NO Docker or SQL)
+        run: node --test tests/integration/ffh-p01-stage1-full-entry.test.mjs
+      - name: CI fixture teardown containment WinPS5.1 (NO owner host or Docker)
+        run: node --test tests/integration/ffh-p01-stage1-teardown.test.mjs
       - run: npm run test:security
       - run: npm run typecheck
       - run: npm run lint

@@ -2,6 +2,18 @@
 # fresh-database preparation and matrix execution. Importing this file
 # defines functions only. No Docker/SQL/hosted access or mutations occur.
 Set-StrictMode -Version Latest
+# WinPS5.1 CI has no reliable Get-FileHash discovery. Bind immutable
+# evidence hashes to the exact local file handle using .NET SHA-256 instead.
+function Get-FfhFileSha256 {
+  param([Parameter(Mandatory=$true)][string]$Path)
+  $absolute=[IO.Path]::GetFullPath($Path)
+  $stream=[IO.FileStream]::new($absolute,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $hasher=[Security.Cryptography.SHA256]::Create()
+  try {
+    return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()
+  } finally {$hasher.Dispose();$stream.Dispose()}
+}
 
 function Assert-FfhNoRemoteConfiguration {
   foreach ($name in @(
@@ -16,22 +28,42 @@ function Assert-FfhNoRemoteConfiguration {
 }
 
 function Assert-FfhSourceCheckout {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,
+    [switch]$AllowDetachedHeadForDiagnostic)
   if ($ExpectedHead -cnotmatch '^[0-9a-f]{40}$') { throw 'BLOCKED: full immutable SHA required' }
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'BLOCKED: Git unavailable' }
   $root = (& git rev-parse --show-toplevel 2>$null)
   if ($LASTEXITCODE -ne 0 -or -not $root) { throw 'BLOCKED: no Git checkout' }
   $root = [IO.Path]::GetFullPath(([string]$root).Trim())
   $head = (& git -C $root rev-parse HEAD).Trim()
-  $branch = (& git -C $root branch --show-current).Trim()
-  if ($LASTEXITCODE -ne 0 -or $head -cne $ExpectedHead -or
-      $branch -cne 'phase/ffh-p01-release-readiness') {
+  # Detached HEAD emits ZERO stdout lines in native WinPS5.1, and
+  # casting no output to [string] can still yield null. Materialize rows
+  # and call Trim only on a verified non-null entry.
+  $branchRows = @(& git -C $root branch --show-current)
+  $branchExit = $LASTEXITCODE
+  if ($branchExit -ne 0 -or $branchRows.Count -gt 1) {
+    throw 'BLOCKED: ambiguous Git branch or discovery failure'
+  }
+  $branch = ''
+  if ($branchRows.Count -eq 1 -and $null -ne $branchRows[0]) {
+    $branch = ([string]$branchRows[0]).Trim()
+  }
+  if ($head -cne $ExpectedHead -or
+      ($branch -cnotin @('phase/ffh-p01-release-readiness','feature/ffh-p01-automatic-test-cleanup') -and
+       -not ($AllowDetachedHeadForDiagnostic -and $branch -ceq ''))) {
     throw 'BLOCKED: source HEAD or original phase branch mismatch'
   }
   # Entire checkout, not just two SQL files. Includes tracked modifications,
   # staged modifications and untracked/non-ignored files. Ignored files are
   # separately gated below for a linked project/config.
-  $status = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+  # DG-AUD-02: diagnostic Plan must not refresh/rewrite Git's index.
+  # Scope --no-optional-locks ONLY to the diagnostic source validation;
+  # formal Gate A/B retain their unchanged source-checking path.
+  if ($AllowDetachedHeadForDiagnostic) {
+    $status = @(& git --no-optional-locks -C $root status --porcelain=v1 --untracked-files=all)
+  } else {
+    $status = @(& git -C $root status --porcelain=v1 --untracked-files=all)
+  }
   if ($LASTEXITCODE -ne 0 -or $status.Count -ne 0) {
     throw 'BLOCKED: full source checkout is not clean'
   }
@@ -52,6 +84,15 @@ function Assert-FfhSourceCheckout {
     'scripts/rls-local/run-owner.ps1',
     'scripts/rls-local/prepare-fresh-owner.ps1',
     'scripts/rls-local/source-provenance.ps1',
+    'scripts/rls-local/automatic-cleanup.ps1',
+    'scripts/rls-local/cleanup-executor.ps1',
+    'scripts/rls-local/ffh-owned-root-retire.cs',
+    'scripts/rls-local/owner-host-metadata-inventory.ps1',
+    'scripts/rls-local/owner-disposable-diagnostic.ps1',
+    'scripts/rls-local/diagnostic-lifecycle.ps1',
+    'scripts/rls-local/diagnostic-network.ps1',
+    'scripts/rls-local/diagnostic-migration-stage.ps1',
+    'scripts/rls-local/automatic-cleanup-policy.mjs',
     'scripts/rls-local/run.sh',
     '.github/workflows/ci.yml',
     'scripts/validate-release-candidate.mjs',
@@ -80,7 +121,7 @@ function Assert-FfhSourceCheckout {
       [pscustomobject]@{
         path = ($relative -replace '\\','/')
         git_blob = ([string]$expectedObject).Trim()
-        sha256 = (Get-FileHash -LiteralPath $absolute -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-FfhFileSha256 -Path $absolute
       }
     }
   )
@@ -94,18 +135,28 @@ function Assert-FfhSourceCheckout {
 }
 
 function Get-FfhFreshProjectId {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,[string]$RunToken)
+  if ($RunToken) {
+    if ($ExpectedHead -cnotmatch '^[0-9a-f]{40}$' -or $RunToken -cnotmatch '^[0-9a-f]{24}$') {
+      throw 'BLOCKED: invalid run identity'
+    }
+    return 'ffhp1_' + $ExpectedHead.Substring(0,8) + '_' + $RunToken
+  }
   return 'ffh_p01_rls_fresh_' + $ExpectedHead.Substring(0,12)
 }
-
 function Get-FfhFreshConfig {
-  param([Parameter(Mandatory=$true)][string]$ExpectedHead)
-  $projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+  param([Parameter(Mandatory=$true)][string]$ExpectedHead,[string]$RunToken,
+    [int]$DbPort=54332,[int]$ShadowPort=54333)
+  $projectId=Get-FfhFreshProjectId -ExpectedHead $ExpectedHead -RunToken $RunToken
+  if ($RunToken -and ($DbPort -lt 20000 -or $DbPort -gt 59999 -or
+      $ShadowPort -lt 20000 -or $ShadowPort -gt 59999 -or $DbPort -eq $ShadowPort)) {
+    throw 'BLOCKED: isolated run port invalid'
+  }
   return @"
 project_id = "$projectId"
 [db]
-port = 54332
-shadow_port = 54333
+port = $DbPort
+shadow_port = $ShadowPort
 major_version = 17
 [api]
 enabled = false
@@ -113,18 +164,24 @@ enabled = false
 enabled = false
 "@
 }
+# Legacy read-only reference: port = 54332 / shadow_port = 54333.
 
 function Assert-FfhFreshRoot {
   param(
     [Parameter(Mandatory=$true)][string]$FreshRoot,
     [Parameter(Mandatory=$true)][string]$RepoRoot,
-    [Parameter(Mandatory=$true)][string]$ExpectedHead
+    [Parameter(Mandatory=$true)][string]$ExpectedHead,
+    [string]$RunToken
   )
   $root = [IO.Path]::GetFullPath($FreshRoot).TrimEnd('\','/')
   $repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\','/')
   $userHomePath = [IO.Path]::GetFullPath($HOME).TrimEnd('\','/')
   $userProfilePath = [IO.Path]::GetFullPath([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)).TrimEnd('\','/')
   $expectedName = 'FFH-P01-RLS-Fresh-' + $ExpectedHead.Substring(0,12)
+  if ($RunToken) {
+    if ($RunToken -cnotmatch '^[0-9a-f]{24}$') {throw 'BLOCKED: bad token'}
+    $expectedName += '-' + $RunToken
+  }
   if ($userHomePath -cnotmatch '^[a-zA-Z]:\\' -or
       -not $userHomePath.Equals($userProfilePath,[StringComparison]::OrdinalIgnoreCase) -or
       -not (Split-Path $root -Parent).Equals($userHomePath,[StringComparison]::OrdinalIgnoreCase)) {
@@ -1354,7 +1411,7 @@ function Invoke-FfhPinnedLocalSupabase {
 }
 
 function Assert-FfhDbLoopback {
-  param([Parameter(Mandatory=$true)][string]$Container)
+  param([Parameter(Mandatory=$true)][string]$Container,[int]$DbPort=54332)
   $dockerBinding = Assert-FfhLocalDockerDesktop
   $raw = & $dockerBinding.Executable --host $dockerBinding.Endpoint inspect $Container 2>$null
   if ($LASTEXITCODE -ne 0 -or -not $raw) {
@@ -1369,7 +1426,7 @@ function Assert-FfhDbLoopback {
   $bindings = @($d[0].NetworkSettings.Ports.'5432/tcp')
   if ($bindings.Count -eq 0) { throw 'BLOCKED: no direct DB port binding' }
   foreach ($binding in $bindings) {
-    if ($binding.HostPort -cne '54332' -or
+    if ($binding.HostPort -cne ([string]$DbPort) -or
         $binding.HostIp -cnotin @('127.0.0.1','::1')) {
       throw 'BLOCKED: DB not loopback-only on fresh port 54332'
     }
@@ -1393,16 +1450,42 @@ function Invoke-FfhOwnedLocalPsql {
     [Parameter(Mandatory=$true)][string]$Container,
     [Parameter(Mandatory=$true)][string]$SqlPath,
     [Parameter(Mandatory=$true)]$DockerBinding,
-    [Parameter(Mandatory=$true)]$Source
+    [Parameter(Mandatory=$true)]$Source,
+    [Parameter(Mandatory=$true)]$Identity,
+    [Parameter(Mandatory=$true)][string]$ContainerId,
+    [scriptblock]$FakeDocker
   )
   Assert-FfhNoRemoteConfiguration
   Assert-FfhDockerEnvironment
-  if ($Container -cnotmatch '^supabase_db_ffh_p01_rls_fresh_[a-f0-9]{12}$' -or
+  if ($Identity.sha -cnotmatch '^[a-f0-9]{40}$' -or
+      $Identity.token -cnotmatch '^[a-f0-9]{24}$' -or
+      $Identity.project -cne ('ffhp1_'+$Identity.sha.Substring(0,8)+'_'+$Identity.token) -or
+      $Identity.container -cne ('supabase_db_'+$Identity.project) -or
+      $Container -cne $Identity.container -or
+      $ContainerId -cnotmatch '^[a-f0-9]{64}$' -or
+      [string]$Source.head -cne $Identity.sha -or
       [string]$DockerBinding.Endpoint -cne 'npipe:////./pipe/dockerDesktopLinuxEngine' -or
       [string]::IsNullOrWhiteSpace([string]$DockerBinding.Executable) -or
       -not [IO.Path]::IsPathRooted([string]$DockerBinding.Executable) -or
       -not (Test-Path -LiteralPath ([string]$DockerBinding.Executable) -PathType Leaf)) {
     throw 'BLOCKED_SQL_NATIVE_DOCKER_BINDING_INVALID: no retry/reset/cleanup'
+  }
+  # The REAL production SQL runner re-reads the actual durable journal;
+  # a regex-looking foreign name or caller-supplied ID is insufficient.
+  $j=Read-FfhJournal -Identity $Identity
+  $phase=if ($j.gateBResult -ceq 'RUNNING') {'GATE_B'} else {'GATE_A'}
+  if ($j.version -ne 2 -or $j.sha -cne $Identity.sha -or
+      $j.token -cne $Identity.token -or $j.project -cne $Identity.project -or
+      $j.container -cne $Container -or
+      @($j.resources | Where-Object {
+        $_.kind -ceq 'containers' -and $_.id -ceq $ContainerId -and
+        $_.name -ceq ('/'+$Container)
+      }).Count -ne 1) {
+    throw 'BLOCKED_SQL_NATIVE_JOURNAL_CONTAINER_ID_INVALID'
+  }
+  $firstAdmission=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $phase -Fake $FakeDocker
+  if ($firstAdmission -cne $ContainerId) {
+    throw 'BLOCKED_SQL_NATIVE_ADMITTED_CONTAINER_ID_CHANGED'
   }
   # Independently reassert the trusted native Docker Desktop executable and
   # npipe locality before process creation, not merely a caller-provided name.
@@ -1442,9 +1525,9 @@ function Invoke-FfhOwnedLocalPsql {
   $start = [Diagnostics.ProcessStartInfo]::new()
   $start.FileName = [string]$verified.Executable
   # Every authorized daemon operation specifies the pinned Linux npipe.
-  # Container is a strictly SHA-derived, metacharacter-free identifier.
+  # Never send SQL to a mutable container name. Use its 64-hex exact ID.
   $start.Arguments = '--host ' + $verified.Endpoint +
-    ' exec -i ' + $Container +
+    ' exec -i ' + $ContainerId +
     ' psql -X -q -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres'
   $start.WorkingDirectory = (Get-Location).Path
   $start.UseShellExecute = $false
@@ -1461,6 +1544,23 @@ function Invoke-FfhOwnedLocalPsql {
       $start.EnvironmentVariables['DOCKER_HOST'] -cne 'npipe:////./pipe/dockerDesktopLinuxEngine') {
     throw 'BLOCKED_SQL_NATIVE_CHILD_ENVIRONMENT_INVALID: no retry/reset/cleanup'
   }
+  # Revalidate immediately before native process launch; no name swap can
+  # redirect an immutable 64-hex Docker ID.
+  $lastAdmission=Assert-FfhJournaledSqlAdmission -Identity $Identity -Phase $phase -Fake $FakeDocker
+  if ($lastAdmission -cne $ContainerId) {
+    throw 'BLOCKED_SQL_NATIVE_LAST_ADMISSION_ID_CHANGED'
+  }
+  # Crossing this boundary is the ONLY point from which a failed SQL test
+  # may ever be considered for cleanup. Persist before the native child starts.
+  $phaseStage=if($phase -ceq 'GATE_A'){'GATE_A'}else{'GATE_B'}
+  $boundary=Read-FfhJournal -Identity $Identity
+  if ($boundary.sqlBoundary.phase -cne $phaseStage -or
+      $boundary.sqlBoundary.mode -cne $Mode -or
+      $boundary.sqlBoundary.status -cne 'ADMITTED' -or
+      $boundary.sqlBoundary.containerId -cne $ContainerId) {
+    throw 'BLOCKED_SQL_NATIVE_BOUNDARY_NOT_DURABLY_ADMITTED'
+  }
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phaseStage -Mode $Mode -Status 'EXECUTING' -ContainerId $ContainerId)
   # 120s Preflight or 900s Matrix, plus 10s descendant confirmation.
   # No PowerShell native pipeline, no LASTEXITCODE ambiguity; the C# runner
   # owns Win32 handles, finite stdin pumping and native exit retrieval.
@@ -1481,6 +1581,7 @@ function Invoke-FfhOwnedLocalPsql {
     throw ($category + ': no retry, cleanup, reset or Gate B; container-side SQL session UNKNOWN')
   }
   Assert-FfhDockerEnvironment
+  [void](Set-FfhSqlBoundary -Identity $Identity -Phase $phaseStage -Mode $Mode -Status 'COMPLETE' -ContainerId $ContainerId)
 }
 
 function Assert-FfhReadOnlyPsqlPreflightReceipt {

@@ -8,7 +8,6 @@ param(
   [ValidatePattern('^[0-9a-f]{40}$')]
   [string]$ExpectedHead,
 
-  [Parameter(Mandatory=$true)]
   [string]$FreshRoot,
 
   [Parameter(Mandatory=$true)]
@@ -17,6 +16,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/source-provenance.ps1"
+. "$PSScriptRoot/automatic-cleanup.ps1"
+. "$PSScriptRoot/cleanup-executor.ps1"
 
 # Isolated Windows PowerShell 5.1 native version probe. Native stderr notices
 # may appear as NativeCommandError with the caller's ErrorActionPreference=Stop.
@@ -75,8 +76,22 @@ Assert-FfhNoRemoteConfiguration
 # Mandatory BEFORE any Docker daemon command or CLI that can invoke Docker.
 [void](Assert-FfhLocalDockerDesktop)
 $source = Assert-FfhSourceCheckout -ExpectedHead $ExpectedHead
-$root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead
-$projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead
+$identity=Get-FfhRunIdentity -SourceSha $ExpectedHead -RunToken (New-FfhRunToken)
+$lock=Enter-FfhLifecycleLock -Identity $identity
+$journalCreated=$false
+$terminalStatePersistenceFailed=$false
+try {
+  if ($FreshRoot -and
+      -not ([IO.Path]::GetFullPath($FreshRoot)).Equals($identity.root,
+        [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'BLOCKED: requested root does not match random run identity'
+  }
+  $FreshRoot=$identity.root
+  $ports=@(Select-FfhRunPorts -Identity $identity)
+  $j=New-FfhPrecreationJournal -Identity $identity -Ports $ports
+  $journalCreated=$true
+  $root = Assert-FfhFreshRoot -FreshRoot $FreshRoot -RepoRoot $source.repo -ExpectedHead $ExpectedHead -RunToken $identity.token
+  $projectId = Get-FfhFreshProjectId -ExpectedHead $ExpectedHead -RunToken $identity.token
 $containerName = 'supabase_db_' + $projectId
 if (Test-Path -LiteralPath $root) {
   throw 'BLOCKED: fresh root already exists; never reuse or reset an existing folder'
@@ -106,6 +121,7 @@ Assert-FfhNoReparsePath -Path $parent
 New-Item -ItemType Directory -Path $root -ErrorAction Stop | Out-Null
 Assert-FfhNoReparsePath -Path $root
 Assert-FfhFreshTree -FreshRoot $root
+Initialize-FfhOwnedRoot -Identity $identity
 $supabaseDir = Join-Path $root 'supabase'
 if (Test-Path -LiteralPath $supabaseDir) { throw 'BLOCKED: unexpected fresh supabase path exists' }
 Assert-FfhNoReparsePath -Path $root
@@ -131,7 +147,7 @@ foreach ($file in $source.migration_files) {
 $copyNames = @(Get-ChildItem -LiteralPath (Join-Path $root 'supabase/migrations') -File -Filter '*.sql')
 if ($copyNames.Count -ne 15) { throw 'BLOCKED: fresh migration snapshot is incomplete' }
 $configPath = Join-Path $root 'supabase/config.toml'
-[IO.File]::WriteAllText($configPath,(Get-FfhFreshConfig -ExpectedHead $ExpectedHead),
+[IO.File]::WriteAllText($configPath,(Get-FfhFreshConfig -ExpectedHead $ExpectedHead -RunToken $identity.token -DbPort $ports[0] -ShadowPort $ports[1]),
                         [Text.UTF8Encoding]::new($false))
 $configHash = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
 if (Test-Path -LiteralPath (Join-Path $root 'supabase/.temp/project-ref')) {
@@ -144,23 +160,28 @@ $receipt = [ordered]@{
   cli_version = '2.122.0'
   project_id = $projectId
   db_container = $containerName
-  db_port = 54332
+  db_port = $ports[0]
+  shadow_port = $ports[1]
+  run_token = $identity.token
   migration_count = 15
   source_sha256 = @($source.all_files)
   config_sha256 = $configHash
   migration_application = 'NOT_YET_VERIFIED'
 }
 $receiptPath = Join-Path $root 'ffh-p01-local-provenance.json'
-[IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
-                        [Text.UTF8Encoding]::new($false))
+$receiptJson=($receipt | ConvertTo-Json -Depth 8)
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Receipt -Content $receiptJson
+  [IO.File]::WriteAllText($receiptPath,$receiptJson,[Text.UTF8Encoding]::new($false))
 # Only the explicitly new project is affected. Normal stdout and stderr of
 # local CLI commands are suppressed because they can contain generated keys.
 Push-Location $root
 try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_RUNNING' -GateAResult 'RUNNING' -TestResult 'RUNNING')
   Invoke-FfhPinnedLocalSupabase -Operation Start
-  [void](Assert-FfhDbLoopback -Container $containerName)
+  [void](Register-FfhOwnedResources -Identity $identity)
+  [void](Assert-FfhDbLoopback -Container $containerName -DbPort $ports[0])
   if (Test-Path -LiteralPath 'supabase/.temp/project-ref') {
     throw 'BLOCKED: hosted Supabase link detected after fresh local startup'
   }
@@ -169,7 +190,8 @@ try {
   Assert-FfhFreshTree -FreshRoot $root
   [void](Assert-FfhLocalDockerDesktop)
   Invoke-FfhPinnedLocalSupabase -Operation Reset
-  [void](Assert-FfhDbLoopback -Container $containerName)
+  [void](Register-FfhOwnedResources -Identity $identity)
+  [void](Assert-FfhDbLoopback -Container $containerName -DbPort $ports[0])
   foreach ($file in $source.migration_files) {
     $dest = Join-Path $root ($file.path -replace '/','\')
     $digest = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -185,22 +207,79 @@ try {
   # Capture output only in memory; never print raw private SQL or service keys.
   Assert-FfhFreshTree -FreshRoot $root
   $dockerBinding = Assert-FfhLocalDockerDesktop
+  [void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'PENDING')
+  $admittedContainerId=Assert-FfhJournaledSqlAdmission -Identity $identity -Phase 'GATE_A'
+  [void](Set-FfhSqlBoundary -Identity $identity -Phase 'GATE_A' -Mode 'Preflight' -Status 'ADMITTED' -ContainerId $admittedContainerId)
   # Finite native Windows Job Object operation: owned stdin and separate
   # stdout/stderr pipes, exit-zero + final marker, empty client process tree.
   # Any interruption/timeout leaves Docker daemon-side session UNVERIFIED.
   Invoke-FfhOwnedLocalPsql -Mode Preflight -Container $containerName `
     -SqlPath (Join-Path $source.repo 'scripts/rls-local/preflight.sql') `
-    -DockerBinding $dockerBinding -Source $source
+    -DockerBinding $dockerBinding -Source $source -Identity $identity `
+    -ContainerId $admittedContainerId
   $receipt.migration_application = 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'
-  [IO.File]::WriteAllText($receiptPath,($receipt | ConvertTo-Json -Depth 8),
-                          [Text.UTF8Encoding]::new($false))
+  $receiptJson=($receipt | ConvertTo-Json -Depth 8)
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Receipt -Content $receiptJson
+  [IO.File]::WriteAllText($receiptPath,$receiptJson,[Text.UTF8Encoding]::new($false))
   $receiptSha = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant()
-  [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),
-                          $receiptSha,[Text.UTF8Encoding]::new($false))
-  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha"
+  Set-FfhRootReceiptPermit -Identity $identity -Kind Checksum -Content $receiptSha
+  [IO.File]::WriteAllText((Join-Path $root 'ffh-p01-local-provenance.sha256'),$receiptSha,[Text.UTF8Encoding]::new($false))
+  [void](Set-FfhRunState -Identity $identity -State 'GATE_A_PRESERVED' -GateAResult 'PASS' -TestResult 'PASS' -CleanupResult 'PRESERVED_FOR_GATE_B')
+  Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'PASS' -Category 'NONE'
+  Write-Output (Get-FfhDurableRunStatus -Identity $identity)
+  Write-Output "FRESH_LOCAL_PREPARATION=PASS SOURCE_SHA=$ExpectedHead MIGRATIONS=15 PORT=LOOPBACK SHA256_MANIFEST=$receiptSha RUN_TOKEN=$($identity.token)"
 }
 finally { Pop-Location }
 # STOP: actual matrix fixture writes require a separate, fresh approval.
 # Failure leaves no permission to retry or reset anything. Preserve only
 # privacy-safe failure category for Manager and arrange an approved teardown
 # of this NEW project if needed; never touch FFH-RLS-Test.
+
+}
+catch {
+  # Gate A source validation / startup failure or rejected admission must not
+  # be misclassified as a SQL test failure with teardown permission.
+  if ($journalCreated) {
+    try {
+      $current=Read-FfhJournal -Identity $identity
+      if ($current.gateAResult -ceq 'PASS' -or
+          $current.state -ceq 'GATE_A_PRESERVED') {
+        # Durable PASS followed by evidence failure cannot authorize Gate B.
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      } elseif ($current.gateAResult -ceq 'RUNNING') {
+        $boundary=$current.sqlBoundary
+        if ($boundary.phase -ceq 'GATE_A' -and
+            $boundary.mode -ceq 'Preflight' -and
+            $boundary.status -ceq 'COMPLETE' -and
+            $boundary.containerId -cmatch '^[a-f0-9]{64}$') {
+          [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED' -GateAResult 'FAIL' -TestResult 'FAIL')
+          Write-FfhRedactedEvidence -Identity $identity -Phase 'GATE_A' -Result 'FAIL' -Category 'GATE_A_FAILURE'
+          [void](Register-FfhOwnedResources -Identity $identity)
+          [void](Set-FfhRunState -Identity $identity -State 'GATE_A_FAILED')
+          $idle=Get-FfhSqlIdleAttestation -Identity $identity
+          [void](Invoke-FfhVerifiedCleanup -Identity $identity -SqlIdleAttestation $idle)
+        } else {
+          # NO SQL (including cleanup idle) and NO automatic Docker deletion.
+          [void](Block-FfhRejectedSqlAdmission -Identity $identity -Phase 'GATE_A' -Mode 'Preflight')
+        }
+      } else {
+        [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+      }
+    } catch {
+      try {
+        $fallback=Read-FfhJournal -Identity $identity
+        if ($fallback.gateAResult -ceq 'RUNNING') {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -GateAResult 'UNKNOWN' -TestResult 'UNKNOWN' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        } else {
+          [void](Set-FfhRunState -Identity $identity -State 'MANUAL_REVIEW' -CleanupResult 'CLEANUP_BLOCKED_MANUAL_REVIEW')
+        }
+      } catch {
+        $terminalStatePersistenceFailed=$true
+      }
+    }
+    # Never report an old preserved state when terminal write failed.
+    Write-Output (Get-FfhDurableRunStatus -Identity $identity -TerminalStatePersistenceFailed:$terminalStatePersistenceFailed)
+  }
+  throw 'BLOCKED: Gate A failure or admission uncertain; inspect durable result'
+}
+finally { $lock.Dispose() }

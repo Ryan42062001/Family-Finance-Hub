@@ -203,7 +203,13 @@ test("FFH-P01 RLS-01 pins all migration blobs and whole checkout to immutable HE
   assert.match(provenance, /\$migrationNames\.Count -ne 15/);
   assert.match(provenance, /git -C \$root rev-parse --verify \$refName/);
   assert.match(provenance, /git -C \$root hash-object -- \$relative/);
-  assert.match(provenance, /Get-FileHash -LiteralPath \$absolute -Algorithm SHA256/);
+  // WinPS5.1 CI does not reliably expose Get-FileHash. Require the actual
+  // immutable-source SHA256 through an explicitly held .NET file stream.
+  assert.match(provenance, /sha256 = Get-FfhFileSha256 -Path \$absolute/);
+  assert.match(provenance, /function Get-FfhFileSha256 \{/);
+  assert.match(provenance, /\[Security\.Cryptography\.SHA256\]::Create\(\)/);
+  assert.match(provenance, /\[IO\.FileStream\]::new\(\$absolute/);
+  assert.match(provenance, /\[IO\.FileShare\]::Read/);
   for (const path of [
     "scripts/rls-local/matrix.sql",
     "scripts/rls-local/preflight.sql",
