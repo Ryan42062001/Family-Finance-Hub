@@ -204,7 +204,7 @@ public static class FfhP01OwnedRoot {
     return items;
   }
   static void Scan(string path,string relative,int depth,uint volume,
-    Dictionary<string,Permit> permit,Dictionary<string,Entry> seen,List<Entry> held) {
+    Dictionary<string,Permit> permit,Dictionary<string,Entry> seen,List<Entry> held,bool destructive) {
     if(depth>MAX_DEPTH)Fail("LIMIT_DEPTH");
     string[] paths=Directory.GetFileSystemEntries(path);
     if(paths.Length>MAX_SIBLINGS)Fail("LIMIT_SIBLINGS");
@@ -218,7 +218,9 @@ public static class FfhP01OwnedRoot {
         permitKey(permit,rel),StringComparison.Ordinal))Fail("UNPERMITTED_PATH");
       if(seen.ContainsKey(rel))Fail("DUPLICATE_ENTRY");
       bool dir=rule.kind!="F";
-      SafeFileHandle h=OpenPath(child,true,false);
+      // Preflight must require only READ rights, never DELETE. Retire still
+      // requests DELETE on EVERY held child before any disposition.
+      SafeFileHandle h=OpenPath(child,destructive,false);
       var e=new Entry{path=child,relative=rel,handle=h,directory=dir,depth=depth};
       held.Add(e);
       e.info=Describe(h,dir);
@@ -230,7 +232,7 @@ public static class FfhP01OwnedRoot {
         if(Sha(h,cache)!=rule.digest)Fail("MANIFEST_HASH");
       }
       seen.Add(rel,e);
-      if(dir)Scan(child,rel,depth+1,volume,permit,seen,held);
+      if(dir)Scan(child,rel,depth+1,volume,permit,seen,held,destructive);
     }
   }
   static string permitKey(Dictionary<string,Permit> p,string requested) {
@@ -274,7 +276,7 @@ public static class FfhP01OwnedRoot {
         top.info=Describe(r,true);
         if(top.info.vol!=parentInfo.vol)Fail("VOLUME");
         var seen=new Dictionary<string,Entry>(StringComparer.OrdinalIgnoreCase);
-        Scan(root,"",0,top.info.vol,permit,seen,held);
+        Scan(root,"",0,top.info.vol,permit,seen,held,delete);
         ValidateComplete(permit,seen);
         // No disposition occurred during Scan: all paths, hashes, ACLs and IDs
         // have been checked, and every entry handle is held against replacement.

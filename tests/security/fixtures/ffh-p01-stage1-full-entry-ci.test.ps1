@@ -298,7 +298,7 @@ try {
   } finally {Write-Utf8 $journalPath $jText}
   try {
     Write-Utf8 $configPath 'PRIVATE_NEVER_PRINT_CI_SECRET'
-    ExecuteCase 26 'NATIVE_PREFLIGHT_HASH' '' 'NATIVE_PREFLIGHT' 'UNEXPECTED_VERIFICATION_FAILURE'
+    ExecuteCase 26 'NATIVE_PREFLIGHT_HASH' '' 'NATIVE_PREFLIGHT' 'NATIVE_MANIFEST_HASH_REJECTED'
   } finally {Write-Utf8 $configPath (Get-FfhFreshConfig -ExpectedHead $old -RunToken $token -DbPort 26000 -ShadowPort 26001)}
   ExecuteCase 27 'UNEXPECTED_DOCKER_ERROR_SANITIZED' 'STREAM_LEAK' 'DOCKER_INVENTORY' 'UNEXPECTED_VERIFICATION_FAILURE'
   ExecuteCase 28 'FINAL_COMPLETE_REVALIDATION' '' 'COMPLETE' 'NONE' 0
@@ -314,6 +314,27 @@ try {
   ExecuteCase 33 'STRICT_OUTPUT_CONTRACT' 'OUTPUT_EXTRA' 'OUTPUT_CONTRACT' 'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
   ExecuteCase 34 'SANITIZED_CI_MODULE_IMPORT' 'MODULE_IMPORT' 'MODULE_IMPORT' 'UNEXPECTED_VERIFICATION_FAILURE'
   ExecuteCase 35 'LATE_PROTECTED_BASELINE' 'PROTECTED_LATE' 'PROTECTED_BASELINE' 'INHERITED_GUARD_REJECTED'
+
+  # Real production -File: a live READ/ShareRead handle is compatible with
+  # the fixed native READ-only preflight. It was NOT compatible when Scan
+  # mistakenly requested DELETE on every permitted child.
+  $before=Snapshot
+  $handle=[IO.FileStream]::new($configPath,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::Read)
+  try {Run-Plan 'NATIVE_READ_HANDLE_ALLOWED' '' 'COMPLETE' 'NONE' 0}
+  finally {$handle.Dispose()}
+  if ((Snapshot) -cne $before) {throw 'STG_MUTATION_NATIVE_READ_HANDLE_ALLOWED'}
+  Write-Output 'STG-36 PASS NATIVE_READ_HANDLE_ALLOWED STAGE=COMPLETE'
+
+  # A no-sharing reader must still fail closed under the exact production
+  # entry and report a fixed enum from a nested MethodInvocationException.
+  $before=Snapshot
+  $handle=[IO.FileStream]::new($configPath,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::None)
+  try {Run-Plan 'NATIVE_OPEN_SHARE_CONFLICT' '' 'NATIVE_PREFLIGHT' 'NATIVE_OPEN_SHARING_REJECTED' 1}
+  finally {$handle.Dispose()}
+  if ((Snapshot) -cne $before) {throw 'STG_MUTATION_NATIVE_OPEN_SHARE_CONFLICT'}
+  Write-Output 'STG-37 PASS NATIVE_OPEN_SHARE_CONFLICT STAGE=NATIVE_PREFLIGHT'
 
   # Do not adopt unexpected entries: derive the complete checkout allowlist
   # from the genuine detached Git index, PLUS the independently validated

@@ -292,7 +292,7 @@ function Get-FfhRecoverySafeStage {
   return 'INITIALIZATION'
 }
 function Get-FfhRecoveryFailureCategory {
-  param([string]$ErrorText,[System.Management.Automation.ErrorRecord]$Failure)
+  param([string]$ErrorText,[System.Management.Automation.ErrorRecord]$Failure,[string]$Stage)
   # Explicit compile-time allowlist: never echo caller-selected uppercase
   # strings merely because they resemble a BLOCKED_RECOVERY_ token.
   $known=@(
@@ -348,6 +348,47 @@ function Get-FfhRecoveryFailureCategory {
     'BLOCKED_RECOVERY_ARGUMENTS_VALUE'
   )
   if ($known -ccontains $ErrorText) {return $ErrorText}
+  # WinPS5.1 wraps static C# calls as MethodInvocationException and often
+  # TargetInvocationException. Inspect only a bounded exception chain at the
+  # two native stages; emit ONLY compile-time allowlisted categories.
+  # Never echo a message, inner exception, file path, object ID or digest.
+  if ($Stage -cin @('NATIVE_INSPECT','NATIVE_PREFLIGHT') -and $null -ne $Failure) {
+    $nativeAllowed=@(
+      'BLOCKED_ROOT_OPEN_2','BLOCKED_ROOT_OPEN_3',
+      'BLOCKED_ROOT_OPEN_5','BLOCKED_ROOT_OPEN_32','BLOCKED_ROOT_OPEN_33',
+      'BLOCKED_ROOT_INFO','BLOCKED_ROOT_REPARSE_OR_TYPE',
+      'BLOCKED_ROOT_ID_UNKNOWN','BLOCKED_ROOT_HARDLINK',
+      'BLOCKED_ROOT_PATH_IDENTITY','BLOCKED_ROOT_ACL_OWNER',
+      'BLOCKED_ROOT_ACL_FOREIGN','BLOCKED_ROOT_CACHE_SIZE',
+      'BLOCKED_ROOT_HASH_SEEK','BLOCKED_ROOT_HASH_READ',
+      'BLOCKED_ROOT_CACHE_DRIFT','BLOCKED_ROOT_MARKER_SIZE',
+      'BLOCKED_ROOT_MARKER_MISMATCH','BLOCKED_ROOT_MANIFEST_INVALID',
+      'BLOCKED_ROOT_MANIFEST_UNKNOWN_PATH',
+      'BLOCKED_ROOT_MANIFEST_INCOMPLETE','BLOCKED_ROOT_LIMIT_DEPTH',
+      'BLOCKED_ROOT_LIMIT_SIBLINGS','BLOCKED_ROOT_LIMIT_TOTAL',
+      'BLOCKED_ROOT_UNPERMITTED_PATH','BLOCKED_ROOT_DUPLICATE_ENTRY',
+      'BLOCKED_ROOT_VOLUME','BLOCKED_ROOT_MANIFEST_HASH',
+      'BLOCKED_ROOT_TREE_RACE','BLOCKED_ROOT_ID_DRIFT',
+      'BLOCKED_ROOT_ROOT_DISAPPEARED_BEFORE_RETIRE'
+    )
+    $cause=$Failure.Exception
+    for ($level=0; $level -lt 8 -and $null -ne $cause; $level++) {
+      if ($cause -is [InvalidOperationException]) {
+        $literal=[string]$cause.Message
+        if ($nativeAllowed -ccontains $literal) {
+          if ($literal -ceq 'BLOCKED_ROOT_OPEN_5') {return 'NATIVE_OPEN_ACCESS_REJECTED'}
+          if ($literal -cin @('BLOCKED_ROOT_OPEN_32','BLOCKED_ROOT_OPEN_33')) {
+            return 'NATIVE_OPEN_SHARING_REJECTED'
+          }
+          if ($literal -ceq 'BLOCKED_ROOT_MANIFEST_HASH') {
+            return 'NATIVE_MANIFEST_HASH_REJECTED'
+          }
+          return 'NATIVE_GUARD_REJECTED'
+        }
+      }
+      $cause=$cause.InnerException
+    }
+  }
   if ($ErrorText -cmatch '^BLOCKED_RECOVERY_') {
     return 'RECOVERY_GUARD_UNCLASSIFIED'
   }
@@ -397,7 +438,7 @@ function Invoke-FfhRecoveryPlanEntry {
     # Exit nonzero without PowerShell's default private-path stack/error echo.
     $failure=$_
     $stage=Get-FfhRecoverySafeStage -Stage ([string]$script:FfhRecoveryStage)
-    $category=Get-FfhRecoveryFailureCategory -ErrorText ([string]$failure.Exception.Message) -Failure $failure
+    $category=Get-FfhRecoveryFailureCategory -ErrorText ([string]$failure.Exception.Message) -Failure $failure -Stage $stage
     # No private exception is exposed. Only CI-synthetic receipts distinguish
     # the *name* of an existing production ENVIRONMENT guard for diagnosis.
     if ($script:FfhRecoverySyntheticCI -and $stage -ceq 'ENVIRONMENT' -and

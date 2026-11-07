@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {spawnSync} from "node:child_process";
 
-test("FFH-P01 integrated Stage 1: real WinPS5.1 -File, native Preflight, 35 synthetic Stage 1 receipts",()=>{
+test("FFH-P01 integrated Stage 1: real WinPS5.1 -File, native Preflight, 37 synthetic Stage 1 receipts",()=>{
   if(process.platform!=="win32"||process.env.GITHUB_ACTIONS!=="true"||process.env.RUNNER_OS!=="Windows")return;
   const p=spawnSync("powershell.exe",[
     "-NoLogo","-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass",
@@ -14,7 +14,7 @@ test("FFH-P01 integrated Stage 1: real WinPS5.1 -File, native Preflight, 35 synt
   assert.equal(p.status,0,(p.stdout??"")+"\n"+(p.stderr??""));
   assert.equal(p.stderr??"","");
   const rows=(p.stdout??"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  assert.equal(rows.length,35,rows.join("\n"));
+  assert.equal(rows.length,37,rows.join("\n"));
   for(let i=0;i<rows.length;i++){
     assert.match(rows[i],new RegExp("^STG-"+String(i+1).padStart(2,"0")+" PASS [A-Z_]+ STAGE=[A-Z_]+$"));
     console.log(rows[i]);

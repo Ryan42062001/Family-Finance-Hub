@@ -430,6 +430,140 @@ try {
     $recorded,(Get-FfhRootMarker -Identity $id),$valid)} 'MANIFEST_HASH'
   MarkerExists $id
   FileReceipt '28'
+
+  # FS-29: read-only native Preflight accepts a real READ-only handle which
+  # does NOT share DELETE; destructive Retire remains blocked before disposal.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $hold=[IO.FileStream]::new($config,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::Read)
+  try {
+    if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+        $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
+      throw 'SYNTH_READ_HOLD_PREFLIGHT_FAILED'
+    }
+    ExpectCategory {NativeRetire $id $recorded} 'OPEN_32'
+    MarkerExists $id
+  } finally {$hold.Dispose()}
+  FileReceipt '29'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-30: existing READ handle with READ/WRITE sharing (but no DELETE)
+  # is also compatible with read-only Preflight, not destructive Retire.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $hold=[IO.FileStream]::new($config,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+  try {
+    if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+        $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
+      throw 'SYNTH_READWRITE_SHARE_PREFLIGHT_FAILED'
+    }
+    ExpectCategory {NativeRetire $id $recorded} 'OPEN_32'
+    MarkerExists $id
+  } finally {$hold.Dispose()}
+  FileReceipt '30'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-31: a live writer cannot pass read-only preflight, even when it
+  # generously offers FILE_SHARE_READ/WRITE/DELETE. Our handle keeps only READ
+  # sharing, so the existing writer's desired WRITE remains incompatible.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $hold=[IO.FileStream]::new($config,[IO.FileMode]::Open,
+    [IO.FileAccess]::Write,[IO.FileShare]::ReadWriteDelete)
+  try {
+    ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
+      (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
+      (Manifest $id))} 'OPEN_32'
+    MarkerExists $id
+  } finally {$hold.Dispose()}
+  FileReceipt '31'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-32: a no-sharing held reader must still block read-only Preflight,
+  # without a single native disposition.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $hold=[IO.FileStream]::new($config,[IO.FileMode]::Open,
+    [IO.FileAccess]::Read,[IO.FileShare]::None)
+  try {
+    ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
+      (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
+      (Manifest $id))} 'OPEN_32'
+    MarkerExists $id
+  } finally {$hold.Dispose()}
+  FileReceipt '32'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-33: real NTFS owner-only READ DACL excludes DELETE, including the
+  # config file's parent's DELETE_CHILD. ACL validator still accepts only
+  # approved principals/ALLOW entries; Retire must NOT weaken its DELETE check.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $supabase=Join-Path $id.root 'supabase'
+  $originalFileAcl=[IO.File]::GetAccessControl($config)
+  $originalDirAcl=[IO.Directory]::GetAccessControl($supabase)
+  try {
+    $ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+    $fileAcl=[IO.File]::GetAccessControl($config)
+    $dirAcl=[IO.Directory]::GetAccessControl($supabase)
+    foreach($acl in @($fileAcl,$dirAcl)) {
+      $acl.SetAccessRuleProtection($true,$false)
+      $rules=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
+      foreach($rule in $rules) {[void]$acl.RemoveAccessRuleSpecific($rule)}
+      $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+        $ownerSid,[Security.AccessControl.FileSystemRights]::ReadAndExecute,
+        [Security.AccessControl.AccessControlType]::Allow))
+    }
+    [IO.Directory]::SetAccessControl($supabase,$dirAcl)
+    [IO.File]::SetAccessControl($config,$fileAcl)
+    if ([FfhP01OwnedRoot]::Preflight($profileHome,(Split-Path $id.root -Leaf),
+        $recorded,(Get-FfhRootMarker -Identity $id),(Manifest $id)) -cne 'PREFLIGHT_OK') {
+      throw 'SYNTH_READ_DACL_PREFLIGHT_FAILED'
+    }
+    ExpectCategory {NativeRetire $id $recorded} 'OPEN_5'
+    MarkerExists $id
+  } finally {
+    [IO.File]::SetAccessControl($config,$originalFileAcl)
+    [IO.Directory]::SetAccessControl($supabase,$originalDirAcl)
+  }
+  FileReceipt '33'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-34: a foreign ACL ACE still blocks READ-only Preflight.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $config=Join-Path $id.root 'supabase/config.toml'
+  $acl=[IO.File]::GetAccessControl($config)
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+    [Security.Principal.SecurityIdentifier]::new('S-1-1-0'),
+    [Security.AccessControl.FileSystemRights]::ReadData,
+    [Security.AccessControl.AccessControlType]::Allow))
+  [IO.File]::SetAccessControl($config,$acl)
+  ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
+    (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
+    (Manifest $id))} 'ACL_FOREIGN'
+  MarkerExists $id
+  FileReceipt '34'
+  Stop-NativeRoot $id;$id=$null
+
+  # FS-35: missing canonical manifest entry and the exact optional cache
+  # semantics remain blocking under the corrected read-only scanner.
+  $id=New-NativeRoot;$recorded=FileId $id
+  $first=$migrationSources[0]
+  $hasher=[Security.Cryptography.SHA256]::Create()
+  $stream=[IO.File]::OpenRead($first.FullName)
+  try {$digest=[BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+  finally {$stream.Dispose();$hasher.Dispose()}
+  $manifestWithMissing=(Manifest $id)+[char]10+
+    ('F|supabase\\migrations\\'+$first.Name+'|'+$digest)
+  ExpectCategory {[FfhP01OwnedRoot]::Preflight($profileHome,
+    (Split-Path $id.root -Leaf),$recorded,(Get-FfhRootMarker -Identity $id),
+    $manifestWithMissing)} 'MANIFEST_INCOMPLETE'
+  MarkerExists $id
+  FileReceipt '35'
+  Stop-NativeRoot $id;$id=$null
+
 } finally {
   if ($null -ne $id) {Stop-NativeRoot $id}
   if ($null -ne $foreign -and [IO.Directory]::Exists($foreign)) {
