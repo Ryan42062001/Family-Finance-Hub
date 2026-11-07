@@ -148,7 +148,7 @@ try {
     rootRetirement=[pscustomobject]@{status='NOT_STARTED';fileId='';atUtc=''}
     resources=@(
       [pscustomobject]@{kind='containers';id=('c'*64);name=('/'+$id.container)}
-      [pscustomobject]@{kind='volumes';id=('supabase_db_'+$id.project+'_data');name=('supabase_db_'+$id.project+'_data')}
+      [pscustomobject]@{kind='volumes';id=('supabase_db_'+$id.project);name=('supabase_db_'+$id.project)}
       [pscustomobject]@{kind='networks';id=('d'*64);name=('supabase_network_'+$id.project)}
     )
   }
@@ -527,6 +527,99 @@ switch ($Case) {
     throw 'SYNTH_STG_EVIDENCE_MUTATED'
   }
   Receipt 46
+
+  # Supabase CLI tag v2.122.0 volume: supabase_db_<project>, without _data.
+  # Tagged provenance: db/start/SIDE_EFFECTS.md (volume row); the
+  # db-bootstrap/start-database.ts volumeExists(dbContainerId) invocation;
+  # docker-ids.ts localDbContainerId returns supabase_db_<project>.
+  # Exercise the ORIGINAL imported production journal validator (not a stub).
+  # All journal/ledger/FINAL fixtures are test-owned in $base.
+  $final.category='FAIL_CLOSED'
+  [IO.File]::WriteAllText($finalPath,($final|ConvertTo-Json -Depth 10))
+  $initialLedger=[Convert]::ToBase64String([IO.File]::ReadAllBytes($ledgerPath))
+  $initialFinal=[Convert]::ToBase64String([IO.File]::ReadAllBytes($finalPath))
+  $ledgerStamp=[IO.File]::GetLastWriteTimeUtc($ledgerPath)
+  $finalStamp=[IO.File]::GetLastWriteTimeUtc($finalPath)
+  $volume=@($j.resources | Where-Object {$_.kind -ceq 'volumes'})[0]
+  $container=@($j.resources | Where-Object {$_.kind -ceq 'containers'})[0]
+  $network=@($j.resources | Where-Object {$_.kind -ceq 'networks'})[0]
+  $exactVolume='supabase_db_'+$id.project
+  if ($volume.name -cne $exactVolume -or $volume.id -cne $exactVolume) {
+    throw 'SYNTH_VOLUME_CANONICAL_SEED_WRONG'
+  }
+  if (-not (Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash)) {
+    throw 'SYNTH_VOLUME_CANONICAL_NOT_ACCEPTED'
+  }
+  Receipt 47
+  try {
+    $volume.name=$exactVolume+'_data'
+    $volume.id=$volume.name
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 48
+    $volume.name='supabase_db_foreign_'+$id.project
+    $volume.id=$volume.name
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 49
+    $volume.name=$exactVolume+'_other'
+    $volume.id=$volume.name
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 50
+    $volume.name=$exactVolume
+    $volume.id=$exactVolume+'_mismatched'
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 51
+    $volume.name=$exactVolume.ToUpperInvariant()
+    $volume.id=$volume.name
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 52
+    $volume.name=$exactVolume;$volume.id=$exactVolume
+    $secondVolume=[pscustomobject]@{kind='volumes';id=$exactVolume;name=$exactVolume}
+    $j.resources=@($container,$volume,$secondVolume)
+    MustBlock 'BLOCKED_RECOVERY_RESOURCE_CARDINALITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 53
+    $j.resources=@($container,$network,$network)
+    MustBlock 'BLOCKED_RECOVERY_RESOURCE_CARDINALITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 54
+    $j.resources=@($container,$volume,$network)
+    $volume.id=('a'*64)
+    MustBlock 'BLOCKED_RECOVERY_VOLUME_IDENTITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 55
+    $volume.id=$exactVolume
+    $j.resources=@($container,$network,[pscustomobject]@{kind='unknown';id=$exactVolume;name=$exactVolume})
+    MustBlock 'BLOCKED_RECOVERY_RESOURCE_CARDINALITY' {
+      Assert-FfhConsumedRecoveryJournal -Identity $id -Journal $j -ConsumedHead $sha -CliSha256 $cliHash
+    }
+    Receipt 56
+  } finally {
+    $volume.name=$exactVolume;$volume.id=$exactVolume
+    $j.resources=@($container,$volume,$network)
+  }
+  if ([Convert]::ToBase64String([IO.File]::ReadAllBytes($ledgerPath)) -cne $initialLedger -or
+      [Convert]::ToBase64String([IO.File]::ReadAllBytes($finalPath)) -cne $initialFinal -or
+      [IO.File]::GetLastWriteTimeUtc($ledgerPath) -ne $ledgerStamp -or
+      [IO.File]::GetLastWriteTimeUtc($finalPath) -ne $finalStamp -or
+      @($j.resources).Count -ne 3 -or
+      $volume.name -cne $exactVolume -or $volume.id -cne $exactVolume -or
+      [IO.File]::Exists((Join-Path $evidence 'race.json'))) {
+    throw 'SYNTH_VOLUME_TERMINAL_VALIDATION_MUTATED_EVIDENCE'
+  }
+  Receipt 57
 } finally {
   # Test-owned GUID synthetic path only, never an Owner root or evidence.
   $canonical=[IO.Path]::GetFullPath($base)

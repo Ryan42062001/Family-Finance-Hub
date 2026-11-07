@@ -164,7 +164,7 @@ function Assert-FfhConsumedRecoveryJournal {
       throw 'BLOCKED_RECOVERY_NETWORK_IDENTITY'
     }
     if ($kind -ceq 'volumes' -and ($r.id -cne $r.name -or
-        $r.name -cnotmatch ('^supabase_db_'+[regex]::Escape($Identity.project)+'_data$'))) {
+        $r.name -cnotmatch ('^supabase_db_'+[regex]::Escape($Identity.project)+'$'))) {
       throw 'BLOCKED_RECOVERY_VOLUME_IDENTITY'
     }
   }
