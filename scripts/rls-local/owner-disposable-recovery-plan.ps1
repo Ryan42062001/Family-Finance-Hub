@@ -8,6 +8,7 @@
 $script:FfhRecoveryInvocationArgs=@($args)
 $ErrorActionPreference='Stop'
 $script:FfhRecoveryStage='INITIALIZATION'
+$script:FfhRecoverySyntheticCI=$false
 
 # No external command, module import, filesystem or environment access.
 # All string checks are literal, case-sensitive and bounded before use.
@@ -73,6 +74,44 @@ function Read-FfhRecoveryPlanArguments {
   }
 }
 
+# The ONLY CI integration seam: inject read-only Docker *metadata* at a
+# real -File entry on an ephemeral, explicitly ticketed Windows GitHub runner.
+# Never usable silently: synthetic COMPLETE has an unmistakable extra marker.
+# The original Git source, evidence, cache, journal, native C# Inspect/Preflight,
+# and their fail-closed security checks remain genuine and unmodified.
+function Enable-FfhRecoverySyntheticCiDocker {
+  param([string]$AuditedHead)
+  if ($env:FFH_P01_CI_STAGE1 -cne 'INTEGRATION_ONLY') {return}
+  if ($env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_OS -cne 'Windows' -or
+      $env:CI -cne 'true' -or
+      [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+      [string]::IsNullOrWhiteSpace($env:RUNNER_TEMP) -or
+      [string]::IsNullOrWhiteSpace($env:GITHUB_WORKSPACE) -or
+      [string]::IsNullOrWhiteSpace($env:FFH_P01_CI_STAGE1_TICKET)) {
+    throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
+  }
+  $profileRoot=[IO.Path]::GetFullPath([Environment]::GetFolderPath('UserProfile')).TrimEnd('\')
+  $expectedRepo=Join-Path $profileRoot 'Family-Finance-Hub-P01-Recovery'
+  $actualRepo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+  $runnerTemp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+  $ticket=[IO.Path]::GetFullPath($env:FFH_P01_CI_STAGE1_TICKET)
+  $actualHead=@(& git -C $actualRepo rev-parse HEAD 2>$null)
+  if (-not $actualRepo.Equals($expectedRepo,[StringComparison]::OrdinalIgnoreCase) -or
+      -not $ticket.StartsWith(($runnerTemp+'\'),[StringComparison]::OrdinalIgnoreCase) -or
+      [IO.Path]::GetFileName($ticket) -cnotmatch '^ffh-p01-stage1-[a-f0-9]{32}\.ticket$' -or
+      -not [IO.File]::Exists($ticket) -or
+      $AuditedHead -cnotmatch '^[a-f0-9]{40}$' -or
+      $actualHead.Count -ne 1 -or
+      [IO.File]::ReadAllText($ticket,[Text.Encoding]::ASCII).Trim() -cne $actualHead[0]) {
+    throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
+  }
+  $adapter=Join-Path $actualRepo 'tests/security/fixtures/ffh-p01-stage1-ci-docker-adapter.ps1'
+  if (-not (Test-Path -LiteralPath $adapter -PathType Leaf)) {
+    throw 'BLOCKED_RECOVERY_CI_SYNTHETIC_SCOPE'
+  }
+  . $adapter
+  $script:FfhRecoverySyntheticCI=$true
+}
 function Invoke-FfhConsumedRecoveryPlan {
   param([string]$ExpectedAuditedHead,[string]$ConsumedHead,
     [string]$RunToken,[string]$CliSha256,[string]$PreapprovedCacheSha256)
@@ -167,6 +206,13 @@ function Invoke-FfhConsumedRecoveryPlan {
   # Preserve UNKNOWN first failure. Do NOT execute even read-only SQL without
   # its separately scoped host authorization, and never print Docker payloads.
   Set-FfhRecoveryStage -Stage 'COMPLETE'
+  $ciMarker=if ($script:FfhRecoverySyntheticCI) {' INTEGRATION_SCOPE=CI_SYNTHETIC_ONLY'} else {''}
+  # Adversarial CI-only output injection tests the ORIGINAL outer strict
+  # one-record output contract; the raw private marker must never escape.
+  if ($script:FfhRecoverySyntheticCI -and
+      $env:FFH_P01_CI_STAGE1_FAULT -ceq 'OUTPUT_EXTRA') {
+    Write-Output 'PRIVATE_NEVER_PRINT_CI_SECRET'
+  }
   Write-Output ('RECOVERY_PLAN=READ_ONLY_EVIDENCE_ONLY STAGE=COMPLETE CATEGORY=NONE'+
     ' SOURCE_HEAD=VERIFIED'+
     ' CONSUMED_HEAD=VERIFIED CONSUMED_LEDGER=UNCHANGED'+
@@ -175,7 +221,7 @@ function Invoke-FfhConsumedRecoveryPlan {
     ' CACHE_SHAPE='+$cache.shape+
     ' CACHE_SHA256=PRIVATE_NOT_PRINTED'+
     ' FIRST_FAILURE=UNKNOWN SQL_IDLE=NOT_AUTHORIZED'+
-    ' DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO')
+    ' DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO'+$ciMarker)
 }
 # FFH-P01 #83 deterministic, nonsecret telemetry. The stage is set BEFORE
 # each bound read-only step and remains intact through inherited nested catches.
@@ -334,6 +380,9 @@ function Invoke-FfhRecoveryPlanEntry {
     $observed=@(& $Action 2>$null 3>$null 4>$null 5>$null 6>$null)
     Set-FfhRecoveryStage -Stage 'OUTPUT_CONTRACT'
     $safe='^RECOVERY_PLAN=READ_ONLY_EVIDENCE_ONLY STAGE=COMPLETE CATEGORY=NONE SOURCE_HEAD=VERIFIED CONSUMED_HEAD=VERIFIED CONSUMED_LEDGER=UNCHANGED FULL_JOURNAL_IDENTITY=VERIFIED EXACT_DOCKER_IDENTITY=VERIFIED NATIVE_ROOT_PREFLIGHT=PASS CACHE_STATUS=CACHE_(OBSERVED_UNPINNED|PINNED_VERIFIED) CACHE_SHAPE=CLI_TAG_OR_EMPTY CACHE_SHA256=PRIVATE_NOT_PRINTED FIRST_FAILURE=UNKNOWN SQL_IDLE=NOT_AUTHORIZED DELETION=BLOCKED_PENDING_INDEPENDENT_AUDIT_AND_NEW_OWNER_GO$'
+    if ($script:FfhRecoverySyntheticCI) {
+      $safe=$safe.Substring(0,$safe.Length-1)+' INTEGRATION_SCOPE=CI_SYNTHETIC_ONLY$'
+    }
     if ($observed.Count -ne 1 -or [string]$observed[0] -cnotmatch $safe) {
       throw 'BLOCKED_RECOVERY_OUTPUT_CONTRACT'
     }
@@ -360,5 +409,6 @@ Invoke-FfhRecoveryPlanEntry -Action {
   . "$PSScriptRoot/diagnostic-lifecycle.ps1"
   . "$PSScriptRoot/diagnostic-network.ps1"
   . "$PSScriptRoot/diagnostic-recovery-readonly.ps1"
+  Enable-FfhRecoverySyntheticCiDocker -AuditedHead $validated.ExpectedAuditedHead
   Invoke-FfhConsumedRecoveryPlan -ExpectedAuditedHead $validated.ExpectedAuditedHead -ConsumedHead $validated.ConsumedHead -RunToken $validated.RunToken -CliSha256 $validated.CliSha256 -PreapprovedCacheSha256 $validated.PreapprovedCacheSha256
 }
