@@ -14,7 +14,7 @@ function Get-FfhFullResourceNamespace {
   foreach ($row in @(Invoke-FfhDockerRead -Arguments @('network','ls','--no-trunc','--format','{{.ID}} {{.Name}}') -Fake $Fake)) {
     $all+= 'N:' + ([string]$row).Trim()
   }
-  return @($all | Where-Object { $_ -notmatch '^[CVN]:$' } | Sort-Object -Unique)
+  return @($all | Where-Object { $_ -notmatch '^[CVN]:$' } | Sort-Object)
 }
 function Get-FfhProtectedInventory {
   param([scriptblock]$Fake)
@@ -69,13 +69,56 @@ function Assert-FfhExactInventory {
       throw 'BLOCKED: journaled exact resource missing or duplicated'
     }
   }
-  $all=@(Get-FfhFullResourceNamespace -Fake $Fake)
-  foreach ($entry in $all) {
-    if ($entry -match [regex]::Escape($Identity.project)) {
-      $found=@($records | Where-Object {
-        $entry.Contains([string]$_.id) -or $entry.Contains([string]$_.name)
-      })
-      if ($found.Count -ne 1) { throw 'BLOCKED: unlabeled or ambiguous named resource' }
+  # Docker's db container and data volume share supabase_db_<project>.
+  # Reconcile the COMPLETE global namespace by resource kind and exact id/name.
+  $namespace=@()
+  foreach ($entry in @(Get-FfhFullResourceNamespace -Fake $Fake)) {
+    if ($entry -notmatch [regex]::Escape($Identity.project)) {continue}
+    $kind=$null;$id=$null;$name=$null
+    if ($entry.StartsWith('C:',[StringComparison]::Ordinal)) {
+      $kind='containers'
+      $parsed=[regex]::Match($entry,'^C:(?<id>[a-f0-9]{64}) (?<name>/?[A-Za-z0-9][A-Za-z0-9_.-]*)$')
+      if ($parsed.Success) {
+        $id=$parsed.Groups['id'].Value;$name=$parsed.Groups['name'].Value
+      }
+    } elseif ($entry.StartsWith('V:',[StringComparison]::Ordinal)) {
+      $kind='volumes'
+      $parsed=[regex]::Match($entry,'^V:(?<name>[A-Za-z0-9][A-Za-z0-9_.-]*)$')
+      if ($parsed.Success) {
+        $name=$parsed.Groups['name'].Value;$id=$name
+      }
+    } elseif ($entry.StartsWith('N:',[StringComparison]::Ordinal)) {
+      $kind='networks'
+      $parsed=[regex]::Match($entry,'^N:(?<id>[a-f0-9]{64}) (?<name>[A-Za-z0-9][A-Za-z0-9_.-]*)$')
+      if ($parsed.Success) {
+        $id=$parsed.Groups['id'].Value;$name=$parsed.Groups['name'].Value
+      }
+    }
+    if ($null -eq $kind -or -not $parsed.Success) {
+      throw 'BLOCKED: malformed or unknown project resource namespace'
+    }
+    $found=@($records | Where-Object {
+      if ($_.kind -cne $kind -or $_.id -cne $id) {return $false}
+      if ($kind -ceq 'containers') {
+        # docker ps .Names is slashless, inspect .Name has exactly one '/'.
+        $journalName=[string]$_.name
+        return ($journalName -cmatch '^/[A-Za-z0-9][A-Za-z0-9_.-]*$' -and
+          ($name -ceq $journalName.Substring(1) -or $name -ceq $journalName))
+      }
+      return ($_.name -ceq $name)
+    })
+    if ($found.Count -ne 1) {
+      throw 'BLOCKED: unlabeled or ambiguous named resource'
+    }
+    $namespace+= [pscustomobject]@{kind=$kind;id=$id;name=[string]$found[0].name}
+  }
+  # Fail closed if a labelled snapshot obscures absent/duplicated global rows.
+  foreach ($record in $records) {
+    if (@($namespace | Where-Object {
+      $_.kind -ceq $record.kind -and $_.id -ceq $record.id -and
+      $_.name -ceq $record.name
+    }).Count -ne 1) {
+      throw 'BLOCKED: exact project resource namespace missing or duplicated'
     }
   }
   $ids=@($records | Where-Object kind -eq 'containers' | ForEach-Object id)
