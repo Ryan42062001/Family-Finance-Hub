@@ -13,7 +13,7 @@ for (const path of ['AGENTS.md', 'docs/WORKFLOW.md', 'docs/workflow/PHASE_TEMPLA
 for (const path of ['scripts/ci-change-mode.mjs', 'scripts/ci-change-mode.test.mjs', 'scripts/validate-ai-state.mjs', '.ai/shared', '.ai/tasks', '.ai/roles', '.ai/manager', '.ai/audit']) check(!existsSync(path), `legacy active authority: ${path}`);
 try {
   const { scripts = {} } = JSON.parse(readFileSync('package.json', 'utf8'));
-  check(scripts['ai:validate-state'] === 'node scripts/validate-release-candidate.mjs', 'ai:validate-state must invoke the active V2.1 validator');
+  check(scripts['ai:validate-state'] === 'node scripts/validate-release-candidate.mjs', 'ai:validate-state must invoke the active validator');
   check(scripts.verify === 'npm run ai:validate-state && npm test && npm run test:security && npm run typecheck && npm run lint && npm run build', 'verify must preserve the complete validation chain');
   const visited = new Set();
   const validateAlias = name => {
@@ -74,8 +74,9 @@ if (existsSync('.ai/CURRENT_PHASE.md') && existsSync('docs/PRODUCT_ROADMAP.md'))
 }
 if (existsSync('docs/WORKFLOW.md')) {
   const workflow = readFileSync('docs/WORKFLOW.md', 'utf8');
-  check(workflow.includes('Speed Workflow V2.1') && /historical evidence/i.test(workflow), 'V2.1 must be active and archive historical');
+  check(/historical evidence/i.test(workflow), 'workflow must keep archived material as historical evidence only');
   check(/explicit Ryan merge authorization/i.test(workflow), 'merge must require Product Owner authorization');
+  check(/production deployment/i.test(workflow), 'workflow must keep production deployment a separate decision');
 }
 export const expectedActions = new Map([
   ['actions/checkout', '11d5960a326750d5838078e36cf38b85af677262'],
@@ -141,9 +142,10 @@ export function validateActionReferences(ci) {
 if (existsSync('.github/workflows/ci.yml')) {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
   check(!/validate-ai-state|ci-change-mode|deploy|production environment/i.test(ci), 'legacy authority or production deployment in active CI');
-  check(ci.includes('validate-release-candidate.mjs'), 'active CI must validate release shape');
+  check(/validate-release-candidate\.mjs|npm run verify/.test(ci), 'active CI must validate release shape');
+  check(/rls-ci\/run-matrix\.sh/.test(ci), 'active CI must run the two-household RLS matrix');
   failures.push(...validateActionReferences(ci));
 }
 
 if (failures.length) { console.error(failures.join('\n')); process.exitCode = 1; }
-else console.log('Speed Workflow V2.1 release shape valid; .history excluded from active-authority scan.');
+else console.log('Release shape valid; .history excluded from active-authority scan.');

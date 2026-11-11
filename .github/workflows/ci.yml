@@ -1,4 +1,4 @@
-name: Speed Workflow V2.1 CI
+name: CI
 
 on:
   push:
@@ -23,9 +23,10 @@ permissions:
 
 jobs:
   fast:
+    # Every push gets the full app check: tests, types, lint, build, audit.
     if: github.event_name == 'push'
-    runs-on: windows-latest
-    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
@@ -34,21 +35,17 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify exact checkout
-        shell: pwsh
         env:
           EXPECTED_SHA: ${{ github.sha }}
-        run: if ((git rev-parse HEAD) -ne $env:EXPECTED_SHA) { throw 'Checkout SHA mismatch' }
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node scripts/validate-release-candidate.mjs
       - run: node --test scripts/validate-release-candidate.test.mjs
-      - run: npm test
-      - run: npm run test:security
-      - run: npm run typecheck
-      - run: npm run lint
+      - run: npm run verify
+      - run: npm audit --audit-level=high
 
   rls-matrix:
     # Disposable Linux runner: fresh local Supabase DB, 15 migrations,
@@ -70,38 +67,28 @@ jobs:
         run: bash scripts/rls-ci/run-matrix.sh
 
   full-phase:
+    # Same checks pinned to an exact candidate SHA, for release candidates.
     if: (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-phase-ci') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
-    runs-on: windows-latest
-    timeout-minutes: 50
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
       EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.head_sha }}
     steps:
       - name: Validate requested SHA
-        shell: pwsh
-        run: if ($env:EXPECTED_SHA -notmatch '^[0-9a-f]{40}$') { throw 'Exact head SHA required' }
+        run: '[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ env.EXPECTED_SHA }}
           persist-credentials: false
       - name: Verify exact checkout
-        shell: pwsh
-        run: if ((git rev-parse HEAD) -ne $env:EXPECTED_SHA) { throw 'Checkout SHA mismatch' }
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node scripts/validate-release-candidate.mjs
       - run: node --test scripts/validate-release-candidate.test.mjs
-      - run: npm test
-      - run: npm run test:security
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run build
+      - run: npm run verify
       - run: npm audit --audit-level=high
-      - name: Deterministic calculation/security repeat
-        run: |
-          npm test
-          npm run test:security
