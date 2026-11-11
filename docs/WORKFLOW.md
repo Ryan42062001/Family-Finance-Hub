@@ -8,11 +8,20 @@ and git history), never active authority.
 
 - **Product Owner — Ryan.** Decides what to build. Gives explicit Ryan merge authorization for every merge and,
   separately, approves any production deployment, hosted configuration change, real-data operation or spending.
-- **Builder — one AI coding agent working directly in the repository** (Claude Code by default). It plans, writes
-  code and tests, runs checks, pushes its own branch, reads CI and opens draft PRs. It holds context in the repo,
-  not in chat.
-- **Independent reviewer — a different AI session than the Builder** (for example ChatGPT, or a fresh Claude
-  session). Reviews the finished phase diff once. It is never the Builder reviewing its own work.
+- **Builder — Claude Code by default; ChatGPT/Codex only as the fallback when Claude credits run out.** One AI
+  coding agent working directly in the repository: it plans, writes code and tests, runs checks, pushes its own branch,
+  reads CI, opens PRs, fixes findings and merges its own PRs into phase branches. It holds context in the repo, not in
+  chat. Only one builder works on a branch at a time.
+- **Browser QA — ChatGPT Work mode in the Cloud Browser.** After each merge into a phase branch it runs
+  `docs/workflow/QA_CHECKLIST.md` on the Vercel Preview with the synthetic TestA/TestB accounts, and files problems as
+  GitHub issues labeled `qa-finding` (template: QA finding). Prompt: `docs/workflow/WORK_MODE_PROMPT.md`. It never
+  writes code, touches Supabase, Vercel settings or Production, or sees real data or secrets. It doesn't use @Chrome or
+  @Computer, because those reach Ryan's signed-in accounts.
+- **Independent reviewer — a different AI session than the Builder**, once per phase, on the exact PR head
+  (`docs/workflow/REVIEW_PROMPT.md`):
+  - routine phases (LOW/MEDIUM risk): a fresh Claude session that sees only the diff;
+  - HIGH-risk phases (auth, household isolation, money calculations, schema/RLS) and the pre-release audit: a
+    **different model**, normally ChatGPT.
 
 Chat is for deciding *what* and reviewing *results*. Build steps are not relayed between chats.
 
@@ -33,8 +42,10 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 
 1. **Plan.** Ryan states the goal. The Builder writes a short scope in `.ai/CURRENT_PHASE.md` (one branch and one
    draft PR per phase).
-2. **Build.** The Builder works in small commits. Every push runs CI.
-3. **Preview.** Ryan checks the Vercel Preview with synthetic accounts and lists anything to fix.
+2. **Build.** The Builder works in small commits. Every push runs CI. Green PRs merge into the phase branch.
+3. **Preview QA, in parallel.** After a merge, the Preview is deployed and Work mode runs the QA checklist while the
+   Builder moves on to the next item. The Builder picks up `qa-finding` issues and fixes them. Ryan only does the
+   steps that need his accounts or approval (hosted checks, Production, secrets) and his own look-and-feel review.
 4. **Phase review.** When CI is green and the preview is accepted, the independent reviewer audits the changed scope at
    the exact PR head (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.

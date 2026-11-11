@@ -15,6 +15,8 @@ historical evidence only.
 - Auth, household isolation and money calculations fail closed. Do not invent financial policy.
 - Schema/RLS changes are migrations in a reviewed PR. The RLS matrix (`scripts/rls-local/*.sql`, run by
   `scripts/rls-ci/run-matrix.sh` in CI) must stay green.
+- Check open GitHub issues labeled `qa-finding` (browser QA by ChatGPT Work mode) and fix or triage them. Keep
+  `docs/workflow/QA_CHECKLIST.md` current when screens change.
 - At the end of a phase, an independent reviewer (a different AI session) audits the changed scope. Fix
   BLOCKER/CRITICAL/HIGH before merge; record MEDIUM/LOW/NIT in the final-audit backlog.
 
