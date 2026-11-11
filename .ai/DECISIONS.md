@@ -19,7 +19,7 @@
 - **FFH-026 F11/F13 offline browser helper retired.** F13 concerned the same helper, so it retires with it.
 - The Builder may merge its own PRs into phase branches when CI is green; merges into `main` still need Ryan.
 - Hosted `private.is_household_member` had a whitespace-only body difference (edited outside a migration). Ryan
-  re-created it from the repo text in the hosted SQL editor; there was no behavior change.
+  re-created it from the repo text in the hosted SQL editor; there was no behavior change. Hosted parity is now 9/9.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
