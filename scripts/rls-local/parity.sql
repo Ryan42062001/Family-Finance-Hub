@@ -40,10 +40,17 @@ sections(section, item) AS (
          cmd, coalesce(qual, '-'), coalesce(with_check, '-'))
   FROM pg_policies WHERE schemaname = 'public'
   UNION ALL
-  -- PUBLIC grants apply to every role, including anon and authenticated.
-  SELECT 'table_grants', concat_ws('|', table_name, grantee, privilege_type)
-  FROM information_schema.role_table_grants
-  WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated', 'PUBLIC')
+  -- Table privileges straight from each table's ACL (pg_class.relacl), so the
+  -- result does not depend on which role runs this query. PUBLIC (grantee 0)
+  -- applies to every role, including anon and authenticated. A NULL ACL means
+  -- the owner-only default.
+  SELECT DISTINCT 'table_grants', concat_ws('|', t.relname,
+         CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+         a.privilege_type, a.is_grantable)
+  FROM pub_tables t
+  JOIN pg_class c ON c.oid = t.oid
+  CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+  WHERE a.grantee = 0 OR pg_get_userbyid(a.grantee) IN ('anon', 'authenticated')
   UNION ALL
   SELECT 'columns', concat_ws('|', c.table_name, c.column_name, c.data_type,
          c.is_nullable, coalesce(c.column_default, '-'))

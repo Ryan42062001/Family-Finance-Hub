@@ -47,13 +47,17 @@ done
 [[ -S /var/run/docker.sock ]] || fail "local Docker socket missing"
 
 # Every container, volume and network the CLI creates carries the project id.
+# Returns non-zero if ANY inventory command fails, so "could not inspect" is
+# never mistaken for "nothing left" (independent re-review).
 project_resources() {
-  { docker ps -a --format '{{.Names}}'
-    docker volume ls --format '{{.Name}}'
-    docker network ls --format '{{.Name}}'
-  } 2>/dev/null | grep -F -- "$PROJECT_ID" || true
+  local names volumes networks
+  names="$(docker ps -a --format '{{.Names}}')" || return 1
+  volumes="$(docker volume ls --format '{{.Name}}')" || return 1
+  networks="$(docker network ls --format '{{.Name}}')" || return 1
+  printf '%s\n%s\n%s\n' "$names" "$volumes" "$networks" | grep -F -- "$PROJECT_ID" || true
 }
-[[ -z "$(project_resources)" ]] || fail "Docker resources for $PROJECT_ID already exist"
+existing="$(project_resources)" || fail "cannot inspect local Docker resources"
+[[ -z "$existing" ]] || fail "Docker resources for $PROJECT_ID already exist"
 echo "RLS_CI_DOCKER=LOCAL PROJECT=$PROJECT_ID"
 
 mapfile -t migrations < <(git ls-files -- 'supabase/migrations/*.sql' | sort)
@@ -84,8 +88,10 @@ cleanup() {
   local status=$?
   (cd "$work" && npx --yes "$CLI" stop --no-backup >/dev/null 2>&1) || true
   local leftover
-  leftover="$(project_resources)"
-  if [[ -n "$leftover" ]]; then
+  if ! leftover="$(project_resources)"; then
+    echo "RLS_CI_CLEANUP=FAIL could not inspect Docker resources; removal unverified" >&2
+    [[ "$status" -ne 0 ]] || status=1
+  elif [[ -n "$leftover" ]]; then
     echo "RLS_CI_CLEANUP=FAIL leftover Docker resources:" >&2
     echo "$leftover" >&2
     [[ "$status" -ne 0 ]] || status=1
@@ -148,8 +154,17 @@ if [[ -f "$expected_parity" ]]; then
   # fingerprint (independent review finding 4). Runs inside a transaction that
   # is rolled back, so the database is unchanged.
   probe_out="$work/parity-probe.out"
+  # The grant is issued by a separate role, so the check cannot depend on the
+  # reader being the grantor (independent re-review).
   { echo "BEGIN;"
+    echo "CREATE ROLE ffh_probe_grantor;"
+    # Supabase's local postgres role is not a superuser; on PostgreSQL 16+ the
+    # creator needs explicit membership before SET ROLE.
+    echo "GRANT ffh_probe_grantor TO CURRENT_USER;"
+    echo "GRANT SELECT ON public.accounts TO ffh_probe_grantor WITH GRANT OPTION;"
+    echo "SET LOCAL ROLE ffh_probe_grantor;"
     echo "GRANT SELECT ON public.accounts TO PUBLIC;"
+    echo "RESET ROLE;"
     cat scripts/rls-local/parity.sql
     echo "ROLLBACK;"
   } | docker exec -i "$CONTAINER" psql -X -q -t -A -F '|' -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres \
