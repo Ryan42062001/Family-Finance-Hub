@@ -19,7 +19,7 @@
   "dependencies": {
     "@supabase/ssr": "0.12.5",
     "@supabase/supabase-js": "2.112.4",
-    "next": "16.3.3",
+    "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -28,7 +28,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "16.4.6",
     "js-yaml": "4.3.2",
     "typescript": "^5.9.0"
   }
