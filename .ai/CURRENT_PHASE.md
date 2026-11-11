@@ -2,7 +2,7 @@
 
 FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: PUNCH_LIST
+State: FREEZE_READY
 Risk: HIGH
 Owner: Ryan
 Phase branch / PR: `phase/ffh-p01-release-readiness`, draft PR #81
@@ -26,11 +26,13 @@ Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback pl
 
 ## Open, in order
 
-1. ~~Owner preview checks~~ Done 2026-11-11: two-account isolation, Scenario Lab no-write, sign-in page, Secure cookie.
-2. ~~Hosted parity~~ Done: 9/9 (2026-11-11).
-3. ~~Deployed auth checks~~ Done: smoke test 12/12 on the Preview and Production; session cookie Secure/Lax/`/`.
-4. Independent phase review: PASS after fixes (re-review PASS; its 2 MEDIUM follow-ups also fixed). Remaining: Ryan reruns the hosted `parity.sql` (new `table_grants` = 208 / 9468fa67…).
-5. Ryan merges. Production release is a separate decision, after the final audit and the rollback plan.
+1. ~~Owner preview checks~~ Done: isolation, Scenario Lab no-write, sign-in page, Secure cookie, Q9 phone layout.
+2. ~~Hosted parity~~ Done: 9/9 with the final `parity.sql` (2026-11-11).
+3. ~~Deployed auth checks~~ Done: smoke test 12/12 on the Preview and Production.
+4. ~~Browser QA~~ Done: Work mode Q1–Q8 and Q10 PASS, 0 issues; Q9 PASS by Ryan.
+5. ~~Independent review~~ Done: PASS after fixes (re-review PASS; follow-ups fixed).
+6. FULL PHASE CI on the exact PR #81 head, then **Ryan's explicit authorization to merge PR #81 into `main`**.
+   Merging does not deploy; Production release is a separate decision (final audit, rollback plan).
 
 ## Boundaries
 
