@@ -28,10 +28,8 @@ Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback pl
 
 1. Ryan: preview the current branch (UI refresh and the Scenario Lab plain-language punch list), including the
    two-account isolation check from the status page.
-2. Hosted parity: Ryan runs the read-only `scripts/rls-local/parity.sql` in the hosted Supabase SQL editor; every row
-   must equal `scripts/rls-local/parity.expected.txt`.
-3. Deployed auth checks: Ryan runs `node scripts/smoke/deployed-auth-smoke.mjs <preview URL>` and checks the session
-   cookie in the browser.
+2. ~~Hosted parity~~ Done: 9/9 (2026-11-11).
+3. Deployed auth checks: smoke test 12/12 on Production and the Preview. Still open: Ryan's browser cookie-attribute check.
 4. Independent phase review of the PR #81 diff, using `docs/workflow/REVIEW_PROMPT.md`. Fix any HIGH or above; backlog the rest.
 5. Ryan merges. Production release is a separate decision, after the final audit and the rollback plan.
 
