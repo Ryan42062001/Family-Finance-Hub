@@ -35,7 +35,7 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 2. **Build.** The Builder works in small commits. Every push runs CI.
 3. **Preview.** Ryan checks the Vercel Preview with synthetic accounts and lists anything to fix.
 4. **Phase review.** When CI is green and the preview is accepted, the independent reviewer audits the changed scope at
-   the exact PR head: security and household isolation, money calculations, data handling, regressions.
+   the exact PR head (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
      file and suggested fix, then continue.

@@ -14,11 +14,11 @@ real household data.
 | Calculation, security, typecheck, lint, build | **PASS in CI on every push** | `fast` job in `.github/workflows/ci.yml` |
 | Dependency advisories (`npm audit --audit-level=high`) | **PASS** after Next.js 16.4.6 | `fast` job; PR #86 |
 | Two-household RLS isolation, as written in the migrations | **PASS: 913/913 assertions, rollback complete, zero residue** | `rls-matrix` job, first pass at commit `597027c` (run 42943705768); reruns on every push |
-| Hosted Supabase matches the migrations (policies, grants, 15 migrations) | **OPEN** | Needs a read-only catalog comparison against the hosted project, which requires Ryan's approval, or a recorded decision to accept the gap |
+| Hosted Supabase matches the migrations (policies, grants, functions, constraints, 15 migrations) | **OPEN, ready to run** | Ryan runs the read-only `scripts/rls-local/parity.sql` in the hosted SQL editor and compares with `scripts/rls-local/parity.expected.txt`, which CI enforces for the repo migrations |
 | Owner two-account check on the Preview | **OPEN** | Ryan, with two synthetic accounts: neither can see or change the other's data |
 | Auth confirmation and callback logic (safe destinations, origin, encoded control characters) | **PASS (source and synthetic route tests)** | `tests/security/ffh-051-auth-remediation.test.ts`, `ffh-p01-auth-route-execution.test.ts` |
 | Hosted new-signup confirmation | **OWNER-OBSERVED PASS** on Preview and Production (2026-10-27, 2026-11-10) | PR #81 comments |
-| Deployed first authenticated request: `Set-Cookie` attributes, invalid/expired/reused tokens, hostile Host/origin on the deployed app | **OPEN** | Not yet tested against a deployment |
+| Deployed first authenticated request: `Set-Cookie` attributes, invalid/expired/reused tokens, hostile Host/origin on the deployed app | **OPEN, ready to run** | `node scripts/smoke/deployed-auth-smoke.mjs <preview URL>` (12 checks, 12/12 against a local production build), plus Ryan's browser cookie check |
 | Scenario Lab: no persistence or profile mutation, null-preference reconciliation | **PASS (tests)** | `tests/security/ffh-p01-release-readiness.test.ts`, calculation suite |
 | FFH-026 F11/F13 offline browser helper | **RETIRED** (Owner decision, 2026-11-11) | Isolation is now proved by the `rls-matrix` job plus the owner two-account check |
 | Owner preview of the UI and Scenario Lab punch list | **OPEN** | See `.ai/CURRENT_PHASE.md` |
