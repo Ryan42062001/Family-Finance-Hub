@@ -40,16 +40,15 @@ mapfile -t migrations < <(git ls-files -- 'supabase/migrations/*.sql' | sort)
 work="$(mktemp -d "${RUNNER_TEMP:-/tmp}/ffh-rls-XXXXXX")"
 mkdir -p "$work/supabase/migrations"
 cp "${migrations[@]}" "$work/supabase/migrations/"
+# Auth stays enabled: its own migrations create auth.identities and other
+# auth tables that matrix.sql reads. With Auth disabled only the base auth
+# schema exists and the matrix fails before any assertion.
 cat > "$work/supabase/config.toml" <<TOML
 project_id = "${PROJECT_ID}"
 [db]
 port = 54332
 shadow_port = 54333
 major_version = 17
-[api]
-enabled = false
-[auth]
-enabled = false
 TOML
 
 cli_log="$work/cli.log"
@@ -72,8 +71,9 @@ run_cli() {
 }
 
 run_cli --version
-run_cli db start
-run_cli db reset --local --no-seed
+# Full local stack on the disposable runner; applies the 15 migrations to a
+# brand-new database (no seed file exists in the temp project).
+run_cli start
 
 [[ "$(docker ps --filter "name=^${CONTAINER}$" --format '{{.Names}}')" == "$CONTAINER" ]] ||
   fail "fresh database container not running"
