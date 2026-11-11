@@ -81,6 +81,11 @@ export const expectedActions = new Map([
   ['actions/checkout', '11d5960a326750d5838078e36cf38b85af677262'],
   ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
 ]);
+// fast + full-phase use both Actions; the Linux rls-matrix job uses checkout only.
+export const expectedActionCounts = new Map([
+  ['actions/checkout', 3],
+  ['actions/setup-node', 2],
+]);
 
 export function collectUsesValues(value, collected = []) {
   if (Array.isArray(value)) {
@@ -127,8 +132,8 @@ export function validateActionReferences(ci) {
     }
     actionCounts.set(identity, (actionCounts.get(identity) ?? 0) + 1);
   }
-  for (const identity of expectedActions.keys()) {
-    if (actionCounts.get(identity) !== 2) actionFailures.push(`expected ${identity} pin exactly twice`);
+  for (const [identity, count] of expectedActionCounts) {
+    if (actionCounts.get(identity) !== count) actionFailures.push(`expected ${identity} pin exactly ${count} times`);
   }
   return actionFailures;
 }

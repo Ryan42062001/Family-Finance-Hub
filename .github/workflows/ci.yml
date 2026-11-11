@@ -50,6 +50,25 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
 
+  rls-matrix:
+    # Disposable Linux runner: fresh local Supabase DB, 15 migrations,
+    # unchanged preflight.sql + 913-assertion matrix.sql, automatic teardown.
+    # Synthetic data only; no hosted Supabase or secrets.
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-phase-ci') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'push' && github.sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.head_sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+      - name: Verify exact checkout
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Two-household RLS matrix
+        run: bash scripts/rls-ci/run-matrix.sh
+
   full-phase:
     if: (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-phase-ci') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
     runs-on: windows-latest
