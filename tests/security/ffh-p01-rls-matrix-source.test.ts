@@ -209,6 +209,18 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   assert.match(runner, /EXPECTED_ASSERTIONS=913/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
+  // Independent review findings 1, 2 and 4.
+  assert.match(runner, /RUNNER_ENVIRONMENT:-\}" == "github-hosted"/);
+  for (const name of ["DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"]) {
+    assert.ok(runner.includes(name), "runner must refuse " + name);
+  }
+  assert.match(runner, /unix:\/\/\/var\/run\/docker\.sock/);
+  assert.match(runner, /PROJECT_ID="ffh_ci_rls_\$\(printf/);
+  assert.match(runner, /already exist/);
+  assert.match(runner, /RLS_CI_CLEANUP=FAIL/);
+  assert.match(runner, /\[\[ "\$status" -ne 0 \]\] \|\| status=1/);
+  assert.match(runner, /GRANT SELECT ON public\.accounts TO PUBLIC;/);
+  assert.match(runner, /did not detect an extra PUBLIC grant/);
   // Wired into CI on every push.
   assert.match(ci, /rls-matrix:/);
   assert.match(ci, /bash scripts\/rls-ci\/run-matrix\.sh/);

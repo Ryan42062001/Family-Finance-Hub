@@ -1,16 +1,19 @@
 // Session cookie attributes for every Supabase client (server, proxy, browser).
 // @supabase/ssr defaults to path=/, SameSite=Lax, not HttpOnly (the browser
 // client must read the session) and does NOT set Secure. Mark the cookie Secure
-// whenever the canonical site origin is HTTPS so it is never sent over plain
-// HTTP, including on a future custom domain. Only explicit http:// loopback
-// development leaves Secure off.
+// for every origin except an explicit plain-HTTP loopback development origin
+// (http://localhost, http://127.0.0.1, http://[::1]). Any other http:// origin,
+// a missing value or a malformed value fails closed to Secure.
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 export function supabaseCookieOptions(siteUrl: string | undefined = process.env.NEXT_PUBLIC_SITE_URL): { secure: boolean } {
-  let protocol = "";
+  if (!siteUrl) return { secure: true };
+  let url: URL;
   try {
-    protocol = siteUrl ? new URL(siteUrl).protocol : "";
+    url = new URL(siteUrl);
   } catch {
-    protocol = "";
+    return { secure: true };
   }
-  // Fail closed: anything other than an explicit http:// origin gets Secure.
-  return { secure: protocol !== "http:" };
+  const httpLoopback = url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname);
+  return { secure: !httpLoopback };
 }

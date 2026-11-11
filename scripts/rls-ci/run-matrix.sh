@@ -11,25 +11,50 @@
 set -euo pipefail
 
 CLI="supabase@2.122.0"
-PROJECT_ID="ffh_ci_rls"
-CONTAINER="supabase_db_${PROJECT_ID}"
 EXPECTED_MIGRATIONS=15
 EXPECTED_ASSERTIONS=913
+# Unique per CI run and attempt, so it can never match a pre-existing project.
+PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
+CONTAINER="supabase_db_${PROJECT_ID}"
 
 repo="$(git rev-parse --show-toplevel)"
 cd "$repo"
 
 fail() { echo "RLS_CI_BLOCKED: $*" >&2; exit 1; }
 
-# Runs only on a disposable CI runner, never on a developer machine.
-[[ "${GITHUB_ACTIONS:-}" == "true" && "${RUNNER_OS:-}" == "Linux" ]] ||
-  fail "must run on a GitHub Actions Linux runner"
+# Runs only on a disposable GitHub-hosted Linux runner, never on a developer
+# machine or a self-hosted runner.
+[[ "${GITHUB_ACTIONS:-}" == "true" && "${RUNNER_OS:-}" == "Linux" &&
+   "${RUNNER_ENVIRONMENT:-}" == "github-hosted" ]] ||
+  fail "must run on a GitHub-hosted Actions Linux runner"
 
 for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID \
             SUPABASE_URL SUPABASE_DB_URL DATABASE_URL PGHOST PGSERVICE \
             PGPORT PGDATABASE PGUSER PGPASSWORD; do
   [[ -z "${!name:-}" ]] || fail "hosted database configuration present ($name)"
 done
+
+# Docker must be the runner's own local daemon (independent review finding 1):
+# no remote endpoint, context or TLS override, the default context, and the
+# local Unix socket as its endpoint.
+for name in DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH; do
+  [[ -z "${!name:-}" ]] || fail "Docker endpoint override present ($name)"
+done
+[[ "$(docker context show 2>/dev/null)" == "default" ]] ||
+  fail "Docker context is not the local default"
+[[ "$(docker context inspect default --format '{{.Endpoints.docker.Host}}' 2>/dev/null)" == "unix:///var/run/docker.sock" ]] ||
+  fail "Docker endpoint is not the local Unix socket"
+[[ -S /var/run/docker.sock ]] || fail "local Docker socket missing"
+
+# Every container, volume and network the CLI creates carries the project id.
+project_resources() {
+  { docker ps -a --format '{{.Names}}'
+    docker volume ls --format '{{.Name}}'
+    docker network ls --format '{{.Name}}'
+  } 2>/dev/null | grep -F -- "$PROJECT_ID" || true
+}
+[[ -z "$(project_resources)" ]] || fail "Docker resources for $PROJECT_ID already exist"
+echo "RLS_CI_DOCKER=LOCAL PROJECT=$PROJECT_ID"
 
 mapfile -t migrations < <(git ls-files -- 'supabase/migrations/*.sql' | sort)
 [[ "${#migrations[@]}" -eq "$EXPECTED_MIGRATIONS" ]] ||
@@ -52,8 +77,22 @@ major_version = 17
 TOML
 
 cli_log="$work/cli.log"
+# Always tear down, then verify that every resource of this run is gone
+# (independent review finding 2). A test failure keeps its own exit status; a
+# cleanup failure turns an otherwise passing run into a failure.
 cleanup() {
+  local status=$?
   (cd "$work" && npx --yes "$CLI" stop --no-backup >/dev/null 2>&1) || true
+  local leftover
+  leftover="$(project_resources)"
+  if [[ -n "$leftover" ]]; then
+    echo "RLS_CI_CLEANUP=FAIL leftover Docker resources:" >&2
+    echo "$leftover" >&2
+    [[ "$status" -ne 0 ]] || status=1
+  else
+    echo "RLS_CI_CLEANUP=PASS"
+  fi
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -105,6 +144,20 @@ if [[ -f "$expected_parity" ]]; then
   diff -u "$expected_parity" "$parity_out" ||
     fail "schema fingerprint differs from $expected_parity (update it in the same PR as the migration)"
   echo "RLS_CI_PARITY=MATCH"
+  # Self-test: a single extra PUBLIC grant must change the table_grants
+  # fingerprint (independent review finding 4). Runs inside a transaction that
+  # is rolled back, so the database is unchanged.
+  probe_out="$work/parity-probe.out"
+  { echo "BEGIN;"
+    echo "GRANT SELECT ON public.accounts TO PUBLIC;"
+    cat scripts/rls-local/parity.sql
+    echo "ROLLBACK;"
+  } | docker exec -i "$CONTAINER" psql -X -q -t -A -F '|' -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres \
+    > "$probe_out" 2>&1 || { cat "$probe_out" >&2; fail "parity PUBLIC-grant self-test failed to run"; }
+  if [[ "$(grep '^table_grants|' "$probe_out")" == "$(grep '^table_grants|' "$expected_parity")" ]]; then
+    fail "parity fingerprint did not detect an extra PUBLIC grant"
+  fi
+  echo "RLS_CI_PARITY_SELFTEST=PASS (extra PUBLIC grant detected)"
 else
   fail "missing $expected_parity; copy the fingerprint above into it"
 fi

@@ -40,9 +40,10 @@ sections(section, item) AS (
          cmd, coalesce(qual, '-'), coalesce(with_check, '-'))
   FROM pg_policies WHERE schemaname = 'public'
   UNION ALL
+  -- PUBLIC grants apply to every role, including anon and authenticated.
   SELECT 'table_grants', concat_ws('|', table_name, grantee, privilege_type)
   FROM information_schema.role_table_grants
-  WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated')
+  WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated', 'PUBLIC')
   UNION ALL
   SELECT 'columns', concat_ws('|', c.table_name, c.column_name, c.data_type,
          c.is_nullable, coalesce(c.column_default, '-'))
