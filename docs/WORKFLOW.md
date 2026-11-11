@@ -1,5 +1,13 @@
 # Speed Workflow V2.1 — Family Finance Hub
 
+## 2026-11-07 Owner sequencing amendment — focused phase audits, comprehensive final audit
+
+**Controlling amendment after merge:** [PROGRESS_FIRST_POLICY.md](PROGRESS_FIRST_POLICY.md). Build and verify a coherent feature/phase, then commission **ONE short fresh independent changed-scope audit at the end of EVERY phase or major feature**. The auditor examines the changed code, owner/security boundaries, calculations and risk-specific regression evidence at an exact SHA. If any **BLOCKER / CRITICAL / HIGH** finding exists, stop the affected merge/use, remediate promptly, re-run relevant CI and conduct **targeted independent re-audit** before moving that affected PR onward. If findings are only **MEDIUM / LOW / NIT**, document them with sources/severity/ownership in the final-audit backlog and allow continued development or normal Owner-approved feature merge. Reassess/escalate underclassified serious consequences rather than waiving them.
+
+This amendment **preserves per-phase independent audit** but reduces scope and discourages repeated expansive architecture campaigns and full-project remediation for non-high findings at every small feature. **ONE comprehensive frozen-integration audit, batched remediation and targeted fresh re-audit happen at the next final release candidate.** Original phase-level FULL checks/immutable custody and mandatory automated checks remain required wherever existing branch/CI contracts enforce them until specifically reviewed/changed; no fake PASS, disabled validator, automatic merge or bypass. Mark accepted features `FEATURE_ACCEPTED_PENDING_FINAL_AUDIT` without claiming they have passed the comprehensive release audit. Existing CLOSED statuses and failed historical evidence remain unchanged.
+
+Unrelated feature development may proceed while a known high-risk operation is isolated. **Known exploitable security, cross-owner personal/financial data access, data loss, secrets, live-production incidents and irreversible destructive operations must be stopped/fixed immediately** and never deferred to inflate progress. Preserve protected branches, focused tests, owner previews, explicit Owner merge/deploy, sensitive-data and provider boundaries.
+
 ## Execution mode — owner policy (2026-10-24)
 
 - **Regular Chat is the default execution environment** for the Project Manager, the single Primary Builder for a phase, and each fresh Independent Auditor. Builder and Auditor must remain independent conversations when an independent audit is required.
