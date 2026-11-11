@@ -316,9 +316,12 @@ BEGIN
      OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_A_FAIL';
   END IF;
-  INSERT INTO public.households(id,name,created_by) VALUES(a,'ffh-local-household-a',a_owner)
-    RETURNING id INTO row_id;
-  IF row_id IS DISTINCT FROM a THEN
+  -- No RETURNING: it would also apply the SELECT policy, which requires the
+  -- owner membership that the AFTER INSERT trigger has not yet created. The
+  -- app's onboarding insert likewise has no RETURNING/select().
+  INSERT INTO public.households(id,name,created_by) VALUES(a,'ffh-local-household-a',a_owner);
+  GET DIAGNOSTICS checked = ROW_COUNT;
+  IF checked <> 1 THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_INSERT_A_FAIL';
   END IF;
   EXECUTE 'RESET ROLE';
@@ -331,9 +334,12 @@ BEGIN
      OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_B_FAIL';
   END IF;
-  INSERT INTO public.households(id,name,created_by) VALUES(b,'ffh-local-household-b',b_owner)
-    RETURNING id INTO row_id;
-  IF row_id IS DISTINCT FROM b THEN
+  -- No RETURNING: it would also apply the SELECT policy, which requires the
+  -- owner membership that the AFTER INSERT trigger has not yet created. The
+  -- app's onboarding insert likewise has no RETURNING/select().
+  INSERT INTO public.households(id,name,created_by) VALUES(b,'ffh-local-household-b',b_owner);
+  GET DIAGNOSTICS checked = ROW_COUNT;
+  IF checked <> 1 THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_INSERT_B_FAIL';
   END IF;
   EXECUTE 'RESET ROLE';

@@ -295,7 +295,10 @@ test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinal
   assert.equal(bootstrap.split("EXECUTE 'SET LOCAL ROLE authenticated';").length - 1, 2);
   assert.equal(bootstrap.split("EXECUTE 'RESET ROLE';").length - 1, 2);
   assert.equal(bootstrap.split("INSERT INTO public.households(id,name,created_by)").length - 1, 2);
-  assert.equal(bootstrap.split("RETURNING id INTO row_id;").length - 1, 2);
+  // RETURNING would also apply the SELECT policy before the AFTER INSERT
+  // owner-membership trigger runs, so the bootstrap checks ROW_COUNT instead.
+  assert.equal(bootstrap.split("GET DIAGNOSTICS checked = ROW_COUNT;").length - 1, 2);
+  assert.doesNotMatch(bootstrap, /RETURNING/);
   assert.match(bootstrap, /current_user <> 'authenticated'/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM a_owner/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM b_owner/);
