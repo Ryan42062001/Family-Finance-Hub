@@ -15,11 +15,13 @@
 // it into chat or the repo). Otherwise the script reports the 401 and stops.
 
 const base = process.argv[2];
-if (!base || !/^(https:\/\/[^/]+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)\/?$/.test(base)) {
-  console.error("Usage: node scripts/smoke/deployed-auth-smoke.mjs https://<origin>");
+let origin;
+try { origin = new URL(base).origin; } catch { origin = null; }
+// Any path on the URL is ignored; only https origins (or local http) are tested.
+if (!origin || !/^(https:\/\/[^/]+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?)$/.test(origin)) {
+  console.error("Usage: node scripts/smoke/deployed-auth-smoke.mjs https://<site-or-preview-domain>");
   process.exit(2);
 }
-const origin = new URL(base).origin;
 const bypass = process.env.VERCEL_PROTECTION_BYPASS;
 const evil = "ffh-smoke-attacker.example";
 const genericError = "/auth/login?error=Unable%20to%20confirm%20your%20account.";
@@ -70,9 +72,11 @@ async function expectNotOffsite(name, path, headers) {
 }
 
 const probe = await get("/auth/login");
-if (probe.status === 401 || probe.status === 403) {
-  console.error(`BLOCKED: ${origin} returned ${probe.status} (Vercel Deployment Protection?). ` +
-    "Set VERCEL_PROTECTION_BYPASS on your machine, or run against an unprotected URL.");
+const vercelLogin = /^https:\/\/vercel\.com\/(sso-api|login)/.test(probe.location ?? "");
+if (probe.status === 401 || probe.status === 403 || vercelLogin) {
+  console.error(`BLOCKED: ${origin} is behind Vercel Deployment Protection (status ${probe.status}). ` +
+    "Nothing was tested. Create a 'Protection Bypass for Automation' secret in Vercel and set " +
+    "VERCEL_PROTECTION_BYPASS on your machine, then rerun.");
   process.exit(3);
 }
 record("login page loads (200)", probe.status === 200, `status ${probe.status}`);
