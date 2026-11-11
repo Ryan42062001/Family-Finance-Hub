@@ -22,7 +22,7 @@ real household data.
 | Scenario Lab: no persistence or profile mutation, null-preference reconciliation | **PASS (tests) + OWNER-OBSERVED PASS on the Preview** (2026-11-11): changing ZZ-A-Rent from $3,500 to $4,000 showed −$500.00 (−14.29%); the saved profile still showed $3,500 after reload. | `tests/security/ffh-p01-release-readiness.test.ts`, calculation suite |
 | FFH-026 F11/F13 offline browser helper | **RETIRED** (Owner decision, 2026-11-11) | Isolation is now proved by the `rls-matrix` job plus the owner two-account check |
 | Owner preview of the UI and Scenario Lab punch list | **OPEN** | See `.ai/CURRENT_PHASE.md` |
-| Independent phase review | **OPEN** | After the preview is accepted |
+| Independent phase review | **FAIL at `338394226b25` → findings fixed, targeted re-review pending** | ChatGPT (independent model), 2026-11-11: no cross-household bypass found. Findings: 1 HIGH (RLS runner did not prove Docker was local), 3 MEDIUM (unverified CI teardown; cookie Secure off for any `http://` origin; parity ignored `PUBLIC` grants), 1 LOW (malformed URL fragment could throw). All five fixed in the commit after `78c47e8`; CI run 42963809184 shows `RLS_CI_DOCKER=LOCAL`, `RLS_CI_PARITY_SELFTEST=PASS`, 913/913 and `RLS_CI_CLEANUP=PASS`. Ryan should rerun the updated hosted `parity.sql`, because `table_grants` now includes `PUBLIC`. |
 | Rollback plan exercised before production | **OPEN** | Plan below |
 
 ## Hosted configuration (owner-reported, 2026-11-10)

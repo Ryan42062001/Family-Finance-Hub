@@ -12,8 +12,15 @@ test("FFH-P01 session cookie is Secure for every HTTPS origin and fails closed",
   assert.deepEqual(supabaseCookieOptions(undefined), { secure: true });
   assert.deepEqual(supabaseCookieOptions(""), { secure: true });
   assert.deepEqual(supabaseCookieOptions("not a url"), { secure: true });
-  // Only explicit plain-HTTP local development leaves Secure off.
+  // Only explicit plain-HTTP loopback development leaves Secure off.
   assert.deepEqual(supabaseCookieOptions("http://localhost:3000"), { secure: false });
+  assert.deepEqual(supabaseCookieOptions("http://127.0.0.1:3000"), { secure: false });
+  assert.deepEqual(supabaseCookieOptions("http://[::1]:3000"), { secure: false });
+  // Independent review finding 3: any non-loopback http:// origin stays Secure.
+  assert.deepEqual(supabaseCookieOptions("http://finance.example.com"), { secure: true });
+  assert.deepEqual(supabaseCookieOptions("http://localhost.evil.example"), { secure: true });
+  assert.deepEqual(supabaseCookieOptions("http://192.168.1.10:3000"), { secure: true });
+  assert.deepEqual(supabaseCookieOptions("http://"), { secure: true });
 });
 
 test("FFH-P01 server, proxy and browser Supabase clients all apply the Secure cookie options", () => {

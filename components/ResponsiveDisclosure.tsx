@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, type ReactNode } from "react";
+import { decodeFragment } from "@/lib/url-fragment";
 /** Native disclosure: compact on phones, expanded on desktop; no financial writes. */
 export default function ResponsiveDisclosure({ summary, children, className = "", targetId }: {
   summary: ReactNode; children: ReactNode; className?: string; targetId?: string;
@@ -9,7 +10,7 @@ export default function ResponsiveDisclosure({ summary, children, className = ""
     const media = window.matchMedia("(min-width: 761px)");
     const sync = () => { if (ref.current) ref.current.open = media.matches; };
     const revealHash = () => {
-      if (!targetId || decodeURIComponent(window.location.hash.slice(1)) !== targetId) return;
+      if (!targetId || decodeFragment(window.location.hash) !== targetId) return;
       if (ref.current) ref.current.open = true;
       requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ block: "start" }));
     };

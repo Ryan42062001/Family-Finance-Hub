@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useEffect, useState, type ReactNode } from "react";
+import { decodeFragment } from "@/lib/url-fragment";
 
 const sections = [
   { id: "accounts", name: "Accounts" },
@@ -11,8 +12,8 @@ const sections = [
 ] as const;
 export const ProfileSectionSelectionContext = createContext<string>("accounts");
 function hashSection() {
-  const id = decodeURIComponent(window.location.hash.slice(1));
-  return sections.some(section=>section.id===id) ? id : "accounts";
+  const id = decodeFragment(window.location.hash);
+  return id !== null && sections.some(section=>section.id===id) ? id : "accounts";
 }
 export default function ProfileWorkspace({ children }: { children: ReactNode }) {
   const [active, setActive] = useState("accounts");
