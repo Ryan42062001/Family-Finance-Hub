@@ -1,6 +1,6 @@
 # Standing decisions
 
-- Ryan explicitly authorizes every merge, and separately decides production deployment, hosted configuration
+- Ryan explicitly authorizes every merge into `main`, and separately decides production deployment, hosted configuration
   changes, Private Beta, real-data operations and spending.
 - Financial policy is never invented; money reconciliation is exact, and unknown facts stay unknown (fail closed).
 - Authentication and household isolation fail closed; cross-household access is never acceptable. Secrets and real
@@ -17,7 +17,9 @@
 - **RLS isolation is proven in CI.** The `rls-matrix` job runs on a disposable database on every push, together with
   Ryan's two-account Preview check. The laptop Gate A/B PowerShell procedure is retired.
 - **FFH-026 F11/F13 offline browser helper retired.** F13 concerned the same helper, so it retires with it.
-- Hosted parity (hosted Supabase matches the repo migrations) remains an open release gate.
+- The Builder may merge its own PRs into phase branches when CI is green; merges into `main` still need Ryan.
+- Hosted `private.is_household_member` had a whitespace-only body difference (edited outside a migration). Ryan
+  re-created it from the repo text in the hosted SQL editor; there was no behavior change.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 

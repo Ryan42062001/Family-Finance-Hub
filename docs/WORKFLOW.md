@@ -22,7 +22,8 @@ Chat is for deciding *what* and reviewing *results*. Build steps are not relayed
 |---|---|
 | Edit code, tests and docs; push the Builder's own branch; open or update a draft PR | None |
 | Run CI, including the disposable local-database RLS matrix with synthetic data | None |
-| Merge any PR | Ryan, explicitly |
+| Merge the Builder's own PR into a phase branch (`phase/...`) once CI is green (`fast` and `rls-matrix`) | None (standing Owner permission, 2026-11-11) |
+| Merge anything into `main` | Ryan, explicitly |
 | Hosted Supabase or Vercel changes, production deployment, auth/email configuration, Private Beta | Ryan, explicitly, per change |
 | Anything touching real household or financial data, secrets, paid resources or destructive hosted operations | Ryan, explicitly, per change |
 
@@ -39,7 +40,8 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
      file and suggested fix, then continue.
-5. **Merge.** Ryan gives explicit merge authorization for the reviewed head. Merging never authorizes deployment.
+5. **Merge.** Day-to-day work merges into the phase branch by the Builder once CI is green. Merging the phase into
+   `main` needs explicit Ryan merge authorization for the reviewed head. Merging never authorizes deployment.
 6. **Release.** Before a production release or Private Beta, one comprehensive independent whole-product audit runs on a
    frozen candidate, findings are fixed and re-checked, and Ryan separately authorizes the deployment.
 
