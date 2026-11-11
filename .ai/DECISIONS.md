@@ -21,6 +21,11 @@
 - Hosted `private.is_household_member` had a whitespace-only body difference (edited outside a migration). Ryan
   re-created it from the repo text in the hosted SQL editor; there was no behavior change. Hosted parity is now 9/9.
 
+- **Roles (Ryan, 2026-11-11):** Claude Code is the default builder, and ChatGPT/Codex takes over only when Claude
+  credits run out. ChatGPT Work mode (Cloud Browser only) does browser QA on the Preview and files `qa-finding`
+  issues. Independent review: a fresh Claude session for routine phases; a different model (ChatGPT) for HIGH-risk
+  phases and the pre-release audit.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
