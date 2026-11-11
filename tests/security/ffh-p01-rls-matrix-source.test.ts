@@ -220,6 +220,9 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   assert.match(runner, /RLS_CI_CLEANUP=FAIL/);
   assert.match(runner, /\[\[ "\$status" -ne 0 \]\] \|\| status=1/);
   assert.match(runner, /GRANT SELECT ON public\.accounts TO PUBLIC;/);
+  assert.match(runner, /SET LOCAL ROLE ffh_probe_grantor;/);
+  assert.match(runner, /cannot inspect local Docker resources/);
+  assert.match(runner, /removal unverified/);
   assert.match(runner, /did not detect an extra PUBLIC grant/);
   // Wired into CI on every push.
   assert.match(ci, /rls-matrix:/);
