@@ -158,6 +158,9 @@ if [[ -f "$expected_parity" ]]; then
   # reader being the grantor (independent re-review).
   { echo "BEGIN;"
     echo "CREATE ROLE ffh_probe_grantor;"
+    # Supabase's local postgres role is not a superuser; on PostgreSQL 16+ the
+    # creator needs explicit membership before SET ROLE.
+    echo "GRANT ffh_probe_grantor TO CURRENT_USER;"
     echo "GRANT SELECT ON public.accounts TO ffh_probe_grantor WITH GRANT OPTION;"
     echo "SET LOCAL ROLE ffh_probe_grantor;"
     echo "GRANT SELECT ON public.accounts TO PUBLIC;"
