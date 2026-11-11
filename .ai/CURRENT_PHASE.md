@@ -26,10 +26,9 @@ Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback pl
 
 ## Open, in order
 
-1. Ryan: preview the current branch (UI refresh and the Scenario Lab plain-language punch list), including the
-   two-account isolation check from the status page.
+1. ~~Owner preview checks~~ Done 2026-11-11: two-account isolation, Scenario Lab no-write, sign-in page, Secure cookie.
 2. ~~Hosted parity~~ Done: 9/9 (2026-11-11).
-3. Deployed auth checks: smoke test 12/12 on Production and the Preview. Still open: Ryan's browser cookie-attribute check.
+3. ~~Deployed auth checks~~ Done: smoke test 12/12 on the Preview and Production; session cookie Secure/Lax/`/`.
 4. Independent phase review of the PR #81 diff, using `docs/workflow/REVIEW_PROMPT.md`. Fix any HIGH or above; backlog the rest.
 5. Ryan merges. Production release is a separate decision, after the final audit and the rollback plan.
 
