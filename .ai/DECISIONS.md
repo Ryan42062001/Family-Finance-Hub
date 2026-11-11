@@ -30,3 +30,6 @@
 - LOW: confirmation email lands in Junk (no custom sending domain). Revisit before Private Beta.
 - LOW: synthetic test users cannot be deleted because of `households_created_by_fkey`. Needs a dependency-aware cleanup
   plan before Private Beta.
+- LOW (operations): Vercel stopped creating deployments automatically after 2026-11-07, even though Git is connected,
+  Ignored Build Step is Automatic and the GitHub app has access to all repositories. Previews are deployed manually
+  for now. Investigate before release, since a release depends on a predictable deploy.
