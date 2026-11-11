@@ -29,7 +29,7 @@ Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback pl
 1. ~~Owner preview checks~~ Done 2026-11-11: two-account isolation, Scenario Lab no-write, sign-in page, Secure cookie.
 2. ~~Hosted parity~~ Done: 9/9 (2026-11-11).
 3. ~~Deployed auth checks~~ Done: smoke test 12/12 on the Preview and Production; session cookie Secure/Lax/`/`.
-4. Independent phase review: FAIL at `338394226b25` (1 HIGH, 3 MEDIUM, 1 LOW, no isolation bypass). All fixed; targeted re-review of the fixes by the same independent reviewer is pending, plus Ryan's rerun of the updated hosted `parity.sql`.
+4. Independent phase review: PASS after fixes (re-review PASS; its 2 MEDIUM follow-ups also fixed). Remaining: Ryan reruns the hosted `parity.sql` (new `table_grants` = 208 / 9468fa67…).
 5. Ryan merges. Production release is a separate decision, after the final audit and the rollback plan.
 
 ## Boundaries
