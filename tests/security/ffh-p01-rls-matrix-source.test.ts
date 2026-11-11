@@ -6,9 +6,8 @@ import test from "node:test";
 
 const matrix = readFileSync("scripts/rls-local/matrix.sql", "utf8");
 const preflight = readFileSync("scripts/rls-local/preflight.sql", "utf8");
-const owner = readFileSync("scripts/rls-local/run-owner.ps1", "utf8");
-const fresh = readFileSync("scripts/rls-local/prepare-fresh-owner.ps1", "utf8");
-const provenance = readFileSync("scripts/rls-local/source-provenance.ps1", "utf8");
+const runner = readFileSync("scripts/rls-ci/run-matrix.sh", "utf8");
+const ci = readFileSync(".github/workflows/ci.yml", "utf8");
 
 const financial = [
   "accounts",
@@ -98,13 +97,6 @@ test("FFH-P01 is fail-closed, rollback-only and zero-residue, never a hosted con
   assert.match(matrix, /MATRIX_ZERO_RESIDUE_PASS/);
   assert.doesNotMatch(matrix, /^\s*COMMIT\s*;/im);
   assert.doesNotMatch(matrix, /https?:\/\/|service_role|SUPABASE_ACCESS_TOKEN|postgresql:\/\//i);
-  assert.match(owner, /FFH-P01-RLS-EXECUTION-GO/);
-  assert.match(owner, /Assert-FfhDbLoopback/);
-  assert.match(owner, /FreshRoot/);
-  assert.match(provenance, /54332/);
-  assert.match(provenance, /127\.0\.0\.1/);
-  assert.match(owner, /ExpectedHead/);
-  assert.match(owner, /MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW/);
 });
 
 
@@ -195,63 +187,31 @@ test("FFH-P01 regression: DML still reads ROW_COUNT and retains unauthorized-wri
 
 // RLS-01/02/03 remediation verification is SOURCE-LEVEL only: no Docker,
 // local database, authenticated impersonation or SQL is run by these tests.
-test("FFH-P01 RLS-01 pins all migration blobs and whole checkout to immutable HEAD", () => {
-  assert.match(provenance, /git -C \$root status --porcelain=v1 --untracked-files=all/);
-  assert.match(provenance, /git -C \$root rev-parse HEAD/);
-  assert.match(provenance, /phase\/ffh-p01-release-readiness/);
-  assert.match(provenance, /git -C \$root ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(provenance, /\$migrationNames\.Count -ne 15/);
-  assert.match(provenance, /git -C \$root rev-parse --verify \$refName/);
-  assert.match(provenance, /git -C \$root hash-object -- \$relative/);
-  assert.match(provenance, /Get-FileHash -LiteralPath \$absolute -Algorithm SHA256/);
-  for (const path of [
-    "scripts/rls-local/matrix.sql",
-    "scripts/rls-local/preflight.sql",
-    "scripts/rls-local/run-owner.ps1",
-    "scripts/rls-local/prepare-fresh-owner.ps1",
-    "scripts/rls-local/source-provenance.ps1",
-    "scripts/rls-local/run.sh",
-    ".github/workflows/ci.yml",
-    "scripts/validate-release-candidate.mjs",
-    "AGENTS.md",
-    "docs/WORKFLOW.md",
-  ]) assert.ok(provenance.includes(path), "missing provenance path " + path);
-  assert.match(provenance, /supabase\/\.temp\/project-ref/);
-  assert.match(provenance, /SUPABASE_ACCESS_TOKEN/);
-  assert.match(provenance, /DATABASE_URL/);
-});
-
-test("FFH-P01 RLS-01 fresh-DB plan never resets the existing owner's project", () => {
-  assert.match(fresh, /FFH-P01-FRESH-LOCAL-GO/);
-  assert.match(fresh, /Assert-FfhSourceCheckout -ExpectedHead \$ExpectedHead/);
-  assert.match(fresh, /Assert-FfhFreshRoot/);
-  assert.match(fresh, /if \(Test-Path -LiteralPath \$root\)/);
-  assert.match(fresh, /Get-FileHash -LiteralPath \$dest -Algorithm SHA256/);
-  assert.match(fresh, /Invoke-FfhPinnedLocalSupabase -Operation Start/);
-  assert.match(fresh, /Invoke-FfhPinnedLocalSupabase -Operation Reset/);
-  assert.match(provenance, /--yes supabase@2\.122\.0/);
-  assert.match(provenance, /db reset --local --no-seed/);
-  assert.match(fresh, /Assert-FfhDbLoopback -Container \$containerName/);
-  assert.match(fresh, /OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS/);
-  assert.match(fresh, /ffh-p01-local-provenance\.sha256/);
-  assert.match(provenance, /project_id = "\$projectId"/);
-  assert.match(provenance, /port = 54332/);
-  assert.match(provenance, /shadow_port = 54333/);
-  assert.match(provenance, /FFH-P01-RLS-Fresh-/);
-  assert.match(owner, /FFH-P01-RLS-EXECUTION-GO/);
-  assert.match(owner, /Assert-FfhSourceCheckout -ExpectedHead \$ExpectedHead/);
-  assert.match(owner, /Assert-FfhDbLoopback -Container \$container/);
-  assert.match(owner, /receipt\.migration_application -cne 'OWNER_OPERATED_NEW_PROJECT_RESET_APPLIED_AND_PREFLIGHT_PASS'/);
-  assert.match(owner, /receipt\.config_sha256/);
-  assert.match(owner, /receipt\.source_sha256/);
-  assert.match(owner, /Get-FileHash -LiteralPath \$copy -Algorithm SHA256/);
-  assert.match(owner, /MATRIX_COMPLETE=PASS_PENDING_INDEPENDENT_REVIEW/);
-  assert.doesNotMatch(owner + fresh, /supabase@2\.122\.0 db reset --linked/);
-  // Inspect executable CLI invocations only: comments intentionally describe
-  // fail-closed hosted-link checks and must not create a false CI failure.
-  const cliCommands = (owner + "\n" + fresh).split("\n")
-    .filter((line) => /^\s*& npx\s/.test(line)).join("\n");
-  assert.doesNotMatch(cliCommands, /supabase link|--db-url|--project-ref/i);
+test("FFH-P01 CI runner is disposable, local-only and requires the exact success markers", () => {
+  // Runs only on a GitHub Actions Linux runner and refuses hosted DB config.
+  assert.match(runner, /GITHUB_ACTIONS:-\}" == "true" && "\$\{RUNNER_OS:-\}" == "Linux"/);
+  for (const name of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_URL", "DATABASE_URL", "PGHOST", "PGPASSWORD"]) {
+    assert.ok(runner.includes(name), "runner must refuse " + name);
+  }
+  // Fresh isolated temp project with exactly the 15 tracked migrations.
+  assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=15/);
+  assert.match(runner, /mktemp -d/);
+  assert.match(runner, /supabase@2\.122\.0/);
+  assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
+  // Always torn down.
+  assert.match(runner, /trap cleanup EXIT/);
+  assert.match(runner, /stop --no-backup/);
+  // Unchanged SQL piped in; exact markers required.
+  assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
+  assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=15 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=913/);
+  assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
+  assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
+  // Wired into CI on every push.
+  assert.match(ci, /rls-matrix:/);
+  assert.match(ci, /bash scripts\/rls-ci\/run-matrix\.sh/);
 });
 
 test("FFH-P01 RLS-02 checks both person-two constraints in both directions without CHECK masking", () => {
@@ -295,7 +255,10 @@ test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinal
   assert.equal(bootstrap.split("EXECUTE 'SET LOCAL ROLE authenticated';").length - 1, 2);
   assert.equal(bootstrap.split("EXECUTE 'RESET ROLE';").length - 1, 2);
   assert.equal(bootstrap.split("INSERT INTO public.households(id,name,created_by)").length - 1, 2);
-  assert.equal(bootstrap.split("RETURNING id INTO row_id;").length - 1, 2);
+  // RETURNING would also apply the SELECT policy before the AFTER INSERT
+  // owner-membership trigger runs, so the bootstrap checks ROW_COUNT instead.
+  assert.equal(bootstrap.split("GET DIAGNOSTICS checked = ROW_COUNT;").length - 1, 2);
+  assert.doesNotMatch(bootstrap, /RETURNING id INTO/);
   assert.match(bootstrap, /current_user <> 'authenticated'/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM a_owner/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM b_owner/);

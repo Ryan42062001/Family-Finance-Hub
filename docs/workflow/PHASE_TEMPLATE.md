@@ -3,12 +3,20 @@
 State: PLANNED
 Risk: LOW | MEDIUM | HIGH
 Owner: Ryan
-Builder: fresh Primary Builder
+Branch / PR: `phase/...`, draft PR #
+
+## Goal
+
+What the household user gets when this phase is done.
 
 ## Scope and boundaries
 
-Define coherent deliverables, source baseline, protected runtime/security/financial boundaries, and out-of-scope work.
+Deliverables, out-of-scope work, and any protected boundaries (auth, isolation, money calculations, hosted
+configuration).
 
-## Acceptance and evidence
+## Done when
 
-Record exact candidate SHA, FAST, whole-phase owner preview, consolidated punch list, Phase Sync, exact-head FULL PHASE CI, immutable freeze, independent MEDIUM/HIGH audit, remediation/re-audit, explicit Ryan merge authorization, post-merge FAST, Closure Sync, and closure FAST. Keep deployment authorization separate.
+- CI green (`fast`, `rls-matrix`) on the PR head.
+- Ryan accepted the Preview.
+- An independent reviewer audited the changed scope: no open BLOCKER/CRITICAL/HIGH; others are in the backlog.
+- Ryan merged. Deployment is a separate decision.

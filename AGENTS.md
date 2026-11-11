@@ -1,8 +1,23 @@
 # Family Finance Hub agent guidance
 
-## Primary Builder execution mode
+Read `docs/WORKFLOW.md` (how work flows and what needs approval) and `.ai/CURRENT_PHASE.md` (what is being built now)
+before starting. `.ai/DECISIONS.md` records standing decisions. Repository evidence outranks chat memory; `.history/` is
+historical evidence only.
 
-**Default to regular ChatGPT Chat** for the Project Manager, Primary Builder and fresh Independent Auditor. Use ChatGPT Work mode (**Super Builder**) only for a specific unavoidable capability gap, after explaining the blocker and receiving Ryan's explicit approval. Never skip validation, change phase authority, reuse the Builder as its own independent Auditor, or bypass CI/audit/merge/deployment protections to avoid Work usage. For the controlling details, read `docs/WORKFLOW.md`.
+## Working rules
 
+- Work on your own branch and a draft PR. Push freely; every push runs CI (`fast` and `rls-matrix`).
+- Run `npm run verify` before pushing. Report exact pass/fail counts; never call a failing or unrun check passing.
+- Ryan (Product Owner) explicitly authorizes every merge, and separately any production deployment, hosted
+  Supabase/Vercel change, real-data operation or spending. Ask before any of those.
+- Synthetic data only. No secrets or real household or financial data anywhere in the repo, CI or PRs.
+- Auth, household isolation and money calculations fail closed. Do not invent financial policy.
+- Schema/RLS changes are migrations in a reviewed PR. The RLS matrix (`scripts/rls-local/*.sql`, run by
+  `scripts/rls-ci/run-matrix.sh` in CI) must stay green.
+- At the end of a phase, an independent reviewer (a different AI session) audits the changed scope. Fix
+  BLOCKER/CRITICAL/HIGH before merge; record MEDIUM/LOW/NIT in the final-audit backlog.
 
-Read `docs/WORKFLOW.md`, `.ai/CURRENT_PHASE.md`, `.ai/ARCHITECTURE.md`, and `.ai/DECISIONS.md` before phase work. Repository evidence outranks chat memory. Only five files in active `.ai/` are authoritative; `.history/` is historical evidence. Never activate archived tasks or adopt historical PRs implicitly. Ryan is Product Owner and explicitly authorizes merge and, separately, production deployment. No financial policy invention, real household data in evidence, unauthorized Supabase mutation, or cross-household access.
+## Commands
+
+- `npm run verify`: validator, tests, security tests, typecheck, lint, build
+- `npm test`, `npm run test:security`, `npm run typecheck`, `npm run lint`, `npm run build`

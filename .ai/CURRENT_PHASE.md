@@ -5,58 +5,36 @@ FFH-P01 — Release Blocker Integration & Production Readiness
 State: PUNCH_LIST
 Risk: HIGH
 Owner: Ryan
-Builder: same Primary Builder lane
-Activation baseline: `241b9d665c68b97e9947996ecc678752d9654d8c`
-Phase branch: `phase/ffh-p01-release-readiness`
+Phase branch / PR: `phase/ffh-p01-release-readiness`, draft PR #81
+Status page: `docs/FFH-P01_RELEASE_READINESS.md`
 
-## Manager reconciliation at activation
+Production deployment, Private Beta and hosted configuration changes are separate Ryan decisions and are not
+authorized by this phase, its CI or its merge.
 
-- Speed Workflow V2.1 migration is CLOSED.
-- FFH-050 root-entry remediation is already canonical on `main` through merged PR #69.
-- FFH-051 repaired source target `4598770486fd3300cc1048103342fda4bb509aef` is already integrated on `main` through merged PR #76; all five audited auth/security blobs exactly match the frozen target.
-- FFH-052 target `d5f2ed64d856a67bb24dd44aac2e8dbfd988639a` is already integrated on `main` through merged PR #76; both audited Scenario Lab blobs exactly match the frozen target.
-- Historical PRs #68, #70, #71, #72, #73, #74, #75, and #77 remain evidence lanes only. Do not merge, cherry-pick, retarget, close, or treat them as current implementation authority during this phase.
-- Historical FFH-026 evidence remains useful but does not establish current production acceptance. The prior R5 security audit contains a blocking F11 response-identity history and leaves F13 browser/runtime behavior unverified.
+## Goal
 
-## Phase objective
+Make current `main` plus this branch one auditable release candidate: auth and household isolation proven, the
+Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback plan ready.
 
-Turn current canonical `main` into one independently auditable release candidate by validating the already-integrated release-blocker fixes against current code, repairing only defects proven on the phase branch, synchronizing stale release documentation, and closing the remaining security/privacy/production-readiness evidence gates without reviving Workflow V3/V3.1 task machinery.
+## Done
 
-## Scope
+- Auth confirmation and callback hardening, including encoded control characters in `next` (tests pass).
+- Scenario Lab no-write and null-preference behavior (tests pass).
+- Next.js 16.4.6: no high or critical advisories.
+- The two-household RLS matrix runs in CI on every push: 913/913, rollback, zero residue.
+- Laptop Gate A/B PowerShell harness retired; CI replaces it.
 
-1. Revalidate current-main auth confirmation/callback behavior, safe destinations, cookie/session establishment, first authenticated request, and trusted Host/origin handling.
-2. Revalidate current-main Scenario Lab null-preference behavior, exact financial reconciliation, no unauthorized persistence, and no profile mutation.
-3. Prove two-household negative isolation with synthetic test identities/data only and fail closed on any cross-household access.
-4. Reconcile FFH-026 private source/oracle/dependency/browser evidence only through privacy-safe receipts; private bytes, secrets, and real household financial/account data stay out of repository/shared evidence.
-5. Close or explicitly preserve as unresolved any fixture/oracle/dependency-host/F13 browser gate needed for the chosen current release-verification method.
-6. Refresh stale release-facing documentation such as README status/production-readiness wording where supported by current evidence.
-7. Produce rollback evidence/plan before any production acceptance.
+## Open, in order
 
-## Exclusions and protected boundaries
+1. Ryan: preview the current branch (UI refresh and the Scenario Lab plain-language punch list), including the
+   two-account isolation check from the status page.
+2. Hosted parity: Ryan runs the read-only `scripts/rls-local/parity.sql` in the hosted Supabase SQL editor; every row
+   must equal `scripts/rls-local/parity.expected.txt`.
+3. Deployed auth checks: Ryan runs `node scripts/smoke/deployed-auth-smoke.mjs <preview URL>` and checks the session
+   cookie in the browser.
+4. Independent phase review of the PR #81 diff, using `docs/workflow/REVIEW_PROMPT.md`. Fix any HIGH or above; backlog the rest.
+5. Ryan merges. Production release is a separate decision, after the final audit and the rollback plan.
 
-- No historical branch cherry-pick or wholesale legacy PR merge.
-- No invented financial policy or changed money-routing semantics without separate authority.
-- No Supabase schema/RLS/live-data mutation without explicit bounded Ryan authorization.
-- No production deployment, production alias promotion, auth configuration mutation, Private Beta, or paid domain/configuration from phase activation.
-- No real household financial/account data in tests or evidence.
-- No weakening repository protection or bypassing required `fast`.
+## Boundaries
 
-## Required gates
-
-- Branch FAST must pass.
-- Whole-phase owner preview occurs before freeze.
-- Consolidate one punch list after preview.
-- Phase Sync records the candidate.
-- FULL PHASE CI must run on the exact candidate SHA.
-- Freeze one immutable candidate.
-- Fresh independent HIGH-risk audit is mandatory.
-- Any remediation requires a new exact-head candidate and fresh relevant re-audit.
-- Ryan must explicitly authorize merge of the exact audited target.
-- Merge does not authorize deployment.
-- Post-merge FAST, Closure Sync, and closure FAST are required before CLOSED.
-
-## Active punch list
-
-1. Vercel Preview origin configuration: owner preview of exact candidate `95397aa945cfec77cd374b8e13e3ecfb4e7ce800` returned `{"error":"Authentication origin is not configured."}` on `/dashboard`. The bounded Preview-only configuration remediation cleared this finding without weakening the fail-closed origin boundary or changing Production configuration. Preserve that evidence and configuration.
-2. Sitewide owner-requested UI/UX remediation: refresh the existing application surfaces with one cohesive, accessible household-fintech design system; improve dashboard, profile, planning, Scenario Lab, authentication, and onboarding presentation; preserve all calculation, CRUD, household, RLS, and auth-security semantics; return an exact-head Preview for whole-phase owner review. State remains `PUNCH_LIST` pending owner review and an authorized workflow transition.
-3. Scenario Lab owner-preview usability remediation: replace normal-view identifiers and developer terminology with household-scoped names and plain language; expose authoritative baseline-to-hypothetical financial changes; improve desktop/mobile composition; rename the user-facing Windfall event to Extra Money (One-Time); preserve internal identifiers, calculations, fail-closed uncertainty, advanced diagnostics, and the no-write boundary. Return to owner preview without advancing phase state.
+No real household data; no hosted Supabase/Vercel changes without Ryan; no schema/RLS changes in this phase.

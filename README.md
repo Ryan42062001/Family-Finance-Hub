@@ -4,7 +4,7 @@ Family Finance Hub is a private-first household financial planning application d
 
 ## Current status
 
-`main` contains the completed Phases 1–6 product baseline: secure household foundation, financial profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab. **FFH-P01 — Release Blocker Integration & Production Readiness — is currently in PUNCH_LIST on `phase/ffh-p01-release-readiness` after owner preview identified missing Preview-origin configuration. Production acceptance and Private Beta are not authorized.**
+`main` contains the completed Phases 1–6 product baseline: secure household foundation, financial profile, dashboard, planning tools, Money Priority Engine, and Scenario Lab. **FFH-P01 — Release Blocker Integration & Production Readiness — is in PUNCH_LIST on `phase/ffh-p01-release-readiness` (draft PR #81), awaiting owner preview and the remaining release gates. Production acceptance and Private Beta are not authorized.**
 
 The stable application currently includes:
 
@@ -38,7 +38,7 @@ The stable application currently includes:
 - Retirement contribution pacing
 - Pure calculation helpers with automated tests in CI
 - Responsive dashboard and planning states for empty or partial profiles
-- Repository-enforced household scoping and RLS contract tests; deployed two-household negative verification remains a separate production-authorization gate
+- Repository-enforced household scoping, plus a 913-assertion two-household RLS matrix that CI runs on a disposable database on every push; hosted-database parity remains a separate release gate
 
 ## Privacy model
 
@@ -65,15 +65,13 @@ Sharing a generic Family Finance Hub link creates a separate private account/wor
 
 Never commit `.env.local`, service-role keys, secret API keys, banking credentials, account numbers, SSNs, or real test financial data.
 
-Verification:
+Verification (runs the validator, tests, security tests, typecheck, lint and build):
 
 ```bash
-npm test
-npm run test:security
-npm run typecheck
-npm run lint
-npm run build
+npm run verify
 ```
+
+CI also runs the two-household RLS matrix (`scripts/rls-ci/run-matrix.sh`) on every push. How work flows and what needs Product Owner approval: `docs/WORKFLOW.md`.
 
 ## Documentation
 
@@ -82,6 +80,7 @@ npm run build
 - `docs/SECURITY_MODEL.md`
 - `docs/SECURITY_TESTS.md`
 - `docs/FFH-P01_RELEASE_READINESS.md`
+- `docs/WORKFLOW.md`
 - `docs/PHASE_3_DASHBOARD.md`
 - `docs/PHASE_4_PLANNING_TOOLS.md`
 - `docs/PRIORITY_ENGINE.md`
