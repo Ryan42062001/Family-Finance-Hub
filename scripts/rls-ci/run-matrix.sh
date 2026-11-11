@@ -92,6 +92,23 @@ psql_in_db < scripts/rls-local/preflight.sql > "$preflight_out" 2>&1 ||
   { cat "$preflight_out" >&2; fail "preflight success marker missing"; }
 echo "RLS_CI_PREFLIGHT=PASS"
 
+# Read-only schema fingerprint (scripts/rls-local/parity.sql). The committed
+# expected file is what the hosted Supabase project must also produce.
+parity_out="$work/parity.out"
+docker exec -i "$CONTAINER" psql -X -q -t -A -F '|' -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres \
+  < scripts/rls-local/parity.sql > "$parity_out" 2>&1 ||
+  { cat "$parity_out" >&2; fail "parity.sql failed"; }
+echo "RLS_CI_PARITY_FINGERPRINT (section|items|md5):"
+cat "$parity_out"
+expected_parity="scripts/rls-local/parity.expected.txt"
+if [[ -f "$expected_parity" ]]; then
+  diff -u "$expected_parity" "$parity_out" ||
+    fail "schema fingerprint differs from $expected_parity (update it in the same PR as the migration)"
+  echo "RLS_CI_PARITY=MATCH"
+else
+  fail "missing $expected_parity; copy the fingerprint above into it"
+fi
+
 matrix_out="$work/matrix.out"
 if ! timeout 900 docker exec -i "$CONTAINER" \
      psql -X -q -t -A -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres \
