@@ -88,7 +88,11 @@ test("authenticated navigation owns section switching and sign out without dashb
   for (const label of ["Overview", "Financial profile", "Planning", "Scenario Lab", "Sign out"]) {
     assert.ok(header.includes(label), label);
   }
-  assert.match(header, /authenticated \? <form action=\{logout\}>/);
+  // Signed-out pages (sign-in, sign-up) show only the brand: no app tabs, no sign-out.
+  assert.match(header, /\{authenticated \? \(\s*<nav className="site-nav"/);
+  assert.match(header, /<form action=\{logout\}>/);
+  assert.equal((header.match(/<nav className="site-nav"/g) ?? []).length, 1);
+  assert.match(header, /authenticated \? <MobileNavigation \/> : null/);
   assert.doesNotMatch(dashboard, /action=\{logout\}/);
   assert.doesNotMatch(dashboard, />Edit financial profile</);
 });
