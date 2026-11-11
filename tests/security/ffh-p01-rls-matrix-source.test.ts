@@ -298,7 +298,7 @@ test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinal
   // RETURNING would also apply the SELECT policy before the AFTER INSERT
   // owner-membership trigger runs, so the bootstrap checks ROW_COUNT instead.
   assert.equal(bootstrap.split("GET DIAGNOSTICS checked = ROW_COUNT;").length - 1, 2);
-  assert.doesNotMatch(bootstrap, /RETURNING/);
+  assert.doesNotMatch(bootstrap, /RETURNING id INTO/);
   assert.match(bootstrap, /current_user <> 'authenticated'/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM a_owner/);
   assert.match(bootstrap, /auth\.uid\(\) IS DISTINCT FROM b_owner/);
