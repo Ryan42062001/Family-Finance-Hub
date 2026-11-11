@@ -1,0 +1,64 @@
+name: QA finding
+description: A problem found while testing the Vercel Preview (synthetic test accounts only)
+title: "[QA] "
+labels: ["qa-finding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Synthetic data only. Do not include passwords, cookie values, tokens, email links or real household data
+        in text or screenshots.
+  - type: input
+    id: check
+    attributes:
+      label: Checklist item
+      description: The check number from docs/workflow/QA_CHECKLIST.md (for example Q5), or "other"
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - CRITICAL - another household's data is visible or changeable, or wrong user signed in
+        - HIGH - a core feature is broken
+        - MEDIUM - works but wrong or confusing
+        - LOW - cosmetic
+        - NIT - tiny polish
+    validations:
+      required: true
+  - type: input
+    id: preview
+    attributes:
+      label: Preview URL and commit
+      description: The Preview URL tested and, if shown in Vercel, the deployment's commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as TestA
+        2. Open Scenario Lab
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: What happened instead. Attach a screenshot if you can.
+    validations:
+      required: true
+  - type: input
+    id: viewport
+    attributes:
+      label: Browser and screen size
+      placeholder: Cloud Browser, desktop 1280px / phone 390px

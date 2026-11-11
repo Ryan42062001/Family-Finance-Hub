@@ -1,19 +1,20 @@
 "use client";
 
-import type { SpecializedScenarioRunDTO } from "@/lib/scenarios/scenario-app-contract";
+import type { ScenarioLabBootstrap, SpecializedScenarioRunDTO } from "@/lib/scenarios/scenario-app-contract";
+import { allocationDisplayName, refreshStateLabel, scenarioStatusLabel } from "@/lib/scenarios/scenario-presentation";
 
 function money(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 }
 
-export default function SpecializedScenarioResult({ result }: { result: SpecializedScenarioRunDTO }) {
+export default function SpecializedScenarioResult({ result, entities }: { result: SpecializedScenarioRunDTO; entities: ScenarioLabBootstrap["entities"] }) {
   return (
     <div className="scenario-specialized-result">
       {result.genericSummary ? (
         <div>
-          <p><strong>Generic scenario feasibility:</strong> {result.genericSummary.feasibility.status}</p>
-          <p><strong>Generic monthly plan capacity:</strong> {money(result.genericSummary.feasibility.monthlyPlanCapacity)}</p>
+          <p><strong>Calculation:</strong> {scenarioStatusLabel(result.genericSummary.feasibility.status)}</p>
+          <p><strong>Available for the monthly plan:</strong> {money(result.genericSummary.feasibility.monthlyPlanCapacity)}</p>
         </div>
       ) : null}
 
@@ -28,7 +29,7 @@ export default function SpecializedScenarioResult({ result }: { result: Speciali
           <p><strong>Legitimate cash available:</strong> {money(result.specialized.result.cashToClose.legitimateCashAvailable)}</p>
           <p><strong>Protected cash required:</strong> {money(result.specialized.result.cashToClose.protectedCashRequired)}</p>
           <p><strong>All-in housing cost:</strong> {money(result.specialized.result.monthly.allInHousingCost)} USD/month</p>
-          {result.specialized.comparison ? <p><strong>Post-home Recommendation Refresh:</strong> {result.specialized.comparison.state.replaceAll("_", " ")}</p> : null}
+          {result.specialized.comparison ? <p><strong>Recommendation review:</strong> {refreshStateLabel(result.specialized.comparison.state)}</p> : null}
           {result.specialized.result.reasons.map((item) => <p className="muted" key={item}>{item}</p>)}
           {result.specialized.result.risks.length ? <p><strong>Risks:</strong> {result.specialized.result.risks.join("; ")}</p> : null}
           {result.specialized.result.warnings.length ? <p><strong>Warnings:</strong> {result.specialized.result.warnings.join("; ")}</p> : null}
@@ -47,7 +48,7 @@ export default function SpecializedScenarioResult({ result }: { result: Speciali
           <p><strong>Available vehicle cash:</strong> {money(result.specialized.result.cash.availableVehicleCash)}</p>
           <p><strong>Protected cash required:</strong> {money(result.specialized.result.cash.protectedCashRequired)}</p>
           <p><strong>All-in monthly impact:</strong> {money(result.specialized.result.monthlyImpact.allInMonthlyImpact)} USD/month</p>
-          {result.specialized.comparison ? <p><strong>Post-vehicle Recommendation Refresh:</strong> {result.specialized.comparison.state.replaceAll("_", " ")}</p> : null}
+          {result.specialized.comparison ? <p><strong>Recommendation review:</strong> {refreshStateLabel(result.specialized.comparison.state)}</p> : null}
           {result.specialized.result.reasons.map((item) => <p className="muted" key={item}>{item}</p>)}
           {result.specialized.result.risks.length ? <p><strong>Risks:</strong> {result.specialized.result.risks.join("; ")}</p> : null}
           {result.specialized.result.missingData.length ? <p><strong>Missing information:</strong> {result.specialized.result.missingData.join("; ")}</p> : null}
@@ -56,13 +57,13 @@ export default function SpecializedScenarioResult({ result }: { result: Speciali
 
       {result.specialized?.type === "windfall" ? (
         <div>
-          <h4>Windfall result</h4>
-          <p><strong>State:</strong> {result.specialized.result.state.replaceAll("_", " ")}</p>
-          <p><strong>Gross amount:</strong> {money(result.specialized.result.grossAmount)}</p>
-          <p><strong>Reserved tax:</strong> {money(result.specialized.result.reservedTaxAmount)}</p>
+          <h4>Extra Money result</h4>
+          <p><strong>Review status:</strong> {scenarioStatusLabel(result.specialized.result.state)}</p>
+          <p><strong>Extra money received:</strong> {money(result.specialized.result.grossAmount)}</p>
+          <p><strong>Taxes reserved:</strong> {money(result.specialized.result.reservedTaxAmount)}</p>
           <p><strong>Reserved other liability:</strong> {money(result.specialized.result.reservedOtherLiabilityAmount)}</p>
           <p><strong>Restricted:</strong> {money(result.specialized.result.restrictedAmount)}</p>
-          <p><strong>Earmarked:</strong> {money(result.specialized.result.earmarkedAmount)}</p>
+          <p><strong>Already set aside:</strong> {money(result.specialized.result.earmarkedAmount)}</p>
           <p><strong>Held for tax review:</strong> {money(result.specialized.result.heldForTaxReviewAmount)}</p>
           <p><strong>Total allocated:</strong> {money(result.specialized.result.totalAllocated)}</p>
           <p><strong>Remaining unallocated:</strong> {money(result.specialized.result.remainingUnallocated)}</p>
@@ -77,30 +78,34 @@ export default function SpecializedScenarioResult({ result }: { result: Speciali
       {result.yourPlan ? (
         <div>
           <h4>Your Plan</h4>
-          <p><strong>Engine basis:</strong> {result.yourPlan.engineBasis}</p>
-          <p><strong>Funding status:</strong> {result.yourPlan.result.yourPlan.fundingStatus.replaceAll("_", " ")}</p>
+          <p><strong>Based on:</strong> {result.yourPlan.engineBasis === "generic" ? "Scenario assumptions" : "Advanced event results"}</p>
+          <p><strong>Monthly plan:</strong> {result.yourPlan.result.yourPlan.fundingStatus === "balanced" ? "Fully assigned" : result.yourPlan.result.yourPlan.fundingStatus === "unallocated_capacity" ? "Money remains to assign" : "Planned amounts exceed available capacity"}</p>
           <p><strong>Funding gap:</strong> {money(result.yourPlan.result.yourPlan.fundingGap)} USD/month</p>
           <p><strong>Remaining capacity:</strong> {money(result.yourPlan.result.yourPlan.remainingCapacity)} USD/month</p>
-          {result.yourPlan.result.overrides.active.map((override) => <p key={"active-" + override.allocationId}><strong>Active:</strong> {override.allocationId} · {override.reason}</p>)}
-          {result.yourPlan.result.overrides.superseded.map((override) => <p key={"superseded-" + override.allocationId}><strong>Superseded:</strong> {override.allocationId} · {override.reason}</p>)}
-          {result.yourPlan.result.overrides.invalid.map((override) => <p key={"invalid-" + override.allocationId}><strong>Invalid:</strong> {override.allocationId} · {override.reason}</p>)}
+          {result.yourPlan.result.overrides.active.map((override) => <OverrideResult key={"active-" + override.allocationId} label="Applied" allocationId={override.allocationId} reason={override.reason} entities={entities} />)}
+          {result.yourPlan.result.overrides.superseded.map((override) => <OverrideResult key={"superseded-" + override.allocationId} label="No longer applicable" allocationId={override.allocationId} reason={override.reason} entities={entities} />)}
+          {result.yourPlan.result.overrides.invalid.map((override) => <OverrideResult key={"invalid-" + override.allocationId} label="Could not apply" allocationId={override.allocationId} reason={override.reason} entities={entities} />)}
           {result.yourPlan.result.warnings.length ? <p><strong>Warnings:</strong> {result.yourPlan.result.warnings.join("; ")}</p> : null}
         </div>
       ) : null}
 
       {result.conflicts && !result.conflicts.valid ? (
         <div role="alert">
-          <h4>Scenario composition conflicts</h4>
+          <h4>Some scenario assumptions overlap</h4>
           <ul>{result.conflicts.issues.map((item) => <li key={item.path + item.code}>{item.message}</li>)}</ul>
         </div>
       ) : null}
 
       {result.issues.length ? (
         <div role="alert">
-          <h4>Scenario validation</h4>
+          <h4>Check these scenario details</h4>
           <ul>{result.issues.map((item) => <li key={item.path + item.code + item.message}>{item.message}</li>)}</ul>
         </div>
       ) : null}
     </div>
   );
+}
+
+function OverrideResult({ label, allocationId, reason, entities }: { label: string; allocationId: string; reason: string; entities: ScenarioLabBootstrap["entities"] }) {
+  return <div className="scenario-change"><p><strong>{label}:</strong> {allocationDisplayName(allocationId, entities) ?? "Monthly plan item"}</p><p className="muted">{reason}</p><details className="scenario-diagnostics"><summary>Technical details</summary><code>{allocationId}</code></details></div>;
 }

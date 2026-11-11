@@ -27,7 +27,7 @@ export default async function ScenarioLabPage() {
     <main className="page-shell scenario-lab-page">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 6 · authenticated workspace</p>
+          <p className="eyebrow">Build · run · review</p>
           <h1>Scenario Lab</h1>
           <p className="muted">
             Test explicit what-if assumptions against your current household plan without changing your saved financial profile.
@@ -38,9 +38,9 @@ export default async function ScenarioLabPage() {
         </div>
       </section>
 
-      <section className="dashboard-notice" aria-label="Ephemeral Scenario Lab notice">
+      <section className="dashboard-notice" aria-label="Temporary Scenario Lab notice">
         <div>
-          <strong>Ephemeral by design</strong>
+          <strong>Temporary by design</strong>
           <p>
             Drafts and results live only in this browser page. Refreshing or leaving can discard them. Nothing here writes assumptions back to your profile.
           </p>

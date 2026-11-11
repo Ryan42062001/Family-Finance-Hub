@@ -29,7 +29,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     <main className="page-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 2 onboarding</p>
+          <p className="eyebrow">Private household setup</p>
           <h1>Create your household</h1>
           <p className="muted">
             Your household is the private boundary for every financial record in Family Finance Hub.
