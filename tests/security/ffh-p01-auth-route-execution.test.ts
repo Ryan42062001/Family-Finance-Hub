@@ -12,6 +12,7 @@ import { runInNewContext } from "node:vm";
 import test from "node:test";
 import * as ts from "typescript";
 import { trustedRequestUrl } from "../../lib/auth/trusted-origin.ts";
+import { supabaseCookieOptions } from "../../lib/supabase/cookie-options.ts";
 import { safeInternalDestination, singleBoundedAuthParameter } from "../../lib/auth/safe-destination.ts";
 
 const ORIGIN = "https://ffh-synthetic.example";
@@ -58,6 +59,9 @@ const realHelpers = {
   "@/lib/auth/safe-destination": { safeInternalDestination, singleBoundedAuthParameter },
   "@/lib/auth/trusted-origin": {
     trustedRequestUrl: (value: string | URL) => trustedRequestUrl(value, { NEXT_PUBLIC_SITE_URL: ORIGIN }),
+  },
+  "@/lib/supabase/cookie-options": {
+    supabaseCookieOptions: () => supabaseCookieOptions(ORIGIN),
   },
 };
 const getLocation = (response: Response) => response.headers.get("location") ?? "";
@@ -353,19 +357,22 @@ test("executed signup rejects a hostile origin before any provider call", async 
 test("SSR server cookie adapter delegates getAll/setAll to the mock store without changing attributes", async () => {
   const writes: { name: string; value: string; options?: object }[] = [];
   const reads = [{ name: "synthetic", value: "fixture" }];
-  let adapter: { cookies: { getAll: () => unknown; setAll: (changes: {name:string;value:string;options?:object}[]) => void } } | undefined;
+  let adapter: { cookieOptions?: { secure?: boolean }; cookies: { getAll: () => unknown; setAll: (changes: {name:string;value:string;options?:object}[]) => void } } | undefined;
   const createServerClient = (_url: string, _key: string, options: typeof adapter) => {
     adapter = options;
     return { auth: {} };
   };
   const mod = executeModule("../../lib/supabase/server.ts", {
     "@supabase/ssr": { createServerClient },
+    "@/lib/supabase/cookie-options": realHelpers["@/lib/supabase/cookie-options"],
     "next/headers": { cookies: async () => ({
       getAll: () => reads,
       set: (name: string, value: string, options?: object) => writes.push({name,value,options}),
     }) },
   }) as { createClient: () => Promise<unknown> };
   await mod.createClient();
+  // HTTPS origin: the session cookie must be marked Secure.
+  assert.deepEqual(adapter?.cookieOptions, { secure: true });
   assert.deepEqual(adapter?.cookies.getAll(), reads);
   const options = { httpOnly: true, secure: true, sameSite: "lax" };
   adapter?.cookies.setAll([{ name:"synthetic", value:"fake-session-cookie", options }]);
@@ -388,9 +395,11 @@ test("Supabase SSR proxy cookie adapter forwards synthetic refresh cookies and h
     redirect: nextServer.NextResponse.redirect,
   };
   const sessionOptions={ secure:true,httpOnly:true,sameSite:"lax" };
+  let proxyCookieOptions: unknown;
   const createServerClient = (_url:string,_key:string,options:{
+    cookieOptions?: unknown;
     cookies:{getAll:()=>unknown;setAll:(changes: {name:string;value:string;options:object}[],headers:Record<string,string>)=>void}
-  }) => ({
+  }) => (proxyCookieOptions = options.cookieOptions, {
     auth:{
       getClaims:async () => {
         options.cookies.getAll();
@@ -404,6 +413,7 @@ test("Supabase SSR proxy cookie adapter forwards synthetic refresh cookies and h
     "@supabase/ssr": { createServerClient },
     "next/server": { NextResponse },
     "@/lib/auth/trusted-origin": realHelpers["@/lib/auth/trusted-origin"],
+    "@/lib/supabase/cookie-options": realHelpers["@/lib/supabase/cookie-options"],
   }) as { updateSession: (request:unknown) => Promise<Response> };
   const request={
     url:ORIGIN+"/dashboard",
@@ -415,6 +425,7 @@ test("Supabase SSR proxy cookie adapter forwards synthetic refresh cookies and h
   assert.deepEqual(requestWrites,["synthetic-session"]);
   assert.deepEqual(responseWrites,[{name:"synthetic-session",value:"fixture-value",options:sessionOptions}]);
   assert.equal(responseHeaders?.get("x-synthetic-refreshed"),"yes");
+  assert.deepEqual(proxyCookieOptions,{ secure:true });
   // Mock cookie-set callbacks do not create/verify real HTTP Set-Cookie bytes.
 });
 
