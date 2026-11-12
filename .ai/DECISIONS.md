@@ -104,6 +104,11 @@
     phones, the top bar on tablets, and the sidebar from 1024 px. The device dark preference darkens every page,
     and the short-window account menu stays reachable.
 
+- **FFH-P02 released (Ryan's explicit authorization).** PR #98 merged into `main` as `e639533`. Production deployment
+  Ready, and the Production smoke test after the release passed 12/12. Ryan confirmed the new sidebar and dashboard.
+  FFH-P02 is CLOSED. FFH-P03 (money plan home screen, HIGH risk) starts on `phase/ffh-p03-money-plan`; this closing
+  note reaches `main` with the FFH-P03 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
