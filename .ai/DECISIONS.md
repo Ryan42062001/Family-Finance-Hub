@@ -47,6 +47,10 @@
   template links via `{{ .SiteURL }}`, so it must match the live site) and `https://family-finance-hub-taupe.vercel.app/**`
   added to Redirect URLs. Deployed smoke test on the new site: **12/12** (2026-11-12). The old account's project and its
   `prod-redeploy` hook are to be retired once the switch-over is confirmed.
+  First real sign-in on the new site failed with Supabase's "Invalid path specified in request URL": the
+  integration-created `NEXT_PUBLIC_SUPABASE_URL` (saved as a Secret, so unreadable) was malformed. Ryan re-created
+  `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` by hand as Config variables and redeployed;
+  TestA then signed in successfully on Production. The smoke test cannot catch this because it never calls Supabase.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
@@ -71,3 +75,8 @@
   three `NEXT_PUBLIC_*` variables, so these only widen what a Vercel account compromise would expose. Remove them (or
   the integration) once the switch-over is settled. It also added `ryankis01-4544` Redirect URLs (including
   `family-*-…` Preview wildcards); review them with the old-host cleanup.
+- MEDIUM (reliability, auth-adjacent, needs its own reviewed PR outside FFH-P02's presentation-only scope): validate
+  `NEXT_PUBLIC_SUPABASE_URL` at startup (an `https` origin with no path, query or trailing slash; fail closed with a
+  clear configuration error), and extend `scripts/smoke/deployed-auth-smoke.mjs` with a check that proves the deployed
+  app can reach Supabase Auth (for example a wrong-password sign-in that must return the generic credentials error,
+  not a provider/config error), so a misconfigured Supabase variable fails the release smoke test.
