@@ -27,6 +27,10 @@ real household data.
 
 ## Hosted configuration (owner-reported, 2026-11-10)
 
+> Superseded on 2026-11-12: Production moved to a new Vercel account at `https://family-finance-hub-taupe.vercel.app`
+> (Supabase Site URL updated to match; same Supabase project). See `.ai/DECISIONS.md`. The 2026-11-10 values below are
+> kept as the record of that date.
+
 - Supabase Site URL: `https://family-finance-hub-ten-brown.vercel.app`.
 - Redirect allowlist: that host's `/auth/callback` and the FFH-P01 Preview host's `/auth/callback`.
 - The *Confirm sign up* email template is `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`. This

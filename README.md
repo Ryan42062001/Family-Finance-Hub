@@ -87,4 +87,4 @@ CI also runs the two-household RLS matrix (`scripts/rls-ci/run-matrix.sh`) on ev
 
 ## Active milestone
 
-FFH-P01 revalidates the integrated release blockers and assembles privacy-safe production-readiness evidence. The current deployed application URL is <https://family-finance-hub-ten-brown.vercel.app/>, but its existence is not production acceptance, deployment authorization, or Private Beta authorization. Current gate status and the rollback plan are recorded in `docs/FFH-P01_RELEASE_READINESS.md`.
+FFH-P01 revalidates the integrated release blockers and assembles privacy-safe production-readiness evidence. The current deployed application URL is <https://family-finance-hub-taupe.vercel.app/> (moved from `family-finance-hub-ten-brown.vercel.app` on 2026-11-12; see `.ai/DECISIONS.md`), but its existence is not production acceptance, deployment authorization, or Private Beta authorization. Current gate status and the rollback plan are recorded in `docs/FFH-P01_RELEASE_READINESS.md`.

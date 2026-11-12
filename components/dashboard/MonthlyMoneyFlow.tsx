@@ -5,11 +5,13 @@ import Link from "next/link";
 import { buildMonthlyMoneyFlow, type FlowInput, type FlowBranch } from "@/lib/calculations/monthly-money-flow";
 import { layoutMonthlyMoneyFlow, type SankeyEdge } from "@/lib/calculations/monthly-money-flow-layout";
 
-// Distinct FFH color families; labels, percentages and the reconciliation table
-// always convey the same data without requiring color recognition.
+// Distinct color families from theme tokens (app/globals.css, light and dark);
+// labels, percentages and the reconciliation table always convey the same data
+// without requiring color recognition. Applied via style, since SVG presentation
+// attributes do not resolve CSS variables.
 const palette: Record<FlowBranch["id"], string> = {
-  essential: "#e6a24a", discretionary: "#df8878", debt: "#c16b2d",
-  retirement: "#567faf", remaining: "#38936f",
+  essential: "var(--flow-essential)", discretionary: "var(--flow-discretionary)", debt: "var(--flow-debt)",
+  retirement: "var(--flow-retirement)", remaining: "var(--flow-remaining)",
 };
 const dollars = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -60,15 +62,15 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
       <svg viewBox={`0 0 ${layout.width} ${layout.height}`} role="img"
         aria-label={`Proportional ${layout.expanded ? "three-stage" : "two-stage"} monthly household money flow. Income ${dollars(flow.incomeCents)}; ${flow.shortfallCents ? `unfunded deficit ${dollars(flow.shortfallCents)}; ` : ""}use the text table below for the full breakdown.`}
         preserveAspectRatio="xMidYMin meet">
-        <title>Monthly income to commitments, remaining cash flow{layout.expanded ? " and recorded expense categories" : ""}</title>
+        <title>{`Monthly income to commitments, remaining cash flow${layout.expanded ? " and recorded expense categories" : ""}`}</title>
         <text x="14" y="30" className="money-flow-svg-heading">1 · Recorded resources</text>
         <text x={layout.expanded ? 490 : 465} y="30" className="money-flow-svg-heading">2 · Monthly outcomes</text>
         {layout.expanded ? <text x="853" y="30" className="money-flow-svg-heading">3 · Saved expense categories</text> : null}
 
-        <rect x={layout.sourceX} y={layout.sourceY} width="18" height={layout.sourceHeight} rx="4" fill="#dbe9df" />
-        {flow.incomeCents > 0 ? <rect x={layout.sourceX} y={layout.sourceY} width="18" height={layout.incomeHeight} rx="3" fill="#1e5142" /> : null}
+        <rect x={layout.sourceX} y={layout.sourceY} width="18" height={layout.sourceHeight} rx="4" style={{ fill: "var(--flow-track)" }} />
+        {flow.incomeCents > 0 ? <rect x={layout.sourceX} y={layout.sourceY} width="18" height={layout.incomeHeight} rx="3" style={{ fill: "var(--flow-income)" }} /> : null}
         {flow.shortfallCents > 0 ? <rect x={layout.sourceX} y={layout.sourceY + layout.incomeHeight} width="18"
-          height={layout.sourceHeight - layout.incomeHeight} fill="#b93c50" /> : null}
+          height={layout.sourceHeight - layout.incomeHeight} style={{ fill: "var(--flow-deficit)" }} /> : null}
         <text x="14" y="60" className="money-flow-svg-label">Income</text>
         <text x="14" y="79" className="money-flow-svg-value">{dollars(flow.incomeCents)}</text>
         {flow.shortfallCents>0 ? <><text x="14" y={layout.sourceY + layout.sourceHeight + 20} className="money-flow-svg-deficit">Unfunded gap {dollars(flow.shortfallCents)}</text></> : null}
@@ -76,7 +78,7 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
         {/* Source-to-outcome paths retain exact cent values in node data. Only
             their graphic thickness uses a minimum for tiny visible amounts. */}
         {layout.edges.filter(edge=>!edge.child).map(edge => <path key={edge.id} d={edge.path}
-          fill={palette[edge.parentId]} opacity={focused===edge.id ? .98 : .82}
+          style={{ fill: palette[edge.parentId] }} opacity={focused===edge.id ? .98 : .82}
           className={`money-flow-ribbon${highlight(edge) ? " money-flow-dim" : ""}`}
           tabIndex={0} role="button"
           aria-label={`${edge.label}: ${dollars(edge.cents)} per month, ${shareLabel(edge.cents)}.${edge.parentId === "essential" || edge.parentId === "discretionary" ? " Activate to toggle category branches." : " Activate for details."}`}
@@ -84,11 +86,11 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
           onMouseEnter={()=>setFocused(edge.id)} onMouseLeave={()=>setFocused(null)}
           onClick={()=>activateEdge(edge)}
           onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activateEdge(edge);}}}>
-          <title>{edge.label}: {dollars(edge.cents)} · {shareLabel(edge.cents)}</title>
+          <title>{`${edge.label}: ${dollars(edge.cents)} · ${shareLabel(edge.cents)}`}</title>
         </path>)}
 
         {layout.edges.filter(edge=>edge.child).map(edge=><path key={edge.id} d={edge.path}
-          fill={palette[edge.parentId]} opacity={focused===edge.id ? .98 : .72}
+          style={{ fill: palette[edge.parentId] }} opacity={focused===edge.id ? .98 : .72}
           className={`money-flow-ribbon money-flow-child${highlight(edge) ? " money-flow-dim" : ""}`}
           tabIndex={0} role="button"
           aria-label={`${edge.label} within ${flow.branches.find(branch=>branch.id===edge.parentId)?.label}: ${dollars(edge.cents)} per month, ${shareLabel(edge.cents)}. Activate for details.`}
@@ -96,17 +98,17 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
           onMouseEnter={()=>setFocused(edge.id)} onMouseLeave={()=>setFocused(null)}
           onClick={()=>activateEdge(edge)}
           onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activateEdge(edge);}}}>
-          <title>{edge.label}: {dollars(edge.cents)} · {shareLabel(edge.cents)}</title>
+          <title>{`${edge.label}: ${dollars(edge.cents)} · ${shareLabel(edge.cents)}`}</title>
         </path>)}
 
         {layout.nodes.filter(node=>!node.parentId).map(node=> <g key={node.id}>
-          <rect x={node.x} y={node.y} width="18" height={node.height} rx="3" fill={palette[node.id as FlowBranch["id"]]} />
+          <rect x={node.x} y={node.y} width="18" height={node.height} rx="3" style={{ fill: palette[node.id as FlowBranch["id"]] }} />
           <text x={node.x+26} y={node.y-19} className="money-flow-svg-label">{nameInGraphic(node.label, layout.expanded ? 27 : 35)}</text>
           <text x={node.x+26} y={node.y-2} className="money-flow-svg-value">{dollars(node.cents)} · {percent(node.cents,flow.incomeCents)}</text>
         </g>)}
 
         {layout.nodes.filter(node=>node.parentId).map(node=><g key={node.id}>
-          <rect x={node.x} y={node.y} width="16" height={node.height} rx="2" fill={palette[node.parentId!]} />
+          <rect x={node.x} y={node.y} width="16" height={node.height} rx="2" style={{ fill: palette[node.parentId!] }} />
           <text x={node.x+23} y={node.y+Math.min(14,node.height/2+9)} className="money-flow-svg-label">{nameInGraphic(node.label, 28)}</text>
           <text x={node.x+23} y={node.y+Math.min(31,node.height/2+26)} className="money-flow-svg-value">{dollars(node.cents)} · {percent(node.cents,flow.incomeCents)}</text>
         </g>)}

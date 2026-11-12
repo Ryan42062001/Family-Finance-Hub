@@ -26,15 +26,13 @@ export default function ProfileWorkspace({ children }: { children: ReactNode }) 
   }, []);
   return <ProfileSectionSelectionContext.Provider value={active}>
     <div className="profile-desktop-workspace">
-      <nav className="panel profile-jump-nav profile-workspace-navigation" aria-label="Financial profile sections">
-        <p className="eyebrow">Financial records</p>
-        <h2>Browse your profile</h2>
+      {/* Desktop: a tab row across the top. Phones use the expandable sections instead. */}
+      <nav className="profile-jump-nav profile-workspace-navigation" aria-label="Financial profile sections">
         <div className="profile-workspace-links">
           {sections.map(section=><a key={section.id} href={`#${section.id}`}
             aria-current={active === section.id ? "location" : undefined}
-            onClick={()=>setActive(section.id)}>{section.name}<span aria-hidden="true">›</span></a>)}
+            onClick={()=>setActive(section.id)}>{section.name}</a>)}
         </div>
-        <p className="muted">Select a category to review existing records. Adding or editing only saves when you submit.</p>
       </nav>
       <div className="form-section-grid profile-workspace-panels">{children}</div>
     </div>

@@ -1,37 +1,44 @@
 # Current phase
 
-FFH-P01 — Release Blocker Integration & Production Readiness
+FFH-P02 — Modern UI refresh and dark mode
 
-State: CLOSED
-Risk: HIGH
+State: BUILDING
+Risk: LOW (presentation only)
 Owner: Ryan
-Merged: PR #81 into `main` at `ec75d9883793cac0845bb64f6fb4e433e3237e42` (Ryan-authorized, 2026-11-11), from the exact
-head `9f93cbd` checked by FULL PHASE CI run 42968075639.
-Status page: `docs/FFH-P01_RELEASE_READINESS.md`
+Phase branch / PR: `phase/ffh-p02-modern-ui` → `main`
+Design reference: owner-approved mockup (Claude canvas "Family Finance Hub refresh", 2026-11-12)
 
-Production deployment is not authorized by this closure. The live site still runs the pre-FFH-P01 `main` deployment until
-Ryan separately decides on a release.
+Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
+approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
+not authorized by anything else in this phase.
 
-## What FFH-P01 delivered
+## Goal
 
-- Auth hardening: safe redirects (including encoded control characters), canonical-origin checks, and a Secure session
-  cookie on HTTPS.
-- Household isolation proven continuously: the 913-assertion two-household RLS matrix runs in CI on every push, hosted
-  parity is 9/9, and the owner checked two accounts.
-- Next.js 16.4.6 (no high or critical advisories), the signed-out header shows no app tabs, and UI/Scenario Lab
-  refinements.
-- Simplified workflow: one builder, one independent review per phase, browser QA by ChatGPT Work mode.
+A modern, futuristic look across every page, with a **dark mode** that follows the device setting and a manual toggle.
+After Ryan's first Preview review ("still too similar"), the scope grew to a structural refresh (approved 2026-11-12):
+a left sidebar app shell on wide screens, a bento dashboard with ring gauges, glass cards on a glowing background,
+segmented tabs and a split-screen sign-in.
 
-## Before any Production release (separate Ryan decision)
+## Scope
 
-1. Comprehensive independent pre-release audit (a different model), with fixes and re-check.
-2. Fix Vercel automatic deployments (stopped after 2026-11-07).
-3. Exercise the rollback plan (`docs/FFH-P01_RELEASE_READINESS.md`).
-4. Delete the synthetic test accounts (TestA/TestB and older ones), using a dependency-aware cleanup
-   (`households_created_by_fkey`).
-5. Email deliverability (custom sending domain) before inviting anyone else.
+- A design-token rewrite in `app/globals.css` with light and dark themes.
+- Structural presentation changes: sidebar shell (`AppHeader`, `DesktopNavLink`), account menu holding Sign out,
+  slim page titles, bento dashboard (`app/dashboard/page.tsx`; rings and bars only draw values already shown as text),
+  profile and planning tabs, split-screen auth pages, icon tab bar on phones.
+- Header, navigation and the mobile tab bar restyled, plus a theme toggle (remembered per browser, no flash on load).
+- Every page restyled through the shared tokens: auth, onboarding, dashboard (including the money-flow chart),
+  financial profile, planning and Scenario Lab.
+- `docs/workflow/QA_CHECKLIST.md` gains dark-mode checks and the new layout's expectations.
 
-## Next phase
+## Out of scope / boundaries
 
-Not yet chosen. Ryan picks the next goal; the Builder then writes its scope here (template:
-`docs/workflow/PHASE_TEMPLATE.md`).
+- No changes to calculations, data, auth, RLS, server actions or database. Any such change is a different phase.
+- New features (household invitations, account settings, bills, history, CSV import) are later phases, in the order
+  recorded in `docs/PRODUCT_ROADMAP.md`.
+
+## Done when
+
+- CI green (`fast`, `rls-matrix`); `npm run verify` passes.
+- Work mode QA on the Preview passes in light and dark mode; Ryan accepts the look.
+- Independent review: a fresh Claude session (routine, LOW-risk phase).
+- Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.

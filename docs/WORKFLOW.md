@@ -6,8 +6,9 @@ and git history), never active authority.
 
 ## Roles
 
-- **Product Owner — Ryan.** Decides what to build. Gives explicit Ryan merge authorization for every merge and,
-  separately, approves any production deployment, hosted configuration change, real-data operation or spending.
+- **Product Owner — Ryan.** Decides what to build. Gives explicit Ryan merge authorization for every merge into `main`
+  (each one is a Production release) and approves any other hosted configuration change, real-data operation or
+  spending.
 - **Builder — Claude Code by default; ChatGPT/Codex only as the fallback when Claude credits run out.** One AI
   coding agent working directly in the repository: it plans, writes code and tests, runs checks, pushes its own branch,
   reads CI, opens PRs, fixes findings and merges its own PRs into phase branches. It holds context in the repo, not in
@@ -32,7 +33,7 @@ Chat is for deciding *what* and reviewing *results*. Build steps are not relayed
 | Edit code, tests and docs; push the Builder's own branch; open or update a draft PR | None |
 | Run CI, including the disposable local-database RLS matrix with synthetic data | None |
 | Merge the Builder's own PR into a phase branch (`phase/...`) once CI is green (`fast` and `rls-matrix`) | None (standing Owner permission, 2026-11-11) |
-| Merge anything into `main` | Ryan, explicitly |
+| Merge anything into `main`, which **is a Production release** (Vercel deploys `main` automatically) | Ryan, explicitly, as a release decision |
 | Hosted Supabase or Vercel changes, production deployment, auth/email configuration, Private Beta | Ryan, explicitly, per change |
 | Anything touching real household or financial data, secrets, paid resources or destructive hosted operations | Ryan, explicitly, per change |
 
@@ -51,10 +52,38 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
      file and suggested fix, then continue.
-5. **Merge.** Day-to-day work merges into the phase branch by the Builder once CI is green. Merging the phase into
-   `main` needs explicit Ryan merge authorization for the reviewed head. Merging never authorizes deployment.
-6. **Release.** Before a production release or Private Beta, one comprehensive independent whole-product audit runs on a
-   frozen candidate, findings are fixed and re-checked, and Ryan separately authorizes the deployment.
+5. **Merge = release.** Day-to-day work merges into the phase branch by the Builder once CI is green. Vercel deploys
+   every push to `main` to Production automatically (Owner decision, 2026-11-12, "Option 2"), so merging a phase into
+   `main` **is** a production deployment and needs explicit Ryan merge authorization for the reviewed head, given as a
+   release decision. Before asking, the Builder runs the release checklist below.
+6. **Private Beta / wider release.** Before inviting anyone outside the household, one comprehensive independent
+   whole-product audit runs on a frozen candidate, findings are fixed and re-checked, and Ryan separately authorizes it.
+
+## Release checklist (every merge into `main`)
+
+Before the merge:
+- Every environment has the variables the build needs: `NEXT_PUBLIC_SITE_URL` (Production = the live site's exact
+  origin; each phase Preview = that branch's Preview URL, branch-scoped), `NEXT_PUBLIC_SUPABASE_URL` and
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Missing `NEXT_PUBLIC_SITE_URL` makes auth fail closed with
+  "Authentication origin is not configured".
+- Hosted Supabase parity still matches if migrations changed (`scripts/rls-local/parity.sql`).
+
+Right after the merge, once Vercel reports the Production deployment Ready:
+- `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,
+  fix the cause or use Vercel Instant Rollback, and record the incident in `.ai/DECISIONS.md`.
+
+## Preview setup (one fixed address)
+
+Vercel's automatic branch address for a long phase name does not resolve on this project, so every phase uses one
+fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
+- Vercel → Settings → Domains: that domain is connected to the **Preview** environment and the **current phase
+  branch**. At the start of each phase, Ryan edits it to the new `phase/...` branch.
+- Environment variable `NEXT_PUBLIC_SITE_URL` = that address (Config, Preview, all branches). Supabase Redirect URLs
+  include `https://family-finance-hub-preview.vercel.app/**`.
+- Vercel Deployment Protection must not put a Vercel login in front of the Preview, or Work mode and the smoke test
+  are blocked (the smoke test reports `BLOCKED`, not a pass).
+- After switching the domain or changing variables, redeploy the phase branch, then run
+  `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-preview.vercel.app` (12/12).
 
 ## Continuous checks (`.github/workflows/ci.yml`)
 
