@@ -12,7 +12,7 @@ Code) writes all the code; you only test the running Preview and report problems
 https://github.com/Ryan42062001/Family-Finance-Hub/blob/main/docs/workflow/QA_CHECKLIST.md
 (or the same file on the current phase branch, if Ryan says so)
 
-**Preview URL:** <Ryan pastes the current phase Preview URL here>
+**Preview URL:** https://family-finance-hub-preview.vercel.app
 If the Preview asks you to log into Vercel, stop and ask Ryan to open it for you. Don't try to get around it.
 
 **Hard rules:**

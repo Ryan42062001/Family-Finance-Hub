@@ -71,9 +71,16 @@ async function expectNotOffsite(name, path, headers) {
   record(name, ok, `status ${r.status}, location ${r.location ?? "(none)"}`);
 }
 
+// Vercel Deployment Protection answers before the app does: 401/403, or a redirect to vercel.com's login/SSO.
+// Probe two paths so one odd response cannot hide the wall, and report it as BLOCKED, never as app failures.
+function behindVercelLogin(r) {
+  if (r.status === 401 || r.status === 403) return true;
+  const loc = r.location ? resolveLocation(r.location) : null;
+  return !!loc && /(^|\.)vercel\.com$/.test(loc.hostname) && /^\/(sso-api|login|sso)\b/.test(loc.pathname);
+}
 const probe = await get("/auth/login");
-const vercelLogin = /^https:\/\/vercel\.com\/(sso-api|login)/.test(probe.location ?? "");
-if (probe.status === 401 || probe.status === 403 || vercelLogin) {
+const protectedProbe = await get("/dashboard");
+if (behindVercelLogin(probe) || behindVercelLogin(protectedProbe)) {
   console.error(`BLOCKED: ${origin} is behind Vercel Deployment Protection (status ${probe.status}). ` +
     "Nothing was tested. Create a 'Protection Bypass for Automation' secret in Vercel and set " +
     "VERCEL_PROTECTION_BYPASS on your machine, then rerun.");
