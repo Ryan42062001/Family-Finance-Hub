@@ -12,8 +12,8 @@ screens.
 - **Out of scope:** Supabase, the Vercel settings pages, GitHub settings and the Production site
   (`family-finance-hub-ten-brown.vercel.app`).
 
-Current Preview:
-`https://family-finance-hub-git-phase-ffh-p01-releas-96b900-ryan-s-team9.vercel.app`
+Preview: the Vercel Preview of the **current phase branch** (see `.ai/CURRENT_PHASE.md`). Ryan gives the exact URL with
+each run; Vercel shortens long branch names, so it isn't predictable.
 
 ## Checks
 
@@ -29,6 +29,8 @@ Current Preview:
 | Q8 | Isolation, A cannot see B | Sign out, sign in as TestA, visit all four tabs | No `ZZ-B-…` record and no TestB name anywhere |
 | Q9 | Mobile layout | Repeat Q1, Q3 and one Financial profile page at a phone-sized window (about 390 px wide) | Readable; nothing overlaps or is cut off; bottom navigation appears only when signed in |
 | Q10 | General look | Click through every page as TestA | Note anything broken, confusing, misaligned or unclear wording |
+| Q11 | Dark mode follows the device | Set the browser/OS to dark mode (or use a dark-preference browser profile), open the Preview signed out, then sign in as TestA and visit all four tabs | The whole app is dark: no white panels, unreadable text or invisible borders; the money-flow chart and its labels are readable |
+| Q12 | Theme switch | Click the moon/sun button in the header, reload the page, then sign out and back in | The chosen theme stays after reload and sign-in; the button's label says what it will switch to |
 
 Finish signed out.
 
