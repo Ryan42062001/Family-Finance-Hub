@@ -12,6 +12,7 @@ import { calculateFinancialSummary } from "@/lib/calculations/financial-summary"
 import { createClient } from "@/lib/supabase/server";
 import { formatSignedCurrency } from "@/lib/formatting/financial-presentation";
 import MonthlyMoneyFlow from "@/components/dashboard/MonthlyMoneyFlow";
+import { balanceBar } from "@/lib/formatting/balance-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,7 @@ export default async function DashboardPage() {
   const completion = profileCompletion([accounts.length, income.length, expenses.length, debts.length, retirement.length, goals.length]);
   const health = calculateFinancialHealth({ completion, monthlyIncome: summary.monthlyIncome, monthlyCashFlow: summary.monthlyCashFlow, savingsRate: summary.savingsRate, totalDebt, retirementAssets, goalCount: goals.length });
 
+  const netWorthBar = balanceBar(accountAssets + retirementAssets, totalDebt);
   const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   const percent = summary.savingsRate === null ? "—" : `${Math.round(summary.savingsRate * 100)}%`;
   const hasCashFlowData = income.some((row) => row.is_active) && expenses.length > 0;
@@ -159,7 +161,9 @@ export default async function DashboardPage() {
         <article className="bento-card">
           <p className="metric-label"><MetricIcon name="worth" />Net worth</p>
           <strong className="bento-number">{money(summary.netWorth)}</strong>
-          <div className="balance-bar" aria-hidden="true"><div style={{ width: `${accountAssets + retirementAssets + totalDebt > 0 ? ((accountAssets + retirementAssets) / (accountAssets + retirementAssets + totalDebt)) * 100 : 0}%` }} /></div>
+          {netWorthBar.kind === "share" ? <div className="balance-bar" aria-hidden="true"><div style={{ width: `${netWorthBar.assetShare * 100}%` }} /></div>
+            : netWorthBar.kind === "empty" ? <div className="balance-bar balance-bar-empty" aria-hidden="true" />
+            : <p className="bento-caption balance-bar-note">No bar shown: a recorded balance is negative.</p>}
           <span className="bento-caption balance-legend"><span><i className="dot-assets" />{money(accountAssets + retirementAssets)} assets</span><span><i className="dot-debt" />{money(totalDebt)} debt</span></span>
           <dl className="bento-stats">
             <div><dt>Cash &amp; taxable</dt><dd>{money(accountAssets)}</dd></div>

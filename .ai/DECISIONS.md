@@ -75,6 +75,15 @@
   checklist, debt-free date and cushion badges (money plan); home-screen install (Simple mode); "Can we afford it?",
   irregular costs, per-paycheck view, balance update reminder (goals/check-in); two-factor sign-in (account settings).
 
+- **FFH-P02 independent review (ChatGPT, Ryan's choice for this phase): `REVIEW RESULT: PASS` at
+  `9a1b9d995e477576b27768e2524d753c91ad12ab`.** It verified the presentation-only claim (no RLS, schema, auth, data
+  access or calculation change). Three findings, all fixed in the phase rather than deferred:
+  - MEDIUM: the smoke test treated an app 401/403 on `/dashboard` as Vercel protection. It now reports BLOCKED only
+    on Vercel evidence; an app 403 fails the check.
+  - MEDIUM: the assets/debt bar could show all-red for $0/$0 and an invalid width for negative balances.
+    `lib/formatting/balance-bar.ts` now draws a neutral track, a proportional bar, or no bar with a note.
+  - LOW: the fixed sidebar had no scroll fallback on short windows. It now scrolls.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
