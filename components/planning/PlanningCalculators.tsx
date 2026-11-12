@@ -47,9 +47,8 @@ export default function PlanningCalculators({ defaults }: { defaults: Defaults }
   const field = (label: string, value: number, setter: (value: number) => void, step = "0.01") => <label>{label}<input type="number" min="0" step={step} value={value} onChange={(event) => setter(safeInput(event.target.value))} /></label>;
 
   return <div className="planning-desktop-workspace">
-    <nav className="panel planning-workspace-selector" aria-label="Desktop planning calculators">
-      <p className="eyebrow">Planning tools</p><h2>Choose a calculator</h2>
-      <p className="muted">Explore hypothetical changes. Saved data stays unchanged.</p>
+    {/* Desktop: a row of calculator chips above the selected tool. */}
+    <nav className="planning-workspace-selector" aria-label="Desktop planning calculators">
       <div className="planning-workspace-links">
         {([
           ["emergency-fund", "Emergency fund"],

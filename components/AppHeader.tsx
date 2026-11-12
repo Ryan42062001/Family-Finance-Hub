@@ -19,7 +19,8 @@ export default async function AppHeader() {
 
   return (
     <>
-    <header className="site-header">
+    {/* Signed in: on wide screens the header becomes a left sidebar (CSS); signed out it stays a slim top bar. */}
+    <header className={authenticated ? "site-header app-sidebar" : "site-header"}>
       <div className="site-header-inner">
         <Link className="brand" href={authenticated ? "/dashboard" : "/"} aria-label={authenticated ? "Family Finance Hub dashboard" : "Family Finance Hub home"}>
           <span className="brand-mark" aria-hidden="true">FF</span>

@@ -9,7 +9,16 @@ export default async function SignUpPage({
   const params = await searchParams;
 
   return (
-    <main className="auth-shell">
+    <main className="auth-shell auth-split">
+      <aside className="auth-aside" aria-hidden="true">
+        <span className="auth-aside-mark">FF</span>
+        <p className="auth-aside-title">Your household&apos;s money, in one calm place.</p>
+        <ul>
+          <li>See where every dollar of income goes</li>
+          <li>Plan and test what-ifs without touching saved data</li>
+          <li>Private to your household</li>
+        </ul>
+      </aside>
       <section className="auth-card">
         <p className="eyebrow">Family Finance Hub</p>
         <h1>Create your account</h1>
