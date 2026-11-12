@@ -7,7 +7,7 @@ Engine and the Scenario Lab baseline.
 
 ## FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: FREEZE_READY. Risk: HIGH. Branch `phase/ffh-p01-release-readiness`, draft PR #81.
+State: CLOSED. Risk: HIGH. Merged via PR #81 at `ec75d98` (2026-11-11).
 
 Prove auth and two-household isolation, finish the owner-preview punch list, keep docs current and prepare a rollback
 plan. Current gate status: `docs/FFH-P01_RELEASE_READINESS.md`; open work: `.ai/CURRENT_PHASE.md`.

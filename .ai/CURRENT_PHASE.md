@@ -2,38 +2,36 @@
 
 FFH-P01 — Release Blocker Integration & Production Readiness
 
-State: FREEZE_READY
+State: CLOSED
 Risk: HIGH
 Owner: Ryan
-Phase branch / PR: `phase/ffh-p01-release-readiness`, draft PR #81
+Merged: PR #81 into `main` at `ec75d9883793cac0845bb64f6fb4e433e3237e42` (Ryan-authorized, 2026-11-11), from the exact
+head `9f93cbd` checked by FULL PHASE CI run 42968075639.
 Status page: `docs/FFH-P01_RELEASE_READINESS.md`
 
-Production deployment, Private Beta and hosted configuration changes are separate Ryan decisions and are not
-authorized by this phase, its CI or its merge.
+Production deployment is not authorized by this closure. The live site still runs the pre-FFH-P01 `main` deployment until
+Ryan separately decides on a release.
 
-## Goal
+## What FFH-P01 delivered
 
-Make current `main` plus this branch one auditable release candidate: auth and household isolation proven, the
-Scenario Lab and UI punch list accepted by Ryan, docs current, and a rollback plan ready.
+- Auth hardening: safe redirects (including encoded control characters), canonical-origin checks, and a Secure session
+  cookie on HTTPS.
+- Household isolation proven continuously: the 913-assertion two-household RLS matrix runs in CI on every push, hosted
+  parity is 9/9, and the owner checked two accounts.
+- Next.js 16.4.6 (no high or critical advisories), the signed-out header shows no app tabs, and UI/Scenario Lab
+  refinements.
+- Simplified workflow: one builder, one independent review per phase, browser QA by ChatGPT Work mode.
 
-## Done
+## Before any Production release (separate Ryan decision)
 
-- Auth confirmation and callback hardening, including encoded control characters in `next` (tests pass).
-- Scenario Lab no-write and null-preference behavior (tests pass).
-- Next.js 16.4.6: no high or critical advisories.
-- The two-household RLS matrix runs in CI on every push: 913/913, rollback, zero residue.
-- Laptop Gate A/B PowerShell harness retired; CI replaces it.
+1. Comprehensive independent pre-release audit (a different model), with fixes and re-check.
+2. Fix Vercel automatic deployments (stopped after 2026-11-07).
+3. Exercise the rollback plan (`docs/FFH-P01_RELEASE_READINESS.md`).
+4. Delete the synthetic test accounts (TestA/TestB and older ones), using a dependency-aware cleanup
+   (`households_created_by_fkey`).
+5. Email deliverability (custom sending domain) before inviting anyone else.
 
-## Open, in order
+## Next phase
 
-1. ~~Owner preview checks~~ Done: isolation, Scenario Lab no-write, sign-in page, Secure cookie, Q9 phone layout.
-2. ~~Hosted parity~~ Done: 9/9 with the final `parity.sql` (2026-11-11).
-3. ~~Deployed auth checks~~ Done: smoke test 12/12 on the Preview and Production.
-4. ~~Browser QA~~ Done: Work mode Q1–Q8 and Q10 PASS, 0 issues; Q9 PASS by Ryan.
-5. ~~Independent review~~ Done: PASS after fixes (re-review PASS; follow-ups fixed).
-6. FULL PHASE CI on the exact PR #81 head, then **Ryan's explicit authorization to merge PR #81 into `main`**.
-   Merging does not deploy; Production release is a separate decision (final audit, rollback plan).
-
-## Boundaries
-
-No real household data; no hosted Supabase/Vercel changes without Ryan; no schema/RLS changes in this phase.
+Not yet chosen. Ryan picks the next goal; the Builder then writes its scope here (template:
+`docs/workflow/PHASE_TEMPLATE.md`).
