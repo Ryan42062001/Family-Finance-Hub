@@ -19,7 +19,7 @@ If the Preview asks you to log into Vercel, stop and ask Ryan to open it for you
 1. Use only the synthetic test accounts TestA and TestB, and only made-up data. Never enter real names, amounts,
    emails or accounts.
 2. Test only the Preview URL above. Do **not** open or change anything in Supabase, Vercel settings, GitHub
-   settings, or the Production site (family-finance-hub-ten-brown.vercel.app).
+   settings, or the Production site (family-finance-hub-taupe.vercel.app, or the retired family-finance-hub-ten-brown.vercel.app).
 3. Never create, delete or change accounts, and never change passwords or email settings. The only data you may add
    is the ZZ- test records named in the checklist.
 4. Never copy or show passwords, cookie values, tokens or email links in issues, comments or screenshots.
