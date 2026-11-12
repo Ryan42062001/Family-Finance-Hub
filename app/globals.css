@@ -803,3 +803,9 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 .balance-legend{gap:.3rem 1rem}
 .balance-legend .dot-debt{margin-left:0}
 .balance-legend>span{white-space:nowrap}
+.balance-bar-empty{background:var(--surface-sunken)}
+.balance-bar-note{margin:0 0 .7rem}
+@media(min-width:1024px){
+  .site-header.app-sidebar{overflow-y:auto;overscroll-behavior:contain}
+  .app-sidebar .site-header-inner{height:auto;min-height:100%}
+}
