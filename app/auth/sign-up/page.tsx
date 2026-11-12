@@ -18,6 +18,7 @@ export default async function SignUpPage({
           <li>Plan and test what-ifs without touching saved data</li>
           <li>Private to your household</li>
         </ul>
+
       </aside>
       <section className="auth-card">
         <p className="eyebrow">Family Finance Hub</p>
@@ -37,6 +38,9 @@ export default async function SignUpPage({
         </form>
         <p className="muted">
           Already have an account? <Link href="/auth/login">Sign in</Link>
+        </p>
+        <p className="muted auth-example-link">
+          Curious first? <Link href="/demo">See an example household&apos;s plan</Link>
         </p>
       </section>
     </main>

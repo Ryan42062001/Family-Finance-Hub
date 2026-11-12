@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 const links = [
+  { href: "/plan", label: "Plan", icon: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></> },
   { href: "/dashboard", label: "Home", icon: <><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></> },
   { href: "/financial-profile", label: "Profile", icon: <><path d="M4 5h16v14H4z" /><path d="M4 9h16" /><path d="M8 13h4M8 16h7" /></> },
   { href: "/planning", label: "Planning", icon: <><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></> },
