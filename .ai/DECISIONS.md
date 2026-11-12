@@ -51,6 +51,15 @@
   integration-created `NEXT_PUBLIC_SUPABASE_URL` (saved as a Secret, so unreadable) was malformed. Ryan re-created
   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` by hand as Config variables and redeployed;
   TestA then signed in successfully on Production. The smoke test cannot catch this because it never calls Supabase.
+  While retiring the old project, the *new* Vercel project was deleted by mistake (both were named
+  `family-finance-hub`). Ryan re-imported it in the new account, re-attached `family-finance-hub-taupe.vercel.app` as
+  the Production domain, and re-created only the three `NEXT_PUBLIC_*` variables as Config (Supabase URL and
+  publishable key for Production + Preview; site URL for Production only). The Vercel–Supabase integration was
+  removed with all the variables it had added (service-role, secret, JWT and `POSTGRES_*` keys). Supabase Site URL is
+  `https://family-finance-hub-taupe.vercel.app` and the Redirect URL allowlist holds only
+  `https://family-finance-hub-taupe.vercel.app/**`; the old `ten-brown`/FFH-P01 hosts and the integration's
+  `ryankis01-4544` wildcards were removed. Smoke test 12/12 and TestA signed in on Production afterwards.
+  Lesson: before deleting anything in Vercel, check the account name in the top-left switcher.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
@@ -67,14 +76,8 @@
 - LOW (operations): let each Vercel Preview trust its own branch URL automatically (e.g. from Vercel's system
   variables) instead of a branch-scoped `NEXT_PUBLIC_SITE_URL` per phase. This touches the auth origin check, so it
   needs its own reviewed change.
-- LOW (operations): retire the old Vercel project (`ryan-s-team9`, `family-finance-hub-ten-brown.vercel.app`) and its
-  `prod-redeploy` hook (Ryan accepted the hook-exposure risk until then), and remove the old hosts from Supabase
-  Redirect URLs.
-- MEDIUM (operations): the Vercel–Supabase integration copied server-only secrets into the new Vercel project
-  (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `POSTGRES_*`). The app reads only the
-  three `NEXT_PUBLIC_*` variables, so these only widen what a Vercel account compromise would expose. Remove them (or
-  the integration) once the switch-over is settled. It also added `ryankis01-4544` Redirect URLs (including
-  `family-*-…` Preview wildcards); review them with the old-host cleanup.
+- LOW (operations): confirm the old Vercel project (`ryan-s-team9`) is deleted; if it still exists, delete it
+  (check the account name first) so `main` is not deployed in two places.
 - MEDIUM (reliability, auth-adjacent, needs its own reviewed PR outside FFH-P02's presentation-only scope): validate
   `NEXT_PUBLIC_SUPABASE_URL` at startup (an `https` origin with no path, query or trailing slash; fail closed with a
   clear configuration error), and extend `scripts/smoke/deployed-auth-smoke.mjs` with a check that proves the deployed
