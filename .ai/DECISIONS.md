@@ -1,7 +1,7 @@
 # Standing decisions
 
-- Ryan explicitly authorizes every merge into `main`, and separately decides production deployment, hosted configuration
-  changes, Private Beta, real-data operations and spending.
+- Ryan explicitly authorizes every merge into `main`, which is a Production release (Vercel auto-deploys `main`), and
+  decides hosted configuration changes, Private Beta, real-data operations and spending.
 - Financial policy is never invented; money reconciliation is exact, and unknown facts stay unknown (fail closed).
 - Authentication and household isolation fail closed; cross-household access is never acceptable. Secrets and real
   household data stay out of the repo, CI and shared evidence.
@@ -26,6 +26,19 @@
   issues. Independent review: a fresh Claude session for routine phases; a different model (ChatGPT) for HIGH-risk
   phases and the pre-release audit.
 
+## 2026-11-12 (Ryan)
+
+- **Merging into `main` is a Production release ("Option 2").** Vercel deploys `main` automatically. Each merge into
+  `main` needs Ryan's explicit release approval and is followed by the Production smoke test (release checklist in
+  `docs/WORKFLOW.md`).
+- **Incident, resolved the same day.** Earlier docs said merging would not deploy, which was wrong. PR #81 (`ec75d98`,
+  2026-11-11) and #96 (`da668ca`) were auto-deployed to Production. Production had no `NEXT_PUBLIC_SITE_URL` (only the
+  FFH-P01 Preview had one), so the new fail-closed origin check returned HTTP 400 on auth confirmation and callback
+  links and on signed-out protected pages. The Production smoke test was 4/12. No data was exposed; the
+  off-site-redirect checks still passed. Ryan added `NEXT_PUBLIC_SITE_URL` for Production and rebuilt via a deploy
+  hook (Vercel's email verification for Redeploy was unreachable); the smoke test then passed **12/12**. Prevention:
+  the release checklist now requires the variable in every environment and a smoke test right after each release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -38,3 +51,9 @@
 - LOW (operations): Vercel stopped creating deployments automatically after 2026-11-07, even though Git is connected,
   Ignored Build Step is Automatic and the GitHub app has access to all repositories. Previews are deployed manually
   for now. Investigate before release, since a release depends on a predictable deploy.
+- LOW (operations): let each Vercel Preview trust its own branch URL automatically (e.g. from Vercel's system
+  variables) instead of a branch-scoped `NEXT_PUBLIC_SITE_URL` per phase. This touches the auth origin check, so it
+  needs its own reviewed change.
+- LOW (operations): Vercel sends sensitive-action verification codes to a Hide My Email address that is not reaching
+  Ryan. Fix the forwarding or add a second account email before the next release.
+- LOW (operations): a Vercel deploy hook URL was shown in a chat screenshot; delete or rotate the `prod-redeploy` hook.
