@@ -9,8 +9,9 @@ historical evidence only.
 - Work on your own branch and a draft PR. Push freely; every push runs CI (`fast` and `rls-matrix`).
 - Run `npm run verify` before pushing. Report exact pass/fail counts; never call a failing or unrun check passing.
 - You may merge your own PRs into a phase branch (`phase/...`) once CI is green (standing Owner permission).
-- Ryan (Product Owner) explicitly authorizes every merge into `main`, and separately any production deployment,
-  hosted Supabase/Vercel change, real-data operation or spending. Ask before any of those.
+- A merge into `main` is a Production release (Vercel auto-deploys `main`). Ryan explicitly authorizes each one as a
+  release decision, after the release checklist in `docs/WORKFLOW.md`; run the Production smoke test right after.
+- Ryan also authorizes any other hosted Supabase/Vercel change, real-data operation or spending. Ask before any of those.
 - Synthetic data only. No secrets or real household or financial data anywhere in the repo, CI or PRs.
 - Auth, household isolation and money calculations fail closed. Do not invent financial policy.
 - Schema/RLS changes are migrations in a reviewed PR. The RLS matrix (`scripts/rls-local/*.sql`, run by

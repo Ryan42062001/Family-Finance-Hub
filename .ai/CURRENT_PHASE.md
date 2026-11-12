@@ -8,7 +8,9 @@ Owner: Ryan
 Phase branch / PR: `phase/ffh-p02-modern-ui` → `main`
 Design reference: owner-approved mockup (Claude canvas "Family Finance Hub refresh", 2026-11-12)
 
-Production deployment is a separate Ryan decision and is not authorized by this phase or its merge.
+Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
+approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
+not authorized by anything else in this phase.
 
 ## Goal
 
@@ -35,4 +37,4 @@ buttons, aligned (tabular) numbers, and a **dark mode** that follows the device 
 - CI green (`fast`, `rls-matrix`); `npm run verify` passes.
 - Work mode QA on the Preview passes in light and dark mode; Ryan accepts the look.
 - Independent review: a fresh Claude session (routine, LOW-risk phase).
-- Ryan merges into `main`.
+- Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.
