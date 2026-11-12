@@ -94,8 +94,15 @@
     elements built from mixed text and expressions caused a React hydration mismatch (present since FFH-P01), and
     the client rebuild dropped `data-theme`. Fix: single-string titles, plus the toggle re-applies the stored theme
     after mount.
-  - Q9 and Q11 were NOT RUN: the cloud browser has a fixed 1363 px viewport and no OS colour control. They need
-    Ryan or a local Playwright run.
+  - **#108 resolved, not a leak.** Work mode's controlled retest, with explicit sign-out between accounts, showed
+    the correct identity and data for TestA ($5,000 income, $3,500 expense) and TestB ($222 expense), with no
+    cross-household records in any section. The earlier view was a TestB session kept in the cloud browser. Q7 and
+    Q8 PASS. Issue #108 closed by QA.
+  - **Q9 and Q11 checked locally by the Builder, not by Work mode.** At `ebbd282`, Playwright ran against a
+    read-only mock with synthetic data, at 390, 900 and 1024 px, with the device colour scheme light and dark. On
+    every page, signed in and out: no horizontal overflow and no page errors. The bottom tab bar shows only on
+    phones, the top bar on tablets, and the sidebar from 1024 px. The device dark preference darkens every page,
+    and the short-window account menu stays reachable.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
@@ -119,3 +126,5 @@
   clear configuration error), and extend `scripts/smoke/deployed-auth-smoke.mjs` with a check that proves the deployed
   app can reach Supabase Auth (for example a wrong-password sign-in that must return the generic credentials error,
   not a provider/config error), so a misconfigured Supabase variable fails the release smoke test.
+- LOW (UX, auth-adjacent; own reviewed change): when a signed-in user opens `/auth/login`, say "You're already signed
+  in as <email>" and offer Sign out, so a leftover session can't be mistaken for a wrong-account sign-in (QA #108).
