@@ -67,6 +67,11 @@
   light and dark mode. The smoke test was blocked by Vercel Deployment Protection; the script now reports that as
   `BLOCKED` instead of twelve failures. Setup: "Preview setup" in `docs/WORKFLOW.md`.
 
+- **Roadmap revised (Ryan).** Next phases after FFH-P02: money plan home screen, Simple mode switch with guided setup,
+  household invitations, goals with dates plus monthly check-in/history, account settings, bills and export. CSV
+  import dropped for now; monthly email deferred. Simple mode is an opt-in per-household switch, not the default.
+  Details: `docs/PRODUCT_ROADMAP.md`.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

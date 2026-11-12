@@ -20,16 +20,27 @@ phase.
 State: BUILDING. Risk: LOW. Branch `phase/ffh-p02-modern-ui`. Presentation only; no data, auth or calculation changes.
 Production deployment is a separate Ryan decision and is not authorized by this phase.
 
-## Planned after FFH-P02 (owner-approved order, 2026-11-12)
+## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
-1. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
-2. Account settings: change password and email, delete account (also enables test-account cleanup).
-3. Bills and due dates, with optional email reminders.
-4. History and trends: monthly snapshots of net worth and cash flow.
-5. Goal upgrades: target dates and the monthly amount needed.
-6. CSV import of bank transactions (no bank-login linking).
-7. Monthly email summary.
-8. Export the plan (PDF/CSV).
+1. **Your money plan as the home screen.** Surface the existing Money Priority Engine as a plain, ordered list of
+   steps (amount, destination, one-line reason, status: Recommended / Worth considering / Needs more information).
+   The current dashboard numbers move under it. No new financial policy: every step comes from the engine. HIGH risk
+   (money recommendations), so the independent review is a different model.
+2. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
+   other spending, debts, savings), then straight to the money plan. Simple mode hides Scenario Lab, the HSA/SIMPLE
+   IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off.
+3. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
+4. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with
+   history of net worth and cash flow.
+5. Account settings: change password and email, delete account (also enables test-account cleanup).
+6. Bills and due dates with optional reminders, then export of the plan (PDF/CSV).
+
+Changes alongside: Scenario Lab becomes a "What if?" action on the money plan; overlapping planning calculators fold
+into the plan, the rest sit under "Tools"; HSA and SIMPLE IRA pages move under "Advanced"; long explanatory text is
+shortened.
+
+Dropped for now: CSV import of bank transactions (complexity, works against Simple mode). Deferred: monthly email
+summary (until email deliverability is fixed).
 
 ## Before any Production release or Private Beta
 
