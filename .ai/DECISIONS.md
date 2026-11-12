@@ -60,6 +60,12 @@
   `https://family-finance-hub-taupe.vercel.app/**`; the old `ten-brown`/FFH-P01 hosts and the integration's
   `ryankis01-4544` wildcards were removed. Smoke test 12/12 and TestA signed in on Production afterwards.
   Lesson: before deleting anything in Vercel, check the account name in the top-left switcher.
+- **One fixed Preview address.** The automatic branch address
+  (`family-finance-hub-git-phase-ffh-p02-modern-ui-ryankis01-4544.vercel.app`) returned `DEPLOYMENT_NOT_FOUND`, so
+  Ryan attached `family-finance-hub-preview.vercel.app` to the Preview environment and the current phase branch, set
+  `NEXT_PUBLIC_SITE_URL` to it (Config, Preview) and added it to Supabase Redirect URLs. The FFH-P02 Preview loads in
+  light and dark mode. The smoke test was blocked by Vercel Deployment Protection; the script now reports that as
+  `BLOCKED` instead of twelve failures. Setup: "Preview setup" in `docs/WORKFLOW.md`.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 

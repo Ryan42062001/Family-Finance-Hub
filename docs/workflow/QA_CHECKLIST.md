@@ -12,8 +12,8 @@ screens.
 - **Out of scope:** Supabase, the Vercel settings pages, GitHub settings and the Production site
   (`family-finance-hub-taupe.vercel.app`, or the retired `family-finance-hub-ten-brown.vercel.app`).
 
-Preview: the Vercel Preview of the **current phase branch** (see `.ai/CURRENT_PHASE.md`). Ryan gives the exact URL with
-each run; Vercel shortens long branch names, so it isn't predictable.
+Preview: `https://family-finance-hub-preview.vercel.app`, which always serves the **current phase branch** (see
+`.ai/CURRENT_PHASE.md` and "Preview setup" in `docs/WORKFLOW.md`).
 
 ## Checks
 

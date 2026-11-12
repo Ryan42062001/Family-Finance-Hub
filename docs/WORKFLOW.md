@@ -72,6 +72,19 @@ Right after the merge, once Vercel reports the Production deployment Ready:
 - `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,
   fix the cause or use Vercel Instant Rollback, and record the incident in `.ai/DECISIONS.md`.
 
+## Preview setup (one fixed address)
+
+Vercel's automatic branch address for a long phase name does not resolve on this project, so every phase uses one
+fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
+- Vercel → Settings → Domains: that domain is connected to the **Preview** environment and the **current phase
+  branch**. At the start of each phase, Ryan edits it to the new `phase/...` branch.
+- Environment variable `NEXT_PUBLIC_SITE_URL` = that address (Config, Preview, all branches). Supabase Redirect URLs
+  include `https://family-finance-hub-preview.vercel.app/**`.
+- Vercel Deployment Protection must not put a Vercel login in front of the Preview, or Work mode and the smoke test
+  are blocked (the smoke test reports `BLOCKED`, not a pass).
+- After switching the domain or changing variables, redeploy the phase branch, then run
+  `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-preview.vercel.app` (12/12).
+
 ## Continuous checks (`.github/workflows/ci.yml`)
 
 - **`fast`** (every push): validator, calculation tests, security tests, typecheck, lint, production build and
