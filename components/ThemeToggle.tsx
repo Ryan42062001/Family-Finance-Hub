@@ -1,5 +1,5 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 // Light/dark switch. The choice is a display preference only: it is stored in
 // this browser (localStorage), never sent to the server or the database.
@@ -27,9 +27,24 @@ function subscribe(onChange: () => void) {
   };
 }
 
+// Re-apply the saved choice after mount. The pre-paint script in the layout sets it first; this covers the case
+// where React rebuilds the page on the client (for example after a hydration mismatch) and drops the attribute.
+function reapplyStoredTheme() {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if ((stored === "light" || stored === "dark") && document.documentElement.dataset.theme !== stored) {
+      document.documentElement.dataset.theme = stored;
+      window.dispatchEvent(new Event(THEME_EVENT));
+    }
+  } catch {
+    // Storage unavailable: the device setting applies.
+  }
+}
+
 export default function ThemeToggle() {
   // null on the server: the icon is decided only in the browser.
   const theme = useSyncExternalStore<Theme | null>(subscribe, currentTheme, () => null);
+  useEffect(reapplyStoredTheme, []);
 
   const toggle = () => {
     const next: Theme = currentTheme() === "dark" ? "light" : "dark";

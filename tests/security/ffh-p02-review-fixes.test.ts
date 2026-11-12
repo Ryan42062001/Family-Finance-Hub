@@ -28,3 +28,19 @@ test("fixed sidebar scrolls on short viewports so bottom controls stay reachable
   const css = read("../../app/globals.css");
   assert.match(css, /\.site-header\.app-sidebar\{overflow-y:auto/);
 });
+
+test("QA #109: dashboard chart title is one text node (no hydration mismatch) and the theme re-applies after mount", () => {
+  const flow = read("../../components/dashboard/MonthlyMoneyFlow.tsx");
+  assert.match(flow, /<title>\{`Monthly income to commitments, remaining cash flow\$\{/);
+  // Every <title> must be a single string: mixed text and {expressions} hydrate differently and reset the page.
+  for (const title of flow.match(/<title>[\s\S]*?<\/title>/g) ?? []) assert.match(title, /^<title>\{`[^`]*`\}<\/title>$/, title);
+  const toggle = read("../../components/ThemeToggle.tsx");
+  assert.match(toggle, /useEffect\(reapplyStoredTheme, \[\]\)/);
+  assert.doesNotMatch(toggle, /fetch\(|supabase|cookie/i);
+});
+
+test("QA #108 aid: the account menu names the signed-in email from the verified claims", () => {
+  const header = read("../../components/AppHeader.tsx");
+  assert.match(header, /typeof data\?\.claims\?\.email === "string"/);
+  assert.match(header, /Signed in as <b className="account-email">\{signedInEmail\}<\/b>/);
+});

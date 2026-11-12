@@ -809,3 +809,4 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
   .site-header.app-sidebar{overflow-y:auto;overscroll-behavior:contain}
   .app-sidebar .site-header-inner{height:auto;min-height:100%}
 }
+.account-menu .account-email{display:block;margin-top:.15rem;color:var(--text);font-weight:600;overflow-wrap:anywhere}

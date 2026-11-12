@@ -84,6 +84,19 @@
     `lib/formatting/balance-bar.ts` now draws a neutral track, a proportional bar, or no bar with a note.
   - LOW: the fixed sidebar had no scroll fallback on short windows. It now scrolls.
 
+- **FFH-P02 Work mode QA (2026-11-12): stopped on a CRITICAL report.**
+  - **#108:** after a TestA sign-in attempt, the Preview showed TestB's household and its $222 record. QA itself
+    noted it is not yet established whether a wrong-account or stale session explains it. The release is
+    **blocked** until Ryan reproduces it manually and checks hosted memberships. Code review found no path that
+    returns another user's session: sign-in is Supabase password auth, and dashboard queries are RLS-scoped (913-check
+    CI matrix green). Aid added: the account menu now shows "Signed in as <email>" from the verified claims.
+  - **#109 (MEDIUM), fixed:** the dark mode choice reset on reload, on the dashboard only. Cause: SVG `<title>`
+    elements built from mixed text and expressions caused a React hydration mismatch (present since FFH-P01), and
+    the client rebuild dropped `data-theme`. Fix: single-string titles, plus the toggle re-applies the stored theme
+    after mount.
+  - Q9 and Q11 were NOT RUN: the cloud browser has a fixed 1363 px viewport and no OS colour control. They need
+    Ryan or a local Playwright run.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

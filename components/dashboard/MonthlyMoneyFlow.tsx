@@ -62,7 +62,7 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
       <svg viewBox={`0 0 ${layout.width} ${layout.height}`} role="img"
         aria-label={`Proportional ${layout.expanded ? "three-stage" : "two-stage"} monthly household money flow. Income ${dollars(flow.incomeCents)}; ${flow.shortfallCents ? `unfunded deficit ${dollars(flow.shortfallCents)}; ` : ""}use the text table below for the full breakdown.`}
         preserveAspectRatio="xMidYMin meet">
-        <title>Monthly income to commitments, remaining cash flow{layout.expanded ? " and recorded expense categories" : ""}</title>
+        <title>{`Monthly income to commitments, remaining cash flow${layout.expanded ? " and recorded expense categories" : ""}`}</title>
         <text x="14" y="30" className="money-flow-svg-heading">1 · Recorded resources</text>
         <text x={layout.expanded ? 490 : 465} y="30" className="money-flow-svg-heading">2 · Monthly outcomes</text>
         {layout.expanded ? <text x="853" y="30" className="money-flow-svg-heading">3 · Saved expense categories</text> : null}
@@ -86,7 +86,7 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
           onMouseEnter={()=>setFocused(edge.id)} onMouseLeave={()=>setFocused(null)}
           onClick={()=>activateEdge(edge)}
           onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activateEdge(edge);}}}>
-          <title>{edge.label}: {dollars(edge.cents)} · {shareLabel(edge.cents)}</title>
+          <title>{`${edge.label}: ${dollars(edge.cents)} · ${shareLabel(edge.cents)}`}</title>
         </path>)}
 
         {layout.edges.filter(edge=>edge.child).map(edge=><path key={edge.id} d={edge.path}
@@ -98,7 +98,7 @@ export default function MonthlyMoneyFlow({ input }: { input: FlowInput }) {
           onMouseEnter={()=>setFocused(edge.id)} onMouseLeave={()=>setFocused(null)}
           onClick={()=>activateEdge(edge)}
           onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activateEdge(edge);}}}>
-          <title>{edge.label}: {dollars(edge.cents)} · {shareLabel(edge.cents)}</title>
+          <title>{`${edge.label}: ${dollars(edge.cents)} · ${shareLabel(edge.cents)}`}</title>
         </path>)}
 
         {layout.nodes.filter(node=>!node.parentId).map(node=> <g key={node.id}>
