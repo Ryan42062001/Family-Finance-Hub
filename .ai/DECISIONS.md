@@ -71,6 +71,9 @@
   household invitations, goals with dates plus monthly check-in/history, account settings, bills and export. CSV
   import dropped for now; monthly email deferred. Simple mode is an opt-in per-household switch, not the default.
   Details: `docs/PRODUCT_ROADMAP.md`.
+- **Nine additional features approved (Ryan)** and slotted into those phases: example household, "what's missing"
+  checklist, debt-free date and cushion badges (money plan); home-screen install (Simple mode); "Can we afford it?",
+  irregular costs, per-paycheck view, balance update reminder (goals/check-in); two-factor sign-in (account settings).
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 

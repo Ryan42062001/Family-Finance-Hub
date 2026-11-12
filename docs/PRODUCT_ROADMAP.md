@@ -25,14 +25,24 @@ Production deployment is a separate Ryan decision and is not authorized by this 
 1. **Your money plan as the home screen.** Surface the existing Money Priority Engine as a plain, ordered list of
    steps (amount, destination, one-line reason, status: Recommended / Worth considering / Needs more information).
    The current dashboard numbers move under it. No new financial policy: every step comes from the engine. HIGH risk
-   (money recommendations), so the independent review is a different model.
+   (money recommendations), so the independent review is a different model. Also in this phase:
+   - a read-only **example household** (synthetic numbers) to try the plan before entering data;
+   - a **"what's missing" checklist** naming the facts that unlock *Needs more information* steps;
+   - headline badges: **debt-free date** and **months of cushion**, from existing calculations.
 2. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
    other spending, debts, savings), then straight to the money plan. Simple mode hides Scenario Lab, the HSA/SIMPLE
-   IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off.
+   IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off. Also:
+   **install on the phone home screen** (web app manifest and icons).
 3. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
 4. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with
-   history of net worth and cash flow.
-5. Account settings: change password and email, delete account (also enables test-account cleanup).
+   history of net worth and cash flow. Also:
+   - **"Can we afford it?"**: a big-purchase check showing how the plan changes (surfaces the existing
+     home-affordability calculation and generalises the question);
+   - **irregular costs** (yearly or quarterly bills) set aside as a monthly amount;
+   - a **per-paycheck view** of the plan, building on the paycheck planner;
+   - an in-app **balance update reminder** after 30 days (email reminders wait for email deliverability).
+5. Account settings: change password and email, delete account (also enables test-account cleanup), and
+   **two-factor sign-in** (authenticator app). HIGH risk (auth).
 6. Bills and due dates with optional reminders, then export of the plan (PDF/CSV).
 
 Changes alongside: Scenario Lab becomes a "What if?" action on the money plan; overlapping planning calculators fold
