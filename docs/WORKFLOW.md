@@ -69,7 +69,7 @@ Before the merge:
 - Hosted Supabase parity still matches if migrations changed (`scripts/rls-local/parity.sql`).
 
 Right after the merge, once Vercel reports the Production deployment Ready:
-- `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-ten-brown.vercel.app` must be 12/12. If not,
+- `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,
   fix the cause or use Vercel Instant Rollback, and record the incident in `.ai/DECISIONS.md`.
 
 ## Continuous checks (`.github/workflows/ci.yml`)

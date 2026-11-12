@@ -38,6 +38,15 @@
   off-site-redirect checks still passed. Ryan added `NEXT_PUBLIC_SITE_URL` for Production and rebuilt via a deploy
   hook (Vercel's email verification for Redeploy was unreachable); the smoke test then passed **12/12**. Prevention:
   the release checklist now requires the variable in every environment and a smoke test right after each release.
+- **Production moved to a new Vercel account.** The old account's email was the Apple "Sign in with Apple" relay
+  address that belongs to GitHub, which only accepts GitHub's mail, so Vercel's verification codes never arrived and
+  sensitive settings could not be changed. Ryan created a new Vercel account (codes reach him), imported the same
+  repository and kept the same Supabase project. New Production: `https://family-finance-hub-taupe.vercel.app`, with
+  `NEXT_PUBLIC_SITE_URL` set for Production only (type Config). Supabase Site URL set to that address (the
+  Vercel–Supabase integration had changed it to `family-finance-hub-ryankis01-4544.vercel.app/`; the *Confirm sign up*
+  template links via `{{ .SiteURL }}`, so it must match the live site) and `https://family-finance-hub-taupe.vercel.app/**`
+  added to Redirect URLs. Deployed smoke test on the new site: **12/12** (2026-11-12). The old account's project and its
+  `prod-redeploy` hook are to be retired once the switch-over is confirmed.
 
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
@@ -54,6 +63,11 @@
 - LOW (operations): let each Vercel Preview trust its own branch URL automatically (e.g. from Vercel's system
   variables) instead of a branch-scoped `NEXT_PUBLIC_SITE_URL` per phase. This touches the auth origin check, so it
   needs its own reviewed change.
-- LOW (operations): Vercel sends sensitive-action verification codes to a Hide My Email address that is not reaching
-  Ryan. Fix the forwarding or add a second account email before the next release.
-- LOW (operations): a Vercel deploy hook URL was shown in a chat screenshot; delete or rotate the `prod-redeploy` hook.
+- LOW (operations): retire the old Vercel project (`ryan-s-team9`, `family-finance-hub-ten-brown.vercel.app`) and its
+  `prod-redeploy` hook (Ryan accepted the hook-exposure risk until then), and remove the old hosts from Supabase
+  Redirect URLs.
+- MEDIUM (operations): the Vercel–Supabase integration copied server-only secrets into the new Vercel project
+  (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET`, `POSTGRES_*`). The app reads only the
+  three `NEXT_PUBLIC_*` variables, so these only widen what a Vercel account compromise would expose. Remove them (or
+  the integration) once the switch-over is settled. It also added `ryankis01-4544` Redirect URLs (including
+  `family-*-…` Preview wildcards); review them with the old-host cleanup.
