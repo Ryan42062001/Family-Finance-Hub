@@ -1,4 +1,3 @@
-import Link from "next/link";
 import ProfileSection from "@/components/ProfileSection";
 import ProfileWorkspace from "@/components/ProfileWorkspace";
 import { redirect } from "next/navigation";
@@ -88,8 +87,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
   return (
     <main className="page-shell">
       <section className="hero-card profile-hero">
-        <div><p className="eyebrow">Your household data</p><h1>Build your financial profile</h1><p className="muted">Keep the numbers behind your dashboard and planning tools accurate. Changes are saved only when you submit a section.</p></div>
-        <Link className="secondary-button" href="/dashboard">Back to dashboard</Link>
+        <div><p className="eyebrow">Your household data</p><h1>Financial profile</h1><p className="muted">The numbers behind your dashboard and planning tools. Changes save only when you submit a section.</p></div>
       </section>
       {message ? <p className="success-banner">{message}</p> : null}
 

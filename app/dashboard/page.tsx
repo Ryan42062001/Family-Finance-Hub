@@ -15,6 +15,31 @@ import MonthlyMoneyFlow from "@/components/dashboard/MonthlyMoneyFlow";
 
 export const dynamic = "force-dynamic";
 
+// Small decorative icons for the dashboard number cards (hidden from screen readers).
+function MetricIcon({ name }: { name: "worth" | "flow" | "rate" | "health" }) {
+  const paths = {
+    worth: <><path d="M3 10h18" /><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" /><path d="M3 20h18" /><path d="M12 3 3 8h18z" /></>,
+    flow: <><path d="M4 7h11" /><path d="m12 4 3 3-3 3" /><path d="M20 17H9" /><path d="m12 14-3 3 3 3" /></>,
+    rate: <><path d="M19 5 5 19" /><circle cx="7" cy="7" r="2.5" /><circle cx="17" cy="17" r="2.5" /></>,
+    health: <><path d="M3 12h4l2-5 4 10 2-5h6" /></>,
+  } as const;
+  return <svg className="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}
+
+// Circular gauge. The ring only visualises a value already shown as text; it clamps to 0–100% for drawing.
+function Ring({ value, text, label, caption }: { value: number | null; text: string; label: string; caption: string }) {
+  const circumference = 2 * Math.PI * 42;
+  const shown = value === null || !Number.isFinite(value) ? 0 : Math.min(1, Math.max(0, value));
+  return <div className="ring">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <circle className="ring-track" cx="50" cy="50" r="42" />
+      <circle className="ring-value" cx="50" cy="50" r="42" strokeDasharray={`${shown * circumference} ${circumference}`} />
+    </svg>
+    <div className="ring-center"><strong>{text}</strong><small>{label}</small></div>
+    <span className="bento-caption ring-caption">{caption}</span>
+  </div>;
+}
+
 const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
 
 export default async function DashboardPage() {
@@ -112,18 +137,46 @@ export default async function DashboardPage() {
       </section>
       <div className="dashboard-desktop-view">
       <section className="hero-card dashboard-desktop-hero">
-        <div><p className="eyebrow">Your household command center</p><h1>{household.name}</h1></div>
+        <div><p className="eyebrow">Overview</p><h1>{household.name}</h1></div>
         <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link><Link className="secondary-button" href="/planning">Planning tools</Link></div>
       </section>
 
-      {completion < 100 ? <section className="dashboard-notice"><div><strong>Financial profile: {completion}% complete</strong><p>Add missing sections to make dashboard metrics and future recommendations more complete.</p></div><Link className="secondary-button" href="/financial-profile">Finish profile</Link></section> : null}
-
-
-      <section className="metric-grid dashboard-metrics">
-        <article className="metric-card"><p>Net worth</p><strong>{money(summary.netWorth)}</strong><span>{money(accountAssets + retirementAssets)} assets · {money(totalDebt)} debt</span></article>
-        <article className="metric-card"><p>Monthly cash flow</p><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong><span>{hasCashFlowData ? "After expenses, debt minimums, and your retirement contributions" : "Add income and expenses to calculate"}</span></article>
-        <article className="metric-card"><p>Savings rate</p><strong>{hasCashFlowData ? percent : "—"}</strong><span>Cash surplus + your retirement contributions</span></article>
-        <article className="metric-card"><p>Financial health</p><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><span>{health.status} · {health.message}</span></article>
+      {/* Bento overview: display only; every number comes from the existing summary above. */}
+      <section className="bento-grid" aria-label="Household numbers">
+        <article className="bento-card bento-hero">
+          <div className="bento-hero-main">
+            <p className="metric-label"><MetricIcon name="flow" />Monthly cash flow</p>
+            <strong className="bento-hero-number">{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong>
+            <span className="bento-caption">{hasCashFlowData ? "After expenses, debt minimums, and your retirement contributions" : "Add income and expenses to calculate"}</span>
+            <dl className="bento-stats">
+              <div><dt>Income</dt><dd>{money(summary.monthlyIncome)}</dd></div>
+              <div><dt>Expenses</dt><dd>{money(summary.monthlyExpenses)}</dd></div>
+              <div><dt>Debt minimums</dt><dd>{money(summary.monthlyDebtPayments)}</dd></div>
+            </dl>
+          </div>
+          <Ring value={hasCashFlowData ? summary.savingsRate : null} text={hasCashFlowData ? percent : "—"} label="Savings rate" caption="Cash surplus + your retirement contributions" />
+        </article>
+        <article className="bento-card">
+          <p className="metric-label"><MetricIcon name="worth" />Net worth</p>
+          <strong className="bento-number">{money(summary.netWorth)}</strong>
+          <div className="balance-bar" aria-hidden="true"><div style={{ width: `${accountAssets + retirementAssets + totalDebt > 0 ? ((accountAssets + retirementAssets) / (accountAssets + retirementAssets + totalDebt)) * 100 : 0}%` }} /></div>
+          <span className="bento-caption balance-legend"><span><i className="dot-assets" />{money(accountAssets + retirementAssets)} assets</span><span><i className="dot-debt" />{money(totalDebt)} debt</span></span>
+          <dl className="bento-stats">
+            <div><dt>Cash &amp; taxable</dt><dd>{money(accountAssets)}</dd></div>
+            <div><dt>Retirement</dt><dd>{money(retirementAssets)}</dd></div>
+          </dl>
+        </article>
+        <article className="bento-card bento-health">
+          <p className="metric-label"><MetricIcon name="health" />Financial health</p>
+          <Ring value={health.score === null ? null : health.score / 100} text={health.score === null ? "—" : String(health.score)} label="out of 100" caption={`${health.status} · ${health.message}`} />
+        </article>
+        {completion < 100 ? (
+          <article className="bento-card bento-progress">
+            <div className="profile-progress-text"><strong>Financial profile {completion}% complete</strong><span>Add the missing sections to make these numbers more complete.</span></div>
+            <div className="profile-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completion} aria-label="Profile completeness"><div style={{ width: `${completion}%` }} /></div>
+            <Link className="profile-progress-link" href="/financial-profile">Finish profile →</Link>
+          </article>
+        ) : null}
       </section>
 
       <MonthlyMoneyFlow input={moneyFlowInput} />

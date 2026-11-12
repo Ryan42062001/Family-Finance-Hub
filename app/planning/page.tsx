@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import PlanningCalculators from "@/components/planning/PlanningCalculators";
 import { createClient } from "@/lib/supabase/server";
@@ -56,8 +55,7 @@ export default async function PlanningPage() {
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <div><p className="eyebrow">Explore without changing your profile</p><h1>Household planning tools</h1><p className="muted">Start with saved household data, adjust assumptions locally, and compare outcomes without changing your live profile.</p></div>
-        <div className="hero-actions"><Link className="secondary-button" href="/dashboard">Back to dashboard</Link></div>
+        <div><p className="eyebrow">Explore without changing your profile</p><h1>Planning</h1><p className="muted">Start from your saved household data, adjust assumptions here, and compare outcomes. Nothing here changes your profile.</p></div>
       </section>
 
 

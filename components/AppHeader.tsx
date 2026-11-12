@@ -19,7 +19,8 @@ export default async function AppHeader() {
 
   return (
     <>
-    <header className="site-header">
+    {/* Signed in: on wide screens the header becomes a left sidebar (CSS); signed out it stays a slim top bar. */}
+    <header className={authenticated ? "site-header app-sidebar" : "site-header"}>
       <div className="site-header-inner">
         <Link className="brand" href={authenticated ? "/dashboard" : "/"} aria-label={authenticated ? "Family Finance Hub dashboard" : "Family Finance Hub home"}>
           <span className="brand-mark" aria-hidden="true">FF</span>
@@ -30,11 +31,20 @@ export default async function AppHeader() {
           {authenticated ? (
             <nav className="site-nav" aria-label="Primary navigation">
               {links.map(([name, href]) => <DesktopNavLink key={href} href={href} label={name} />)}
-              <form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form>
             </nav>
           ) : null}
           <ThemeToggle />
-          {authenticated ? <details className="mobile-account-menu"><summary>Account</summary><div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div></details> : null}
+          {/* One account menu for every screen size; Sign out lives here instead of in the tab row. */}
+          {authenticated ? (
+            <details className="mobile-account-menu account-menu">
+              <summary aria-label="Account menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+                </svg>
+              </summary>
+              <div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
+            </details>
+          ) : null}
         </div>
       </div>
     </header>

@@ -14,17 +14,21 @@ not authorized by anything else in this phase.
 
 ## Goal
 
-A calmer, modern look across every page: a neutral background, flat cards with thin borders, one accent colour, solid
-buttons, aligned (tabular) numbers, and a **dark mode** that follows the device setting, with a manual toggle.
+A modern, futuristic look across every page, with a **dark mode** that follows the device setting and a manual toggle.
+After Ryan's first Preview review ("still too similar"), the scope grew to a structural refresh (approved 2026-11-12):
+a left sidebar app shell on wide screens, a bento dashboard with ring gauges, glass cards on a glowing background,
+segmented tabs and a split-screen sign-in.
 
 ## Scope
 
-- A design-token rewrite in `app/globals.css` with light and dark themes. Layout, breakpoints and class names stay,
-  so pages and tests keep working.
+- A design-token rewrite in `app/globals.css` with light and dark themes.
+- Structural presentation changes: sidebar shell (`AppHeader`, `DesktopNavLink`), account menu holding Sign out,
+  slim page titles, bento dashboard (`app/dashboard/page.tsx`; rings and bars only draw values already shown as text),
+  profile and planning tabs, split-screen auth pages, icon tab bar on phones.
 - Header, navigation and the mobile tab bar restyled, plus a theme toggle (remembered per browser, no flash on load).
 - Every page restyled through the shared tokens: auth, onboarding, dashboard (including the money-flow chart),
   financial profile, planning and Scenario Lab.
-- `docs/workflow/QA_CHECKLIST.md` gains dark-mode checks.
+- `docs/workflow/QA_CHECKLIST.md` gains dark-mode checks and the new layout's expectations.
 
 ## Out of scope / boundaries
 
