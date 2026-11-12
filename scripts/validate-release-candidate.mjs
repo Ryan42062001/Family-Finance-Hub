@@ -43,26 +43,33 @@ export const phaseLifecycleStates = [
   'CLOSED',
 ];
 
+// The current phase is whichever FFH-P<n> ID .ai/CURRENT_PHASE.md names first.
+// The roadmap must name the same phase, and the State line that follows that
+// ID in the roadmap must match. Both files must keep production deployment as a
+// separate decision.
 export function validatePhaseAuthority(phase, roadmap) {
   const phaseFailures = [];
+  const phaseId = phase.match(/\bFFH-P\d+\b/)?.[0];
+  if (!phaseId) return ['current phase must identify an FFH-P<n> phase'];
   const states = new Map();
-  for (const [name, content] of [['current phase', phase], ['roadmap', roadmap]]) {
-    if (!content.includes('FFH-P01')) {
-      phaseFailures.push(`${name} must identify FFH-P01`);
-      continue;
-    }
+  const roadmapIndex = roadmap.indexOf(phaseId);
+  if (roadmapIndex < 0) phaseFailures.push(`roadmap must identify ${phaseId}`);
+  for (const [name, content] of [['current phase', phase], ['roadmap', roadmapIndex < 0 ? null : roadmap.slice(roadmapIndex)]]) {
+    if (content === null) continue;
     const state = content.match(/\bState:\s*([A-Z_]+)\b/)?.[1];
     if (!state || !phaseLifecycleStates.includes(state)) {
-      phaseFailures.push(`${name} must use a valid FFH-P01 lifecycle state`);
+      phaseFailures.push(`${name} must use a valid ${phaseId} lifecycle state`);
     } else {
       states.set(name, state);
     }
+  }
+  for (const [name, content] of [['current phase', phase], ['roadmap', roadmap]]) {
     if (!(/production deployment/i.test(content) && /not authoriz|unauthoriz|separate/i.test(content))) {
       phaseFailures.push(`${name} must preserve separate production authorization`);
     }
   }
   if (states.has('current phase') && states.has('roadmap') && states.get('current phase') !== states.get('roadmap')) {
-    phaseFailures.push('current phase and roadmap must agree on FFH-P01 lifecycle state');
+    phaseFailures.push(`current phase and roadmap must agree on ${phaseId} lifecycle state`);
   }
   return phaseFailures;
 }

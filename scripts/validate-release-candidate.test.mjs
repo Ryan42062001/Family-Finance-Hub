@@ -58,3 +58,17 @@ test('FFH-P01 lifecycle authority preserves separate production authorization', 
   const roadmap = '# Roadmap\nFFH-P01\nState: BUILDING\nProduction deployment remains separately authorized.\n';
   assert.match(validatePhaseAuthority(phase, roadmap).join('\n'), /preserve separate production authorization/);
 });
+
+test('a later phase is checked against its own roadmap section, not an earlier closed phase', () => {
+  const phase = '# Current phase\n\nFFH-P02 — Modern UI\n\nState: BUILDING\nProduction deployment is a separate decision, not authorized.\n';
+  const roadmap = '# Roadmap\n\n## FFH-P01\nState: CLOSED.\n\n## FFH-P02\nState: BUILDING. Risk: LOW.\nProduction deployment is not authorized.\n';
+  assert.deepEqual(validatePhaseAuthority(phase, roadmap), []);
+  const drift = roadmap.replace('## FFH-P02\nState: BUILDING', '## FFH-P02\nState: AUDITING');
+  assert.match(validatePhaseAuthority(phase, drift).join('\n'), /must agree on FFH-P02/);
+});
+
+test('phase authority fails when the roadmap does not name the current phase', () => {
+  const phase = '# Current phase\nFFH-P03\nState: BUILDING\nProduction deployment is separate and not authorized.\n';
+  const roadmap = '# Roadmap\nFFH-P01\nState: CLOSED\nProduction deployment is separate and not authorized.\n';
+  assert.match(validatePhaseAuthority(phase, roadmap).join('\n'), /roadmap must identify FFH-P03/);
+});
