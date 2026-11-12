@@ -1,12 +1,11 @@
 # Current phase
 
-FFH-P02 — Modern UI refresh and dark mode
+FFH-P03 — Your money plan (home screen)
 
 State: BUILDING
-Risk: LOW (presentation only)
+Risk: HIGH (shows money recommendations to the household)
 Owner: Ryan
-Phase branch / PR: `phase/ffh-p02-modern-ui` → `main`
-Design reference: owner-approved mockup (Claude canvas "Family Finance Hub refresh", 2026-11-12)
+Phase branch / PR: `phase/ffh-p03-money-plan` → `main`
 
 Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
 approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
@@ -14,31 +13,35 @@ not authorized by anything else in this phase.
 
 ## Goal
 
-A modern, futuristic look across every page, with a **dark mode** that follows the device setting and a manual toggle.
-After Ryan's first Preview review ("still too similar"), the scope grew to a structural refresh (approved 2026-11-12):
-a left sidebar app shell on wide screens, a bento dashboard with ring gauges, glass cards on a glowing background,
-segmented tabs and a split-screen sign-in.
+Make the app answer "what should we do with our money this month?" on the first screen. The existing Money Priority
+Engine already ranks recommendations with amounts, reasons, trade-offs and missing data; today it only appears inside
+Scenario Lab. This phase shows it as a plain, ordered plan.
 
 ## Scope
 
-- A design-token rewrite in `app/globals.css` with light and dark themes.
-- Structural presentation changes: sidebar shell (`AppHeader`, `DesktopNavLink`), account menu holding Sign out,
-  slim page titles, bento dashboard (`app/dashboard/page.tsx`; rings and bars only draw values already shown as text),
-  profile and planning tabs, split-screen auth pages, icon tab bar on phones.
-- Header, navigation and the mobile tab bar restyled, plus a theme toggle (remembered per browser, no flash on load).
-- Every page restyled through the shared tokens: auth, onboarding, dashboard (including the money-flow chart),
-  financial profile, planning and Scenario Lab.
-- `docs/workflow/QA_CHECKLIST.md` gains dark-mode checks and the new layout's expectations.
+- **Your money plan** page: the engine's ranked recommendations as steps (rank, title, monthly amount from its
+  allocations, status Recommended / Worth considering / Needs more information, explanation, and expandable "why now",
+  trade-offs and assumptions). Plan-level feasibility warnings shown as the engine reports them.
+- It becomes the signed-in home: first item in the navigation and where sign-in lands. The current Overview stays as
+  "Your numbers".
+- **What's missing** checklist from the engine's `missingData`, each item linking to the profile section that fixes it.
+- Headline badges from existing calculations: **months of cushion** (emergency fund) and **debt-free date** (debt
+  payoff at current payments), each shown only when the inputs are complete.
+- **Example household**: a read-only demo of the plan built from a fixed synthetic snapshot, reachable signed out
+  from the sign-in page. It never reads or writes the database.
+- `docs/workflow/QA_CHECKLIST.md` gains money-plan and demo checks.
 
 ## Out of scope / boundaries
 
-- No changes to calculations, data, auth, RLS, server actions or database. Any such change is a different phase.
-- New features (household invitations, account settings, bills, history, CSV import) are later phases, in the order
-  recorded in `docs/PRODUCT_ROADMAP.md`.
+- No new financial policy: every step, amount and reason comes from the existing engine and calculation modules.
+  Presentation may group, order and word things, never change amounts or rules.
+- Unknown or invalid inputs fail closed: no step is shown as Recommended when the engine says more information is
+  needed.
+- No schema, RLS or auth changes. Simple mode, Scenario Lab merging and the other roadmap items are later phases.
 
 ## Done when
 
 - CI green (`fast`, `rls-matrix`); `npm run verify` passes.
-- Work mode QA on the Preview passes in light and dark mode; Ryan accepts the look.
-- Independent review: a fresh Claude session (routine, LOW-risk phase).
+- Work mode QA on the Preview passes, including the new money-plan checks; Ryan accepts the plan.
+- Independent review by a different model (ChatGPT), because this phase is HIGH risk.
 - Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.

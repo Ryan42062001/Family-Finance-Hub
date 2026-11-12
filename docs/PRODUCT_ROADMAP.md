@@ -15,10 +15,15 @@ plan. Current gate status: `docs/FFH-P01_RELEASE_READINESS.md`; open work: `.ai/
 Production deployment, Private Beta and paid domain/configuration are separate Ryan decisions, not authorized by this
 phase.
 
-## FFH-P02 — Modern UI refresh and dark mode
+## FFH-P02 — Modern redesign and dark mode
 
-State: BUILDING. Risk: LOW. Branch `phase/ffh-p02-modern-ui`. Presentation only; no data, auth or calculation changes.
-Production deployment is a separate Ryan decision and is not authorized by this phase.
+State: CLOSED. Risk: LOW. Released to Production via PR #98 at `e639533` (2026-11-12), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Presentation only.
+
+## FFH-P03 — Your money plan (home screen)
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p03-money-plan`. Scope: `.ai/CURRENT_PHASE.md` (item 1 below, with the
+example household, "what's missing" checklist and headline badges).
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
