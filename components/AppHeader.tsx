@@ -16,6 +16,8 @@ export default async function AppHeader() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const authenticated = Boolean(data?.claims?.sub);
+  // Shown only to the signed-in user, in their own account menu, so a wrong-account sign-in is obvious.
+  const signedInEmail = typeof data?.claims?.email === "string" ? data.claims.email : null;
 
   return (
     <>
@@ -42,7 +44,7 @@ export default async function AppHeader() {
                   <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
                 </svg>
               </summary>
-              <div><span>Household account</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
+              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
             </details>
           ) : null}
         </div>
