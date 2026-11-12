@@ -568,3 +568,103 @@ button:hover{background:var(--accent-hover);box-shadow:none;transform:none}
   .mobile-planning-options>button[aria-pressed=true],.mobile-planning-options>.selected,.mobile-planning-options>a[aria-current=page]{color:var(--on-accent);background:var(--accent);border-color:var(--accent)}
   .mobile-overview-records a{color:var(--accent-text)}
 }
+
+/* ==========================================================================
+   FFH-P02 layout refresh. Presentation only: slimmer page titles, underline
+   tabs, one account menu, a profile progress bar, icon number cards, profile
+   tabs and calmer type. Every colour still comes from the theme tokens.
+   ========================================================================== */
+body{font-size:15px}
+h1,h2,h3{font-weight:620}
+.eyebrow{font-size:.68rem;letter-spacing:.08em;font-weight:600}
+
+/* Header: tabs with an accent underline; account menu on every screen size. */
+.site-header-inner{min-height:64px;gap:1.5rem}
+.site-nav{gap:.1rem}
+.site-nav a{position:relative;padding:.5rem .8rem;border-radius:8px;font-size:.9rem;font-weight:500;color:var(--muted);background:transparent}
+.site-nav a:hover{color:var(--text);background:transparent}
+.site-nav a[aria-current=page]{color:var(--heading);background:transparent;font-weight:600}
+.site-nav a[aria-current=page]:after{content:"";position:absolute;left:.8rem;right:.8rem;bottom:-14px;height:2px;border-radius:2px;background:var(--accent)}
+.account-menu{display:block;position:relative;flex:0 0 auto;margin:0}
+.account-menu>summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:38px;height:38px;min-width:0;min-height:0;padding:0;border-radius:50%;color:var(--muted);background:var(--nav-active);border:1px solid var(--line)}
+.account-menu>summary::-webkit-details-marker{display:none}
+.account-menu>summary svg{width:18px;height:18px}
+.account-menu>summary:hover,.account-menu[open]>summary{color:var(--text);border-color:var(--line-strong)}
+.account-menu>div{position:absolute;right:0;top:calc(100% + .5rem);width:220px;padding:.75rem;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);z-index:40}
+.account-menu span{display:block;margin-bottom:.55rem;font-size:.78rem;color:var(--muted)}
+.account-menu .nav-sign-out{width:100%;min-height:38px;justify-content:center;color:var(--text);background:var(--surface-sunken);border:1px solid var(--line-strong);font-size:.88rem;font-weight:600}
+.account-menu .nav-sign-out:hover{background:var(--nav-active)}
+@media(max-width:1100px){.brand small{display:none}}
+@media(min-width:761px) and (max-width:950px){
+  .site-header-inner{flex-direction:row;align-items:center;gap:1rem;padding:0}
+  .site-nav{width:auto;overflow:visible;padding:0}
+  .site-nav a{padding:.5rem .55rem;font-size:.86rem}
+  .site-nav a[aria-current=page]:after{left:.55rem;right:.55rem}
+}
+@media(max-width:760px){.account-menu>summary{width:44px;height:44px}}
+
+/* Page titles: a slim row with a divider instead of a boxed banner. */
+.hero-card,.scenario-lab-page>.hero-card,.dashboard-desktop-hero,.profile-hero{align-items:flex-end;gap:1.5rem;margin:0 0 1.5rem;padding:0 0 1.1rem;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none}
+.hero-card h1,.scenario-lab-page>.hero-card h1,.dashboard-desktop-hero h1,.profile-hero h1{margin:.2rem 0 .2rem;max-width:none;font-size:clamp(1.45rem,3vw,1.85rem);font-weight:650}
+.hero-card .muted,.profile-hero .muted{margin:0;max-width:64ch;font-size:.92rem}
+.hero-card .secondary-button{min-height:36px;padding:.45rem .85rem;font-size:.85rem}
+@media(max-width:650px){.hero-card,.profile-hero{align-items:flex-start;margin-bottom:1rem;padding:0 0 .9rem}}
+
+/* Dashboard: profile progress bar instead of a yellow notice. */
+.profile-progress{display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,260px) auto;align-items:center;gap:1.25rem;margin:0 0 1rem;padding:.8rem 1.1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.profile-progress-text{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.profile-progress-text strong{color:var(--heading);font-size:.92rem;font-weight:600}
+.profile-progress-text span{color:var(--muted);font-size:.82rem}
+.profile-progress-track{height:8px;overflow:hidden;border-radius:999px;background:var(--surface-sunken);border:1px solid var(--line)}
+.profile-progress-track>div{height:100%;border-radius:999px;background:var(--accent)}
+.profile-progress-link{color:var(--accent-text);font-size:.88rem;font-weight:600;white-space:nowrap}
+.profile-progress-link:hover{text-decoration:underline}
+
+/* Dashboard number cards: icon + label, one large number, a quiet caption. */
+.dashboard-metrics{gap:1rem;margin:0 0 1rem}
+.dashboard-metrics .metric-card{padding:1.1rem 1.15rem;border-radius:12px}
+.metric-card .metric-label{display:flex;align-items:center;gap:.55rem;color:var(--muted);font-size:.84rem;font-weight:500}
+.metric-icon{flex:0 0 auto;width:30px;height:30px;padding:6px;border-radius:8px;color:var(--accent-text);background:var(--accent-soft)}
+.dashboard-metrics .metric-card strong{margin:.75rem 0 .3rem;font-size:clamp(1.45rem,2.3vw,1.85rem);font-weight:650}
+.dashboard-metrics .metric-card span{font-size:.78rem}
+
+/* Money-flow chart: its own calm card with lighter labels. */
+.monthly-flow-panel{margin:0 0 1rem;padding:1.25rem 1.4rem;border-radius:12px}
+.money-flow-head{padding-bottom:.8rem}
+.money-flow-head .eyebrow{display:none}
+.money-flow-head h2{margin:0 0 .2rem;font-size:1.15rem}
+.money-flow-total{padding:.5rem .8rem;background:var(--surface-sunken);border:1px solid var(--line)}
+.money-flow-total small{font-weight:500}
+.money-flow-total strong{color:var(--heading);font-size:1.35rem;font-weight:650}
+.money-flow-svg-heading{font-size:12px;letter-spacing:.06em;font-weight:600}
+.money-flow-svg-label{font-weight:600}
+.money-flow-svg-value{font-weight:650}
+.dashboard-secondary-details{border-radius:12px}
+.dashboard-secondary-details>summary{color:var(--text);font-weight:600}
+
+/* Panels and headings */
+.panel,.metric-card{border-radius:12px}
+.panel-heading h2{font-size:1.1rem}
+
+/* Financial profile: tabs across the top on desktop; tidy rows with amounts on the right. */
+@media(min-width:761px){
+  .profile-desktop-workspace{display:block}
+  .profile-workspace-navigation{position:sticky;top:64px;z-index:5;margin:0 0 1rem;padding:0;background:var(--bg);border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;backdrop-filter:none}
+  .profile-workspace-links{display:flex;gap:.15rem;overflow-x:auto}
+  .profile-workspace-links a{position:relative;justify-content:center;min-height:44px;padding:.65rem .9rem;border-radius:0;color:var(--muted);background:transparent;font-size:.9rem;font-weight:500;white-space:nowrap}
+  .profile-workspace-links a:hover{color:var(--text);background:transparent}
+  .profile-workspace-links a[aria-current=location]{color:var(--heading);background:transparent;font-weight:600}
+  .profile-workspace-links a[aria-current=location]:after{content:"";position:absolute;left:.9rem;right:.9rem;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
+  .profile-workspace-panels>.profile-section-panel{padding:1.1rem 1.3rem}
+  .profile-workspace-panels .record-row>span{grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1.5rem}
+  .profile-workspace-panels .record-row>span small{color:var(--heading);font-size:.92rem;text-align:right;font-variant-numeric:tabular-nums}
+}
+@media(min-width:761px){
+  .planning-workspace-selector{top:80px}
+  .planning-workspace-links button,.planning-workspace-links a{color:var(--muted);font-weight:500;font-size:.9rem}
+  .planning-workspace-links button:hover,.planning-workspace-links a:hover{color:var(--text);background:var(--nav-active)}
+  .planning-workspace-links button[aria-pressed=true],.planning-workspace-links a[aria-current=page]{color:var(--heading);background:var(--nav-active);box-shadow:inset 2px 0 var(--accent);font-weight:600}
+  .profile-workspace-panels .record-list>.record-row{align-items:center}
+}
+.profile-add-disclosure>summary{font-weight:600}
+.scenario-lab-page>.dashboard-notice{margin-bottom:1.25rem}

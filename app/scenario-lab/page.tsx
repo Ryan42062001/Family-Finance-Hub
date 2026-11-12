@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import ScenarioLabWorkspace from "./ScenarioLabWorkspace";
@@ -32,9 +31,6 @@ export default async function ScenarioLabPage() {
           <p className="muted">
             Test explicit what-if assumptions against your current household plan without changing your saved financial profile.
           </p>
-        </div>
-        <div className="hero-actions">
-          <Link className="secondary-button" href="/dashboard">Back to dashboard</Link>
         </div>
       </section>
 
