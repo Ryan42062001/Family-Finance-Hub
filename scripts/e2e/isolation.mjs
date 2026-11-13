@@ -198,7 +198,7 @@ async function readPages(page, origin) {
 async function signOut(page, origin, context) {
   await page.goto(`${origin}/plan`, { waitUntil: "networkidle" });
   await page.click(".account-menu > summary");
-  await Promise.all([page.waitForURL((url) => url.pathname === "/auth/login", { timeout: 20000 }).catch(() => null), page.click(".account-menu form button[type=submit]")]);
+  await Promise.all([page.waitForURL((url) => url.pathname === "/auth/login", { timeout: 20000 }).catch(() => null), page.click(".account-menu button.nav-sign-out")]);
   const onLogin = new URL(page.url()).pathname === "/auth/login";
   const after = await page.goto(`${origin}/dashboard`, { waitUntil: "networkidle" });
   const redirected = new URL(page.url()).pathname === "/auth/login" && (after?.status() ?? 0) < 400;

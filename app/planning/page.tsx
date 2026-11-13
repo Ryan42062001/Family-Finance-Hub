@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import PlanningCalculators from "@/components/planning/PlanningCalculators";
 import { createClient } from "@/lib/supabase/server";
+import DetailedToolNotice from "@/components/DetailedToolNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function PlanningPage() {
   };
 
   return (
-    <main className="page-shell">
+    <main className="page-shell"><DetailedToolNotice path="/planning" />
       <section className="hero-card">
         <div><p className="eyebrow">Explore without changing your profile</p><h1>Planning</h1><p className="muted">Start from your saved household data, adjust assumptions here, and compare outcomes. Nothing here changes your profile.</p></div>
       </section>

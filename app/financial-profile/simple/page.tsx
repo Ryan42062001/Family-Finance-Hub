@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { saveSimplePlanLimitContract } from "./actions";
+import DetailedToolNotice from "@/components/DetailedToolNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function SimplePlanLimitProfilePage({ searchParams }: PageP
   const currentYear = new Date().getUTCFullYear();
 
   return (
-    <main className="page-shell">
+    <main className="page-shell"><DetailedToolNotice path="/financial-profile/simple" />
       <section className="hero-card">
         <div>
           <p className="eyebrow">SIMPLE IRA plan facts</p>

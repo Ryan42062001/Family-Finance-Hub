@@ -17,6 +17,7 @@ import PlanSummary from "@/components/plan/PlanSummary";
 import { MoneyPrioritySnapshotValidationError } from "@/lib/calculations/money-priority-snapshot";
 import { planFromSnapshot, todayUtc, type PlanResult } from "@/lib/plan/plan-result";
 import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
+import { readSimpleMode } from "@/lib/profile/view-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,8 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   if (!claimsData?.claims?.sub) redirect("/auth/login");
+  // FFH-P05: the signed-in user's own Simple view hides the detail cards (display only).
+  const simple = await readSimpleMode(supabase, claimsData.claims.sub);
 
   const { data: households } = await supabase.from("households").select("id, name, created_at").order("created_at").limit(1);
   if (!households?.length) redirect("/onboarding");
@@ -115,7 +118,7 @@ export default async function DashboardPage() {
   };
 
   return (
-    <main className="page-shell">
+    <main className={simple ? "page-shell dashboard-simple" : "page-shell"}>
       <section className="dashboard-mobile-overview" aria-label="Household overview">
         <div className="mobile-dashboard-heading"><p className="eyebrow">Household overview</p><h1>{household.name}</h1></div>
         <PlanSummary plan={plan} headingId="plan-summary-mobile" />
@@ -128,10 +131,10 @@ export default async function DashboardPage() {
           <div><span>Net worth</span><strong>{money(summary.netWorth)}</strong></div>
           <div><span>Savings rate</span><strong>{hasCashFlowData ? percent : "—"}</strong></div>
           <div><span>Retirement assets</span><strong>{money(retirementAssets)}</strong></div>
-          <div><span>Financial health</span><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><small>{health.status}</small></div>
+          {simple ? null : <div><span>Financial health</span><strong>{health.score === null ? "—" : `${health.score}/100`}</strong><small>{health.status}</small></div>}
         </div>
-        <div className="mobile-overview-actions"><Link href="/financial-profile">Edit profile</Link><Link href="/planning">Planning tools</Link></div>
-        <div className="mobile-dashboard-details">
+        <div className="mobile-overview-actions"><Link href="/financial-profile">Edit profile</Link>{simple ? null : <Link href="/planning">Planning tools</Link>}</div>
+        {simple ? null : <div className="mobile-dashboard-details">
           <details><summary><strong>Accounts</strong><span>{accounts.length} saved</span></summary>
             <div className="mobile-overview-records">{accounts.length ? accounts.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(Number(item.balance))}</b></p>) : <p className="empty-state">No accounts yet.</p>}<Link href="/financial-profile#accounts">View accounts</Link></div>
           </details>
@@ -147,12 +150,12 @@ export default async function DashboardPage() {
           <details><summary><strong>Goals</strong><span>{goals.length} saved</span></summary>
             <div className="mobile-overview-records">{goalProgress.length ? goalProgress.slice(0,5).map(item => <p key={item.id}><span>{item.name}</span><b>{money(item.remaining)} remaining</b></p>) : <p className="empty-state">No goals yet.</p>}<Link href="/financial-profile#goals">View goals</Link></div>
           </details>
-        </div>
+        </div>}
       </section>
       <div className="dashboard-desktop-view">
       <section className="hero-card dashboard-desktop-hero">
         <div><p className="eyebrow">Overview</p><h1>{household.name}</h1></div>
-        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link><Link className="secondary-button" href="/planning">Planning tools</Link></div>
+        <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link>{simple ? null : <Link className="secondary-button" href="/planning">Planning tools</Link>}</div>
       </section>
 
       <PlanSummary plan={plan} headingId="plan-summary-desktop" />
@@ -184,10 +187,10 @@ export default async function DashboardPage() {
             <div><dt>Retirement</dt><dd>{money(retirementAssets)}</dd></div>
           </dl>
         </article>
-        <article className="bento-card bento-health">
+        {simple ? null : <article className="bento-card bento-health">
           <p className="metric-label"><MetricIcon name="health" />Financial health</p>
           <Ring value={health.score === null ? null : health.score / 100} text={health.score === null ? "—" : String(health.score)} label="out of 100" caption={`${health.status} · ${health.message}`} />
-        </article>
+        </article>}
         {completion < 100 ? (
           <article className="bento-card bento-progress">
             <div className="profile-progress-text"><strong>Financial profile {completion}% complete</strong><span>Add the missing sections to make these numbers more complete.</span></div>
@@ -197,7 +200,7 @@ export default async function DashboardPage() {
         ) : null}
       </section>
 
-      <MonthlyMoneyFlow input={moneyFlowInput} />
+      {simple ? null : <><MonthlyMoneyFlow input={moneyFlowInput} />
       <details className="dashboard-secondary-details">
         <summary>Explore accounts, expenses, debt, retirement and goals</summary>
         <section className="dashboard-grid">
@@ -228,7 +231,7 @@ export default async function DashboardPage() {
           {goalProgress.length ? <div className="goal-list">{goalProgress.slice(0, 5).map((goal) => <div key={goal.id}><div className="bar-label"><span><strong>{goal.name}</strong><small>Priority {goal.priority}</small></span><strong>{Math.round(goal.progress * 100)}%</strong></div><div className="mini-track"><div className="mini-fill" style={{ width: `${goal.progress * 100}%` }} /></div><small>{money(goal.currentAmount)} saved · {money(goal.remaining)} remaining</small></div>)}</div> : <p className="empty-state">Add goals to track progress toward the things your household cares about.</p>}
         </article>
       </section>
-      </details>
+      </details></>}
       </div>
     </main>
   );

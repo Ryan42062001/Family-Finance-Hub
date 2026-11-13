@@ -3,7 +3,7 @@
 FFH-P05 — Simple mode with guided setup
 
 State: BUILDING
-Risk: HIGH (a schema/RLS migration for the per-household switch, and a guided setup that writes household data)
+Risk: HIGH (a schema migration on the self-scoped profiles table, and a guided setup that writes household data)
 Owner: Ryan
 Phase branch / PR: `phase/ffh-p05-simple-mode` → `main`
 
@@ -13,25 +13,28 @@ not authorized by anything else in this phase.
 
 ## Goal
 
-Make the app easy for someone who wants a plan without the detail (Ryan's friend): a per-household **Simple mode**
-switch and a short guided setup that goes straight to the money plan. Detailed mode stays exactly as it is.
+Make the app easy for someone who wants a plan without the detail (Ryan's friend): a per-user **Simple mode** switch
+and a short guided setup that goes straight to the money plan. Detailed mode stays exactly as it is.
 
 ## Scope (roadmap item 3)
 
-- **Simple mode switch**, stored per household. Off by default; a household can turn it on or off. Adding the setting
-  is a migration with RLS in a reviewed PR, covered by the RLS matrix.
+- **Simple mode switch, stored per user** (Ryan, 2026-11-13): a `simple_mode` column on `profiles`, off by default.
+  Each signed-in person turns their own view on or off; it never changes what anyone else in the household sees.
+  `profiles` is already self-scoped by RLS (select/insert/update only your own row), so no new policy is needed. The
+  migration is in a reviewed PR, and the RLS matrix gains checks that nobody can read or change another user's
+  setting.
 - With Simple mode on, the app hides Scenario Lab, the HSA/SIMPLE IRA pages, chart details and most planning tools.
   Your plan and the essentials stay. Hiding is presentation only: the pages and the data are unchanged.
-- **Guided setup** of about five questions (take-home pay, fixed bills, other spending, debts, savings) that saves
+- **Guided setup, offered to every new household** (Ryan, 2026-11-13), with a way to skip it: about five questions (take-home pay, fixed bills, other spending, debts, savings) that saves
   through the existing validated profile actions, then opens Your plan. No new financial policy: the plan still
   comes only from the Money Priority Engine.
 - **Install on the phone home screen**: a web app manifest and icons.
 - QA checklist and the automated isolation check updated for the new screens.
 
-## Open questions for Ryan (settle before building)
+## Decisions (Ryan, 2026-11-13)
 
-- Who may switch Simple mode: only the household owner, or any member?
-- Is the guided setup offered to every new household, or only when Simple mode is on?
+- Simple mode is per user, not per household, so each person sees the view they want.
+- The guided setup is offered to every new household (it can be skipped).
 
 ## Out of scope / boundaries
 
