@@ -50,7 +50,7 @@ export default async function AppHeader() {
                   <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
                 </svg>
               </summary>
-              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><SimpleModeSwitch simple={simple} /><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
+              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><Link className="account-menu-link" href="/household">Household &amp; invitations</Link><SimpleModeSwitch simple={simple} /><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
             </details>
           ) : null}
         </div>

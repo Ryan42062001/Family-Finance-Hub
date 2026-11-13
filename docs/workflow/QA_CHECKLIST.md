@@ -43,6 +43,10 @@ Preview: `https://family-finance-hub-preview.vercel.app`, which always serves th
 | Q20 | Detailed tools in Simple view (TestA) | With Simple view on, open `/scenario-lab` and `/planning` directly | Each page still works and shows a note "You're using Simple view…" with **Switch to detailed view**; that button turns Simple view off and keeps you on the same page |
 | Q21 | Simple view is per person | With TestA's Simple view still on, sign out, sign in as **TestB** | TestB sees the full detailed menu (Planning and Scenario Lab present) and its own switch is off. Sign back in as TestA, turn Simple view **off** again, and confirm the full menu returns |
 | Q22 | Add to home screen | On a phone browser, open the Preview and use **Add to Home Screen** (or check `/manifest.webmanifest` loads signed out) | The app offers to install as "Finance Hub" with the green FF icon; `/manifest.webmanifest` shows only the app name, colours and icon paths |
+| Q23 | Household page (TestA) | Signed in as TestA, open the account menu → **Household & invitations** | Shows TestA's household name and **You · Owner**; an **Invite someone** form; "Waiting to be accepted" is empty or lists only TestA's own invitations |
+| Q24 | Create and cancel an invite link (TestA) | Create an invite link for `ZZ-A-Invite` as **Viewer**, copy the link (don't send it anywhere), then **Cancel** it under "Waiting to be accepted". Open the copied link in the same browser | The link is shown once with **Copy link**; after cancelling, the link opens "This invitation isn't valid" and nobody joined TestA's household |
+| Q25 | Invitations stay private (TestB) | Sign out, sign in as **TestB**, open **Household & invitations** | TestB sees only its own household and none of TestA's invitations (no `ZZ-A-Invite`) |
+| Q26 | Invite link signed out | Sign out, open `/invite/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ` (a made-up link) | "You've been invited…" with **Sign in to join** and **Create an account**; nothing about any household is shown. (Accepting needs a third account, so joining is covered by the automated database checks) |
 
 Finish signed out.
 

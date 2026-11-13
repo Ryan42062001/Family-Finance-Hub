@@ -45,7 +45,9 @@ export async function updateSession(request: NextRequest) {
     // Build metadata (commit SHA and environment) for the automated Preview check; no user or household data (FFH-P04).
     path === "/api/build-info" ||
     // Web app manifest (name, colours, icons only) so phones can add the app to the home screen (FFH-P05).
-    path === "/manifest.webmanifest";
+    path === "/manifest.webmanifest" ||
+    // Invite links must open before sign-in; the page shows nothing about the household (FFH-P06).
+    /^\/invite\/[A-Za-z0-9_-]{1,64}$/.test(path);
 
   if (!userId && !isPublic) {
     const trusted = trustedRequestUrl(request.url);

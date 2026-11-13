@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import { createHousehold } from "@/app/onboarding/actions";
+import { cookies } from "next/headers";
+import { acceptRememberedInvitation, forgetRememberedInvitation } from "@/app/household/actions";
+import { INVITE_COOKIE, isInviteToken } from "@/lib/household/invitations";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,8 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   }
 
   const { error } = await searchParams;
+  // FFH-P06: someone who opened an invite link before signing in can join instead.
+  const hasInvite = isInviteToken((await cookies()).get(INVITE_COOKIE)?.value);
 
   return (
     <main className="page-shell">
@@ -36,6 +41,15 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           </p>
         </div>
       </section>
+
+      {hasInvite ? <section className="panel invite-card">
+        <h2>You have an invitation</h2>
+        <p className="muted">You opened a link to join someone&apos;s household. Join it instead of creating your own.</p>
+        <div className="invite-actions">
+          <form action={acceptRememberedInvitation}><button type="submit">Join that household</button></form>
+          <form action={forgetRememberedInvitation}><button type="submit" className="secondary-button">Ignore it and create my own</button></form>
+        </div>
+      </section> : null}
 
       <section className="panel">
         <h2>Household setup</h2>
