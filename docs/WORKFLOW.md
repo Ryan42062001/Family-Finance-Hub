@@ -95,7 +95,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - **`full-phase`** (label `full-phase-ci` or manual dispatch): the same checks pinned to an exact candidate SHA.
 
 - **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
-  Actions tab): waits for Vercel's successful Preview build of that exact commit, then signs in to the fixed Preview
+  Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
   address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
   "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Planning and Scenario Lab
   load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan

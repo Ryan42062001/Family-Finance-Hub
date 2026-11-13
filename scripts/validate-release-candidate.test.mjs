@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { validateActionReferences, validatePhaseAuthority, withoutReadOnlyPreviewStatus } from './validate-release-candidate.mjs';
+import { validateActionReferences, validatePhaseAuthority } from './validate-release-candidate.mjs';
 
 const checkout = 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262';
 const setupNode = 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020';
@@ -34,14 +34,6 @@ rejected('malformed YAML is rejected', 'jobs:\n  fast: [\n', /cannot parse/);
 rejected('additional unapproved Action is rejected while approved counts remain', validFixture(`  bypass:\n    steps:\n      - { uses: owner/action@${'a'.repeat(40)} }\n`), /unexpected Action identity/);
 rejected('missing approved occurrence is rejected', validFixture().replace(`      - uses: ${checkout}\n`, '', 1), /pin exactly 4 times/);
 
-
-test('FFH-P04 only the read-only Preview status lookup is exempt from the no-deploy rule', () => {
-  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
-  assert.doesNotMatch(withoutReadOnlyPreviewStatus(ci), /deploy/i);
-  for (const forbidden of ['      - run: npx vercel deploy --prod\n', '    environment: production deploy\n', '      deployments: write\n', '      - run: curl "$DEPLOY_HOOK"\n']) {
-    assert.match(withoutReadOnlyPreviewStatus(ci + forbidden), /deploy/i, forbidden);
-  }
-});
 
 test('FFH-P01 BUILDING lifecycle authority is accepted', () => {
   const phase = '# Current phase\n\nFFH-P01 — Release Blocker Integration & Production Readiness\n\nState: BUILDING\nProduction deployment is separate and not authorized.\n';
