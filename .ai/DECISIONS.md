@@ -288,6 +288,17 @@
   - MEDIUM 2 (fixed in the phase): every filled-in setup field is now validated, debt details without a balance are
     rejected, and the Simple view value must be exactly "on" or absent.
 
+- **FFH-P05 second hosted migration applied (Ryan's explicit authorization, 2026-11-13).** Ryan ran
+  `20261113230000_ffh_p05_atomic_household_setup` in the hosted SQL editor and recorded the version. The first
+  parity check matched 8/9: copying the file from the browser on Windows had stored the function body with CRLF
+  line endings (4,478 characters instead of 4,390, one extra per line). The function was re-created from its own
+  stored definition with the carriage returns removed (`pg_get_functiondef` + `replace(..., E'\r', '')`), which
+  keeps its grants. Result: body md5 `e8759d3d46e409cbc9be5afb4e162897`, length 4,390, SECURITY INVOKER,
+  `search_path=""`, all identical to the repo. Hosted `parity.sql` then matched `parity.expected.txt` **9/9**
+  (functions 7 `279c887e…`, function_grants 14, migrations 17; policies, RLS, table grants, columns, constraints
+  and triggers unchanged). Lesson for future hosted migrations: re-create function bodies the same way, or check
+  for `\r` before running parity.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
