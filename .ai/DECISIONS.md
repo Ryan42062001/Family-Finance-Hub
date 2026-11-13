@@ -165,6 +165,19 @@
   - MEDIUM (fixed in the phase): the negative control now uses the same `identityMatches` function as the real run,
     and also requires the real leak check to fire on an injected household marker.
 
+- **FFH-P04 targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at `f051d8197b4eddcad58be59d57b2d1f1826c03ff`.**
+  MEDIUM 3 was confirmed FIXED; HIGH 1 and HIGH 2 were PARTIAL. Both remaining findings are fixed in the phase:
+  - HIGH (re-review 1): the guard still let GET sub-requests (images, beacons) go to other origins, so a malicious
+    page script could leak a typed password. Now every request to another origin, of any method or type, is
+    blocked. WebSockets to another origin are closed, service workers are blocked, and any blocked request makes
+    the run REFUSED (exit 2), reporting host names only. As a second barrier, the browser runs behind a proxy
+    address that does not exist, which only the tested host bypasses, with DNS prefetch and background networking
+    off. The login form must post to the same origin (no `javascript:` exception). Rehearsed locally with a page
+    that plants an image request and a password beacon to a listening server: both REFUSED, and the server
+    received 0 requests. An unguarded browser on the same page reached it, so the plant was real.
+  - MEDIUM (re-review 2, fixed rather than deferred): the build is re-checked after each account's run. If the
+    Preview address stops serving the expected commit, the run reports BLOCKED (exit 3).
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

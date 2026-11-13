@@ -8,8 +8,8 @@
 // Usage: node scripts/e2e/isolation.mjs <preview-url> [--negative-control]
 //   env: FFH_E2E_A_EMAIL, FFH_E2E_A_PASSWORD, FFH_E2E_B_EMAIL, FFH_E2E_B_PASSWORD,
 //        FFH_E2E_EXPECTED_SHA (required for the Preview: the exact commit the address must be serving)
-// Exit codes: 0 PASS · 1 FAIL · 2 REFUSED (bad target, or the site tried to send the browser elsewhere)
-//             · 3 BLOCKED (missing credentials, wrong or unverifiable build, or unreachable).
+// Exit codes: 0 PASS · 1 FAIL · 2 REFUSED (bad target, or the site tried to reach any other address)
+//             · 3 BLOCKED (missing credentials, wrong, unverifiable or changing build, or unreachable).
 // --negative-control: runs the same identity and leak checks with deliberately wrong expectations; exits 0 only if
 // those exact checks reject them.
 
@@ -68,9 +68,32 @@ export function leavesOrigin(requestUrl, origin) {
   try { return new URL(requestUrl).origin !== origin; } catch { return true; }
 }
 
-export class OriginViolation extends Error {
-  constructor() { super("the site tried to send the browser to another address"); this.name = "OriginViolation"; }
+// Host names only (never full URLs, which could carry data in a query string).
+export function hostOf(requestUrl) {
+  try { return new URL(requestUrl).host || "unknown"; } catch { return "unparseable"; }
 }
+
+export class OriginViolation extends Error {
+  constructor(hosts = []) {
+    super("the site tried to send the browser to another address");
+    this.name = "OriginViolation";
+    this.hosts = [...new Set(hosts)];
+  }
+}
+
+// Browser-level boundary: all traffic goes to a proxy address that does not exist, except the tested host, which
+// bypasses it. Anything the request guard does not see (WebSocket, prefetch, beacon) still cannot leave.
+export function browserLaunchOptions(origin) {
+  const { hostname } = new URL(origin);
+  return {
+    proxy: { server: "http://127.0.0.1:9", bypass: hostname },
+    args: ["--dns-prefetch-disable", "--disable-background-networking", "--disable-component-update", "--no-pings"],
+  };
+}
+
+// No service workers (they can make requests the guard cannot see), and no Vercel preview toolbar (it loads from
+// another host and would be blocked).
+export const CONTEXT_OPTIONS = { serviceWorkers: "block", extraHTTPHeaders: { "x-vercel-skip-toolbar": "1" } };
 
 export const PAGES = ["/plan", "/dashboard", "/financial-profile", "/planning", "/scenario-lab"];
 
@@ -80,22 +103,27 @@ function record(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok || !detail ? "" : `  -> ${detail}`}`);
 }
 
-// Every top-level navigation and every non-GET request is fetched by the guard without following redirects. A request
-// or redirect to any other origin is aborted and recorded, so credentials and session cookies can never be sent
-// anywhere except the verified Preview. Passive same-browser GETs (scripts, styles) to the tested origin pass through.
+// Every request to any other origin, of any method or type (navigation, image, script, fetch, beacon), is aborted
+// and recorded, and the run is REFUSED. Same-origin navigations and non-GET requests are fetched without following
+// redirects, so a redirect to another origin is caught before it is followed. WebSockets to another origin are
+// closed. Together with the browser-level proxy boundary, credentials and cookies can only reach the tested origin.
 async function installOriginGuard(context, origin, violations) {
+  await context.routeWebSocket((url) => leavesOrigin(url.href, origin), (ws) => {
+    violations.push(hostOf(ws.url()));
+    return ws.close();
+  });
   await context.route("**/*", async (route) => {
     const request = route.request();
-    const sensitive = request.isNavigationRequest() || request.method() !== "GET";
     if (leavesOrigin(request.url(), origin)) {
-      if (sensitive) { violations.push("request"); return route.abort("blockedbyclient"); }
-      return route.continue();
+      violations.push(hostOf(request.url()));
+      return route.abort("blockedbyclient");
     }
+    const sensitive = request.isNavigationRequest() || request.method() !== "GET";
     if (!sensitive) return route.continue();
     const response = await route.fetch({ maxRedirects: 0 });
     const location = response.headers()["location"];
     if (response.status() >= 300 && response.status() < 400 && location && leavesOrigin(new URL(location, request.url()).href, origin)) {
-      violations.push("redirect");
+      violations.push(hostOf(new URL(location, request.url()).href));
       return route.abort("blockedbyclient");
     }
     return route.fulfill({ response });
@@ -103,7 +131,7 @@ async function installOriginGuard(context, origin, violations) {
 }
 
 async function assertOnOrigin(page, origin, violations) {
-  if (violations.length || new URL(page.url()).origin !== origin) throw new OriginViolation();
+  if (violations.length || new URL(page.url()).origin !== origin) throw new OriginViolation(violations);
 }
 
 async function signIn(context, origin, account, violations) {
@@ -112,7 +140,7 @@ async function signIn(context, origin, account, violations) {
   await assertOnOrigin(page, origin, violations);
   // The login form must submit to this same origin before any credential is typed.
   const formAction = await page.$eval("form.auth-form", (form) => form.action).catch(() => null);
-  if (!formAction || (!formAction.startsWith("javascript:") && leavesOrigin(formAction, origin))) throw new OriginViolation();
+  if (!formAction || leavesOrigin(formAction, origin)) throw new OriginViolation([formAction ? hostOf(formAction) : "no form"]);
   await page.fill('input[name="email"]', account.email);
   await page.fill('input[name="password"]', account.password);
   await Promise.all([page.waitForURL((url) => !url.pathname.startsWith("/auth/"), { timeout: 30000 }).catch(() => null), page.click('form.auth-form button[type="submit"]')]);
@@ -154,12 +182,12 @@ async function signOut(page, origin, context) {
 }
 
 async function runAccount(browser, origin, account) {
-  const context = await browser.newContext();
+  const context = await browser.newContext(CONTEXT_OPTIONS);
   const violations = [];
   await installOriginGuard(context, origin, violations);
   try {
     const page = await signIn(context, origin, account, violations);
-    if (violations.length) throw new OriginViolation();
+    if (violations.length) throw new OriginViolation(violations);
     const landed = !new URL(page.url()).pathname.startsWith("/auth/");
     if (!landed) return { signedIn: false };
     const email = await signedInEmail(page);
@@ -168,15 +196,18 @@ async function runAccount(browser, origin, account) {
     const pages = await readPages(page, origin);
     const signedOut = await signOut(page, origin, context);
     await assertOnOrigin(page, origin, violations);
+    if (violations.length) throw new OriginViolation(violations);
     return { signedIn: true, email, householdName, pages, signedOut };
   } catch (error) {
     // Anything that went wrong after the guard blocked a request is reported as that refusal, never as a test result.
-    if (violations.length) throw new OriginViolation();
+    if (violations.length) throw new OriginViolation(violations);
     throw error;
   } finally {
     await context.close();
   }
 }
+
+class BuildDrift extends Error {}
 
 async function readBuildInfo(origin) {
   try {
@@ -219,16 +250,25 @@ async function main() {
     console.log(`PASS  the Preview address serves commit ${expectedSha.slice(0, 7)}`);
   }
 
-  const browser = await chromium.launch();
+  // The address must still serve the same commit after each account's checks, or the results are not about it.
+  const buildDrifted = async () => (!target.local || expectedSha) && !buildMatches(await readBuildInfo(target.origin), expectedSha);
+
+  const browser = await chromium.launch(browserLaunchOptions(target.origin));
   let a, b;
   try {
     a = await runAccount(browser, target.origin, creds.a);
+    if (await buildDrifted()) throw new BuildDrift();
     b = await runAccount(browser, target.origin, creds.b);
+    if (await buildDrifted()) throw new BuildDrift();
   } catch (error) {
     await browser.close();
     if (error instanceof OriginViolation) {
-      console.error("REFUSED: the site tried to send the browser to another address. That request was blocked and nothing was concluded.");
+      console.error(`REFUSED: the site tried to reach another address (${error.hosts.join(", ") || "unknown"}). Every such request was blocked and nothing was concluded.`);
       process.exit(2);
+    }
+    if (error instanceof BuildDrift) {
+      console.error(`BLOCKED: the Preview address stopped serving ${expectedSha.slice(0, 7)} during the run (a newer build took over). Nothing was concluded.`);
+      process.exit(3);
     }
     console.error(`BLOCKED: the Preview could not be exercised (${error instanceof Error ? error.name : "error"}). Nothing was concluded.`);
     process.exit(3);
