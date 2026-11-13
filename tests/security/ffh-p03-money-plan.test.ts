@@ -144,3 +144,22 @@ test("sign-in and sign-up name an existing session instead of silently keeping i
     assert.match(page, /<form action=\{logout\}>/);
   }
 });
+
+test("friendlier forms submit exactly the field names the save actions validate", () => {
+  const fields = read("../../components/forms/ProfileFields.tsx");
+  const actions = read("../../app/financial-profile/actions.ts");
+  const names = [...fields.matchAll(/name="([a-z_]+)"/g)].map((m) => m[1]);
+  for (const name of names) assert.match(actions, new RegExp(`"${name}"`), `actions read ${name}`);
+  for (const required of ["account_type", "balance", "cash_purpose", "monthly_amount", "monthly_gross_amount", "category", "is_essential", "debt_type", "current_balance", "minimum_payment", "interest_rate", "monthly_employee_contribution", "monthly_employer_contribution", "match_status", "employee_contributed_ytd", "insurance_type", "deductible_amount", "is_relevant_to_reserve", "target_amount", "current_amount", "target_date", "priority", "goal_class", "necessity", "deadline_flexibility", "consequence_level", "goal_nature", "underfunding_consequence", "borrowing_likelihood"]) {
+    assert.ok(names.includes(required), `form still sends ${required}`);
+  }
+  // Choices: radio groups, one value; no preselection when a saved value isn't an option (never silently replaced).
+  const controls = read("../../components/forms/Controls.tsx");
+  assert.match(controls, /type="radio" name=\{name\} value=\{option\.value\} defaultChecked=\{defaultValue === option\.value\} required=\{required && index === 0\}/);
+  // The switch is a real checkbox: "on" when on, nothing when off (what the actions expect).
+  assert.match(controls, /type="checkbox" role="switch" name=\{name\}/);
+  // The yearly/monthly hint is display only.
+  const number = read("../../components/forms/NumberField.tsx");
+  assert.match(number, /<input name=\{name\} type="number"/);
+  assert.doesNotMatch(number, /type="hidden"|name=\{`/);
+});

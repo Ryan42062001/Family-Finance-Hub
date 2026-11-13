@@ -1,5 +1,11 @@
 import ProfileSection from "@/components/ProfileSection";
 import ProfileWorkspace from "@/components/ProfileWorkspace";
+import Link from "next/link";
+import NumberField from "@/components/forms/NumberField";
+import { AccountFields, DebtFields, ExpenseFields, GoalFields, IncomeFields, InsuranceFields, RetirementFields } from "@/components/forms/ProfileFields";
+import { MoneyPrioritySnapshotValidationError } from "@/lib/calculations/money-priority-snapshot";
+import { planFromSnapshot, todayUtc } from "@/lib/plan/plan-result";
+import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -46,63 +52,21 @@ function RecordActions({ children, kind, id }: { children: React.ReactNode; kind
   );
 }
 
-type GoalFormDefaults = Record<string, string | number | null | undefined>;
-
-function GoalIntelligenceFields({ defaults = {} }: { defaults?: GoalFormDefaults }) {
-  return (<>
-    <label>Goal category<select name="goal_class" defaultValue={String(defaults.goal_class ?? "major_life_goal")}><option value="necessary_protective">Protective need</option><option value="major_life_goal">Major life goal</option><option value="education">Education</option><option value="home_purchase">Home purchase</option><option value="lifestyle_optional">Lifestyle</option><option value="other">Other</option><option value="unknown">Not sure</option></select></label>
-    <label>How important is the underlying need?<select name="necessity" defaultValue={String(defaults.necessity ?? "unknown")}><option value="required">Essential</option><option value="important">Important</option><option value="optional">Optional</option><option value="unknown">Not sure</option></select></label>
-    <label>Underlying need<textarea name="underlying_need" maxLength={500} defaultValue={String(defaults.underlying_need ?? "")} placeholder="Reliable transportation to work" /></label>
-    <label>Desired solution<textarea name="desired_solution" maxLength={500} defaultValue={String(defaults.desired_solution ?? "")} placeholder="Replace the current vehicle" /></label>
-    <label>Does this preserve or improve a household function?<select name="goal_nature" defaultValue={String(defaults.goal_nature ?? "unknown")}><option value="preservation">Preserve or restore</option><option value="improvement">Improve or upgrade</option><option value="mixed">Both</option><option value="unknown">Not sure</option></select></label>
-    <label>Core amount needed<input name="core_need_amount" type="number" min="0" step="0.01" defaultValue={defaults.core_need_amount ?? ""} placeholder="Leave blank if unknown" /></label>
-    <label>How flexible is the target date?<select name="deadline_flexibility" defaultValue={String(defaults.deadline_flexibility ?? "unknown")}><option value="fixed">Fixed</option><option value="somewhat_flexible">Some flexibility</option><option value="flexible">Flexible</option><option value="unknown">Not sure</option></select></label>
-    <label>If the goal is underfunded<select name="underfunding_consequence" defaultValue={String(defaults.underfunding_consequence ?? "unknown")}><option value="safely_delay">Safely delay it</option><option value="reduce_solution">Reduce the target or solution</option><option value="inconvenience">Inconvenience or lifestyle loss</option><option value="likely_financing">Likely need financing</option><option value="higher_future_cost">Higher future cost</option><option value="employment_disruption">Employment disruption</option><option value="housing_disruption">Housing disruption</option><option value="health_safety">Health or safety impact</option><option value="caregiving_disruption">Caregiving or family disruption</option><option value="contractual_payment">Required or contractual payment</option><option value="other_material">Other material consequence</option><option value="unknown">Not sure</option></select></label>
-    <label>Consequence severity<select name="consequence_level" defaultValue={String(defaults.consequence_level ?? "unknown")}><option value="critical">Critical</option><option value="high">High</option><option value="moderate">Moderate</option><option value="low">Low</option><option value="unknown">Not sure</option></select></label>
-    <label>Would you likely need to borrow?<select name="borrowing_likelihood" defaultValue={String(defaults.borrowing_likelihood ?? "unknown")}><option value="unlikely">Unlikely</option><option value="possible">Possible</option><option value="likely">Likely</option><option value="unknown">Not sure</option></select></label>
-    <label>Expected borrowing amount<input name="expected_borrowing_amount" type="number" min="0" step="0.01" defaultValue={defaults.expected_borrowing_amount ?? ""} /></label>
-    <label>Expected borrowing APR (%)<input name="expected_borrowing_apr" type="number" min="0" max="100" step="0.0001" defaultValue={defaults.expected_borrowing_apr ?? ""} /></label>
-    <label>Planned monthly contribution<input name="planned_monthly_contribution" type="number" min="0" step="0.01" defaultValue={defaults.planned_monthly_contribution ?? ""} /></label>
-  </>);
-}
-
-// FFH-P03: optional facts the money plan asks for. Blank means "unknown"; nothing is guessed.
-type FieldDefaults = Record<string, unknown>;
-const fieldValue = (value: unknown): string | number => (typeof value === "number" || typeof value === "string" ? value : "");
-function CashPurposeField({ current }: { current?: string | null }) {
-  const linked = current === "earmarked_goal" || current === "debt_backed_reserve";
-  return <label>What is this cash for?<select name="cash_purpose" defaultValue={linked ? "keep" : String(current ?? "unallocated")}>
-    {linked ? <option value="keep">{current === "earmarked_goal" ? "Set aside for a goal (keep)" : "Set aside for a debt (keep)"}</option> : null}
-    <option value="unallocated">Not decided</option>
-    <option value="protected_reserve">Emergency fund</option>
-    <option value="operating_cash">Everyday spending</option>
-    <option value="not_applicable">Not cash I can use</option>
-  </select></label>;
-}
-
-function RetirementDetailFields({ defaults = {}, isHsa = false }: { defaults?: FieldDefaults; isHsa?: boolean }) {
-  return <details className="profile-more-fields">
-    <summary>More details (optional)</summary>
-    <label>Employer match<select name="match_status" defaultValue={String(fieldValue(defaults.match_status) || "unknown")}><option value="unknown">Not sure</option><option value="not_offered">No match offered</option><option value="not_fully_captured">Offered, not getting all of it</option><option value="fully_captured">Getting the full match</option></select></label>
-    <label>Your monthly contribution needed for the full match<input name="full_match_employee_contribution_monthly" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.full_match_employee_contribution_monthly)} placeholder="Leave blank if unknown" /></label>
-    <label>Type of employer contribution<select name="employer_contribution_type" defaultValue={String(fieldValue(defaults.employer_contribution_type) || "")}><option value="">Not sure</option><option value="match">Match</option><option value="nonelective">Fixed contribution (not a match)</option><option value="profit_sharing">Profit sharing</option><option value="other">Other</option></select></label>
-    {isHsa ? <p className="muted">Year-to-date HSA amounts are set on the HSA details page.</p> : <>
-      <label>Your contributions so far this year<input name="employee_contributed_ytd" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.employee_contributed_ytd)} placeholder="Leave blank if unknown" /></label>
-      <label>Employer contributions so far this year<input name="employer_contributed_ytd" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.employer_contributed_ytd)} placeholder="Leave blank if unknown" /></label>
-    </>}
-    <label>Yearly pay from this employer that counts for the plan<input name="plan_eligible_compensation_annual" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.plan_eligible_compensation_annual)} placeholder="Leave blank if unknown" /></label>
-  </details>;
-}
-
-function InsuranceFields({ defaults = {} }: { defaults?: FieldDefaults }) {
-  return <>
-    <label>Name<input name="name" maxLength={100} required defaultValue={String(fieldValue(defaults.name) || "")} placeholder="Family health plan" /></label>
-    <label>Type<select name="insurance_type" defaultValue={String(fieldValue(defaults.insurance_type) || "health")}><option value="health">Health</option><option value="auto">Auto</option><option value="homeowners">Homeowners</option><option value="renters">Renters</option><option value="umbrella">Umbrella</option><option value="pet">Pet</option><option value="other">Other</option></select></label>
-    <label>Deductible<input name="deductible_amount" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.deductible_amount)} placeholder="Leave blank if unknown" /></label>
-    <label>Family deductible<input name="family_deductible_amount" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.family_deductible_amount)} placeholder="Leave blank if none" /></label>
-    <label>Out-of-pocket maximum<input name="out_of_pocket_max" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.out_of_pocket_max)} placeholder="Leave blank if unknown" /></label>
-    <label className="checkbox-label"><input name="is_relevant_to_reserve" type="checkbox" defaultChecked={defaults.is_relevant_to_reserve !== false} /> Keep cash for this deductible</label>
-  </>;
+// After a save: a checkmark, the message, and how many details the plan still wants. The plan count is
+// best-effort; if it can't be worked out, only the message is shown.
+async function SaveCelebration({ message, householdId }: { message: string; householdId: string }) {
+  let detailsLeft: number | null = null;
+  try {
+    const plan = planFromSnapshot(await loadMoneyPrioritySnapshot(householdId), todayUtc());
+    if (plan.ok) detailsLeft = plan.view.missingCount;
+  } catch (error) {
+    if (!(error instanceof MoneyPrioritySnapshotValidationError)) throw error;
+  }
+  return <div className="save-celebration" role="status">
+    <span className="save-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+    <div><strong>{message}</strong>{detailsLeft === null ? null : detailsLeft === 0 ? <span>Your plan has everything it needs. 🎉</span> : <span>Your plan just got smarter. {detailsLeft} {detailsLeft === 1 ? "detail" : "details"} left to unlock more.</span>}</div>
+    <Link href="/plan">See your plan →</Link>
+  </div>;
 }
 
 export default async function FinancialProfilePage({ searchParams }: PageProps) {
@@ -136,78 +100,71 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
       <section className="hero-card profile-hero">
         <div><p className="eyebrow">Your household data</p><h1>Financial profile</h1><p className="muted">The numbers behind your dashboard and planning tools. Changes save only when you submit a section.</p></div>
       </section>
-      {message ? <p className="success-banner">{message}</p> : null}
+      {message ? <SaveCelebration message={message} householdId={household.id} /> : null}
 
 
 
       <ProfileWorkspace>
         <ProfileSection id="accounts" title="Cash & accounts" count={accounts.data?.length ?? 0} description={money((accounts.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
-          <details className="profile-add-disclosure"><summary>Add account</summary><form className="data-form" action={addAccount}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Checking" /></label>
-            <label>Type<select name="account_type" defaultValue="checking"><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label>
-            <label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><CashPurposeField /><button type="submit">Add account</button>
+          <details className="profile-add-disclosure"><summary>Add account</summary><form className="data-form friendly-form" action={addAccount}>
+            <AccountFields /><button type="submit">Add account</button>
           </form></details>
-          <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><CashPurposeField current={item.cash_purpose} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(accounts.data?.length ?? 0) === 0 ? <p className="empty-state">No accounts saved yet. Select Add to begin.</p> : null}
+          <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form friendly-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><AccountFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(accounts.data?.length ?? 0) === 0 ? <p className="empty-state">No accounts yet. Add your checking and savings to get started.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="income" title="Income" count={income.data?.length ?? 0} description={money((income.data ?? []).reduce((sum, item) => sum + Number(item.monthly_amount ?? 0), 0)) + "/month"}>
-          <details className="profile-add-disclosure"><summary>Add income</summary><form className="data-form" action={addIncome}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Primary job" /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" required /></label><label>Monthly gross pay (before taxes)<input name="monthly_gross_amount" type="number" min="0" step="0.01" placeholder="Optional" /></label><button type="submit">Add income</button>
+          <details className="profile-add-disclosure"><summary>Add income</summary><form className="data-form friendly-form" action={addIncome}>
+            <IncomeFields /><button type="submit">Add income</button>
           </form></details>
-          <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><label>Monthly gross pay (before taxes)<input name="monthly_gross_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_gross_amount ?? ""} placeholder="Optional" /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(income.data?.length ?? 0) === 0 ? <p className="empty-state">No income sources saved yet. Select Add to begin.</p> : null}
+          <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form friendly-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><IncomeFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(income.data?.length ?? 0) === 0 ? <p className="empty-state">No income yet. Add your take-home pay to get started.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="expenses" title="Monthly expenses" count={expenses.data?.length ?? 0} description={money((expenses.data ?? []).reduce((sum, item) => sum + Number(item.monthly_amount ?? 0), 0)) + "/month"}>
-          <details className="profile-add-disclosure"><summary>Add expense</summary><form className="data-form" action={addExpense}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Groceries" /></label>
-            <label>Category<select name="category" defaultValue="groceries"><option value="housing">Housing</option><option value="utilities">Utilities</option><option value="groceries">Groceries</option><option value="transportation">Transportation</option><option value="insurance">Insurance</option><option value="healthcare">Healthcare</option><option value="childcare">Childcare</option><option value="subscriptions">Subscriptions</option><option value="personal">Personal</option><option value="giving">Giving</option><option value="other">Other</option></select></label>
-            <label>Monthly amount<input name="monthly_amount" type="number" min="0" step="0.01" required /></label>
-            <label className="checkbox-label"><input name="is_essential" type="checkbox" defaultChecked /> Essential expense</label><button type="submit">Add expense</button>
+          <details className="profile-add-disclosure"><summary>Add expense</summary><form className="data-form friendly-form" action={addExpense}>
+            <ExpenseFields /><button type="submit">Add expense</button>
           </form></details>
-          <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Category<select name="category" defaultValue={item.category}><option value="housing">Housing</option><option value="utilities">Utilities</option><option value="groceries">Groceries</option><option value="transportation">Transportation</option><option value="insurance">Insurance</option><option value="healthcare">Healthcare</option><option value="childcare">Childcare</option><option value="subscriptions">Subscriptions</option><option value="personal">Personal</option><option value="giving">Giving</option><option value="other">Other</option></select></label><label>Monthly amount<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><label className="checkbox-label"><input name="is_essential" type="checkbox" defaultChecked={item.is_essential} /> Essential expense</label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(expenses.data?.length ?? 0) === 0 ? <p className="empty-state">No expenses saved yet. Select Add to begin.</p> : null}
+          <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form friendly-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><ExpenseFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(expenses.data?.length ?? 0) === 0 ? <p className="empty-state">No expenses yet. Start with rent or mortgage, groceries and utilities.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="debts" title="Debts" count={debts.data?.length ?? 0} description={money((debts.data ?? []).reduce((sum, item) => sum + Number(item.current_balance ?? 0), 0))}>
-          <details className="profile-add-disclosure"><summary>Add debt</summary><form className="data-form" action={addDebt}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Mortgage" /></label>
-            <label>Type<select name="debt_type" defaultValue="mortgage"><option value="mortgage">Mortgage</option><option value="student_loan">Student loan</option><option value="auto_loan">Auto loan</option><option value="credit_card">Credit card</option><option value="personal_loan">Personal loan</option><option value="medical">Medical</option><option value="other">Other</option></select></label>
-            <label>Balance<input name="current_balance" type="number" min="0" step="0.01" required /></label><label>Interest rate (%)<input name="interest_rate" type="number" min="0" max="100" step="0.0001" /></label><label>Minimum payment<input name="minimum_payment" type="number" min="0" step="0.01" required /></label><button type="submit">Add debt</button>
+          <details className="profile-add-disclosure"><summary>Add debt</summary><form className="data-form friendly-form" action={addDebt}>
+            <DebtFields /><button type="submit">Add debt</button>
           </form></details>
-          <div className="record-list">{debts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_balance)} · {item.interest_rate ?? 0}%</small></span><RecordActions kind="debt" id={item.id}><form className="data-form edit-form" action={updateDebt}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="debt_type" defaultValue={item.debt_type}><option value="mortgage">Mortgage</option><option value="student_loan">Student loan</option><option value="auto_loan">Auto loan</option><option value="credit_card">Credit card</option><option value="personal_loan">Personal loan</option><option value="medical">Medical</option><option value="other">Other</option></select></label><label>Balance<input name="current_balance" type="number" min="0" step="0.01" defaultValue={item.current_balance} required /></label><label>Interest rate (%)<input name="interest_rate" type="number" min="0" max="100" step="0.0001" defaultValue={item.interest_rate ?? ""} /></label><label>Minimum payment<input name="minimum_payment" type="number" min="0" step="0.01" defaultValue={item.minimum_payment} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(debts.data?.length ?? 0) === 0 ? <p className="empty-state">No debts saved yet. Select Add to begin.</p> : null}
+          <div className="record-list">{debts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_balance)} · {item.interest_rate ?? 0}%</small></span><RecordActions kind="debt" id={item.id}><form className="data-form edit-form friendly-form" action={updateDebt}><input type="hidden" name="id" value={item.id} /><DebtFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(debts.data?.length ?? 0) === 0 ? <p className="empty-state">No debts saved. If you don&apos;t owe anything, you can leave this empty.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="insurance" title="Insurance" count={insurance.data?.length ?? 0} description={(insurance.data ?? []).filter((item) => item.is_relevant_to_reserve && item.deductible_amount !== null).length ? money((insurance.data ?? []).filter((item) => item.is_relevant_to_reserve).reduce((sum, item) => sum + Number(item.deductible_amount ?? 0), 0)) + " in deductibles" : "Deductibles help size your cushion"}>
-          <details className="profile-add-disclosure"><summary>Add insurance</summary><form className="data-form" action={addInsurance}>
+          <details className="profile-add-disclosure"><summary>Add insurance</summary><form className="data-form friendly-form" action={addInsurance}>
             <InsuranceFields /><button type="submit">Add insurance</button>
           </form></details>
-          <div className="record-list">{insurance.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{item.deductible_amount !== null ? `${money(item.deductible_amount)} deductible` : "Deductible not set"}</small></span><RecordActions kind="insurance" id={item.id}><form className="data-form edit-form" action={updateInsurance}><input type="hidden" name="id" value={item.id} /><InsuranceFields defaults={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(insurance.data?.length ?? 0) === 0 ? <p className="empty-state">No insurance saved yet. Add plans with a deductible so the plan can size your emergency cushion.</p> : null}
+          <div className="record-list">{insurance.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{item.deductible_amount !== null ? `${money(item.deductible_amount)} deductible` : "Deductible not set"}</small></span><RecordActions kind="insurance" id={item.id}><form className="data-form edit-form friendly-form" action={updateInsurance}><input type="hidden" name="id" value={item.id} /><InsuranceFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(insurance.data?.length ?? 0) === 0 ? <p className="empty-state">No insurance yet. Add plans with a deductible so the plan can size your emergency cushion.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="retirement" title="Retirement" count={retirement.data?.length ?? 0} description={money((retirement.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
-          <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form" action={addRetirementAccount}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Work 401(k)" /></label><label>Type<select name="account_type" defaultValue="401k"><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" required /></label><RetirementDetailFields /><button type="submit">Add retirement account</button>
+          <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form friendly-form" action={addRetirementAccount}>
+            <RetirementFields /><button type="submit">Add retirement account</button>
           </form></details>
-          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employee_contribution} required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employer_contribution} required /></label><RetirementDetailFields defaults={item} isHsa={item.account_type === "hsa"} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts saved yet. Select Add to begin.</p> : null}
-          <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form" action={saveRetirementGoals}>
-            <label>Monthly spending you want in retirement (today&apos;s dollars)<input name="desired_retirement_monthly_spending" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? ""} placeholder="Leave blank if unknown" /></label>
-            <label>Expected Social Security per month<input name="planning_social_security_monthly" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.planning_social_security_monthly ?? ""} placeholder="Leave blank if unknown" /></label>
-            <label>Expected pension per month<input name="planning_pension_monthly" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.planning_pension_monthly ?? ""} placeholder="Leave blank if none" /></label>
+          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts yet. Add a 401(k), IRA or pension.</p> : null}
+          <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form friendly-form" action={saveRetirementGoals}>
+            <NumberField name="desired_retirement_monthly_spending" label="Monthly spending you want in retirement" example="In today's dollars" period="month" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? null} />
+            <NumberField name="planning_social_security_monthly" label="Expected Social Security each month" example="From your ssa.gov estimate" defaultValue={goalsPrefs?.planning_social_security_monthly ?? null} />
+            <NumberField name="planning_pension_monthly" label="Expected pension each month" placeholder="Leave blank if none" defaultValue={goalsPrefs?.planning_pension_monthly ?? null} />
             <button type="submit">Save retirement goals</button>
           </form></details>
         </ProfileSection>
 
         <ProfileSection id="goals" title="Goals" count={goals.data?.length ?? 0} description={money((goals.data ?? []).reduce((sum, item) => sum + Number(item.current_amount ?? 0), 0))}>
-          <details className="profile-add-disclosure"><summary>Add goal</summary><form className="data-form" action={addGoal}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Replace vehicle" /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" required /></label><label>Target date<input name="target_date" type="date" /></label><label>Priority<select name="priority" defaultValue="3"><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields /><button type="submit">Add goal</button>
+          <details className="profile-add-disclosure"><summary>Add goal</summary><form className="data-form friendly-form" action={addGoal}>
+            <GoalFields /><button type="submit">Add goal</button>
           </form></details>
-          <div className="record-list">{goals.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_amount)} / {money(item.target_amount)}</small></span><RecordActions kind="goal" id={item.id}><form className="data-form edit-form" action={updateGoal}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Target amount<input name="target_amount" type="number" min="0.01" step="0.01" defaultValue={item.target_amount} required /></label><label>Current amount<input name="current_amount" type="number" min="0" step="0.01" defaultValue={item.current_amount} required /></label><label>Target date<input name="target_date" type="date" defaultValue={item.target_date ?? ""} /></label><label>Priority<select name="priority" defaultValue={String(item.priority)}><option value="1">1 - Highest</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 - Lowest</option></select></label><GoalIntelligenceFields defaults={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
-          {(goals.data?.length ?? 0) === 0 ? <p className="empty-state">No goals saved yet. Select Add to begin.</p> : null}
+          <div className="record-list">{goals.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.current_amount)} / {money(item.target_amount)}</small></span><RecordActions kind="goal" id={item.id}><form className="data-form edit-form friendly-form" action={updateGoal}><input type="hidden" name="id" value={item.id} /><GoalFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(goals.data?.length ?? 0) === 0 ? <p className="empty-state">No goals yet. Add something you&apos;re saving for, like a vacation or a car.</p> : null}
         </ProfileSection>
       </ProfileWorkspace>
     </main>
