@@ -51,10 +51,33 @@ const INTERNAL_LABELS: Array<[RegExp, string]> = [
   [/\s{2,}/g, " "],
 ];
 
+// Plain-language versions of the engine's most common sentences. Exact-sentence matches only, so a sentence the
+// table doesn't know is shown as written. Meaning is kept; the original stays available as "technical wording".
+const PLAIN_SENTENCES: Record<string, string> = {
+  "APR is at or above the high-interest threshold.": "This debt's interest rate is high, so paying it down is a strong use of extra money.",
+  "APR falls in the payoff-favored range.": "This debt's interest rate is high enough that paying it off faster usually pays off.",
+  "APR starts in the split/payoff-favored posture.": "Splitting extra money between this debt and investing is reasonable.",
+  "A 25+ year retirement horizon modestly favors investing flexibility.": "With 25 or more years until retirement, keeping some money invested also makes sense.",
+  "Household income is concentrated in one primary source.": "Most of your income comes from one source, so a bigger cushion is safer.",
+  "Protected reserve cash is one shared reserve pool: deductible coverage counts toward the full emergency target rather than being subtracted twice.": "Money kept for insurance deductibles counts toward this emergency fund, not on top of it.",
+  "The protected retirement floor is funded before ordinary goal competition.": "Your basic retirement saving comes before other goals.",
+  "Only verified additional retirement opportunity above that floor participates in competition.": "Extra retirement saving beyond that basic amount competes with your other goals.",
+  "Retirement planning need that is not currently legally routable remains descriptive and cannot create phantom allocation.": "If no account has room for more retirement saving, the plan shows the need but doesn't assign money to it.",
+  "Employer-match availability is unknown.": "We don't know yet whether your employer matches your contributions.",
+  "The deductible reserve target cannot be verified without deductible data.": "Add your insurance deductibles so the plan can size your safety cushion.",
+  "Contribution room cannot yet be translated into an account-specific allocation safely.": "The plan needs a few more retirement account details before it can say which account to use.",
+  "Projection results are planning estimates, not guarantees.": "These are planning estimates, not guarantees.",
+};
+
+function plainSentences(text: string): string {
+  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) ?? [text];
+  return sentences.map((sentence) => PLAIN_SENTENCES[sentence.trim()] ?? sentence.trim()).join(" ");
+}
+
 export function forPeople(text: string): string {
   let out = text;
   for (const [pattern, replacement] of INTERNAL_LABELS) out = out.replace(pattern, replacement);
-  return out.trim();
+  return plainSentences(out.trim()).trim();
 }
 
 function allocationTotal(recommendation: MoneyPriorityRecommendation): number | null {
@@ -106,19 +129,22 @@ function toStep(recommendation: MoneyPriorityRecommendation, names: Map<string, 
 const MISSING_ROUTES: Array<{ match: RegExp; href: string | null; fixHint: string }> = [
   { match: /\bHSA\b/, href: "/financial-profile/hsa", fixHint: "Add it on the HSA details page" },
   { match: /SIMPLE IRA/i, href: "/financial-profile/simple", fixHint: "Add it on the SIMPLE IRA page" },
-  { match: /deductible|insurance/i, href: null, fixHint: "The app can't record insurance details yet" },
-  { match: /employer[- ]match/i, href: null, fixHint: "The app can't record employer match details yet" },
-  { match: /YTD|year-to-date|compensation|retirement spending|Social Security|pension|contribution room|annual[- ]additions|elective[- ]deferral|catch-up/i, href: null, fixHint: "The app can't record this retirement detail yet" },
-  { match: /gross (income|pay)|pre-tax income/i, href: null, fixHint: "The app can't record gross income yet" },
-  { match: /cash purpose|earmark|reserve designation/i, href: null, fixHint: "The app can't record what cash is set aside for yet" },
+  // Still not recordable in the app.
+  { match: /catch-up|prior[- ]year|SEP|self-employment|Medicare|tax filing|modified AGI|spouse/i, href: null, fixHint: "The app can't record this detail yet" },
+  // Recordable since FFH-P03.
+  { match: /deductible|insurance/i, href: "/financial-profile#insurance", fixHint: "Add it under Insurance in Financial profile" },
+  { match: /employer[- ]match|full match/i, href: "/financial-profile#retirement", fixHint: "Add it under the account's More details" },
+  { match: /YTD|year-to-date|compensation|elective[- ]deferral|annual[- ]additions|contribution room/i, href: "/financial-profile#retirement", fixHint: "Add it under the account's More details" },
+  { match: /retirement spending|today's dollars|Social Security|pension/i, href: "/financial-profile#retirement", fixHint: "Add it under Retirement goals" },
+  { match: /gross (income|pay)|gross amount|pre-tax income/i, href: "/financial-profile#income", fixHint: "Add gross pay to the income" },
+  { match: /cash purpose|reserve designation|protected reserve/i, href: "/financial-profile#accounts", fixHint: "Set what the account's cash is for" },
   { match: /goal|deadline|consequence|underlying (household )?need|core[- ]need|desired solution|borrowing/i, href: "/financial-profile#goals", fixHint: "Edit the goal in Financial profile" },
   { match: /interest rate|APR|minimum payment|debt|loan/i, href: "/financial-profile#debts", fixHint: "Edit the debt in Financial profile" },
-  { match: /monthly (employee |employer )?contribution/i, href: "/financial-profile#retirement", fixHint: "Edit the account in Financial profile" },
+  { match: /monthly (employee |employer )?contribution|retirement|401\(k\)|403\(b\)|IRA/i, href: "/financial-profile#retirement", fixHint: "Edit the account in Financial profile" },
   { match: /take-home|income|paycheck|salary/i, href: "/financial-profile#income", fixHint: "Edit income in Financial profile" },
   { match: /expense|spending/i, href: "/financial-profile#expenses", fixHint: "Edit expenses in Financial profile" },
   { match: /account balance|balance|savings|checking/i, href: "/financial-profile#accounts", fixHint: "Edit accounts in Financial profile" },
 ];
-
 export function missingItem(text: string): MissingItem {
   const route = MISSING_ROUTES.find((candidate) => candidate.match.test(text));
   return { text: forPeople(text), href: route?.href ?? null, fixHint: route?.fixHint ?? "Review your Financial profile" };

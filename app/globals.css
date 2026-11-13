@@ -874,3 +874,18 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 .plan-missing-groups{display:grid;gap:1rem;margin-top:.8rem}
 .plan-missing-group>strong{display:block;color:var(--heading);font-size:.95rem}
 .plan-missing-steps{display:none}
+.auth-signed-in{display:grid;gap:.6rem;margin:0 0 1rem;padding:.85rem 1rem;color:var(--warn-text);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:12px}
+.auth-signed-in p{margin:0;color:var(--warn-text)}
+.auth-signed-in-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.auth-signed-in-actions .secondary-button{min-height:36px;padding:.4rem .8rem;font-size:.85rem}
+.profile-more-fields,.profile-retirement-goals{grid-column:1/-1}
+.profile-more-fields>summary,.profile-retirement-goals>summary{cursor:pointer;color:var(--accent-text);font-weight:600;padding:.4rem 0}
+.profile-more-fields[open]{display:grid;gap:.6rem}
+.profile-retirement-goals{margin-top:.9rem}
+.auth-signed-in-actions button[type=submit]{color:var(--text);background:var(--surface);border:1px solid var(--line-strong);box-shadow:none}
+.profile-more-fields label{margin-top:.2rem}
+@media(min-width:761px){
+  .profile-workspace-panels .record-list>.record-row:has(.edit-panel[open]){grid-template-columns:minmax(0,1fr)}
+  .profile-workspace-panels .record-row:has(.edit-panel[open]) .record-actions{width:100%}
+  .profile-workspace-panels .record-row:has(.edit-panel[open]) .edit-panel[open]{width:100%}
+}

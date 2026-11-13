@@ -29,7 +29,16 @@ Scenario Lab. This phase shows it as a plain, ordered plan.
   payoff at current payments), each shown only when the inputs are complete.
 - **Example household**: a read-only demo of the plan built from a fixed synthetic snapshot, reachable signed out
   from the sign-in page. It never reads or writes the database.
-- `docs/workflow/QA_CHECKLIST.md` gains money-plan and demo checks.
+- **Profile fields for facts the plan asks for** (round 2, Ryan 2026-11-13). The columns already exist, so there is no
+  migration: insurance deductibles (new Insurance section), retirement-account details (employer match, year-to-date
+  contributions except on HSA rows, plan-eligible pay), retirement goals (desired monthly spending in today's dollars,
+  Social Security, pension; one preferences row per household), optional gross pay on income, and what an account's
+  cash is for (only purposes that need no linked goal or debt; linked ones are kept). Every value list mirrors a
+  database check, and writes stay scoped to the user's household through the existing RLS policies.
+- Plain-language wording for the engine's common sentences (exact-sentence matches only; original kept as
+  "technical wording").
+- Sign-in and sign-up say "already signed in as …" with Sign out (QA #108 lesson).
+- `docs/workflow/QA_CHECKLIST.md` gains money-plan, demo, profile-detail and signed-in checks (Q13–Q17).
 
 ## Out of scope / boundaries
 
@@ -37,7 +46,8 @@ Scenario Lab. This phase shows it as a plain, ordered plan.
   Presentation may group, order and word things, never change amounts or rules.
 - Unknown or invalid inputs fail closed: no step is shown as Recommended when the engine says more information is
   needed.
-- No schema, RLS or auth changes. Simple mode, Scenario Lab merging and the other roadmap items are later phases.
+- No schema or RLS changes. Auth changes are limited to the public `/demo` path and the signed-in notice. Simple mode,
+  Scenario Lab merging and the other roadmap items are later phases.
 
 ## Done when
 

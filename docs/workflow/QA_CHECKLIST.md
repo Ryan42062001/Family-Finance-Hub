@@ -36,6 +36,9 @@ Preview: `https://family-finance-hub-preview.vercel.app`, which always serves th
 | Q14 | Plan summary on Overview | Signed in as TestA, open **Overview** | A "Your money plan · Next steps" card at the top lists up to three steps that match the first steps on the plan page, and **See your full plan** opens it |
 | Q15 | Example household (signed out) | Sign out. On the Sign in page click **See an example household's plan** | `/demo` opens without signing in and is clearly labelled "Example household · made-up numbers"; it shows a full plan with no TestA/TestB data; there is no sidebar, account menu or link into anyone's profile |
 
+| Q16 | New profile details (TestA) | Financial profile → **Insurance** → Add insurance `ZZ-A-Health` (Health, deductible `1500`). **Retirement** → if missing add `ZZ-A-401k` (401(k), balance `1000`, contributions `100`/`50`), then Edit → **More details**: Employer match "Getting the full match", your contributions so far this year `500`. Open **Retirement goals** and save monthly spending `4000` | Each save shows a success message and the values are still there after reload. **Your plan** → What's missing no longer asks for the insurance deductible or the employer match for ZZ-A-401k. TestB (Q7) still sees none of these |
+| Q17 | Already signed in | While signed in as TestA, open `/auth/login` directly | A notice says "You're already signed in as <TestA's email>" with **Go to your plan** and **Sign out**; Sign out works |
+
 Finish signed out.
 
 ## Reporting

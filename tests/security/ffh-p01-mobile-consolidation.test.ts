@@ -51,7 +51,9 @@ test("profile summary has six independently expandable financial sections", () =
   for (const action of ["addAccount", "addIncome", "addExpense", "addDebt", "addRetirementAccount", "addGoal", "updateAccount", "updateIncome", "updateExpense", "updateDebt", "updateRetirementAccount", "updateGoal", "deleteRecord"]) {
     assert.ok(profile.includes(action), action);
   }
-  assert.equal((profile.match(/className="profile-add-disclosure"/g) ?? []).length, 6);
+  // Seven since FFH-P03 added the Insurance section; every section keeps its own add disclosure.
+  assert.equal((profile.match(/className="profile-add-disclosure"/g) ?? []).length, 7);
+  assert.match(profile, /<ProfileSection id="insurance"/);
   assert.match(profile, /<RecordActions kind="account"/);
   assert.match(profile, /<RecordActions kind="goal"/);
   assert.match(profileSection, /count === 1/);
