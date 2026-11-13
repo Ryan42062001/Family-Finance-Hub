@@ -134,6 +134,12 @@
   Work mode can't type or read passwords, so Ryan enters TestA/TestB logins only in its secure sign-in window,
   never in a chat. The Work mode prompt and QA checklist now say so.
 
+- **FFH-P03 targeted re-review of the #117 fix (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `cd2ab3794e315ad0d89fa3ec3af698b81f477368`.** One MEDIUM finding, fixed in the phase: an inactive saved owner was
+  missing from the owner choices, so an unrelated edit could clear it. The edit form now always offers the saved
+  owner, marked "(inactive)". Runtime persistence and hosted RLS for the new writes are covered by Work mode Q16 and
+  Q7/Q8 on the Preview, not by local tests.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

@@ -83,15 +83,17 @@ export function DebtFields({ d = {} }: { d?: Defaults }) {
   </>;
 }
 
-export type PersonOption = { id: string; display_name: string };
+export type PersonOption = { id: string; display_name: string; is_active?: boolean };
 
 export function RetirementFields({ d = {}, isHsa = false, people = [] }: { d?: Defaults; isHsa?: boolean; people?: PersonOption[] }) {
   const owner = text(d.owner_person_id);
+  // Active people, plus the saved owner even if they are inactive, so an unrelated edit never clears the owner.
+  const choices = people.filter((person) => person.is_active !== false || person.id === owner);
   return <>
     <TextField name="name" label="What do you call it?" example="Work 401(k)" defaultValue={text(d.name)} required />
     <Choice name="account_type" legend="What kind of account?" options={RETIREMENT_TYPES} defaultValue={text(d.account_type) ?? "401k"} />
-    {people.length
-      ? <Choice name="owner_person_id" legend="Whose account is this?" variant="pills" required={false} defaultValue={owner ?? ""} options={[{ value: "", label: "Not set" }, ...people.map((person) => ({ value: person.id, label: person.display_name }))]} />
+    {choices.length
+      ? <Choice name="owner_person_id" legend="Whose account is this?" variant="pills" required={false} defaultValue={owner ?? ""} options={[{ value: "", label: "Not set" }, ...choices.map((person) => ({ value: person.id, label: person.is_active === false ? `${person.display_name} (inactive)` : person.display_name }))]} />
       : <><input type="hidden" name="owner_person_id" value={owner ?? ""} /><p className="field-hint profile-owner-hint">Add yourself under <strong>People in your household</strong> above, then choose whose account this is. The plan needs it to count contributions per person.</p></>}
     <NumberField name="balance" label="How much is in it?" defaultValue={num(d.balance)} required />
     <NumberField name="monthly_employee_contribution" label="You put in each month" period="month" defaultValue={num(d.monthly_employee_contribution)} required />
