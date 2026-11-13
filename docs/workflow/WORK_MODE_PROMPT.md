@@ -1,7 +1,9 @@
 # ChatGPT Work mode prompt (browser QA)
 
 Paste this into ChatGPT **Work mode using the Cloud Browser**. Don't use @Chrome or @Computer: they can reach
-Ryan's signed-in accounts. Then, in the same chat, give the TestA/TestB passwords. Never put them in GitHub.
+Ryan's signed-in accounts. Work mode can't type or read passwords: when its secure sign-in window appears, Ryan types the
+TestA/TestB login there (and ticks "Save to Passwords" if offered, so later runs can reuse it). Never paste
+passwords into the chat, GitHub or anywhere else.
 
 ---
 

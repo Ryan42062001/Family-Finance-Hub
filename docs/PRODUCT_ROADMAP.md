@@ -15,10 +15,15 @@ plan. Current gate status: `docs/FFH-P01_RELEASE_READINESS.md`; open work: `.ai/
 Production deployment, Private Beta and paid domain/configuration are separate Ryan decisions, not authorized by this
 phase.
 
-## FFH-P02 — Modern UI refresh and dark mode
+## FFH-P02 — Modern redesign and dark mode
 
-State: BUILDING. Risk: LOW. Branch `phase/ffh-p02-modern-ui`. Presentation only; no data, auth or calculation changes.
-Production deployment is a separate Ryan decision and is not authorized by this phase.
+State: CLOSED. Risk: LOW. Released to Production via PR #98 at `e639533` (2026-11-12), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Presentation only.
+
+## FFH-P03 — Your money plan (home screen)
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p03-money-plan`. Scope: `.ai/CURRENT_PHASE.md` (item 1 below, with the
+example household, "what's missing" checklist and headline badges).
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
@@ -29,21 +34,27 @@ Production deployment is a separate Ryan decision and is not authorized by this 
    - a read-only **example household** (synthetic numbers) to try the plan before entering data;
    - a **"what's missing" checklist** naming the facts that unlock *Needs more information* steps;
    - headline badges: **debt-free date** and **months of cushion**, from existing calculations.
-2. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
+2. **Automated sign-in and isolation tests (Ryan, 2026-11-13).** A Playwright test in GitHub Actions that runs
+   against the Preview after each phase-branch build. It signs in as TestA and as TestB using credentials stored only
+   as encrypted GitHub Actions secrets (Ryan adds them in GitHub settings; never in chat, the repository or logs), then
+   checks the signed-in identity, that neither account sees the other's records (Q3, Q7, Q8), that the money plan
+   loads, and that sign-out clears the session. Read-only apart from signing in; synthetic accounts only. Work mode
+   then focuses on look-and-feel and new screens. HIGH risk (auth/isolation and secrets handling).
+3. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
    other spending, debts, savings), then straight to the money plan. Simple mode hides Scenario Lab, the HSA/SIMPLE
    IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off. Also:
    **install on the phone home screen** (web app manifest and icons).
-3. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
-4. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with
+4. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
+5. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with
    history of net worth and cash flow. Also:
    - **"Can we afford it?"**: a big-purchase check showing how the plan changes (surfaces the existing
      home-affordability calculation and generalises the question);
    - **irregular costs** (yearly or quarterly bills) set aside as a monthly amount;
    - a **per-paycheck view** of the plan, building on the paycheck planner;
    - an in-app **balance update reminder** after 30 days (email reminders wait for email deliverability).
-5. Account settings: change password and email, delete account (also enables test-account cleanup), and
+6. Account settings: change password and email, delete account (also enables test-account cleanup), and
    **two-factor sign-in** (authenticator app). HIGH risk (auth).
-6. Bills and due dates with optional reminders, then export of the plan (PDF/CSV).
+7. Bills and due dates with optional reminders, then export of the plan (PDF/CSV).
 
 Changes alongside: Scenario Lab becomes a "What if?" action on the money plan; overlapping planning calculators fold
 into the plan, the rest sit under "Tools"; HSA and SIMPLE IRA pages move under "Advanced"; long explanatory text is

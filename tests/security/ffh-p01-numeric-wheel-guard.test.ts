@@ -160,7 +160,8 @@ test("one root-mounted, nonpassive capture listener guards every native numeric 
 
 test("native-number pages are globally covered; Paycheck and onboarding preserve their safe input types", () => {
   const nativeNumericPaths=[
-    "../../app/financial-profile/page.tsx",
+    // Since FFH-P03 the Financial profile's amounts render through NumberField (still a native number input).
+    "../../components/forms/NumberField.tsx",
     "../../components/planning/PlanningCalculators.tsx",
     "../../components/planning/DebtPayoffCalculator.tsx",
     "../../components/planning/RetirementPacingCalculator.tsx",
@@ -170,6 +171,7 @@ test("native-number pages are globally covered; Paycheck and onboarding preserve
   for (const path of nativeNumericPaths) {
     assert.match(source(path), /type="number"/, `Expected native numeric input: ${path}`);
   }
+  assert.match(source("../../components/forms/ProfileFields.tsx"), /<NumberField name="balance"/, "Profile amounts use NumberField");
   const paycheck=source("../../components/planning/PaycheckPlanner.tsx");
   assert.match(paycheck, /type="text" inputMode="decimal"/,
     "Paycheck already uses decimal text inputs, which do not have wheel stepping");

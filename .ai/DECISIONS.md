@@ -104,6 +104,42 @@
     phones, the top bar on tablets, and the sidebar from 1024 px. The device dark preference darkens every page,
     and the short-window account menu stays reachable.
 
+- **FFH-P02 released (Ryan's explicit authorization).** PR #98 merged into `main` as `e639533`. Production deployment
+  Ready, and the Production smoke test after the release passed 12/12. Ryan confirmed the new sidebar and dashboard.
+  FFH-P02 is CLOSED. FFH-P03 (money plan home screen, HIGH risk) starts on `phase/ffh-p03-money-plan`; this closing
+  note reaches `main` with the FFH-P03 release.
+
+- **FFH-P03 independent review (ChatGPT): `REVIEW RESULT: FAIL` at `17a4131a86cfd1552f448fb232ccc85cfb4bfef4`.**
+  Three HIGH findings and one MEDIUM, all fixed in the phase. They need a targeted re-review.
+  - HIGH: plain-wording sentence splitting broke at decimal points ("$123.45" became "45", "23.90%" became "90%").
+    Now only exact whole-sentence substitutions; every other character is kept.
+  - HIGH: plan amounts were rounded to whole dollars. They are now shown to the cent through `formatPlanMoney` in
+    the plan and the dashboard summary.
+  - HIGH: saving retirement goals inferred the spending basis. The form now shows the saved basis as an explicit
+    answer (Today's dollars / Future dollars / Not sure), and the action validates and writes only that answer.
+  - MEDIUM: the cushion badge counted earmarked, debt-backed and everyday cash. It now uses emergency-fund plus
+    unassigned cash only, matching the engine's cash purposes, and the label says so.
+  Preview smoke test at `17a4131` was 12/12 (run by Ryan on a new desktop).
+
+- **FFH-P03 re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at `925a604551db188ca65c771dc30a2b97f2562213`.**
+- **FFH-P03 Work mode QA at `925a604`:** 14 PASS, 1 FAIL (Q16), Q9 and Q11 covered locally by the Builder. No
+  isolation leak. Preview smoke test 12/12.
+  - **QA #117 (MEDIUM), fixed:** a saved 401(k) YTD was still reported missing. Cause: the engine attributes
+    workplace YTD per account owner, and the form could not set an owner. Fix: "People in your household" (add a
+    person) and "Whose account is this?" on retirement accounts. The owner must be a person in the caller's
+    household, checked server-side and by the database's composite foreign key. The owner question in "What's
+    missing" now links to the form. An engine regression test shows the YTD request disappears once an owner is set.
+
+- **Automated sign-in and isolation tests added to the roadmap (Ryan, 2026-11-13)** as the phase after FFH-P03.
+  Work mode can't type or read passwords, so Ryan enters TestA/TestB logins only in its secure sign-in window,
+  never in a chat. The Work mode prompt and QA checklist now say so.
+
+- **FFH-P03 targeted re-review of the #117 fix (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `cd2ab3794e315ad0d89fa3ec3af698b81f477368`.** One MEDIUM finding, fixed in the phase: an inactive saved owner was
+  missing from the owner choices, so an unrelated edit could clear it. The edit form now always offers the saved
+  owner, marked "(inactive)". Runtime persistence and hosted RLS for the new writes are covered by Work mode Q16 and
+  Q7/Q8 on the Preview, not by local tests.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
