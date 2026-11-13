@@ -105,11 +105,12 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
     `FFH_E2E_B_PASSWORD`. They are never printed, and no screenshots, traces or videos are recorded.
   - Missing secrets report `BLOCKED` (exit 3) and the job fails; it never reports a pass without testing.
   - Production and every host except `https://family-finance-hub-preview.vercel.app` are refused (exit 2). While it
-    runs, every navigation and form submission is checked: a request or redirect to any other address is blocked
-    and the run reports REFUSED (exit 2), so credentials can only ever be sent to the Preview.
+    runs, every request the browser makes is checked: any request, redirect or WebSocket to another address is
+    blocked and the run reports REFUSED (exit 2), naming only the host. The browser also runs behind a dead proxy
+    that only the Preview bypasses, with service workers off, so credentials can only ever reach the Preview.
   - Before signing in, the suite reads `/api/build-info` and requires that the Preview address serves this exact
-    commit as a Preview build. If the fixed Preview domain points at another branch or an older build, the run
-    reports BLOCKED (exit 3) and tests nothing. Point the domain at the current phase branch (see Preview setup).
+    commit as a Preview build, and checks again after each account. If the fixed Preview domain points at another
+    branch or an older build, or a newer build takes over during the run, it reports BLOCKED (exit 3). Point the domain at the current phase branch (see Preview setup).
   - Local rehearsal only: with `FFH_E2E_ALLOW_LOCALHOST=1` the script also accepts an `http://localhost` origin backed
     by a synthetic mock; this is refused whenever `CI` or `GITHUB_ACTIONS` is set.
 

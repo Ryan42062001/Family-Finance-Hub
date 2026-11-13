@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { buildMatches, checkTarget, credentialsFrom, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
+import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, credentialsFrom, hostOf, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
 
 const PREVIEW = "https://family-finance-hub-preview.vercel.app/";
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -84,7 +84,7 @@ test("FFH-P04 review fix: nothing is tested unless the address serves this exact
   assert.match(script, /FFH_E2E_EXPECTED_SHA \(the commit under test\) is missing/);
   assert.equal((workflow.match(/FFH_E2E_EXPECTED_SHA: \$\{\{ github\.sha \}\}/g) ?? []).length, 2);
   // The build check happens before any browser or credential is used.
-  assert.ok(script.indexOf("verifyBuild(target.origin, expectedSha)") < script.indexOf("chromium.launch()"));
+  assert.ok(script.indexOf("verifyBuild(target.origin, expectedSha)") < script.indexOf("chromium.launch("));
 });
 
 test("FFH-P04 review fix: build-info exposes only build metadata and is public", () => {
@@ -108,7 +108,7 @@ test("FFH-P04 review fix: navigation and submissions can never leave the tested 
   assert.match(script, /route\.fetch\(\{ maxRedirects: 0 \}\)/);
   assert.match(script, /request\.isNavigationRequest\(\) \|\| request\.method\(\) !== "GET"/);
   assert.ok(script.indexOf("const formAction =") < script.indexOf('page.fill(\'input[name="email"]\''));
-  assert.match(script, /REFUSED: the site tried to send the browser to another address/);
+  assert.match(script, /REFUSED: the site tried to reach another address/);
 });
 
 test("FFH-P04 review fix: the negative control exercises the real identity and leak checks", () => {
@@ -118,4 +118,37 @@ test("FFH-P04 review fix: the negative control exercises the real identity and l
   assert.match(script, /record\(`\$\{who\} is signed in as itself`, identityMatches\(run\.email, account\.email\)/);
   assert.match(script, /!identityMatches\(a\.email, creds\.b\.email\) && !identityMatches\(b\.email, creds\.a\.email\)/);
   assert.match(script, /leakedMarkers\(a\.pages\["\/dashboard"\]\.text, \[a\.householdName\]\)\.length > 0/);
+});
+
+test("FFH-P04 re-review fix: every request to another origin is blocked, whatever its method or type", () => {
+  // The origin check comes first and does not depend on method or navigation type.
+  const guard = script.slice(script.indexOf("async function installOriginGuard"), script.indexOf("async function assertOnOrigin"));
+  assert.ok(guard.indexOf("if (leavesOrigin(request.url(), origin))") < guard.indexOf("const sensitive ="));
+  assert.match(guard, /if \(leavesOrigin\(request\.url\(\), origin\)\) \{\n\s+violations\.push\(hostOf\(request\.url\(\)\)\);\n\s+return route\.abort\("blockedbyclient"\);/);
+  assert.doesNotMatch(guard, /leavesOrigin[^\n]*\n[^\n]*route\.continue/);
+  assert.match(guard, /context\.routeWebSocket\(\(url\) => leavesOrigin\(url\.href, origin\)/);
+  // Any blocked request makes the whole run REFUSED, even if the page otherwise worked.
+  assert.match(script, /if \(violations\.length\) throw new OriginViolation\(violations\);\n\s+return \{ signedIn: true/);
+  // The login form must post to the same origin; no javascript: exception.
+  assert.doesNotMatch(script, /javascript:/);
+  assert.match(script, /if \(!formAction \|\| leavesOrigin\(formAction, origin\)\)/);
+  // Reports name hosts only, never full URLs.
+  assert.equal(hostOf("https://evil.example/collect?p=secret"), "evil.example");
+  assert.equal(hostOf("nonsense"), "unparseable");
+});
+
+test("FFH-P04 re-review fix: a browser-level boundary backs up the request guard", () => {
+  const options = browserLaunchOptions("https://family-finance-hub-preview.vercel.app");
+  assert.deepEqual(options.proxy, { server: "http://127.0.0.1:9", bypass: "family-finance-hub-preview.vercel.app" });
+  assert.ok(options.args.includes("--dns-prefetch-disable"));
+  assert.equal(CONTEXT_OPTIONS.serviceWorkers, "block");
+  assert.equal(CONTEXT_OPTIONS.extraHTTPHeaders["x-vercel-skip-toolbar"], "1");
+  assert.match(script, /chromium\.launch\(browserLaunchOptions\(target\.origin\)\)/);
+  assert.match(script, /browser\.newContext\(CONTEXT_OPTIONS\)/);
+});
+
+test("FFH-P04 re-review fix: the build is re-checked after each account, and a change stops the run", () => {
+  const run = script.slice(script.indexOf("a = await runAccount("), script.indexOf("} catch (error) {\n    await browser.close();"));
+  assert.match(run, /a = await runAccount\(browser, target\.origin, creds\.a\);\n\s+if \(await buildDrifted\(\)\) throw new BuildDrift\(\);\n\s+b = await runAccount\(browser, target\.origin, creds\.b\);\n\s+if \(await buildDrifted\(\)\) throw new BuildDrift\(\);/);
+  assert.match(script, /BLOCKED: the Preview address stopped serving/);
 });
