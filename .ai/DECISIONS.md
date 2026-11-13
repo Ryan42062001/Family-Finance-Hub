@@ -251,6 +251,17 @@
   person in a shared household sees the view they want. It is stored as `profiles.simple_mode`, which is already
   self-scoped by RLS. The guided setup is offered to **every new household** and can be skipped.
 
+- **FFH-P05 hosted migration applied (Ryan's explicit authorization, 2026-11-13).** Ryan ran
+  `20261113210000_ffh_p05_profile_simple_mode` in the hosted Supabase SQL editor as one transaction: add
+  `profiles.simple_mode boolean not null default false`, add its comment, and record the migration version. Result:
+  "Success. No rows returned". Hosted `parity.sql` then matched `scripts/rls-local/parity.expected.txt` in all
+  **9/9** sections (columns 217, constraints 166, function_grants 12, functions 6, migrations 16, policies 59,
+  rls 16, table_grants 208, triggers 2). The change is additive with an off default, so Production behaviour is
+  unchanged until the FFH-P05 release.
+- **FFH-P05 build complete on the phase branch.** PR #133 (per-user Simple mode: migration, 6 new RLS probes to 919,
+  switch, simplified screens) and PR #134 (guided setup for every new household, home-screen install). Phase CI run
+  43505658954 at `7927263`: fast, rls-matrix (919) and e2e-isolation all PASS.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
