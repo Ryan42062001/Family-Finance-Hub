@@ -889,3 +889,69 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
   .profile-workspace-panels .record-row:has(.edit-panel[open]) .record-actions{width:100%}
   .profile-workspace-panels .record-row:has(.edit-panel[open]) .edit-panel[open]{width:100%}
 }
+
+/* ==========================================================================
+   FFH-P03: friendlier forms (tiles, pills, switches, money boxes, save celebration)
+   ========================================================================== */
+.friendly-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.1rem;align-items:start}
+.friendly-form>.choice,.friendly-form>.switch,.friendly-form>.profile-more-fields,.friendly-form>button{grid-column:1/-1}
+.friendly-form>button{justify-self:start;min-width:12rem}
+.field{display:grid;gap:.35rem;min-width:0}
+.field-label,.choice legend{color:var(--heading);font-size:.88rem;font-weight:600}
+.field input,.field textarea{width:100%;min-height:46px;padding:.65rem .8rem;border-radius:12px;background:var(--input-bg);color:var(--text);border:1px solid var(--line-strong);font-size:1rem}
+.field textarea{min-height:80px}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:var(--focus)}
+.field-affix{position:relative;display:block}
+.field-affix-money input{padding-left:1.9rem;font-variant-numeric:tabular-nums;font-weight:600}
+.field-affix-percent input{padding-right:2rem;font-variant-numeric:tabular-nums;font-weight:600}
+.field-prefix,.field-suffix{position:absolute;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none}
+.field-prefix{left:.85rem}.field-suffix{right:.85rem}
+.field-hint{color:var(--muted);font-size:.78rem}
+.choice{margin:0;padding:0;border:0;min-width:0}
+.choice legend{margin-bottom:.5rem;padding:0}
+.choice-options{display:flex;flex-wrap:wrap;gap:.5rem}
+.choice-option{position:relative;cursor:pointer}
+.choice-option input{position:absolute;opacity:0;width:1px;height:1px}
+.choice-face{display:flex;align-items:center;gap:.45rem;border:1px solid var(--line-strong);background:var(--surface);color:var(--text);font-weight:550;transition:border-color .15s,background .15s,transform .15s}
+.choice-tiles .choice-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.choice-tiles .choice-face{flex-direction:column;justify-content:center;min-height:78px;padding:.6rem .4rem;border-radius:14px;font-size:.84rem;text-align:center}
+.choice-icon{font-size:1.45rem;line-height:1}
+.choice-pills .choice-face{min-height:38px;padding:.4rem .9rem;border-radius:999px;font-size:.86rem}
+.choice-option:hover .choice-face{border-color:var(--accent)}
+.choice-option input:checked+.choice-face{color:var(--heading);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));box-shadow:0 0 0 1px var(--accent) inset}
+.choice-option input:focus-visible+.choice-face{box-shadow:var(--focus)}
+.switch{display:flex;align-items:center;gap:.75rem;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch-track{position:relative;flex:0 0 auto;width:46px;height:26px;border-radius:999px;background:var(--line-strong);transition:background .2s}
+.switch-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+.switch-track{background:var(--grad)}
+.switch input:checked+.switch-track .switch-thumb{transform:translateX(20px)}
+.switch input:focus-visible+.switch-track{box-shadow:var(--focus)}
+.switch-text{display:grid;gap:.1rem;color:var(--heading);font-weight:600;font-size:.9rem}
+.switch-text small{color:var(--muted);font-weight:400;font-size:.78rem}
+.friendly-form .profile-more-fields[open]{display:grid;gap:1rem;padding:.9rem;border:1px dashed var(--line-strong);border-radius:14px}
+.save-celebration{display:flex;align-items:center;gap:.9rem;margin:0 0 1rem;padding:.85rem 1.1rem;border-radius:16px;background:var(--success-soft);border:1px solid var(--success-line);color:var(--success-text)}
+.save-celebration>div{display:grid;gap:.15rem;flex:1;min-width:0}
+.save-celebration strong{color:var(--heading)}
+.save-celebration span{font-size:.88rem}
+.save-celebration a{color:var(--accent-text);font-weight:600;white-space:nowrap}
+.save-check{display:grid;place-items:center;flex:0 0 auto;width:38px;height:38px;border-radius:50%;color:var(--on-accent);background:var(--grad)}
+.save-check svg{width:22px;height:22px;stroke-dasharray:24;stroke-dashoffset:0}
+@media(prefers-reduced-motion:no-preference){
+  .save-celebration{animation:save-pop .45s cubic-bezier(.2,1.4,.4,1) both}
+  .save-check svg path{stroke-dasharray:24;animation:save-draw .5s .2s ease-out both}
+  .choice-option input:checked+.choice-face{transform:scale(1.02)}
+}
+@keyframes save-pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes save-draw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@media(max-width:650px){
+  .friendly-form{grid-template-columns:1fr}
+  .choice-tiles .choice-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .save-celebration{flex-wrap:wrap}
+}
+.friendly-form label.switch{display:flex;color:inherit;font-weight:inherit}
+.friendly-form label.choice-option{display:block;color:inherit;font-weight:inherit}
+.friendly-form label.field{display:grid;color:inherit;font-weight:inherit}
+.friendly-form .choice-option input,.friendly-form .switch input{min-height:0;padding:0;border:0}
+.friendly-form .profile-more-fields[open]{gap:1.25rem}
+.friendly-form .profile-more-fields>summary{margin:-.2rem 0 .1rem}
