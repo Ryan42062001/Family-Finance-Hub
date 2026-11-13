@@ -26,12 +26,23 @@ existing owner / member / viewer roles, so a family can plan together without sh
   read-only).
 - QA checklist and the automated isolation check updated for the new screens.
 
-## Open questions for Ryan (settle before building)
+## Decisions (Ryan, 2026-11-13)
 
-- How is an invitation delivered: a link the owner copies and sends themselves (works now), or an email from the app
-  (email deliverability is still an open backlog item)?
-- How long should an invitation stay valid, and can it be used only once?
-- Can a member (not only the owner) invite people?
+- Invitations are a link the owner copies and sends themselves (no app email yet).
+- An invitation is valid for 7 days and can be used once.
+- Only the household owner can invite, change roles or remove people. The owner can never be demoted or removed.
+
+## Design
+
+- `household_invitations` (owner-only RLS): role (member or viewer), optional label (for example "Jordan"), a SHA-256
+  hash of the secret link token (the token itself is never stored), 7-day expiry, and who accepted. Owners can create,
+  see and cancel (delete) their household's pending invitations.
+- Membership changes go only through narrow SECURITY DEFINER functions (`search_path = ''`, EXECUTE for authenticated
+  only): accept an invitation (valid, unused, unexpired; locked so it is used once; the person must not already belong
+  to a household), set a member's role (owner only; never the owner), remove a member (owner only; never the owner).
+  Direct writes to `household_members` stay forbidden.
+- No sign-in changes: an invite link opened while signed out is remembered in a short-lived httpOnly cookie, and the
+  "create your household" screen then offers to join instead.
 
 ## Out of scope / boundaries
 
