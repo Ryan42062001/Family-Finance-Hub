@@ -28,8 +28,15 @@ plan's facts, friendlier forms and the signed-in notice.
 
 ## FFH-P04 — Automated sign-in and isolation tests
 
-State: BUILDING. Risk: HIGH. Branch `phase/ffh-p04-auto-isolation-tests`. Scope: `.ai/CURRENT_PHASE.md` (item 2
-below).
+State: CLOSED. Risk: HIGH. Released to Production via PR #121 at `4f66d7e` (2026-11-13), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Playwright isolation suite and CI job (`e2e-isolation`)
+on every phase push, with a locked-down browser, exact-build verification and fixed-sentence output; passed the
+independent review after five rounds.
+
+## FFH-P05 — Simple mode with guided setup
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p05-simple-mode`. Scope: `.ai/CURRENT_PHASE.md` (item 3 below).
+Production deployment remains a separate decision.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
@@ -46,9 +53,9 @@ below).
    checks the signed-in identity, that neither account sees the other's records (Q3, Q7, Q8), that the money plan
    loads, and that sign-out clears the session. Read-only apart from signing in; synthetic accounts only. Work mode
    then focuses on look-and-feel and new screens. HIGH risk (auth/isolation and secrets handling).
-3. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
+3. **Simple mode (a per-user switch; Ryan, 2026-11-13) with a guided setup offered to every new household.** About five questions (take-home pay, fixed bills,
    other spending, debts, savings), then straight to the money plan. Simple mode hides Scenario Lab, the HSA/SIMPLE
-   IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off. Also:
+   IRA pages, chart details and most planning tools. Off by default; each person turns their own view on or off. Also:
    **install on the phone home screen** (web app manifest and icons).
 4. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
 5. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { amount, percent } from "@/lib/forms/validate";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACCOUNT_TYPES = ["checking", "savings", "cash", "brokerage", "other_asset"] as const;
@@ -31,15 +32,6 @@ function requiredText(formData: FormData, key: string, max = 100) {
   return value;
 }
 
-function amount(formData: FormData, key: string, { min = 0, required = true } = {}) {
-  const raw = String(formData.get(key) ?? "").trim();
-  if (!raw && !required) return null;
-  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) throw new Error(`Invalid ${key}`);
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < min || value > 999999999999.99) throw new Error(`Invalid ${key}`);
-  return Math.round(value * 100) / 100;
-}
-
 function optionalText(formData: FormData, key: string, max = 500) {
   const value = String(formData.get(key) ?? "").trim();
   if (!value) return null;
@@ -55,15 +47,6 @@ function optionalDate(formData: FormData, key: string) {
     throw new Error(`Invalid ${key}`);
   }
   return value;
-}
-
-function percent(formData: FormData, key: string) {
-  const raw = String(formData.get(key) ?? "").trim();
-  if (!raw) return null;
-  if (!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)) throw new Error(`Invalid ${key}`);
-  const value = Number(raw);
-  if (!Number.isFinite(value) || value < 0 || value > 100) throw new Error(`Invalid ${key}`);
-  return Math.round(value * 10000) / 10000;
 }
 
 function recordId(formData: FormData) {

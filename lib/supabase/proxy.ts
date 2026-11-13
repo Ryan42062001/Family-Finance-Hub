@@ -43,7 +43,9 @@ export async function updateSession(request: NextRequest) {
     // Read-only example household with fixed made-up numbers; it never reads household data (FFH-P03).
     path === "/demo" ||
     // Build metadata (commit SHA and environment) for the automated Preview check; no user or household data (FFH-P04).
-    path === "/api/build-info";
+    path === "/api/build-info" ||
+    // Web app manifest (name, colours, icons only) so phones can add the app to the home screen (FFH-P05).
+    path === "/manifest.webmanifest";
 
   if (!userId && !isPublic) {
     const trusted = trustedRequestUrl(request.url);

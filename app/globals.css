@@ -1011,3 +1011,26 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 .profile-people-list small{color:var(--muted);font-size:.75rem;text-transform:capitalize}
 .profile-people[open]>.data-form{margin-top:.75rem}
 .profile-owner-hint{grid-column:1/-1;margin:0}
+
+/* FFH-P05: per-user Simple view switch (account menu), detailed-tool note, simpler bottom bar */
+.simple-mode-switch{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin:0;padding:.6rem 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.account-menu .simple-mode-label,.simple-mode-label{display:grid;gap:.15rem;min-width:0}.simple-mode-label b,.simple-mode-label small{display:block}.simple-mode-label b{color:var(--heading);font-size:.88rem}.simple-mode-label small{color:var(--muted);font-size:.75rem;line-height:1.35;white-space:normal}
+.simple-mode-toggle{position:relative;flex:0 0 auto;width:46px;height:26px;min-height:26px;padding:0;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface-sunken);box-shadow:none;cursor:pointer}
+.simple-mode-toggle span{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .18s ease,background .18s ease}
+.simple-mode-toggle.on{background:var(--accent);border-color:var(--accent)}.simple-mode-toggle.on span{transform:translateX(20px);background:var(--on-accent)}
+.simple-mode-toggle:hover{transform:none;box-shadow:none}
+/* Beats the global submit-button gradient (button[type=submit]:not(.nav-sign-out)). */
+.simple-mode-switch button.simple-mode-toggle[type=submit]{background:var(--surface-sunken);background-image:none;border:1px solid var(--line-strong);box-shadow:none}
+.simple-mode-switch button.simple-mode-toggle.on[type=submit]{background:var(--accent);background-image:none;border-color:var(--accent)}.simple-mode-toggle:focus-visible{outline:none;box-shadow:var(--focus)}
+.detailed-tool-notice{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;margin:0 0 1rem;padding:.85rem 1rem;border:1px solid var(--accent-line);border-radius:var(--radius-md);background:var(--accent-soft);color:var(--text)}
+.detailed-tool-notice p{margin:0;flex:1 1 280px}.detailed-tool-notice form{margin:0}
+.mobile-bottom-nav.mobile-bottom-nav-simple{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (prefers-reduced-motion:reduce){.simple-mode-toggle span{transition:none}}
+
+/* FFH-P05: guided setup */
+.setup-form{display:grid;gap:1rem;max-width:720px}
+.setup-step{display:grid;gap:.85rem}
+.setup-step-number{margin:0;color:var(--accent-text);font-size:.78rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.setup-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem}
+.setup-household{max-width:720px;margin-top:1rem;font-size:.85rem}
+.plan-notice{margin-bottom:1rem}

@@ -242,6 +242,73 @@
   e2e-isolation all PASS. Release checklist: no environment variables or migrations changed in this phase. FFH-P04
   is a release candidate awaiting Ryan's release decision.
 
+- **FFH-P04 released (Ryan's explicit authorization).** PR #121 merged into `main` as `4f66d7e` (phase head
+  `59c59cc`). Vercel Production deployment Ready, and the Production smoke test after the release passed 12/12.
+  FFH-P04 is CLOSED. FFH-P05 (Simple mode with guided setup, HIGH risk) starts on `phase/ffh-p05-simple-mode`; this
+  note reaches `main` with the FFH-P05 release.
+
+- **FFH-P05 scope decisions (Ryan, 2026-11-13).** Simple mode is a **per-user** setting, not per household, so each
+  person in a shared household sees the view they want. It is stored as `profiles.simple_mode`, which is already
+  self-scoped by RLS. The guided setup is offered to **every new household** and can be skipped.
+
+- **FFH-P05 hosted migration applied (Ryan's explicit authorization, 2026-11-13).** Ryan ran
+  `20261113210000_ffh_p05_profile_simple_mode` in the hosted Supabase SQL editor as one transaction: add
+  `profiles.simple_mode boolean not null default false`, add its comment, and record the migration version. Result:
+  "Success. No rows returned". Hosted `parity.sql` then matched `scripts/rls-local/parity.expected.txt` in all
+  **9/9** sections (columns 217, constraints 166, function_grants 12, functions 6, migrations 16, policies 59,
+  rls 16, table_grants 208, triggers 2). The change is additive with an off default, so Production behaviour is
+  unchanged until the FFH-P05 release.
+- **FFH-P05 build complete on the phase branch.** PR #133 (per-user Simple mode: migration, 6 new RLS probes to 919,
+  switch, simplified screens) and PR #134 (guided setup for every new household, home-screen install). Phase CI run
+  43505658954 at `7927263`: fast, rls-matrix (919) and e2e-isolation all PASS.
+
+- **FFH-P05 Work mode QA at `7927263`: 13 PASS, 0 FAIL, 9 NOT RUN (out of scope).** Q1, Q2, Q3, Q7, Q8, Q14, Q15,
+  Q17, Q18 and the new Q19–Q22 passed: Simple view, detailed tools in Simple view, the per-person setting (TestB
+  unaffected; TestA set back to off) and the manifest. No cross-household exposure and no `qa-finding` issues.
+- **Work mode scope (Ryan, 2026-11-13):** since the automated `e2e-isolation` job now checks sign-in and household
+  isolation on every phase push (Q3, Q7, Q8), future Work mode passes skip those checks and focus on new or changed
+  screens. A phase that changes no screens can skip Work mode.
+- **FFH-P05 independent review (ChatGPT): `REVIEW RESULT: FAIL` at
+  `20c8114af4edb0dc312b52c4a6d26b15ac27abbe`.** The migration, RLS (919) and Simple mode passed. Two HIGH findings
+  in the guided setup are fixed in the phase:
+  - HIGH 1: savings were saved with the default cash purpose `unallocated`, which lets the Money Priority Engine
+    redeploy them without the person saying so. Now setup asks "What are these savings for?" (Emergency fund – keep
+    it safe = `protected_reserve`; Free for the plan to use = `unallocated`; Everyday spending money =
+    `operating_cash`; Not sure – add it later). An amount without a choice is rejected. **"Not sure" saves no
+    savings** (Ryan's decision), and the plan says to add them under Financial profile.
+  - HIGH 2: the empty-household check and the writes were separate requests, so two simultaneous submissions could
+    both save. New migration `20261113230000_ffh_p05_atomic_household_setup` adds
+    `public.complete_household_setup(...)`. It is SECURITY INVOKER (the caller's own RLS applies) with
+    `search_path = ''`, executable only by `authenticated`. It never takes a household from input, validates every
+    answer, takes a per-household transaction advisory lock, refuses if the household has any income, expense, debt
+    or account (`already_set_up`), and writes everything in one transaction or nothing. The app now makes exactly one
+    RPC and writes no tables directly. The RLS matrix gains 11 probes (919 → 930) on a new empty household C:
+    signed-out and household-less callers are refused; a non-empty household is refused and unchanged; a viewer is
+    denied and leaves nothing behind; the owner saves 5 rows plus Simple view; a second call saves nothing more.
+  - MEDIUM 2 (fixed in the phase): every filled-in setup field is now validated, debt details without a balance are
+    rejected, and the Simple view value must be exactly "on" or absent.
+
+- **FFH-P05 second hosted migration applied (Ryan's explicit authorization, 2026-11-13).** Ryan ran
+  `20261113230000_ffh_p05_atomic_household_setup` in the hosted SQL editor and recorded the version. The first
+  parity check matched 8/9: copying the file from the browser on Windows had stored the function body with CRLF
+  line endings (4,478 characters instead of 4,390, one extra per line). The function was re-created from its own
+  stored definition with the carriage returns removed (`pg_get_functiondef` + `replace(..., E'\r', '')`), which
+  keeps its grants. Result: body md5 `e8759d3d46e409cbc9be5afb4e162897`, length 4,390, SECURITY INVOKER,
+  `search_path=""`, all identical to the repo. Hosted `parity.sql` then matched `parity.expected.txt` **9/9**
+  (functions 7 `279c887e…`, function_grants 14, migrations 17; policies, RLS, table grants, columns, constraints
+  and triggers unchanged). Lesson for future hosted migrations: re-create function bodies the same way, or check
+  for `\r` before running parity.
+
+- **FFH-P05 targeted re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `39b6449360be3c749c2eb96ba69e2aa09ebd8109`.** HIGH 1 (savings purpose) and HIGH 2 (atomic setup) FIXED, MEDIUM 2
+  FIXED, MEDIUM 1 in the backlog. The reviewer noted, without raising a finding, that an all-zero setup writes no
+  financial records and so can be repeated, and that a viewer can use that no-write path to set their own Simple
+  view, which self-only RLS already permits. One new MEDIUM, fixed before release at Ryan's choice ("Fix it first"):
+  the plan page did not show setup's post-save messages, so the "Not sure" savings reminder from Ryan's decision was
+  never displayed. Setup now redirects with a fixed key (`/plan?notice=savings_pending` or `already_set_up`). The
+  plan page shows only allowlisted notices from `lib/plan/plan-notices.ts`, with a link to Financial profile, and
+  never displays text from the URL. This needs a short targeted re-review of the change.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -272,3 +339,11 @@
   matrix.
 - LOW (FFH-P04 review #5): "money plan renders" also accepts the honest "no plan right now" card. Once TestA/TestB
   fixtures are fixed, require a real `.money-plan`, and test the unavailable state separately.
+- LOW (FFH-P05 build note, pre-existing): the shared money parser (`lib/forms/validate.ts`, moved unchanged from the
+  Financial profile actions) rounds with `Math.round(value * 100) / 100`, so some half-cent inputs round down because
+  of floating point (for example `2500.555` gives `2500.55`). Changing money rounding is a policy decision for its
+  own reviewed change; amounts entered in whole cents are unaffected.
+- MEDIUM (FFH-P05 review #1): guided setup records "Fixed bills and must-haves" as essential and "Other spending" as
+  not essential. This follows the question wording, but a fixed bill can be discretionary and some variable spending
+  essential. Add an explanation and a correction step (or mark them provisional until confirmed), with tests showing
+  how a changed classification affects required outflow.

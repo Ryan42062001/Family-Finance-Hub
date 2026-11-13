@@ -3,6 +3,7 @@ import MobilePlanningMenu from "@/components/planning/MobilePlanningMenu";
 import { redirect } from "next/navigation";
 import PaycheckPlanner from "@/components/planning/PaycheckPlanner";
 import { createClient } from "@/lib/supabase/server";
+import DetailedToolNotice from "@/components/DetailedToolNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function PaycheckPlannerPage() {
   };
 
   return (
-    <main className="page-shell">
+    <main className="page-shell"><DetailedToolNotice path="/planning/paycheck" />
       <section className="hero-card">
         <div>
           <p className="eyebrow">Planning tool</p>

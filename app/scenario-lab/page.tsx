@@ -6,6 +6,7 @@ import { moneyPrioritySnapshotToRaw } from "@/lib/calculations/money-priority-ra
 import { scenarioLabBootstrap } from "@/lib/scenarios/scenario-execution";
 import { resolveScenarioHouseholdAuthority } from "@/lib/scenarios/scenario-auth";
 import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
+import DetailedToolNotice from "@/components/DetailedToolNotice";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function ScenarioLabPage() {
   const bootstrap = scenarioLabBootstrap(baselineEngine);
 
   return (
-    <main className="page-shell scenario-lab-page">
+    <main className="page-shell scenario-lab-page"><DetailedToolNotice path="/scenario-lab" />
       <section className="hero-card">
         <div>
           <p className="eyebrow">Build · run · review</p>

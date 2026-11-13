@@ -122,8 +122,9 @@ test("mobile safe area, section anchors and 320-430px layout safeguards exist", 
   for (const href of ["/dashboard","/financial-profile","/planning","/scenario-lab"]) assert.ok(nav.includes(href));
   for (const name of ["Home","Profile","Planning","Scenarios"]) assert.ok(nav.includes(name));
   assert.match(nav, /aria-current=\{active \? "page"/);
-  assert.match(header, /<MobileNavigation \/>/);
-  assert.ok(header.indexOf("<MobileNavigation />") > header.indexOf("</header>"), "Fixed nav must be outside the sticky, backdrop-filtered header");
+  // FFH-P05: the bar also receives the signed-in user's own Simple view preference.
+  assert.match(header, /<MobileNavigation simple=\{simple\} \/>/);
+  assert.ok(header.indexOf("<MobileNavigation simple={simple} />") > header.indexOf("</header>"), "Fixed nav must be outside the sticky, backdrop-filtered header");
   assert.match(header, /mobile-account-menu/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /max-width:760px/);

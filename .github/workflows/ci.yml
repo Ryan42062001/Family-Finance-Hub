@@ -48,8 +48,8 @@ jobs:
       - run: npm audit --audit-level=high
 
   rls-matrix:
-    # Disposable Linux runner: fresh local Supabase DB, 15 migrations,
-    # unchanged preflight.sql + 913-assertion matrix.sql, automatic teardown.
+    # Disposable Linux runner: fresh local Supabase DB, 17 migrations,
+    # preflight.sql + 930-assertion matrix.sql, automatic teardown.
     # Synthetic data only; no hosted Supabase or secrets.
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-phase-ci') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
     runs-on: ubuntu-latest

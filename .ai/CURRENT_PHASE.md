@@ -1,11 +1,11 @@
 # Current phase
 
-FFH-P04 — Automated sign-in and isolation tests
+FFH-P05 — Simple mode with guided setup
 
 State: BUILDING
-Risk: HIGH (authentication, household isolation and secrets handling)
+Risk: HIGH (a schema migration on the self-scoped profiles table, and a guided setup that writes household data)
 Owner: Ryan
-Phase branch / PR: `phase/ffh-p04-auto-isolation-tests` → `main`
+Phase branch / PR: `phase/ffh-p05-simple-mode` → `main`
 
 Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
 approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
@@ -13,38 +13,36 @@ not authorized by anything else in this phase.
 
 ## Goal
 
-Prove on every phase Preview, automatically and without anyone typing a password, that each synthetic test account
-signs in as itself, sees only its own household, can load the money plan, and is fully signed out afterwards. Work
-mode then focuses on look-and-feel and new screens.
+Make the app easy for someone who wants a plan without the detail (Ryan's friend): a per-user **Simple mode** switch
+and a short guided setup that goes straight to the money plan. Detailed mode stays exactly as it is.
 
-## Scope
+## Scope (roadmap item 3)
 
-- A Playwright test suite (`scripts/e2e/isolation.mjs`) that, against a deployed Preview:
-  - signs in as TestA, checks the "Signed in as" email and the household name, opens Your plan, Overview, Financial
-    profile, Planning and Scenario Lab, and checks that no TestB marker (`ZZ-B-…` records, TestB's household name)
-    appears; then signs out and checks that a protected page sends it back to Sign in;
-  - does the same for TestB in the other direction (Q3, Q7, Q8 as automated checks);
-  - reads only, apart from signing in and out; adds or changes no data.
-- A GitHub Actions job (`e2e-isolation` in `.github/workflows/ci.yml`) that runs on every push to a `phase/...`
-  branch, first waits until Vercel reports a successful Preview build of that exact commit, then
-  runs the suite and a negative control against the fixed Preview address. Credentials come only from encrypted Actions secrets
-  (`FFH_E2E_A_EMAIL`, `FFH_E2E_A_PASSWORD`, `FFH_E2E_B_EMAIL`, `FFH_E2E_B_PASSWORD`), which Ryan adds in GitHub
-  settings. They are never printed, never written to files or artifacts, and screenshots/traces are not uploaded.
-  Missing secrets make the run report BLOCKED, never PASS.
-- The workflow refuses to run against Production or any host other than the Preview, and runs with read-only
-  repository permissions.
-- `docs/WORKFLOW.md` and the QA checklist note which checks are now automated.
+- **Simple mode switch, stored per user** (Ryan, 2026-11-13): a `simple_mode` column on `profiles`, off by default.
+  Each signed-in person turns their own view on or off; it never changes what anyone else in the household sees.
+  `profiles` is already self-scoped by RLS (select/insert/update only your own row), so no new policy is needed. The
+  migration is in a reviewed PR, and the RLS matrix gains checks that nobody can read or change another user's
+  setting.
+- With Simple mode on, the app hides Scenario Lab, the HSA/SIMPLE IRA pages, chart details and most planning tools.
+  Your plan and the essentials stay. Hiding is presentation only: the pages and the data are unchanged.
+- **Guided setup, offered to every new household** (Ryan, 2026-11-13), with a way to skip it: about five questions (take-home pay, fixed bills, other spending, debts, savings) that saves
+  through the existing validated profile actions, then opens Your plan. No new financial policy: the plan still
+  comes only from the Money Priority Engine.
+- **Install on the phone home screen**: a web app manifest and icons.
+- QA checklist and the automated isolation check updated for the new screens.
+
+## Decisions (Ryan, 2026-11-13)
+
+- Simple mode is per user, not per household, so each person sees the view they want.
+- The guided setup is offered to every new household (it can be skipped).
 
 ## Out of scope / boundaries
 
-- No schema, RLS or auth changes. The one app change is a public `/api/build-info` route that returns only Vercel's
-  commit SHA and environment, so the suite can prove which build it is testing (added for the independent review). No real data; synthetic TestA/TestB only.
-- The tests never create, edit or delete records or accounts.
+- No change to the money calculations or the engine's recommendations.
+- Synthetic data only; no real household or financial data.
 
 ## Done when
 
-- CI green (`fast`, `rls-matrix`); `npm run verify` passes.
-- The new workflow passes against the phase Preview with Ryan's secrets in place, and fails (as a negative control)
-  when pointed at a deliberately wrong expected identity.
-- Independent review by a different model (ChatGPT), because this phase is HIGH risk.
+- CI green (`fast`, `rls-matrix`, `e2e-isolation`); `npm run verify` passes; the RLS matrix covers the new setting.
+- Work mode QA on the Preview, and independent review by a different model (ChatGPT), because this phase is HIGH risk.
 - Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.
