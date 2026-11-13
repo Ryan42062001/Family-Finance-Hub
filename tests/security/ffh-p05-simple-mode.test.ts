@@ -87,3 +87,71 @@ test("FFH-P05 the automated isolation check signs out with the Sign out button, 
   assert.match(e2e, /page\.click\("\.account-menu button\.nav-sign-out"\)/);
   assert.doesNotMatch(e2e, /account-menu form button\[type=submit\]|simple-mode/);
 });
+
+// ---- Guided setup and home-screen install (FFH-P05 part 2) ----
+import { parseSetupAnswers } from "../../lib/setup/answers.ts";
+
+const form = (fields: Record<string, string | undefined>) => { const data = new FormData(); for (const [key, value] of Object.entries(fields)) if (value !== undefined) data.set(key, value); return data; };
+
+test("FFH-P05 setup answers use the profile forms' validation and fail closed", () => {
+  const ok = parseSetupAnswers(form({ take_home: "5000", fixed_bills: "2500.5", other_spending: "600", debt_balance: "4200", debt_minimum: "120", debt_rate: "24.9", savings: "1500", simple_view: "on" }));
+  assert.deepEqual(ok, { takeHome: 5000, fixedBills: 2500.5, otherSpending: 600, debt: { balance: 4200, minimum: 120, rate: 24.9 }, savings: 1500, simpleView: true });
+  // Optional answers may be empty; no debt is recorded without a balance above zero.
+  const minimal = parseSetupAnswers(form({ take_home: "0", fixed_bills: "0", other_spending: "0" }));
+  assert.deepEqual(minimal, { takeHome: 0, fixedBills: 0, otherSpending: 0, debt: null, savings: null, simpleView: false });
+  assert.equal(parseSetupAnswers(form({ take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "0" })).debt, null);
+  // Any invalid or missing required answer throws, so nothing is written.
+  for (const bad of [
+    { fixed_bills: "1", other_spending: "1" },
+    { take_home: "-5", fixed_bills: "1", other_spending: "1" },
+    { take_home: "5,000", fixed_bills: "1", other_spending: "1" },
+    { take_home: "1e9", fixed_bills: "1", other_spending: "1" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "4200" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "4200", debt_minimum: "50", debt_rate: "120" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", savings: "lots" },
+  ]) assert.throws(() => parseSetupAnswers(form(bad)), JSON.stringify(bad));
+  // The profile forms and setup share the one validator module.
+  const profileActions = read("app/financial-profile/actions.ts");
+  assert.match(profileActions, /import \{ amount, percent \} from "@\/lib\/forms\/validate";/);
+  assert.doesNotMatch(profileActions, /^function (amount|percent)\(/m);
+});
+
+test("FFH-P05 setup writes only to the caller's own household, once, after validating every answer", () => {
+  const setup = read("app/setup/actions.ts");
+  assert.match(setup, /^"use server";/);
+  assert.equal((setup.match(/^export /gm) ?? []).length, 1, "only the action itself is a server endpoint");
+  assert.match(setup, /if \(!userId\) redirect\("\/auth\/login"\);/);
+  assert.match(setup, /\.from\("households"\)\.select\("id"\)\.order\("created_at"\)\.limit\(1\)/);
+  assert.doesNotMatch(setup, /formData\.get\("(household_id|id)"\)/);
+  // Order: refuse a non-empty household, then validate everything, then write.
+  const guard = setup.indexOf("householdIsEmpty(supabase, householdId)");
+  const parse = setup.indexOf("parseSetupAnswers(formData)");
+  const firstWrite = setup.indexOf(".insert(");
+  assert.ok(guard > 0 && parse > guard && firstWrite > parse);
+  assert.match(setup, /if \(error \|\| \(count \?\? 0\) > 0\) return false;/);
+  // Every write carries this household id; the profile write is the caller's own row only.
+  for (const insert of setup.match(/\.insert\(\{[^)]*\}\)/g) ?? []) assert.match(insert, /household_id: householdId/);
+  assert.match(setup, /\.from\("profiles"\)\.upsert\(\{ id: userId, simple_mode: true \}, \{ onConflict: "id" \}\)/);
+  // Setup never invents policy: fixed bills are the essential expense, other spending is not.
+  assert.match(setup, /name: "Fixed bills and must-haves \(from setup\)", category: "other", monthly_amount: answers\.fixedBills, is_essential: true/);
+  assert.match(setup, /name: "Other spending \(from setup\)", category: "personal", monthly_amount: answers\.otherSpending, is_essential: false/);
+  const onboarding = read("app/onboarding/actions.ts");
+  assert.match(onboarding, /redirect\("\/setup"\);\n\}\s*$/);
+  const page = read("app/setup/page.tsx");
+  assert.match(page, /if \(error \|\| \(count \?\? 0\) > 0\) redirect\("\/plan"\);/);
+  assert.match(page, /href="\/dashboard">Skip for now</);
+  assert.doesNotMatch(page, /dangerouslySetInnerHTML/);
+});
+
+test("FFH-P05 the home-screen manifest is public and carries no user data", () => {
+  const manifest = read("app/manifest.ts").replace(/\/\/.*$/gm, "");
+  assert.match(manifest, /start_url: "\/plan"/);
+  assert.match(manifest, /display: "standalone"/);
+  assert.doesNotMatch(manifest, /createClient|cookies|headers\(|process\.env|household|email/);
+  const proxy = read("lib/supabase/proxy.ts");
+  assert.match(proxy, /path === "\/manifest\.webmanifest";/);
+  assert.doesNotMatch(proxy, /startsWith\("\/manifest|startsWith\("\/icons/);
+  for (const icon of ["public/icons/icon-192.png", "public/icons/icon-512.png", "public/icons/icon-maskable-512.png", "app/apple-icon.png"]) {
+    assert.equal(readFileSync(new URL(`../../${icon}`, import.meta.url)).subarray(1, 4).toString(), "PNG", icon);
+  }
+});

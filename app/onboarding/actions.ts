@@ -53,5 +53,6 @@ export async function createHousehold(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(householdError.message)}`);
   }
 
-  redirect("/dashboard");
+  // FFH-P05: every new household is offered the guided setup (skippable).
+  redirect("/setup");
 }

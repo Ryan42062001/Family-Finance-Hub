@@ -281,3 +281,7 @@
   matrix.
 - LOW (FFH-P04 review #5): "money plan renders" also accepts the honest "no plan right now" card. Once TestA/TestB
   fixtures are fixed, require a real `.money-plan`, and test the unavailable state separately.
+- LOW (FFH-P05 build note, pre-existing): the shared money parser (`lib/forms/validate.ts`, moved unchanged from the
+  Financial profile actions) rounds with `Math.round(value * 100) / 100`, so some half-cent inputs round down because
+  of floating point (for example `2500.555` gives `2500.55`). Changing money rounding is a policy decision for its
+  own reviewed change; amounts entered in whole cents are unaffected.
