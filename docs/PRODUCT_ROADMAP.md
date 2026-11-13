@@ -28,8 +28,15 @@ plan's facts, friendlier forms and the signed-in notice.
 
 ## FFH-P04 — Automated sign-in and isolation tests
 
-State: BUILDING. Risk: HIGH. Branch `phase/ffh-p04-auto-isolation-tests`. Scope: `.ai/CURRENT_PHASE.md` (item 2
-below).
+State: CLOSED. Risk: HIGH. Released to Production via PR #121 at `4f66d7e` (2026-11-13), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Playwright isolation suite and CI job (`e2e-isolation`)
+on every phase push, with a locked-down browser, exact-build verification and fixed-sentence output; passed the
+independent review after five rounds.
+
+## FFH-P05 — Simple mode with guided setup
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p05-simple-mode`. Scope: `.ai/CURRENT_PHASE.md` (item 3 below).
+Production deployment remains a separate decision.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
