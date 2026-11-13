@@ -94,6 +94,21 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
 - **`full-phase`** (label `full-phase-ci` or manual dispatch): the same checks pinned to an exact candidate SHA.
 
+- **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
+  Actions tab): waits for Vercel's successful Preview build of that exact commit, then signs in to the fixed Preview
+  address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Planning and Scenario Lab
+  load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
+  renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
+  control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.
+  - Credentials come only from the Actions secrets `FFH_E2E_A_EMAIL`, `FFH_E2E_A_PASSWORD`, `FFH_E2E_B_EMAIL` and
+    `FFH_E2E_B_PASSWORD`. They are never printed, and no screenshots, traces or videos are recorded.
+  - Missing secrets report `BLOCKED` (exit 3) and the job fails; it never reports a pass without testing.
+  - Production and every host except `https://family-finance-hub-preview.vercel.app` are refused (exit 2). The fixed
+    Preview domain must point at the current phase branch (see Preview setup), or the run tests an older build.
+  - Local rehearsal only: with `FFH_E2E_ALLOW_LOCALHOST=1` the script also accepts an `http://localhost` origin backed
+    by a synthetic mock; this is refused whenever `CI` or `GITHUB_ACTIONS` is set.
+
 CI evidence belongs to the exact commit it ran on. A failing or unrun check is reported as failing or unrun, never as
 passing.
 

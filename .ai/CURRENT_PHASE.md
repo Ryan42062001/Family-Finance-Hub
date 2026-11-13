@@ -19,14 +19,15 @@ mode then focuses on look-and-feel and new screens.
 
 ## Scope
 
-- A Playwright test suite (`tests/e2e/`) that, against a deployed Preview:
+- A Playwright test suite (`scripts/e2e/isolation.mjs`) that, against a deployed Preview:
   - signs in as TestA, checks the "Signed in as" email and the household name, opens Your plan, Overview, Financial
     profile, Planning and Scenario Lab, and checks that no TestB marker (`ZZ-B-…` records, TestB's household name)
     appears; then signs out and checks that a protected page sends it back to Sign in;
   - does the same for TestB in the other direction (Q3, Q7, Q8 as automated checks);
   - reads only, apart from signing in and out; adds or changes no data.
-- A GitHub Actions workflow that runs the suite when Vercel reports a successful Preview deployment of a
-  `phase/...` branch (and on manual dispatch with a URL). Credentials come only from encrypted Actions secrets
+- A GitHub Actions job (`e2e-isolation` in `.github/workflows/ci.yml`) that runs on every push to a `phase/...`
+  branch, first waits until Vercel reports a successful Preview build of that exact commit, then
+  runs the suite and a negative control against the fixed Preview address. Credentials come only from encrypted Actions secrets
   (`FFH_E2E_A_EMAIL`, `FFH_E2E_A_PASSWORD`, `FFH_E2E_B_EMAIL`, `FFH_E2E_B_PASSWORD`), which Ryan adds in GitHub
   settings. They are never printed, never written to files or artifacts, and screenshots/traces are not uploaded.
   Missing secrets make the run report BLOCKED, never PASS.
