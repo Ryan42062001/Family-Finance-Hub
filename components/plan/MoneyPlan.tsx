@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { PlanResult } from "@/lib/plan/plan-result";
-import type { PlanStep } from "@/lib/plan/money-plan";
+import { formatPlanMoney, type PlanStep } from "@/lib/plan/money-plan";
 
-const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+// Exact to the cent: these are the engine's own amounts and must not be rounded for display.
+const money = formatPlanMoney;
 
 function monthLabel(yearMonth: string): string {
   const [year, month] = yearMonth.split("-").map(Number);
@@ -34,7 +35,7 @@ export default function MoneyPlan({ plan, example = false }: { plan: PlanResult;
       <article className="bento-card">
         <p className="metric-label">Months of cushion</p>
         {cushion.kind === "months"
-          ? <><strong className="bento-number">{cushion.months.toFixed(1)}</strong><span className="bento-caption">months of essential spending covered by checking, savings and cash</span></>
+          ? <><strong className="bento-number">{cushion.months.toFixed(1)}</strong><span className="bento-caption">months of essential spending covered by your emergency fund and cash not set aside for anything else</span></>
           : <span className="bento-caption">{cushion.reason}</span>}
       </article>
       <article className="bento-card">

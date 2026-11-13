@@ -22,6 +22,7 @@ const SIMPLE_CASH_PURPOSES = ["unallocated", "protected_reserve", "operating_cas
 const MATCH_STATUSES = ["not_offered", "unknown", "not_fully_captured", "fully_captured"] as const;
 const EMPLOYER_CONTRIBUTION_TYPES = ["match", "nonelective", "profit_sharing", "other", "unknown"] as const;
 const INSURANCE_TYPES = ["health", "auto", "homeowners", "renters", "umbrella", "pet", "other"] as const;
+const SPENDING_BASES = ["today_dollars", "future_dollars", "unknown"] as const;
 
 function requiredText(formData: FormData, key: string, max = 100) {
   const value = String(formData.get(key) ?? "").trim();
@@ -317,11 +318,12 @@ export async function updateInsurance(formData: FormData) {
 // other preference keeps its saved value (or its database default when the row is created).
 export async function saveRetirementGoals(formData: FormData) {
   const { supabase, householdId } = await context();
-  const spending = amount(formData, "desired_retirement_monthly_spending", { required: false });
+  // The spending basis is the household's own answer, pre-filled from the saved value; it is never inferred.
+  const basis = allowed(String(formData.get("retirement_spending_basis") ?? "").trim(), SPENDING_BASES, "retirement spending basis");
   const { error } = await supabase.from("household_financial_preferences").upsert({
     household_id: householdId,
-    desired_retirement_monthly_spending: spending,
-    retirement_spending_basis: spending === null ? "unknown" : "today_dollars",
+    desired_retirement_monthly_spending: amount(formData, "desired_retirement_monthly_spending", { required: false }),
+    retirement_spending_basis: basis,
     planning_social_security_monthly: amount(formData, "planning_social_security_monthly", { required: false }),
     planning_pension_monthly: amount(formData, "planning_pension_monthly", { required: false }),
     updated_at: new Date().toISOString(),

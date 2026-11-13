@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { PlanResult } from "@/lib/plan/plan-result";
+import { formatPlanMoney } from "@/lib/plan/money-plan";
 
-const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+// Exact to the cent: these are the engine's own amounts and must not be rounded for display.
+const money = formatPlanMoney;
 
 // The first three actionable steps of the money plan, shown at the top of the dashboard.
 // headingId keeps ids unique: the dashboard renders one copy for phones and one for wider screens.
