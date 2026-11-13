@@ -247,6 +247,10 @@
   FFH-P04 is CLOSED. FFH-P05 (Simple mode with guided setup, HIGH risk) starts on `phase/ffh-p05-simple-mode`; this
   note reaches `main` with the FFH-P05 release.
 
+- **FFH-P05 scope decisions (Ryan, 2026-11-13).** Simple mode is a **per-user** setting, not per household, so each
+  person in a shared household sees the view they want. It is stored as `profiles.simple_mode`, which is already
+  self-scoped by RLS. The guided setup is offered to **every new household** and can be skipped.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

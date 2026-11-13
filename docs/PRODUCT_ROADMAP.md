@@ -53,9 +53,9 @@ Production deployment remains a separate decision.
    checks the signed-in identity, that neither account sees the other's records (Q3, Q7, Q8), that the money plan
    loads, and that sign-out clears the session. Read-only apart from signing in; synthetic accounts only. Work mode
    then focuses on look-and-feel and new screens. HIGH risk (auth/isolation and secrets handling).
-3. **Simple mode (a per-household switch) with a guided setup.** About five questions (take-home pay, fixed bills,
+3. **Simple mode (a per-user switch; Ryan, 2026-11-13) with a guided setup offered to every new household.** About five questions (take-home pay, fixed bills,
    other spending, debts, savings), then straight to the money plan. Simple mode hides Scenario Lab, the HSA/SIMPLE
-   IRA pages, chart details and most planning tools. Off by default; any household can turn it on or off. Also:
+   IRA pages, chart details and most planning tools. Off by default; each person turns their own view on or off. Also:
    **install on the phone home screen** (web app manifest and icons).
 4. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
 5. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with

@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 15 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 16 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -628,6 +628,27 @@ BEGIN
   PERFORM pg_temp.ffh_probe(a_owner,format(
     'UPDATE public.profiles SET display_name=%L WHERE id=%L','foreign-attempt',b_owner),
     'DENY',0,'profile-cross-update','profiles');
+  -- FFH-P05: per-user Simple mode on the self-scoped profile row. Each user can
+  -- set and read only their own; another household cannot, and neither can a
+  -- member of the SAME household (the setting is personal, not household-wide).
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'UPDATE public.profiles SET simple_mode=true WHERE id=%L',a_owner),
+    'ROWS',1,'profile-simple-mode-self-update','profiles');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L AND simple_mode',a_owner),'COUNT',1,
+    'profile-simple-mode-self-read','profiles');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'UPDATE public.profiles SET simple_mode=true WHERE id=%L',b_owner),
+    'DENY',0,'profile-simple-mode-cross-update','profiles');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L AND simple_mode',b_owner),'COUNT',0,
+    'profile-simple-mode-cross-update-had-no-effect','profiles');
+  PERFORM pg_temp.ffh_probe(a_member,format(
+    'UPDATE public.profiles SET simple_mode=false WHERE id=%L',a_owner),
+    'DENY',0,'profile-simple-mode-same-household-update','profiles');
+  PERFORM pg_temp.ffh_probe(a_member,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L',a_owner),'COUNT',0,
+    'profile-simple-mode-same-household-read','profiles');
   PERFORM pg_temp.ffh_probe(a_member,format(
     'SELECT count(*) FROM public.households WHERE id=%L',a),'COUNT',1,
     'household-member-read','households');
