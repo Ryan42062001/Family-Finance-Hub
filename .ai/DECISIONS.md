@@ -121,6 +121,15 @@
     unassigned cash only, matching the engine's cash purposes, and the label says so.
   Preview smoke test at `17a4131` was 12/12 (run by Ryan on a new desktop).
 
+- **FFH-P03 re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at `925a604551db188ca65c771dc30a2b97f2562213`.**
+- **FFH-P03 Work mode QA at `925a604`:** 14 PASS, 1 FAIL (Q16), Q9 and Q11 covered locally by the Builder. No
+  isolation leak. Preview smoke test 12/12.
+  - **QA #117 (MEDIUM), fixed:** a saved 401(k) YTD was still reported missing. Cause: the engine attributes
+    workplace YTD per account owner, and the form could not set an owner. Fix: "People in your household" (add a
+    person) and "Whose account is this?" on retirement accounts. The owner must be a person in the caller's
+    household, checked server-side and by the database's composite foreign key. The owner question in "What's
+    missing" now links to the form. An engine regression test shows the YTD request disappears once an owner is set.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

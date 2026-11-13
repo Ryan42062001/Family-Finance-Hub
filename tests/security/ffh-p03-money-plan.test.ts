@@ -222,3 +222,26 @@ test("review FFH-P03 #4: cushion counts only the emergency fund and unassigned c
   assert.equal(emergencyAvailableCash(earmarked), 0);
   assert.deepEqual(cushionBadge(earmarked), { kind: "months", months: 0 });
 });
+
+test("QA #117: a saved YTD only counts once the account has an owner, and owners stay in the household", () => {
+  const ytdMissing = "Employee contributions YTD are required to calculate remaining elective-deferral room.";
+  const missingFor = (raw: ReturnType<typeof exampleHouseholdRaw>) => runMoneyPriorityEngine(raw, AS_OF).recommendations.flatMap((r) => r.missingData);
+  // No owner: the engine can't attribute the YTD to a person, so it still asks (what QA saw).
+  const noOwner = exampleHouseholdRaw();
+  noOwner.retirementAccounts = [{ ...noOwner.retirementAccounts![0], owner_person_id: null, employee_contributed_ytd: 500 }];
+  assert.ok(missingFor(noOwner).some((text) => text.includes(ytdMissing)));
+  assert.ok(missingFor(noOwner).some((text) => /Account owner is required/.test(text)));
+  // With an owner the same saved YTD is used and the request disappears.
+  const owned = exampleHouseholdRaw();
+  owned.retirementAccounts = [{ ...owned.retirementAccounts![0], employee_contributed_ytd: 500 }];
+  assert.ok(!missingFor(owned).some((text) => text.includes(ytdMissing)));
+  // The owner question is routed to the retirement form, which now has the choice.
+  assert.equal(missingItem("Work 401(k): Account owner is required to evaluate catch-up eligibility and shared deferral limits.").href, "/financial-profile#retirement");
+  const fields = read("../../components/forms/ProfileFields.tsx");
+  assert.match(fields, /<Choice name="owner_person_id" legend="Whose account is this\?"/);
+  // Server side: an owner id must be a person in the caller's household (plus the database's composite foreign key).
+  const actions = read("../../app/financial-profile/actions.ts");
+  assert.match(actions, /from\("household_people"\)\.select\("id"\)\.eq\("id", raw\)\.eq\("household_id", householdId\)\.maybeSingle\(\)/);
+  assert.equal((actions.match(/owner_person_id: await ownerPersonId\(supabase, householdId, formData\)/g) ?? []).length, 2);
+  assert.match(actions, /const RELATIONSHIPS = \["self", "spouse_partner", "child", "dependent_adult", "other"\] as const;/);
+});

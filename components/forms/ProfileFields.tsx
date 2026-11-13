@@ -83,10 +83,16 @@ export function DebtFields({ d = {} }: { d?: Defaults }) {
   </>;
 }
 
-export function RetirementFields({ d = {}, isHsa = false }: { d?: Defaults; isHsa?: boolean }) {
+export type PersonOption = { id: string; display_name: string };
+
+export function RetirementFields({ d = {}, isHsa = false, people = [] }: { d?: Defaults; isHsa?: boolean; people?: PersonOption[] }) {
+  const owner = text(d.owner_person_id);
   return <>
     <TextField name="name" label="What do you call it?" example="Work 401(k)" defaultValue={text(d.name)} required />
     <Choice name="account_type" legend="What kind of account?" options={RETIREMENT_TYPES} defaultValue={text(d.account_type) ?? "401k"} />
+    {people.length
+      ? <Choice name="owner_person_id" legend="Whose account is this?" variant="pills" required={false} defaultValue={owner ?? ""} options={[{ value: "", label: "Not set" }, ...people.map((person) => ({ value: person.id, label: person.display_name }))]} />
+      : <><input type="hidden" name="owner_person_id" value={owner ?? ""} /><p className="field-hint profile-owner-hint">Add yourself under <strong>People in your household</strong> above, then choose whose account this is. The plan needs it to count contributions per person.</p></>}
     <NumberField name="balance" label="How much is in it?" defaultValue={num(d.balance)} required />
     <NumberField name="monthly_employee_contribution" label="You put in each month" period="month" defaultValue={num(d.monthly_employee_contribution)} required />
     <NumberField name="monthly_employer_contribution" label="Your employer puts in each month" period="month" defaultValue={num(d.monthly_employer_contribution)} required />
@@ -165,5 +171,17 @@ export function GoalFields({ d = {} }: { d?: Defaults }) {
       <NumberField name="expected_borrowing_amount" label="You might borrow" defaultValue={num(d.expected_borrowing_amount)} />
       <NumberField name="expected_borrowing_apr" label="At an interest rate of" unit="percent" max="100" step="0.0001" defaultValue={num(d.expected_borrowing_apr)} />
     </details>
+  </>;
+}
+
+export function PersonFields() {
+  return <>
+    <TextField name="display_name" label="Name" example="Alex" required />
+    <Choice name="relationship" legend="Who are they?" variant="pills" defaultValue="self" options={[
+      { value: "self", label: "Me" }, { value: "spouse_partner", label: "Spouse or partner" }, { value: "child", label: "Child" },
+      { value: "dependent_adult", label: "Adult dependent" }, { value: "other", label: "Other" },
+    ]} />
+    <label className="field"><span className="field-label">Birth date (optional)</span><input name="birth_date" type="date" /></label>
+    <p className="field-hint">Age affects retirement catch-up limits.</p>
   </>;
 }

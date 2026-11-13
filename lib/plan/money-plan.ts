@@ -137,6 +137,8 @@ function toStep(recommendation: MoneyPriorityRecommendation, names: Map<string, 
 const MISSING_ROUTES: Array<{ match: RegExp; href: string | null; fixHint: string }> = [
   { match: /\bHSA\b/, href: "/financial-profile/hsa", fixHint: "Add it on the HSA details page" },
   { match: /SIMPLE IRA/i, href: "/financial-profile/simple", fixHint: "Add it on the SIMPLE IRA page" },
+  // Owner first: its message also mentions catch-up, which would otherwise match a "not yet" rule below.
+  { match: /Account owner is required|account owner/i, href: "/financial-profile#retirement", fixHint: "Choose whose account it is (add yourself under People first)" },
   // Still not recordable in the app.
   { match: /catch-up|prior[- ]year|SEP|self-employment|Medicare|tax filing|modified AGI|spouse/i, href: null, fixHint: "The app can't record this detail yet" },
   // Recordable since FFH-P03.

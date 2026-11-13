@@ -3,7 +3,7 @@ import ProfileWorkspace from "@/components/ProfileWorkspace";
 import Link from "next/link";
 import NumberField from "@/components/forms/NumberField";
 import { Choice } from "@/components/forms/Controls";
-import { AccountFields, DebtFields, ExpenseFields, GoalFields, IncomeFields, InsuranceFields, RetirementFields } from "@/components/forms/ProfileFields";
+import { AccountFields, DebtFields, ExpenseFields, GoalFields, IncomeFields, InsuranceFields, PersonFields, RetirementFields } from "@/components/forms/ProfileFields";
 import { MoneyPrioritySnapshotValidationError } from "@/lib/calculations/money-priority-snapshot";
 import { planFromSnapshot, todayUtc } from "@/lib/plan/plan-result";
 import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
@@ -16,6 +16,7 @@ import {
   addGoal,
   addIncome,
   addInsurance,
+  addPerson,
   addRetirementAccount,
   deleteRecord,
   saveRetirementGoals,
@@ -80,17 +81,19 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
   if (!households?.length) redirect("/onboarding");
   const household = households[0];
 
-  const [insurance, preferences] = await Promise.all([
+  const [insurance, preferences, peopleResult] = await Promise.all([
     supabase.from("insurance_exposures").select("id, name, insurance_type, deductible_amount, family_deductible_amount, out_of_pocket_max, is_relevant_to_reserve").eq("household_id", household.id).order("created_at"),
     supabase.from("household_financial_preferences").select("desired_retirement_monthly_spending, retirement_spending_basis, planning_social_security_monthly, planning_pension_monthly").eq("household_id", household.id).maybeSingle(),
+    supabase.from("household_people").select("id, display_name, relationship, is_active").eq("household_id", household.id).order("created_at"),
   ]);
+  const people = (peopleResult.data ?? []).filter((person) => person.is_active);
   const goalsPrefs = preferences.data;
   const [accounts, income, expenses, debts, retirement, goals] = await Promise.all([
     supabase.from("accounts").select("id, name, account_type, balance, cash_purpose").eq("household_id", household.id).order("created_at"),
     supabase.from("income_sources").select("id, name, monthly_amount, monthly_gross_amount").eq("household_id", household.id).order("created_at"),
     supabase.from("expenses").select("id, name, category, monthly_amount, is_essential").eq("household_id", household.id).order("created_at"),
     supabase.from("debts").select("id, name, debt_type, current_balance, interest_rate, minimum_payment").eq("household_id", household.id).order("created_at"),
-    supabase.from("retirement_accounts").select("id, name, account_type, balance, monthly_employee_contribution, monthly_employer_contribution, match_status, full_match_employee_contribution_monthly, employer_contribution_type, employee_contributed_ytd, employer_contributed_ytd, plan_eligible_compensation_annual").eq("household_id", household.id).order("created_at"),
+    supabase.from("retirement_accounts").select("id, name, account_type, balance, owner_person_id, monthly_employee_contribution, monthly_employer_contribution, match_status, full_match_employee_contribution_monthly, employer_contribution_type, employee_contributed_ytd, employer_contributed_ytd, plan_eligible_compensation_annual").eq("household_id", household.id).order("created_at"),
     supabase.from("goals").select("id, name, target_amount, current_amount, target_date, priority, goal_class, necessity, deadline_flexibility, consequence_level, planned_monthly_contribution, core_need_amount, underlying_need, desired_solution, goal_nature, underfunding_consequence, borrowing_likelihood, expected_borrowing_amount, expected_borrowing_apr").eq("household_id", household.id).order("created_at"),
   ]);
 
@@ -147,10 +150,14 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
         </ProfileSection>
 
         <ProfileSection id="retirement" title="Retirement" count={retirement.data?.length ?? 0} description={money((retirement.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
+          <details className="profile-people"><summary>People in your household ({people.length})</summary>
+            {people.length ? <ul className="profile-people-list">{people.map((person) => <li key={person.id}><strong>{person.display_name}</strong><small>{person.relationship.replaceAll("_", " ")}</small></li>)}</ul> : <p className="muted">Add yourself (and a spouse or partner) so each account can have an owner.</p>}
+            <form className="data-form friendly-form" action={addPerson}><PersonFields /><button type="submit">Add person</button></form>
+          </details>
           <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form friendly-form" action={addRetirementAccount}>
-            <RetirementFields /><button type="submit">Add retirement account</button>
+            <RetirementFields people={people} /><button type="submit">Add retirement account</button>
           </form></details>
-          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} people={people} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts yet. Add a 401(k), IRA or pension.</p> : null}
           <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form friendly-form" action={saveRetirementGoals}>
             <NumberField name="desired_retirement_monthly_spending" label="Monthly spending you want in retirement" period="month" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? null} />
