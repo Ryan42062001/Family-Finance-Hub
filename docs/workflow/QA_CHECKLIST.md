@@ -39,8 +39,15 @@ Preview: `https://family-finance-hub-preview.vercel.app`, which always serves th
 | Q16 | New profile details (TestA) | Financial profile → **Insurance** → Add insurance `ZZ-A-Health` (Health, deductible `1500`). **Retirement** → if missing add `ZZ-A-401k` (401(k), balance `1000`, contributions `100`/`50`), then under **People in your household** add `ZZ-A-Person` (Me) if missing, Edit `ZZ-A-401k` → **Whose account is this?** `ZZ-A-Person` → **More details**: Employer match "Getting the full match", your contributions so far this year `500`. Open **Retirement goals**, enter monthly spending `4000`, pick **Today's dollars**, and save; then reopen it, change only Social Security to `1500`, save, and check the answer is still **Today's dollars** | Each save shows a success message and the values are still there after reload. **Your plan** → What's missing no longer asks for the insurance deductible, the employer match, the account owner or employee contributions YTD for ZZ-A-401k. TestB (Q7) still sees none of these |
 | Q17 | Already signed in | While signed in as TestA, open `/auth/login` directly | A notice says "You're already signed in as <TestA's email>" with **Go to your plan** and **Sign out**; Sign out works |
 | Q18 | Build info page (signed out) | Signed out, open `/api/build-info` on the Preview | A tiny text page with exactly two fields: `commit` (a 40-character code) and `environment` (`preview`). Nothing else: no names, emails, amounts or account details. No sign-in is needed |
+| Q19 | Simple view switch (TestA) | Signed in as TestA, open the account menu (round button) and turn **Simple view** on | The menu and phone bottom bar show only **Your plan**, **Overview** and **Financial profile**; Overview no longer shows the Financial health card, the "Where income goes" chart, the detailed breakdown or a Planning tools button; the plan summary, cash flow and net worth stay |
+| Q20 | Detailed tools in Simple view (TestA) | With Simple view on, open `/scenario-lab` and `/planning` directly | Each page still works and shows a note "You're using Simple view…" with **Switch to detailed view**; that button turns Simple view off and keeps you on the same page |
+| Q21 | Simple view is per person | With TestA's Simple view still on, sign out, sign in as **TestB** | TestB sees the full detailed menu (Planning and Scenario Lab present) and its own switch is off. Sign back in as TestA, turn Simple view **off** again, and confirm the full menu returns |
+| Q22 | Add to home screen | On a phone browser, open the Preview and use **Add to Home Screen** (or check `/manifest.webmanifest` loads signed out) | The app offers to install as "Finance Hub" with the green FF icon; `/manifest.webmanifest` shows only the app name, colours and icon paths |
 
 Finish signed out.
+
+The **guided setup** (`/setup`, five questions shown right after a new household is created) needs a brand-new
+household, so it can't be checked with TestA or TestB; the Builder covers it with local tests and screenshots.
 
 ## Reporting
 
