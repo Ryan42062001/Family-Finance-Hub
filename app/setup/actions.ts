@@ -37,12 +37,9 @@ export async function completeSetup(formData: FormData) {
 
   revalidatePath("/", "layout");
   if (error) redirect("/setup?error=" + encodeURIComponent("Setup couldn't save your answers. Nothing was saved; please try again."));
-  if (outcome === "already_set_up") {
-    redirect("/plan?message=" + encodeURIComponent("Your household already has details, so setup didn't add anything. Edit them under Financial profile."));
-  }
+  if (outcome === "already_set_up") redirect("/plan?notice=already_set_up");
   if (outcome !== "saved") redirect("/setup?error=" + encodeURIComponent("Setup couldn't confirm your answers were saved. Please check Financial profile."));
-  if (answers.savingsSkippedAsUnsure) {
-    redirect("/plan?message=" + encodeURIComponent("Your plan is ready. Your savings weren't added yet; add them under Financial profile → Accounts when you know what they're for."));
-  }
+  // "Not sure" savings were deliberately not saved; the plan page shows a fixed reminder.
+  if (answers.savingsSkippedAsUnsure) redirect("/plan?notice=savings_pending");
   redirect("/plan");
 }

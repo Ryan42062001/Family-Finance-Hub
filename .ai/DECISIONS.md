@@ -299,6 +299,16 @@
   and triggers unchanged). Lesson for future hosted migrations: re-create function bodies the same way, or check
   for `\r` before running parity.
 
+- **FFH-P05 targeted re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `39b6449360be3c749c2eb96ba69e2aa09ebd8109`.** HIGH 1 (savings purpose) and HIGH 2 (atomic setup) FIXED, MEDIUM 2
+  FIXED, MEDIUM 1 in the backlog. The reviewer noted, without raising a finding, that an all-zero setup writes no
+  financial records and so can be repeated, and that a viewer can use that no-write path to set their own Simple
+  view, which self-only RLS already permits. One new MEDIUM, fixed before release at Ryan's choice ("Fix it first"):
+  the plan page did not show setup's post-save messages, so the "Not sure" savings reminder from Ryan's decision was
+  never displayed. Setup now redirects with a fixed key (`/plan?notice=savings_pending` or `already_set_up`). The
+  plan page shows only allowlisted notices from `lib/plan/plan-notices.ts`, with a link to Financial profile, and
+  never displays text from the URL. This needs a short targeted re-review of the change.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
