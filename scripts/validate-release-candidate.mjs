@@ -90,12 +90,6 @@ export const expectedActions = new Map([
   ['actions/setup-node', '49933ea5288caeca8642d1e84afbd3f7d6820020'],
 ]);
 // fast + full-phase use both Actions; the Linux rls-matrix job uses checkout only.
-// FFH-P04: the e2e-isolation job may only READ Vercel's Preview build status for its own commit. Those exact
-// read-only phrases are removed before the "no deploy in CI" check; anything else mentioning deploy still fails.
-export function withoutReadOnlyPreviewStatus(ci) {
-  return ci.replace(/^(\s*)deployments: read$/gm, '$1').replace(/"repos\/\$REPO\/deployments(\?sha=\$SHA&per_page=20|\/\$id\/statuses\?per_page=1)"/g, '""');
-}
-
 export const expectedActionCounts = new Map([
   ['actions/checkout', 4],
   ['actions/setup-node', 3],
@@ -154,8 +148,7 @@ export function validateActionReferences(ci) {
 
 if (existsSync('.github/workflows/ci.yml')) {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
-  check(!/validate-ai-state|ci-change-mode|deploy|production environment/i.test(withoutReadOnlyPreviewStatus(ci)), 'legacy authority or production deployment in active CI');
-  check(!/deployments:\s*write/i.test(ci), 'active CI must never write deployments');
+  check(!/validate-ai-state|ci-change-mode|deploy|production environment/i.test(ci), 'legacy authority or production deployment in active CI');
   check(/validate-release-candidate\.mjs|npm run verify/.test(ci), 'active CI must validate release shape');
   check(/rls-ci\/run-matrix\.sh/.test(ci), 'active CI must run the two-household RLS matrix');
   failures.push(...validateActionReferences(ci));

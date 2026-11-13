@@ -102,7 +102,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      deployments: read
+      statuses: read
     env:
       PREVIEW_URL: https://family-finance-hub-preview.vercel.app/
     steps:
@@ -121,20 +121,18 @@ jobs:
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
       - name: Wait for the Vercel Preview build of this commit
-        # Fails closed if the build fails or no successful build appears within 20 minutes.
+        # Vercel reports each build as a commit status named "Vercel – <project>". Wait until it is "success" for this
+        # exact commit. Fails closed if the build fails or no successful build appears within 20 minutes.
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
           for attempt in $(seq 1 60); do
-            ids=$(gh api "repos/$REPO/deployments?sha=$SHA&per_page=20" --jq '.[] | select(.environment | test("preview"; "i")) | .id')
-            for id in $ids; do
-              state=$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // "pending"')
-              echo "Preview build $id: $state"
-              if [ "$state" = "success" ]; then exit 0; fi
-              if [ "$state" = "failure" ] || [ "$state" = "error" ]; then echo "The Preview build failed. Nothing was tested."; exit 1; fi
-            done
+            state=$(gh api "repos/$REPO/commits/$SHA/statuses?per_page=100" --jq '[.[] | select(.context | startswith("Vercel"))][0].state // "missing"' || echo "unreadable")
+            echo "Vercel build status for this commit: $state"
+            if [ "$state" = "success" ]; then exit 0; fi
+            if [ "$state" = "failure" ] || [ "$state" = "error" ]; then echo "The Preview build failed. Nothing was tested."; exit 1; fi
             sleep 20
           done
           echo "BLOCKED: no successful Preview build for this commit after 20 minutes. Nothing was tested."

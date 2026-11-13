@@ -58,9 +58,11 @@ test("FFH-P04 the suite never prints credentials or records traces and is read-o
 test("FFH-P04 workflow waits for this commit's Preview, reads secrets only in its steps, and never targets Production", () => {
   assert.ok(workflow.length > 100, "the e2e-isolation job exists in ci.yml");
   assert.match(workflow, /if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs\/heads\/phase\/'\)/);
-  assert.match(workflow, /permissions:\n      contents: read\n      deployments: read\n/);
+  assert.match(workflow, /permissions:\n      contents: read\n      statuses: read\n/);
   assert.match(ci, /^permissions:\n  contents: read\n/m);
-  assert.match(workflow, /deployments\?sha=\$SHA/);
+  assert.match(workflow, /commits\/\$SHA\/statuses/);
+  assert.match(workflow, /startswith\("Vercel"\)/);
+  assert.doesNotMatch(ci, /deploy/i);
   assert.match(workflow, /PREVIEW_URL: https:\/\/family-finance-hub-preview\.vercel\.app\//);
   assert.doesNotMatch(workflow, /taupe|ten-brown/);
   assert.doesNotMatch(workflow, /set -x|echo .*secrets\./);
