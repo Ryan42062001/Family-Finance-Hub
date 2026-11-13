@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, credentialsFrom, hostOf, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
+import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, WEBRTC_TRAP, credentialsFrom, hostOf, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
 
 const PREVIEW = "https://family-finance-hub-preview.vercel.app/";
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -151,4 +151,23 @@ test("FFH-P04 re-review fix: the build is re-checked after each account, and a c
   const run = script.slice(script.indexOf("a = await runAccount("), script.indexOf("} catch (error) {\n    await browser.close();"));
   assert.match(run, /a = await runAccount\(browser, target\.origin, creds\.a\);\n\s+if \(await buildDrifted\(\)\) throw new BuildDrift\(\);\n\s+b = await runAccount\(browser, target\.origin, creds\.b\);\n\s+if \(await buildDrifted\(\)\) throw new BuildDrift\(\);/);
   assert.match(script, /BLOCKED: the Preview address stopped serving/);
+});
+
+test("FFH-P04 second re-review fix: WebRTC is trapped in every frame and confined to the dead proxy", () => {
+  for (const name of ["RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel"]) assert.ok(WEBRTC_TRAP.includes(`"${name}"`), name);
+  assert.match(WEBRTC_TRAP, /writable: false, configurable: false/);
+  assert.match(WEBRTC_TRAP, /window\.__ffhWebrtcAttempt\(name\)/);
+  assert.match(WEBRTC_TRAP, /throw new Error\("WebRTC is disabled in this test browser"\)/);
+  const { args } = browserLaunchOptions("https://family-finance-hub-preview.vercel.app");
+  assert.ok(args.includes("--force-webrtc-ip-handling-policy=disable_non_proxied_udp"));
+  const guard = script.slice(script.indexOf("async function installOriginGuard"), script.indexOf("async function assertOnOrigin"));
+  assert.match(guard, /context\.exposeBinding\("__ffhWebrtcAttempt", \(\) => \{ violations\.push\("webrtc"\); \}\)/);
+  assert.match(guard, /context\.addInitScript\(WEBRTC_TRAP\)/);
+});
+
+test("FFH-P04 second re-review fix: every request and redirect hop leaving the origin is recorded", () => {
+  const guard = script.slice(script.indexOf("async function installOriginGuard"), script.indexOf("async function assertOnOrigin"));
+  assert.match(guard, /context\.on\("request", \(request\) => \{\n\s+if \(leavesOrigin\(request\.url\(\), origin\)\) violations\.push\(hostOf\(request\.url\(\)\)\);/);
+  // Recording is installed before routing, so it is in place for the very first request.
+  assert.ok(guard.indexOf('context.on("request"') < guard.indexOf('context.route("**/*"'));
 });

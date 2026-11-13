@@ -87,9 +87,23 @@ export function browserLaunchOptions(origin) {
   const { hostname } = new URL(origin);
   return {
     proxy: { server: "http://127.0.0.1:9", bypass: hostname },
-    args: ["--dns-prefetch-disable", "--disable-background-networking", "--disable-component-update", "--no-pings"],
+    args: [
+      "--dns-prefetch-disable", "--disable-background-networking", "--disable-component-update", "--no-pings",
+      // WebRTC may only use the (dead) proxy: no direct UDP, no host candidates.
+      "--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+    ],
   };
 }
+
+// The suite never needs WebRTC, so every peer-connection API is replaced before any page script runs. A call reports
+// back to the guard (the run becomes REFUSED) and then throws, so no ICE/STUN/TURN traffic is ever started.
+export const WEBRTC_TRAP = `(() => {
+  const names = ["RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel", "RTCIceCandidate", "RTCRtpSender", "RTCRtpReceiver", "RTCSessionDescription"];
+  for (const name of names) {
+    const trap = function () { try { window.__ffhWebrtcAttempt(name); } catch {} throw new Error("WebRTC is disabled in this test browser"); };
+    try { Object.defineProperty(window, name, { value: trap, writable: false, configurable: false }); } catch {}
+  }
+})();`;
 
 // No service workers (they can make requests the guard cannot see), and no Vercel preview toolbar (it loads from
 // another host and would be blocked).
@@ -108,6 +122,14 @@ function record(name, ok, detail = "") {
 // redirects, so a redirect to another origin is caught before it is followed. WebSockets to another origin are
 // closed. Together with the browser-level proxy boundary, credentials and cookies can only reach the tested origin.
 async function installOriginGuard(context, origin, violations) {
+  // WebRTC: trap the APIs (the browser flags above also confine any WebRTC traffic to the dead proxy).
+  await context.exposeBinding("__ffhWebrtcAttempt", () => { violations.push("webrtc"); });
+  await context.addInitScript(WEBRTC_TRAP);
+  // Every request the browser issues, including each hop of a redirect that the route handler does not see again,
+  // is checked here. The dead proxy stops the connection; this makes sure the attempt is recorded as REFUSED.
+  context.on("request", (request) => {
+    if (leavesOrigin(request.url(), origin)) violations.push(hostOf(request.url()));
+  });
   await context.routeWebSocket((url) => leavesOrigin(url.href, origin), (ws) => {
     violations.push(hostOf(ws.url()));
     return ws.close();
