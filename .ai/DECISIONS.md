@@ -222,6 +222,13 @@
     page firing a password-dependent number of blocked requests, and a page encoding the password into host names.
     The full captured output contained none of `465`, `115`, the password, its hex form or the host name.
 
+- **FFH-P04 residual risk accepted (Ryan, 2026-11-13).** The isolation suite's PASS/FAIL line per named check, the
+  pass total and the exit code are decided by how the site under test behaves. A deliberately malicious Preview
+  could therefore signal a few bits per run by choosing which checks fail. Every test that reports results has this
+  channel. It is accepted because TestA and TestB are synthetic, test-only accounts that see only made-up data.
+  Safeguard: **if a Preview run is ever REFUSED, Ryan rotates the TestA/TestB passwords and updates the four GitHub
+  secrets.** The REFUSED message and `docs/WORKFLOW.md` say so. Nothing else the site can choose is ever printed.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
