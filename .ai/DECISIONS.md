@@ -322,6 +322,15 @@
   copies and shares; valid 7 days; single use; only the owner invites and manages roles. Design recorded in
   `.ai/CURRENT_PHASE.md`.
 
+- **FFH-P06 build complete and hosted migration applied (Ryan, 2026-11-13).** PR #141 merged into the phase branch:
+  invitations schema with owner-only RLS and three narrow SECURITY DEFINER membership functions; RLS matrix 961
+  (31 new probes); the Household page; invite links (shown once, hash stored); the signed-out remembered invite and
+  onboarding "Join that household"; QA Q23–Q26. Ryan applied `20261114010000_ffh_p06_household_invitations` in the
+  hosted SQL editor, normalised the three function bodies from `pg_get_functiondef` with carriage returns removed
+  (the CRLF lesson from FFH-P05, applied up front), and recorded the version. Hosted `parity.sql` matched
+  `parity.expected.txt` **9/9** on the first run (columns 227, constraints 176, function_grants 20, functions 10,
+  migrations 18, policies 62, rls 17, table_grants 211, triggers 2).
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
