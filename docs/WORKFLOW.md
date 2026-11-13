@@ -80,6 +80,8 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   branch**. At the start of each phase, Ryan edits it to the new `phase/...` branch.
 - Environment variable `NEXT_PUBLIC_SITE_URL` = that address (Config, Preview, all branches). Supabase Redirect URLs
   include `https://family-finance-hub-preview.vercel.app/**`.
+- The Vercel Toolbar must stay **Off** (Project Settings → General → Vercel Toolbar). It loads from `vercel.live`,
+  which the automated isolation check blocks and reports as REFUSED.
 - Vercel Deployment Protection must not put a Vercel login in front of the Preview, or Work mode and the smoke test
   are blocked (the smoke test reports `BLOCKED`, not a pass).
 - After switching the domain or changing variables, redeploy the phase branch, then run
