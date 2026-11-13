@@ -242,6 +242,11 @@
   e2e-isolation all PASS. Release checklist: no environment variables or migrations changed in this phase. FFH-P04
   is a release candidate awaiting Ryan's release decision.
 
+- **FFH-P04 released (Ryan's explicit authorization).** PR #121 merged into `main` as `4f66d7e` (phase head
+  `59c59cc`). Vercel Production deployment Ready, and the Production smoke test after the release passed 12/12.
+  FFH-P04 is CLOSED. FFH-P05 (Simple mode with guided setup, HIGH risk) starts on `phase/ffh-p05-simple-mode`; this
+  note reaches `main` with the FFH-P05 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
