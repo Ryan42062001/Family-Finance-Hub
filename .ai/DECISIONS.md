@@ -318,6 +318,10 @@
   CLOSED. FFH-P06 (household invitations, HIGH risk) starts on `phase/ffh-p06-household-invitations`; this note
   reaches `main` with the FFH-P06 release.
 
+- **FFH-P06 scope decisions (Ryan, 2026-11-13, "go with your recommendations").** Invitations are links the owner
+  copies and shares; valid 7 days; single use; only the owner invites and manages roles. Design recorded in
+  `.ai/CURRENT_PHASE.md`.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

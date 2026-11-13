@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 17 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 18 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -279,6 +279,19 @@ DECLARE
   c_owner uuid := gen_random_uuid();
   c_viewer uuid := gen_random_uuid();
   c uuid := gen_random_uuid();
+  -- FFH-P06: household D and two people with no household, for invitations.
+  d_owner uuid := gen_random_uuid();
+  e_joiner uuid := gen_random_uuid();
+  f_joiner uuid := gen_random_uuid();
+  d uuid := gen_random_uuid();
+  t1 text := 'ffhP06TokenD1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  h1 text := encode(sha256(convert_to('ffhP06TokenD1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','UTF8')),'hex');
+  t2 text := 'ffhP06TokenD2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  h2 text := encode(sha256(convert_to('ffhP06TokenD2aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','UTF8')),'hex');
+  ta text := 'ffhP06TokenA1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  ha text := encode(sha256(convert_to('ffhP06TokenA1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','UTF8')),'hex');
+  tx text := 'ffhP06TokenDXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  hx text := encode(sha256(convert_to('ffhP06TokenDXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','UTF8')),'hex');
   a uuid := gen_random_uuid();
   b uuid := gen_random_uuid();
   pa1 uuid; pa2 uuid; pb1 uuid; pb2 uuid;
@@ -709,6 +722,101 @@ BEGIN
   PERFORM pg_temp.ffh_probe(c_owner,format(
     'SELECT (SELECT count(*) FROM public.income_sources WHERE household_id=%1$L)+(SELECT count(*) FROM public.expenses WHERE household_id=%1$L)+(SELECT count(*) FROM public.debts WHERE household_id=%1$L)+(SELECT count(*) FROM public.accounts WHERE household_id=%1$L)',c),
     'COUNT',5,'setup-second-call-no-duplicates','income_sources');
+
+  -- FFH-P06: household invitations. Fresh household D (owner d_owner) and two people
+  -- with no household (e_joiner, f_joiner). Membership changes only via the functions.
+  INSERT INTO auth.users(id,instance_id,aud,role) VALUES
+    (d_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
+    (e_joiner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
+    (f_joiner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM set_config('request.jwt.claim.sub',d_owner::text,true);
+  IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM d_owner THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_D_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(d,'ffh-local-household-d',d_owner);
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claim.sub','',true);
+  -- Owners create invitations for their own household only; never an owner role.
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,label,token_hash) VALUES(%L,''member'',''synthetic-e'',%L)',d,h1),
+    'ROWS',1,'invite-owner-create','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash) VALUES(%L,''viewer'',%L)',d,h2),
+    'ROWS',1,'invite-owner-create-second','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash) VALUES(%L,''member'',%L)',a,ha),
+    'ROWS',1,'invite-owner-create-a','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash) VALUES(%L,''member'',%L)',d,hx),
+    'RLS',NULL,'invite-cross-owner-create','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_member,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash) VALUES(%L,''member'',%L)',a,hx),
+    'RLS',NULL,'invite-member-create-denied','household_invitations');
+  -- Only the owner can see invitations; never across households.
+  PERFORM pg_temp.ffh_probe(a_owner,format('SELECT count(*) FROM public.household_invitations WHERE household_id=%L',d),
+    'COUNT',0,'invite-cross-owner-read','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_member,format('SELECT count(*) FROM public.household_invitations WHERE household_id=%L',a),
+    'COUNT',0,'invite-member-read','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_viewer,format('SELECT count(*) FROM public.household_invitations WHERE household_id=%L',a),
+    'COUNT',0,'invite-viewer-read','household_invitations');
+  PERFORM pg_temp.ffh_probe(e_joiner,'SELECT count(*) FROM public.household_invitations',
+    'COUNT',0,'invite-outsider-read','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT count(*) FROM public.household_invitations WHERE household_id=%L',d),
+    'COUNT',2,'invite-owner-read','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'UPDATE public.household_invitations SET label=''changed'' WHERE household_id=%L',d),
+    'FORBIDDEN',NULL,'invite-update-forbidden','household_invitations');
+  -- Accepting: signed-out, unknown token, valid token, reuse, already-in-a-household, expired.
+  PERFORM pg_temp.ffh_probe(NULL,format('SELECT public.accept_household_invitation(%L)',t1),
+    'FORBIDDEN',NULL,'invite-accept-anon','household_invitations');
+  PERFORM pg_temp.ffh_probe(e_joiner,format('SELECT public.accept_household_invitation(%L)',tx),
+    'FORBIDDEN',NULL,'invite-accept-unknown-token','household_invitations');
+  PERFORM pg_temp.ffh_probe(e_joiner,format('SELECT (public.accept_household_invitation(%L)=%L)::int',t1,d),
+    'COUNT',1,'invite-accept-valid','household_members');
+  PERFORM pg_temp.ffh_probe(e_joiner,format(
+    'SELECT count(*) FROM public.household_members WHERE household_id=%L AND user_id=%L AND role=''member''',d,e_joiner),
+    'COUNT',1,'invite-accept-membership','household_members');
+  PERFORM pg_temp.ffh_probe(f_joiner,format('SELECT public.accept_household_invitation(%L)',t1),
+    'FORBIDDEN',NULL,'invite-accept-reuse','household_invitations');
+  PERFORM pg_temp.ffh_probe(a_owner,format('SELECT public.accept_household_invitation(%L)',t2),
+    'FORBIDDEN',NULL,'invite-accept-already-in-household','household_invitations');
+  INSERT INTO public.household_invitations(household_id,role,token_hash,created_by,created_at,expires_at)
+    VALUES(d,'member',hx,d_owner,now()-interval '8 days',now()-interval '1 day');
+  PERFORM pg_temp.ffh_probe(f_joiner,format('SELECT public.accept_household_invitation(%L)',tx),
+    'FORBIDDEN',NULL,'invite-accept-expired','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT count(*) FROM public.household_members WHERE household_id=%L AND user_id=%L',d,f_joiner),
+    'COUNT',0,'invite-rejected-joiner-not-member','household_members');
+  -- Roles and removal: owner only, never the owner; the new role is enforced.
+  PERFORM pg_temp.ffh_probe(e_joiner,format('SELECT public.set_household_member_role(%L,%L,''viewer'')',d,d_owner),
+    'FORBIDDEN',NULL,'role-change-by-member','household_members');
+  PERFORM pg_temp.ffh_probe(a_owner,format('SELECT public.set_household_member_role(%L,%L,''viewer'')',d,e_joiner),
+    'FORBIDDEN',NULL,'role-change-cross-owner','household_members');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT public.set_household_member_role(%L,%L,''viewer'')',d,d_owner),
+    'FORBIDDEN',NULL,'role-change-owner-self','household_members');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT count(*) FROM (SELECT public.set_household_member_role(%L,%L,''viewer'')) s',d,e_joiner),
+    'COUNT',1,'role-change-by-owner','household_members');
+  PERFORM pg_temp.ffh_probe(e_joiner,format(
+    'SELECT count(*) FROM public.household_members WHERE household_id=%L AND user_id=%L AND role=''viewer''',d,e_joiner),
+    'COUNT',1,'role-change-applied','household_members');
+  PERFORM pg_temp.ffh_probe(e_joiner,format(
+    'INSERT INTO public.income_sources(household_id,name,monthly_amount) VALUES(%L,''synthetic'',1)',d),
+    'RLS',NULL,'role-viewer-cannot-write','income_sources');
+  PERFORM pg_temp.ffh_probe(a_owner,format('SELECT public.remove_household_member(%L,%L)',d,e_joiner),
+    'FORBIDDEN',NULL,'remove-cross-owner','household_members');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT public.remove_household_member(%L,%L)',d,d_owner),
+    'FORBIDDEN',NULL,'remove-owner-self','household_members');
+  PERFORM pg_temp.ffh_probe(d_owner,format('SELECT count(*) FROM (SELECT public.remove_household_member(%L,%L)) s',d,e_joiner),
+    'COUNT',1,'remove-by-owner','household_members');
+  PERFORM pg_temp.ffh_probe(e_joiner,format('SELECT count(*) FROM public.households WHERE id=%L',d),
+    'COUNT',0,'remove-revokes-access','households');
+  -- Cancelling: pending invitations only.
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'DELETE FROM public.household_invitations WHERE household_id=%L AND role=''viewer''',d),
+    'ROWS',1,'invite-owner-cancel-pending','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'DELETE FROM public.household_invitations WHERE household_id=%L AND accepted_at IS NOT NULL',d),
+    'DENY',0,'invite-accepted-not-deletable','household_invitations');
   PERFORM pg_temp.ffh_probe(a_member,format(
     'SELECT count(*) FROM public.households WHERE id=%L',a),'COUNT',1,
     'household-member-read','households');
