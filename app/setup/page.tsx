@@ -23,7 +23,7 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
 
   for (const table of ["income_sources", "expenses", "debts", "accounts"] as const) {
     const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true }).eq("household_id", household.id);
-    if (error || (count ?? 0) > 0) redirect("/plan");
+    if (error || (count ?? 0) > 0) redirect("/plan?notice=already_set_up");
   }
 
   const { error } = await searchParams;

@@ -167,7 +167,7 @@ test("FFH-P05 setup saves through one all-or-nothing database call that runs as 
   const onboarding = read("app/onboarding/actions.ts");
   assert.match(onboarding, /redirect\("\/setup"\);\n\}\s*$/);
   const page = read("app/setup/page.tsx");
-  assert.match(page, /if \(error \|\| \(count \?\? 0\) > 0\) redirect\("\/plan"\);/);
+  assert.match(page, /if \(error \|\| \(count \?\? 0\) > 0\) redirect\("\/plan\?notice=already_set_up"\);/);
   assert.match(page, /href="\/dashboard">Skip for now</);
   assert.match(page, /name="savings_purpose"/);
   assert.match(page, /\{ value: "not_sure", label: "Not sure – add it later" \}/);
@@ -185,4 +185,23 @@ test("FFH-P05 the home-screen manifest is public and carries no user data", () =
   for (const icon of ["public/icons/icon-192.png", "public/icons/icon-512.png", "public/icons/icon-maskable-512.png", "app/apple-icon.png"]) {
     assert.equal(readFileSync(new URL(`../../${icon}`, import.meta.url)).subarray(1, 4).toString(), "PNG", icon);
   }
+});
+
+import { PLAN_NOTICES, planNotice } from "../../lib/plan/plan-notices.ts";
+
+test("FFH-P05 re-review fix: the plan page shows only fixed, allowlisted setup notices", () => {
+  assert.deepEqual(Object.keys(PLAN_NOTICES).sort(), ["already_set_up", "savings_pending"]);
+  assert.equal(planNotice("savings_pending")?.link.href, "/financial-profile#accounts");
+  assert.equal(planNotice("already_set_up")?.link.href, "/financial-profile");
+  for (const bad of ["", "unknown", "__proto__", "constructor", "toString", "<script>", ["savings_pending"], 1, null, undefined]) {
+    assert.equal(planNotice(bad), null, String(bad));
+  }
+  const plan = read("app/plan/page.tsx");
+  assert.match(plan, /const notice = planNotice\(\(await searchParams\)\.notice\);/);
+  // Nothing from the URL is rendered: only the notice object's fixed fields.
+  assert.doesNotMatch(plan, /searchParams\)\.(message|error)|\{(message|error)\}/);
+  const setup = read("app/setup/actions.ts");
+  assert.match(setup, /if \(answers\.savingsSkippedAsUnsure\) redirect\("\/plan\?notice=savings_pending"\);/);
+  assert.match(setup, /if \(outcome === "already_set_up"\) redirect\("\/plan\?notice=already_set_up"\);/);
+  assert.doesNotMatch(setup, /\/plan\?message=/);
 });
