@@ -86,7 +86,10 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
     supabase.from("household_financial_preferences").select("desired_retirement_monthly_spending, retirement_spending_basis, planning_social_security_monthly, planning_pension_monthly").eq("household_id", household.id).maybeSingle(),
     supabase.from("household_people").select("id, display_name, relationship, is_active").eq("household_id", household.id).order("created_at"),
   ]);
-  const people = (peopleResult.data ?? []).filter((person) => person.is_active);
+  // All people are passed to the owner choice (inactive ones appear only when they already own an account);
+  // the household list and new-account choices show active people only.
+  const allPeople = peopleResult.data ?? [];
+  const people = allPeople.filter((person) => person.is_active);
   const goalsPrefs = preferences.data;
   const [accounts, income, expenses, debts, retirement, goals] = await Promise.all([
     supabase.from("accounts").select("id, name, account_type, balance, cash_purpose").eq("household_id", household.id).order("created_at"),
@@ -157,7 +160,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form friendly-form" action={addRetirementAccount}>
             <RetirementFields people={people} /><button type="submit">Add retirement account</button>
           </form></details>
-          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} people={people} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} people={allPeople} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts yet. Add a 401(k), IRA or pension.</p> : null}
           <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form friendly-form" action={saveRetirementGoals}>
             <NumberField name="desired_retirement_monthly_spending" label="Monthly spending you want in retirement" period="month" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? null} />

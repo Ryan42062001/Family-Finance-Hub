@@ -245,3 +245,14 @@ test("QA #117: a saved YTD only counts once the account has an owner, and owners
   assert.equal((actions.match(/owner_person_id: await ownerPersonId\(supabase, householdId, formData\)/g) ?? []).length, 2);
   assert.match(actions, /const RELATIONSHIPS = \["self", "spouse_partner", "child", "dependent_adult", "other"\] as const;/);
 });
+
+test("review FFH-P03 (MEDIUM, #118): an inactive saved owner stays selectable, so an unrelated edit keeps it", () => {
+  const fields = read("../../components/forms/ProfileFields.tsx");
+  assert.match(fields, /const choices = people\.filter\(\(person\) => person\.is_active !== false \|\| person\.id === owner\);/);
+  assert.match(fields, /`\$\{person\.display_name\} \(inactive\)`/);
+  assert.match(fields, /defaultValue=\{owner \?\? ""\}/);
+  const page = read("../../app/financial-profile/page.tsx");
+  // Edit forms get every person (so the saved owner is always an option); new accounts get active people only.
+  assert.match(page, /<RetirementFields d=\{item\} isHsa=\{item\.account_type === "hsa"\} people=\{allPeople\} \/>/);
+  assert.match(page, /<RetirementFields people=\{people\} \/>/);
+});
