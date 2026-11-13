@@ -80,6 +80,8 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   branch**. At the start of each phase, Ryan edits it to the new `phase/...` branch.
 - Environment variable `NEXT_PUBLIC_SITE_URL` = that address (Config, Preview, all branches). Supabase Redirect URLs
   include `https://family-finance-hub-preview.vercel.app/**`.
+- The Vercel Toolbar must stay **Off** (Project Settings → General → Vercel Toolbar). It loads from `vercel.live`,
+  which the automated isolation check blocks and reports as REFUSED.
 - Vercel Deployment Protection must not put a Vercel login in front of the Preview, or Work mode and the smoke test
   are blocked (the smoke test reports `BLOCKED`, not a pass).
 - After switching the domain or changing variables, redeploy the phase branch, then run
@@ -93,6 +95,30 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   runs `scripts/rls-local/preflight.sql` and the 913-assertion two-household `scripts/rls-local/matrix.sql`, requires
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
 - **`full-phase`** (label `full-phase-ci` or manual dispatch): the same checks pinned to an exact candidate SHA.
+
+- **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
+  Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
+  address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Planning and Scenario Lab
+  load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
+  renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
+  control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.
+  - Credentials come only from the Actions secrets `FFH_E2E_A_EMAIL`, `FFH_E2E_A_PASSWORD`, `FFH_E2E_B_EMAIL` and
+    `FFH_E2E_B_PASSWORD`. They are never printed, and no screenshots, traces or videos are recorded.
+  - Missing secrets report `BLOCKED` (exit 3) and the job fails; it never reports a pass without testing.
+  - Production and every host except `https://family-finance-hub-preview.vercel.app` are refused (exit 2). While it
+    runs, every request the browser makes is checked: any request, redirect or WebSocket to another address is
+    blocked and the run reports REFUSED (exit 2) in a fixed sentence. The output never contains anything the site
+    can choose (host names, URLs, paths, page text, build details, error text, status codes or counts), only
+    PASS/FAIL per named check. **If a Preview run is ever REFUSED, rotate the TestA/TestB passwords** and update the
+    four GitHub secrets. The browser also runs behind a dead proxy
+    that only the Preview bypasses, with service workers off and WebRTC disabled (trapped in every frame and limited
+    to the dead proxy), so credentials can only ever reach the Preview.
+  - Before signing in, the suite reads `/api/build-info` and requires that the Preview address serves this exact
+    commit as a Preview build, and checks again after each account. If the fixed Preview domain points at another
+    branch or an older build, or a newer build takes over during the run, it reports BLOCKED (exit 3). Point the domain at the current phase branch (see Preview setup).
+  - Local rehearsal only: with `FFH_E2E_ALLOW_LOCALHOST=1` the script also accepts an `http://localhost` origin backed
+    by a synthetic mock; this is refused whenever `CI` or `GITHUB_ACTIONS` is set.
 
 CI evidence belongs to the exact commit it ran on. A failing or unrun check is reported as failing or unrun, never as
 passing.

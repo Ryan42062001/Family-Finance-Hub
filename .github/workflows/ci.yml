@@ -92,3 +92,64 @@ jobs:
       - run: node --test scripts/validate-release-candidate.test.mjs
       - run: npm run verify
       - run: npm audit --audit-level=high
+
+  e2e-isolation:
+    # FFH-P04: on phase branches only. Waits for Vercel's successful Preview build of this exact commit, then signs in
+    # to the fixed Preview address as TestA and TestB and checks sign-in, household isolation and sign-out.
+    # Read-only against the app; credentials come only from Actions secrets and are never printed. Never Production.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/phase/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      statuses: read
+    env:
+      PREVIEW_URL: https://family-finance-hub-preview.vercel.app/
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify exact checkout
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Wait for the Vercel Preview build of this commit
+        # Vercel reports each build as a commit status named "Vercel – <project>". Wait until it is "success" for this
+        # exact commit. Fails closed if the build fails or no successful build appears within 20 minutes.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 60); do
+            state=$(gh api "repos/$REPO/commits/$SHA/statuses?per_page=100" --jq '[.[] | select(.context | startswith("Vercel"))][0].state // "missing"' || echo "unreadable")
+            echo "Vercel build status for this commit: $state"
+            if [ "$state" = "success" ]; then exit 0; fi
+            if [ "$state" = "failure" ] || [ "$state" = "error" ]; then echo "The Preview build failed. Nothing was tested."; exit 1; fi
+            sleep 20
+          done
+          echo "BLOCKED: no successful Preview build for this commit after 20 minutes. Nothing was tested."
+          exit 1
+      - name: Sign-in and household isolation
+        env:
+          FFH_E2E_A_EMAIL: ${{ secrets.FFH_E2E_A_EMAIL }}
+          FFH_E2E_A_PASSWORD: ${{ secrets.FFH_E2E_A_PASSWORD }}
+          FFH_E2E_B_EMAIL: ${{ secrets.FFH_E2E_B_EMAIL }}
+          FFH_E2E_B_PASSWORD: ${{ secrets.FFH_E2E_B_PASSWORD }}
+          FFH_E2E_EXPECTED_SHA: ${{ github.sha }}
+        run: node scripts/e2e/isolation.mjs "$PREVIEW_URL"
+      - name: Negative control (a wrong identity must be rejected)
+        env:
+          FFH_E2E_A_EMAIL: ${{ secrets.FFH_E2E_A_EMAIL }}
+          FFH_E2E_A_PASSWORD: ${{ secrets.FFH_E2E_A_PASSWORD }}
+          FFH_E2E_B_EMAIL: ${{ secrets.FFH_E2E_B_EMAIL }}
+          FFH_E2E_B_PASSWORD: ${{ secrets.FFH_E2E_B_PASSWORD }}
+          FFH_E2E_EXPECTED_SHA: ${{ github.sha }}
+        run: node scripts/e2e/isolation.mjs "$PREVIEW_URL" --negative-control

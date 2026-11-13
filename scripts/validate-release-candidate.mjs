@@ -91,8 +91,8 @@ export const expectedActions = new Map([
 ]);
 // fast + full-phase use both Actions; the Linux rls-matrix job uses checkout only.
 export const expectedActionCounts = new Map([
-  ['actions/checkout', 3],
-  ['actions/setup-node', 2],
+  ['actions/checkout', 4],
+  ['actions/setup-node', 3],
 ]);
 
 export function collectUsesValues(value, collected = []) {

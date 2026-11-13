@@ -140,6 +140,108 @@
   owner, marked "(inactive)". Runtime persistence and hosted RLS for the new writes are covered by Work mode Q16 and
   Q7/Q8 on the Preview, not by local tests.
 
+- **FFH-P03 released (Ryan's explicit authorization).** PR #113 merged into `main` as `6fe7e11`. Production deployment
+  Ready, and the Production smoke test after the release passed 12/12. Before release: Work mode QA re-tested Q7, Q8
+  and Q16 (all PASS, #117 closed); the Preview smoke test at the final head `82918f8` was 12/12. FFH-P03 is CLOSED.
+  FFH-P04 (automated sign-in and isolation tests, HIGH risk) starts on `phase/ffh-p04-auto-isolation-tests`; this
+  note reaches `main` with the FFH-P04 release.
+
+- **FFH-P04 first Preview run: `E2E_ISOLATION PASS 34/34` and negative control PASS** (CI run 43457374172 at
+  `79bcc52`), after the wait step was switched from GitHub Deployments to Vercel's commit status (PR #123).
+
+- **FFH-P04 independent review (ChatGPT): `REVIEW RESULT: FAIL` at `79bcc52872e2df769d8438628fee12a6b75c0d10`.**
+  Both HIGH findings were fixed in the phase:
+  - HIGH: redirects were not checked before credentials were typed. Every navigation and non-GET request now goes
+    through an origin guard that fetches it without following redirects. Any request or redirect to another origin
+    is blocked and the run reports REFUSED (exit 2). The login form must submit to the same origin before anything
+    is typed. Rehearsed locally: a cross-origin redirect of the login page, and a 307 of the login POST, are both
+    REFUSED.
+  - HIGH: a successful Vercel status did not prove the fixed Preview address served the tested commit. New public
+    build-metadata route `/api/build-info` returns only Vercel's commit SHA and environment, fixed at build time.
+    Before any browser opens or credential is used, the suite requires `environment: "preview"` and
+    `commit == github.sha` (`FFH_E2E_EXPECTED_SHA`). It retries for up to 3 minutes, then reports BLOCKED (exit 3).
+    This is a small app change outside the original "no app changes" scope, made to satisfy the review; it reads no
+    user, household or secret data.
+  - MEDIUM (fixed in the phase): the negative control now uses the same `identityMatches` function as the real run,
+    and also requires the real leak check to fire on an injected household marker.
+
+- **FFH-P04 targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at `f051d8197b4eddcad58be59d57b2d1f1826c03ff`.**
+  MEDIUM 3 was confirmed FIXED; HIGH 1 and HIGH 2 were PARTIAL. Both remaining findings are fixed in the phase:
+  - HIGH (re-review 1): the guard still let GET sub-requests (images, beacons) go to other origins, so a malicious
+    page script could leak a typed password. Now every request to another origin, of any method or type, is
+    blocked. WebSockets to another origin are closed, service workers are blocked, and any blocked request makes
+    the run REFUSED (exit 2), reporting host names only. As a second barrier, the browser runs behind a proxy
+    address that does not exist, which only the tested host bypasses, with DNS prefetch and background networking
+    off. The login form must post to the same origin (no `javascript:` exception). Rehearsed locally with a page
+    that plants an image request and a password beacon to a listening server: both REFUSED, and the server
+    received 0 requests. An unguarded browser on the same page reached it, so the plant was real.
+  - MEDIUM (re-review 2, fixed rather than deferred): the build is re-checked after each account's run. If the
+    Preview address stops serving the expected commit, the run reports BLOCKED (exit 3).
+
+- **Vercel Toolbar turned off (Ryan, 2026-11-13), for Pre-Production and Production deployments.** The first
+  Preview run with the full lockdown (`f177be1`) was REFUSED because Vercel's toolbar loads from `vercel.live`. The
+  guard blocked it; nothing left the browser. The `x-vercel-skip-toolbar` header was not enough. Turning the toolbar
+  off keeps the lockdown with no host exceptions. The setting applies to new builds only.
+
+- **FFH-P04 second targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `e2e8f0048e6eb0a3b5b8a15f7455e03f486f70a7`.** The external-GET and `javascript:` fixes, the build-drift fix and
+  the Toolbar handling were all confirmed. Both new findings are fixed in the phase:
+  - HIGH: WebRTC traffic was not confined. Every WebRTC API (`RTCPeerConnection` and related) is now replaced in
+    every frame, before any page script runs, with a locked trap. Calling it reports back to the guard (the run is
+    REFUSED) and throws, so no ICE/STUN/TURN traffic starts. Chromium also runs with
+    `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`, so WebRTC may only use the dead proxy.
+    Rehearsed with a planted WebRTC leak to a listening UDP server, from the page and from a fresh iframe. Both were
+    REFUSED with 0 packets received. Controls: an unguarded Chromium sent 5 packets, and the browser policy alone
+    (trap off) sent 0, so each barrier holds on its own.
+  - MEDIUM (fixed rather than deferred): redirect hops after the first, which the route handler does not see again,
+    could escape recording. A `request` listener now records every request the browser issues, including each
+    redirect hop. Rehearsed with a same-origin image that 302s to another origin: REFUSED, 0 hits received.
+
+- **FFH-P04 third targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `f8b80e85fb9d4c4d363a54f05b4de6364092138c`.** The WebRTC (HIGH) and redirect-hop (MEDIUM) fixes were confirmed
+  FIXED. One new HIGH finding, about behaviour that predates the last fix, is fixed in the phase:
+  - HIGH: blocked requests were reported by host name, so a compromised page could put an encoded credential into a
+    host name and have it printed in the CI log. Now nothing the tested site controls is ever printed: no host
+    names, URLs, paths, page text, build metadata or error text. Violations are recorded as fixed kinds (`request`,
+    `redirect`, `websocket`, `webrtc`, `form`, `page`) and reported as kinds plus a count. The build mismatch message
+    echoes only a validated 40-hex commit and a known environment name. A wrong final page is reported as "ended on
+    a different page". Error names are allowlisted. An unexpected crash prints a fixed BLOCKED message instead of a
+    raw error. A structural test requires every value printed by the script to come from an approved list.
+    Rehearsed: a planted page encoded the typed password into the host names of 12 image requests (plain, hex,
+    base64). Result: REFUSED, and the full captured output contained none of those forms or the host name.
+
+- **FFH-P04 fourth targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `87a5d2311bc788d401982560afd60e35a7df53b2`.** The host-name logging fix was confirmed FIXED and every earlier
+  protection preserved. One new HIGH finding (pre-existing diagnostics) is fixed in the phase:
+  - HIGH: site-chosen numbers could still encode a credential in the log: the exact HTTP status of a page and the
+    count of blocked attempts. Output is now fixed sentences only: no status codes, counts, kinds, commit fragments
+    from the site, error names or marker counts. The only variable output is one PASS/FAIL line per named check,
+    the pass total, our own labels, the CI-supplied commit under test and the names of missing secrets. A
+    structural test enforces this, and every `record()` failure detail must be a fixed literal. A REFUSED run now
+    also says to rotate the TestA/TestB passwords. Rehearsed against a page returning HTTP 465 (an encoded "A"), a
+    page firing a password-dependent number of blocked requests, and a page encoding the password into host names.
+    The full captured output contained none of `465`, `115`, the password, its hex form or the host name.
+
+- **FFH-P04 residual risk accepted (Ryan, 2026-11-13).** The isolation suite's PASS/FAIL line per named check, the
+  pass total and the exit code are decided by how the site under test behaves. A deliberately malicious Preview
+  could therefore signal a few bits per run by choosing which checks fail. Every test that reports results has this
+  channel. It is accepted because TestA and TestB are synthetic, test-only accounts that see only made-up data.
+  Safeguard: **if a Preview run is ever REFUSED, Ryan rotates the TestA/TestB passwords and updates the four GitHub
+  secrets.** The REFUSED message and `docs/WORKFLOW.md` say so. Nothing else the site can choose is ever printed.
+
+- **FFH-P04 fifth targeted re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `376b02efdac95b89dba08d80410c07ef68165acb`.** The numeric-channel HIGH was confirmed FIXED and every earlier
+  protection preserved. The owner-accepted verdict channel was judged a reasonable accepted residual, with no new
+  findings. The HIGH-risk review gate is cleared. Phase CI run 43482481911 at `376b02e`: fast, rls-matrix and
+  e2e-isolation all PASS (E2E_ISOLATION PASS 34/34, both negative controls PASS). The QA checklist gains Q18
+  (`/api/build-info` shows only the commit and environment).
+
+- **FFH-P04 Work mode QA (focused pass) at `1fe4914553124c9d0d7a3ff6cc413ecda597349e`: 9 PASS, 0 FAIL, 9 NOT RUN.**
+  Passed: Q1, Q2, Q3, Q7, Q8, Q14, Q15, Q17 and Q18; the rest were out of scope for this phase. No cross-household
+  exposure and no new `qa-finding` issues. Phase CI run 43484372566 at `1fe4914`: fast, rls-matrix and
+  e2e-isolation all PASS. Release checklist: no environment variables or migrations changed in this phase. FFH-P04
+  is a release candidate awaiting Ryan's release decision.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -164,3 +266,9 @@
   not a provider/config error), so a misconfigured Supabase variable fails the release smoke test.
 - LOW (UX, auth-adjacent; own reviewed change): when a signed-in user opens `/auth/login`, say "You're already signed
   in as <email>" and offer Sign out, so a leftover session can't be mistaken for a wrong-account sign-in (QA #108).
+- MEDIUM (FFH-P04 review #4): the isolation suite detects leaks by markers (other account's email, household name,
+  `ZZ-` records) in page text only. Add own-record presence checks, household-specific identifiers in returned data,
+  and sensitive detail routes, so a leak of an unlabelled amount is caught. RLS remains covered by the 913-assertion
+  matrix.
+- LOW (FFH-P04 review #5): "money plan renders" also accepts the honest "no plan right now" card. Once TestA/TestB
+  fixtures are fixed, require a real `.money-plan`, and test the unavailable state separately.

@@ -5,7 +5,7 @@ import { validateActionReferences, validatePhaseAuthority } from './validate-rel
 
 const checkout = 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262';
 const setupNode = 'actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020';
-const validFixture = (extra = '') => `jobs:\n  fast:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n  rls:\n    steps:\n      - uses: ${checkout}\n  full:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n${extra}`;
+const validFixture = (extra = '') => `jobs:\n  fast:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n  rls:\n    steps:\n      - uses: ${checkout}\n  full:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n  e2e:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n${extra}`;
 const rejected = (name, source, pattern) => test(name, () => {
   const failures = validateActionReferences(source);
   assert.notEqual(failures.length, 0);
@@ -17,7 +17,7 @@ test('canonical current workflow passes', () => {
 });
 
 test('approved references in quoted and flow syntax are collected and pass', () => {
-  const source = `jobs:\n  fast:\n    steps:\n      - "uses": ${checkout}\n      - 'uses': ${setupNode}\n  rls:\n    steps:\n      - uses: ${checkout}\n  full:\n    steps:\n      - { uses: ${checkout} }\n      - { "uses": ${setupNode} }\n`;
+  const source = `jobs:\n  fast:\n    steps:\n      - "uses": ${checkout}\n      - 'uses': ${setupNode}\n  rls:\n    steps:\n      - uses: ${checkout}\n  full:\n    steps:\n      - { uses: ${checkout} }\n      - { "uses": ${setupNode} }\n  e2e:\n    steps:\n      - uses: ${checkout}\n      - uses: ${setupNode}\n`;
   assert.deepEqual(validateActionReferences(source), []);
 });
 
@@ -32,7 +32,7 @@ rejected('unexpected Action identity is rejected', validFixture(`  bypass:\n    
 rejected('non-string uses value is rejected', validFixture(`  bypass:\n    steps:\n      - uses: 42\n`), /must be a string/);
 rejected('malformed YAML is rejected', 'jobs:\n  fast: [\n', /cannot parse/);
 rejected('additional unapproved Action is rejected while approved counts remain', validFixture(`  bypass:\n    steps:\n      - { uses: owner/action@${'a'.repeat(40)} }\n`), /unexpected Action identity/);
-rejected('missing approved occurrence is rejected', validFixture().replace(`      - uses: ${checkout}\n`, '', 1), /pin exactly 3 times/);
+rejected('missing approved occurrence is rejected', validFixture().replace(`      - uses: ${checkout}\n`, '', 1), /pin exactly 4 times/);
 
 
 test('FFH-P01 BUILDING lifecycle authority is accepted', () => {
