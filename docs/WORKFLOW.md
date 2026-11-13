@@ -108,8 +108,10 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   - Missing secrets report `BLOCKED` (exit 3) and the job fails; it never reports a pass without testing.
   - Production and every host except `https://family-finance-hub-preview.vercel.app` are refused (exit 2). While it
     runs, every request the browser makes is checked: any request, redirect or WebSocket to another address is
-    blocked and the run reports REFUSED (exit 2) with only a count and the kind of attempt. The output never
-    contains anything the site controls (host names, URLs, paths, page text, build details or error text). The browser also runs behind a dead proxy
+    blocked and the run reports REFUSED (exit 2) in a fixed sentence. The output never contains anything the site
+    can choose (host names, URLs, paths, page text, build details, error text, status codes or counts), only
+    PASS/FAIL per named check. **If a Preview run is ever REFUSED, rotate the TestA/TestB passwords** and update the
+    four GitHub secrets. The browser also runs behind a dead proxy
     that only the Preview bypasses, with service workers off and WebRTC disabled (trapped in every frame and limited
     to the dead proxy), so credentials can only ever reach the Preview.
   - Before signing in, the suite reads `/api/build-info` and requires that the Preview address serves this exact

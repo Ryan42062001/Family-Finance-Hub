@@ -68,15 +68,13 @@ export function leavesOrigin(requestUrl, origin) {
   try { return new URL(requestUrl).origin !== origin; } catch { return true; }
 }
 
-// Output rule: nothing the tested site controls (host names, URLs, paths, page text, build metadata, error text) is
-// ever printed, because a compromised page could encode a typed credential into any of them. Violations are
-// recorded as one of these fixed kinds and reported only as kinds and a count.
+// Output rule: nothing the tested site can choose is ever printed: no host names, URLs, paths, page text, build
+// metadata, error text, HTTP statuses, counts or kinds. A compromised page could encode a typed credential into any
+// of them. Output is fixed sentences only, plus one PASS/FAIL line per named check and the exit code. Those verdicts
+// are inherently decided by the site under test; that bounded residual is documented and accepted in
+// .ai/DECISIONS.md (synthetic test-only accounts; rotate their passwords if a Preview run is ever REFUSED).
+// Violation kinds are kept internally only, never printed.
 export const VIOLATION_KINDS = ["request", "redirect", "websocket", "webrtc", "form", "page"];
-
-export function describeViolations(kinds) {
-  const known = [...new Set(kinds.filter((kind) => VIOLATION_KINDS.includes(kind)))].sort();
-  return `${kinds.length} blocked attempt(s) to reach another address (${known.join(", ") || "unclassified"})`;
-}
 
 export class OriginViolation extends Error {
   constructor(kinds = []) {
@@ -236,17 +234,6 @@ async function runAccount(browser, origin, account) {
 
 class BuildDrift extends Error {}
 
-// Only values validated against a fixed shape are described; anything else from the site is never echoed.
-export function describeBuild(info) {
-  const commit = typeof info?.commit === "string" && /^[0-9a-f]{40}$/.test(info.commit) ? `commit ${info.commit.slice(0, 7)}` : "an unrecognised build";
-  const environment = ["preview", "production", "development"].includes(info?.environment) ? info.environment : "unknown environment";
-  return info ? `the Preview address serves ${commit} (${environment})` : "the Preview address gave no readable build information";
-}
-
-export function safeErrorKind(error) {
-  return error instanceof Error && ["TimeoutError", "TypeError", "Error"].includes(error.name) ? error.name : "browser error";
-}
-
 async function readBuildInfo(origin) {
   try {
     const response = await fetch(`${origin}/api/build-info`, { redirect: "manual", cache: "no-store" });
@@ -281,7 +268,7 @@ async function main() {
     if (!/^[0-9a-f]{40}$/.test(expectedSha)) { console.error("BLOCKED: FFH_E2E_EXPECTED_SHA (the commit under test) is missing. Nothing was tested."); process.exit(3); }
     const build = await verifyBuild(target.origin, expectedSha);
     if (!build.ok) {
-      console.error(`BLOCKED: ${describeBuild(build.info)}, not commit ${expectedSha.slice(0, 7)} as a Preview. Is the Preview domain pointing at this phase branch? Nothing was tested.`);
+      console.error(`BLOCKED: the Preview address does not serve commit ${expectedSha.slice(0, 7)} as a Preview build. Is the Preview domain pointing at this phase branch? Nothing was tested.`);
       process.exit(3);
     }
     console.log(`PASS  the Preview address serves commit ${expectedSha.slice(0, 7)}`);
@@ -300,14 +287,14 @@ async function main() {
   } catch (error) {
     await browser.close();
     if (error instanceof OriginViolation) {
-      console.error(`REFUSED: ${describeViolations(error.kinds)}. Every such attempt was blocked and nothing was concluded.`);
+      console.error("REFUSED: the site tried to reach another address. Every such attempt was blocked and nothing was concluded. Rotate the TestA/TestB passwords.");
       process.exit(2);
     }
     if (error instanceof BuildDrift) {
       console.error(`BLOCKED: the Preview address stopped serving ${expectedSha.slice(0, 7)} during the run (a newer build took over). Nothing was concluded.`);
       process.exit(3);
     }
-    console.error(`BLOCKED: the Preview could not be exercised (${safeErrorKind(error)}). Nothing was concluded.`);
+    console.error("BLOCKED: the Preview could not be exercised. Nothing was concluded.");
     process.exit(3);
   }
   await browser.close();
@@ -339,9 +326,9 @@ async function main() {
     }
     for (const path of PAGES) {
       const pageResult = run.pages[path];
-      record(`${who} ${path} loads while signed in`, pageResult.status < 400 && pageResult.finalPath === path, `status ${Number(pageResult.status) || 0}${pageResult.finalPath === path ? "" : ", ended on a different page"}`);
+      record(`${who} ${path} loads while signed in`, pageResult.status < 400 && pageResult.finalPath === path, "the page did not load normally");
       const leaks = leakedMarkers(pageResult.text, otherMarkers);
-      record(`${who} ${path} shows nothing from ${other.label}`, leaks.length === 0, `${leaks.length} marker(s) from ${other.label} found`);
+      record(`${who} ${path} shows nothing from ${other.label}`, leaks.length === 0, `content from ${other.label} was found`);
     }
     record(`${who} money plan renders`, run.pages["/plan"].planRendered === true, "the plan component did not render");
     record(`${who} sign-out returns to Sign in`, run.signedOut.onLogin);
