@@ -955,3 +955,52 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 .friendly-form .choice-option input,.friendly-form .switch input{min-height:0;padding:0;border:0}
 .friendly-form .profile-more-fields[open]{gap:1.25rem}
 .friendly-form .profile-more-fields>summary{margin:-.2rem 0 .1rem}
+
+/* FFH-P03: cleaner phone layout for the Financial profile (desktop unchanged). */
+@media(max-width:760px){
+  .profile-hero{margin-bottom:.75rem;padding-bottom:.25rem}
+  .profile-hero h1{font-size:1.6rem}
+  .save-celebration{gap:.7rem;padding:.75rem .85rem;border-radius:14px}
+  .save-celebration a{flex-basis:100%;padding-left:calc(38px + .7rem);font-size:.86rem}
+  .profile-section-body{padding:0 .85rem .9rem}
+  /* "+ Add …" becomes one clear dashed button; its form loses the extra box. */
+  .profile-add-disclosure{margin-bottom:.4rem;border:0;background:transparent}
+  .profile-add-disclosure>summary{display:flex;align-items:center;justify-content:center;gap:.4rem;min-height:46px;padding:.6rem;border:1.5px dashed var(--accent-line);border-radius:12px;color:var(--accent-text);background:color-mix(in srgb,var(--accent) 6%,transparent);font-size:.92rem}
+  .profile-add-disclosure>summary::marker,.profile-add-disclosure>summary::-webkit-details-marker{display:none;content:""}
+  .profile-add-disclosure>summary:before{content:"+";font-size:1.15rem;font-weight:700;line-height:1}
+  .profile-add-disclosure[open]>summary{margin-bottom:.75rem}
+  .profile-section-body .data-form.friendly-form,.profile-add-disclosure>.data-form.friendly-form{margin:0;padding:0;background:transparent}
+  .friendly-form{grid-template-columns:1fr;gap:.95rem}
+  .friendly-form>button{justify-self:stretch;width:100%;min-height:48px}
+  /* Rows: name and amount on the left, two small actions on the right. */
+  .profile-section-body .record-list{gap:0;margin-top:.25rem}
+  .profile-section-body .record-list>.record-row{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.7rem 0;border-top:1px solid var(--line)}
+  .profile-section-body .record-row>span{display:grid;gap:.1rem}
+  .profile-section-body .record-row>span strong{font-size:.95rem}
+  .profile-section-body .record-row>span small{color:var(--muted);font-size:.82rem}
+  .profile-section-body .record-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:.35rem;max-width:none}
+  .profile-section-body .record-actions .edit-panel>summary,.profile-section-body .record-actions .danger-button{min-height:36px;width:auto;padding:.35rem .7rem;border-radius:999px;font-size:.8rem}
+  .profile-section-body .record-actions .danger-button{color:var(--muted);background:transparent;border:1px solid var(--line-strong)}
+  /* Editing: the row opens into a full-width card with Delete underneath. */
+  .profile-section-body .record-list>.record-row:has(.edit-panel[open]){grid-template-columns:1fr;padding:.8rem;margin:.4rem 0;border:1px solid var(--accent-line);border-radius:14px;background:var(--surface)}
+  .profile-section-body .record-row:has(.edit-panel[open]) .record-actions{flex-direction:column;align-items:stretch;gap:.6rem}
+  .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel>summary{align-self:flex-start}
+  .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel .data-form{margin-top:.6rem}
+  .profile-section-body .record-row:has(.edit-panel[open]) form:has(.danger-button){align-self:flex-start}
+  /* Smaller tiles and pills. */
+  .choice legend,.field-label{font-size:.85rem}
+  .choice-tiles .choice-options{grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem}
+  .choice-tiles .choice-face{min-height:62px;padding:.45rem .25rem;border-radius:12px;font-size:.74rem;gap:.25rem}
+  .choice-tiles .choice-icon{font-size:1.2rem}
+  .choice-pills .choice-options{gap:.4rem}
+  .choice-pills .choice-face{min-height:36px;padding:.35rem .75rem;font-size:.82rem}
+  .friendly-form .profile-more-fields[open]{padding:.75rem;gap:1rem}
+  .profile-retirement-goals>.data-form.friendly-form{margin-top:.6rem}
+}
+@media(max-width:360px){.choice-tiles .choice-face{font-size:.7rem}}
+@media(max-width:760px){
+  .profile-section-body .record-actions .edit-panel>summary,.profile-section-body .record-actions .danger-button{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel{display:grid;gap:.6rem;width:100%;padding:0;border:0;background:transparent}
+  .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel>summary{justify-self:start;width:auto}
+  .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel .data-form.friendly-form{margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+}
