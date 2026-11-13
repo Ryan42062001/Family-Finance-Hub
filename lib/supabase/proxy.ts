@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
     path === "/auth/callback" ||
     path === "/auth/confirm" ||
     // Read-only example household with fixed made-up numbers; it never reads household data (FFH-P03).
-    path === "/demo";
+    path === "/demo" ||
+    // Build metadata (commit SHA and environment) for the automated Preview check; no user or household data (FFH-P04).
+    path === "/api/build-info";
 
   if (!userId && !isPublic) {
     const trusted = trustedRequestUrl(request.url);

@@ -146,6 +146,25 @@
   FFH-P04 (automated sign-in and isolation tests, HIGH risk) starts on `phase/ffh-p04-auto-isolation-tests`; this
   note reaches `main` with the FFH-P04 release.
 
+- **FFH-P04 first Preview run: `E2E_ISOLATION PASS 34/34` and negative control PASS** (CI run 43457374172 at
+  `79bcc52`), after the wait step was switched from GitHub Deployments to Vercel's commit status (PR #123).
+
+- **FFH-P04 independent review (ChatGPT): `REVIEW RESULT: FAIL` at `79bcc52872e2df769d8438628fee12a6b75c0d10`.**
+  Both HIGH findings were fixed in the phase:
+  - HIGH: redirects were not checked before credentials were typed. Every navigation and non-GET request now goes
+    through an origin guard that fetches it without following redirects. Any request or redirect to another origin
+    is blocked and the run reports REFUSED (exit 2). The login form must submit to the same origin before anything
+    is typed. Rehearsed locally: a cross-origin redirect of the login page, and a 307 of the login POST, are both
+    REFUSED.
+  - HIGH: a successful Vercel status did not prove the fixed Preview address served the tested commit. New public
+    build-metadata route `/api/build-info` returns only Vercel's commit SHA and environment, fixed at build time.
+    Before any browser opens or credential is used, the suite requires `environment: "preview"` and
+    `commit == github.sha` (`FFH_E2E_EXPECTED_SHA`). It retries for up to 3 minutes, then reports BLOCKED (exit 3).
+    This is a small app change outside the original "no app changes" scope, made to satisfy the review; it reads no
+    user, household or secret data.
+  - MEDIUM (fixed in the phase): the negative control now uses the same `identityMatches` function as the real run,
+    and also requires the real leak check to fire on an injected household marker.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -170,3 +189,9 @@
   not a provider/config error), so a misconfigured Supabase variable fails the release smoke test.
 - LOW (UX, auth-adjacent; own reviewed change): when a signed-in user opens `/auth/login`, say "You're already signed
   in as <email>" and offer Sign out, so a leftover session can't be mistaken for a wrong-account sign-in (QA #108).
+- MEDIUM (FFH-P04 review #4): the isolation suite detects leaks by markers (other account's email, household name,
+  `ZZ-` records) in page text only. Add own-record presence checks, household-specific identifiers in returned data,
+  and sensitive detail routes, so a leak of an unlabelled amount is caught. RLS remains covered by the 913-assertion
+  matrix.
+- LOW (FFH-P04 review #5): "money plan renders" also accepts the honest "no plan right now" card. Once TestA/TestB
+  fixtures are fixed, require a real `.money-plan`, and test the unavailable state separately.

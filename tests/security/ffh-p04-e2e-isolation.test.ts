@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { checkTarget, credentialsFrom, leakedMarkers, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
+import { buildMatches, checkTarget, credentialsFrom, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
 
 const PREVIEW = "https://family-finance-hub-preview.vercel.app/";
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
 const workflow = ci.slice(ci.indexOf("\n  e2e-isolation:"));
 const script = readFileSync(new URL("../../scripts/e2e/isolation.mjs", import.meta.url), "utf8");
+const buildInfoRoute = readFileSync(new URL("../../app/api/build-info/route.ts", import.meta.url), "utf8");
+const proxy = readFileSync(new URL("../../lib/supabase/proxy.ts", import.meta.url), "utf8");
+const SHA = "79bcc52872e2df769d8438628fee12a6b75c0d10";
 
 test("FFH-P04 only the fixed Preview origin is a valid target", () => {
   assert.deepEqual(checkTarget(PREVIEW), { ok: true, origin: "https://family-finance-hub-preview.vercel.app" });
@@ -67,4 +70,52 @@ test("FFH-P04 workflow waits for this commit's Preview, reads secrets only in it
   assert.doesNotMatch(workflow, /taupe|ten-brown/);
   assert.doesNotMatch(workflow, /set -x|echo .*secrets\./);
   assert.match(workflow, /--negative-control/);
+});
+
+test("FFH-P04 review fix: nothing is tested unless the address serves this exact commit as a Preview", () => {
+  assert.equal(buildMatches({ commit: SHA, environment: "preview" }, SHA), true);
+  assert.equal(buildMatches({ commit: SHA, environment: "production" }, SHA), false);
+  assert.equal(buildMatches({ commit: "a".repeat(40), environment: "preview" }, SHA), false);
+  assert.equal(buildMatches({ commit: null, environment: "preview" }, SHA), false);
+  assert.equal(buildMatches({ commit: SHA.slice(0, 7), environment: "preview" }, SHA.slice(0, 7)), false);
+  assert.equal(buildMatches(null, SHA), false);
+  // The real Preview always requires the expected commit; only a local rehearsal may skip it.
+  assert.match(script, /if \(!target\.local \|\| expectedSha\)/);
+  assert.match(script, /FFH_E2E_EXPECTED_SHA \(the commit under test\) is missing/);
+  assert.equal((workflow.match(/FFH_E2E_EXPECTED_SHA: \$\{\{ github\.sha \}\}/g) ?? []).length, 2);
+  // The build check happens before any browser or credential is used.
+  assert.ok(script.indexOf("verifyBuild(target.origin, expectedSha)") < script.indexOf("chromium.launch()"));
+});
+
+test("FFH-P04 review fix: build-info exposes only build metadata and is public", () => {
+  assert.match(buildInfoRoute, /export const dynamic = "force-static"/);
+  assert.match(buildInfoRoute, /commit: process\.env\.VERCEL_GIT_COMMIT_SHA \?\? null/);
+  assert.match(buildInfoRoute, /environment: process\.env\.VERCEL_ENV \?\? null/);
+  assert.doesNotMatch(buildInfoRoute, /supabase|cookies|headers\(|SUPABASE|KEY|SECRET|TOKEN/);
+  assert.equal((buildInfoRoute.match(/process\.env\./g) ?? []).length, 2);
+  assert.match(proxy, /path === "\/api\/build-info"/);
+});
+
+test("FFH-P04 review fix: navigation and submissions can never leave the tested origin", () => {
+  const origin = "https://family-finance-hub-preview.vercel.app";
+  assert.equal(leavesOrigin(`${origin}/auth/login`, origin), false);
+  for (const elsewhere of ["https://family-finance-hub-taupe.vercel.app/auth/login", "http://family-finance-hub-preview.vercel.app/", "https://family-finance-hub-preview.vercel.app.evil.example/", "not a url"]) {
+    assert.equal(leavesOrigin(elsewhere, origin), true, elsewhere);
+  }
+  // The guard is installed before the first page opens, fetches sensitive requests without following redirects, and
+  // the login form is checked before any credential is typed.
+  assert.ok(script.indexOf("await installOriginGuard(context, origin, violations);") < script.indexOf("await signIn(context, origin, account, violations)"));
+  assert.match(script, /route\.fetch\(\{ maxRedirects: 0 \}\)/);
+  assert.match(script, /request\.isNavigationRequest\(\) \|\| request\.method\(\) !== "GET"/);
+  assert.ok(script.indexOf("const formAction =") < script.indexOf('page.fill(\'input[name="email"]\''));
+  assert.match(script, /REFUSED: the site tried to send the browser to another address/);
+});
+
+test("FFH-P04 review fix: the negative control exercises the real identity and leak checks", () => {
+  assert.equal(identityMatches("A@Synthetic.invalid ", "a@synthetic.invalid"), true);
+  assert.equal(identityMatches("a@synthetic.invalid", "b@synthetic.invalid"), false);
+  assert.equal(identityMatches("", "a@synthetic.invalid"), false);
+  assert.match(script, /record\(`\$\{who\} is signed in as itself`, identityMatches\(run\.email, account\.email\)/);
+  assert.match(script, /!identityMatches\(a\.email, creds\.b\.email\) && !identityMatches\(b\.email, creds\.a\.email\)/);
+  assert.match(script, /leakedMarkers\(a\.pages\["\/dashboard"\]\.text, \[a\.householdName\]\)\.length > 0/);
 });

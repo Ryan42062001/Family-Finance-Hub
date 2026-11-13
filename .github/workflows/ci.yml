@@ -143,6 +143,7 @@ jobs:
           FFH_E2E_A_PASSWORD: ${{ secrets.FFH_E2E_A_PASSWORD }}
           FFH_E2E_B_EMAIL: ${{ secrets.FFH_E2E_B_EMAIL }}
           FFH_E2E_B_PASSWORD: ${{ secrets.FFH_E2E_B_PASSWORD }}
+          FFH_E2E_EXPECTED_SHA: ${{ github.sha }}
         run: node scripts/e2e/isolation.mjs "$PREVIEW_URL"
       - name: Negative control (a wrong identity must be rejected)
         env:
@@ -150,4 +151,5 @@ jobs:
           FFH_E2E_A_PASSWORD: ${{ secrets.FFH_E2E_A_PASSWORD }}
           FFH_E2E_B_EMAIL: ${{ secrets.FFH_E2E_B_EMAIL }}
           FFH_E2E_B_PASSWORD: ${{ secrets.FFH_E2E_B_PASSWORD }}
+          FFH_E2E_EXPECTED_SHA: ${{ github.sha }}
         run: node scripts/e2e/isolation.mjs "$PREVIEW_URL" --negative-control
