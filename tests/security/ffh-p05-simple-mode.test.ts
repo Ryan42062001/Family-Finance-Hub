@@ -93,14 +93,18 @@ import { parseSetupAnswers } from "../../lib/setup/answers.ts";
 
 const form = (fields: Record<string, string | undefined>) => { const data = new FormData(); for (const [key, value] of Object.entries(fields)) if (value !== undefined) data.set(key, value); return data; };
 
-test("FFH-P05 setup answers use the profile forms' validation and fail closed", () => {
-  const ok = parseSetupAnswers(form({ take_home: "5000", fixed_bills: "2500.5", other_spending: "600", debt_balance: "4200", debt_minimum: "120", debt_rate: "24.9", savings: "1500", simple_view: "on" }));
-  assert.deepEqual(ok, { takeHome: 5000, fixedBills: 2500.5, otherSpending: 600, debt: { balance: 4200, minimum: 120, rate: 24.9 }, savings: 1500, simpleView: true });
-  // Optional answers may be empty; no debt is recorded without a balance above zero.
+test("FFH-P05 setup answers use the profile forms' validation, check every filled field, and fail closed", () => {
+  const ok = parseSetupAnswers(form({ take_home: "5000", fixed_bills: "2500.5", other_spending: "600", debt_balance: "4200", debt_minimum: "120", debt_rate: "24.9", savings: "1500", savings_purpose: "protected_reserve", simple_view: "on" }));
+  assert.deepEqual(ok, { takeHome: 5000, fixedBills: 2500.5, otherSpending: 600, debt: { balance: 4200, minimum: 120, rate: 24.9 }, savings: { amount: 1500, purpose: "protected_reserve" }, savingsSkippedAsUnsure: false, simpleView: true });
   const minimal = parseSetupAnswers(form({ take_home: "0", fixed_bills: "0", other_spending: "0" }));
-  assert.deepEqual(minimal, { takeHome: 0, fixedBills: 0, otherSpending: 0, debt: null, savings: null, simpleView: false });
-  assert.equal(parseSetupAnswers(form({ take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "0" })).debt, null);
-  // Any invalid or missing required answer throws, so nothing is written.
+  assert.deepEqual(minimal, { takeHome: 0, fixedBills: 0, otherSpending: 0, debt: null, savings: null, savingsSkippedAsUnsure: false, simpleView: false });
+  // Review HIGH 1 (Ryan): savings need an explicit purpose; "Not sure" saves nothing.
+  const unsure = parseSetupAnswers(form({ take_home: "1", fixed_bills: "1", other_spending: "1", savings: "20000", savings_purpose: "not_sure" }));
+  assert.equal(unsure.savings, null);
+  assert.equal(unsure.savingsSkippedAsUnsure, true);
+  for (const purpose of ["protected_reserve", "unallocated", "operating_cash"]) {
+    assert.equal(parseSetupAnswers(form({ take_home: "1", fixed_bills: "1", other_spending: "1", savings: "10", savings_purpose: purpose })).savings?.purpose, purpose);
+  }
   for (const bad of [
     { fixed_bills: "1", other_spending: "1" },
     { take_home: "-5", fixed_bills: "1", other_spending: "1" },
@@ -108,38 +112,65 @@ test("FFH-P05 setup answers use the profile forms' validation and fail closed", 
     { take_home: "1e9", fixed_bills: "1", other_spending: "1" },
     { take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "4200" },
     { take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "4200", debt_minimum: "50", debt_rate: "120" },
+    // Review MEDIUM 2: every filled-in field is validated, even without a debt balance.
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_minimum: "abc" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_rate: "500" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_minimum: "50" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", debt_balance: "0", debt_rate: "5" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", simple_view: "yes" },
     { take_home: "1", fixed_bills: "1", other_spending: "1", savings: "lots" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", savings: "100" },
+    { take_home: "1", fixed_bills: "1", other_spending: "1", savings: "100", savings_purpose: "earmarked_goal" },
   ]) assert.throws(() => parseSetupAnswers(form(bad)), JSON.stringify(bad));
-  // The profile forms and setup share the one validator module.
   const profileActions = read("app/financial-profile/actions.ts");
   assert.match(profileActions, /import \{ amount, percent \} from "@\/lib\/forms\/validate";/);
   assert.doesNotMatch(profileActions, /^function (amount|percent)\(/m);
 });
 
-test("FFH-P05 setup writes only to the caller's own household, once, after validating every answer", () => {
+test("FFH-P05 setup saves through one all-or-nothing database call that runs as the caller", () => {
   const setup = read("app/setup/actions.ts");
   assert.match(setup, /^"use server";/);
   assert.equal((setup.match(/^export /gm) ?? []).length, 1, "only the action itself is a server endpoint");
-  assert.match(setup, /if \(!userId\) redirect\("\/auth\/login"\);/);
-  assert.match(setup, /\.from\("households"\)\.select\("id"\)\.order\("created_at"\)\.limit\(1\)/);
-  assert.doesNotMatch(setup, /formData\.get\("(household_id|id)"\)/);
-  // Order: refuse a non-empty household, then validate everything, then write.
-  const guard = setup.indexOf("householdIsEmpty(supabase, householdId)");
-  const parse = setup.indexOf("parseSetupAnswers(formData)");
-  const firstWrite = setup.indexOf(".insert(");
-  assert.ok(guard > 0 && parse > guard && firstWrite > parse);
-  assert.match(setup, /if \(error \|\| \(count \?\? 0\) > 0\) return false;/);
-  // Every write carries this household id; the profile write is the caller's own row only.
-  for (const insert of setup.match(/\.insert\(\{[^)]*\}\)/g) ?? []) assert.match(insert, /household_id: householdId/);
-  assert.match(setup, /\.from\("profiles"\)\.upsert\(\{ id: userId, simple_mode: true \}, \{ onConflict: "id" \}\)/);
-  // Setup never invents policy: fixed bills are the essential expense, other spending is not.
-  assert.match(setup, /name: "Fixed bills and must-haves \(from setup\)", category: "other", monthly_amount: answers\.fixedBills, is_essential: true/);
-  assert.match(setup, /name: "Other spending \(from setup\)", category: "personal", monthly_amount: answers\.otherSpending, is_essential: false/);
+  // No direct table writes from the app any more; exactly one RPC.
+  assert.doesNotMatch(setup, /\.from\(|\.insert\(|\.upsert\(/);
+  assert.equal((setup.match(/supabase\.rpc\("complete_household_setup"/g) ?? []).length, 1);
+  assert.doesNotMatch(setup, /household_id|p_household/);
+  assert.ok(setup.indexOf("parseSetupAnswers(formData)") < setup.indexOf("supabase.rpc("), "validate before the call");
+  assert.match(setup, /if \(outcome === "already_set_up"\)/);
+  assert.match(setup, /if \(outcome !== "saved"\)/);
+
+  const sql = read("supabase/migrations/20261113230000_ffh_p05_atomic_household_setup.sql").replace(/--.*$/gm, "");
+  assert.match(sql, /create or replace function public\.complete_household_setup\(/);
+  assert.match(sql, /security invoker/);
+  assert.doesNotMatch(sql, /security definer/);
+  assert.match(sql, /set search_path = ''/);
+  assert.doesNotMatch(sql, /p_household/, "the household never comes from input");
+  assert.match(sql, /join public\.household_members m on m\.household_id = h\.id and m\.user_id = v_user/);
+  // Order: validate, find own household, lock, check empty, then write.
+  const validate = sql.indexOf("a required answer is missing");
+  const find = sql.indexOf("select h.id into v_household");
+  const lock = sql.indexOf("pg_advisory_xact_lock(hashtextextended('ffh-setup:' || v_household::text, 0))");
+  const empty = sql.indexOf("return 'already_set_up'");
+  const firstInsert = sql.indexOf("insert into public.");
+  assert.ok(validate > 0 && find > validate && lock > find && empty > lock && firstInsert > empty);
+  for (const table of ["income_sources", "expenses", "debts", "accounts"]) assert.match(sql, new RegExp(`exists \\(select 1 from public\\.${table} where household_id = v_household\\)`));
+  assert.match(sql, /p_savings_purpose not in \('protected_reserve', 'unallocated', 'operating_cash'\)/);
+  assert.match(sql, /coalesce\(p_debt_balance, 0\) > 0 and p_debt_minimum is null/);
+  assert.match(sql, /revoke all on function public\.complete_household_setup\([^)]*\) from public, anon, authenticated;/);
+  assert.match(sql, /grant execute on function public\.complete_household_setup\([^)]*\) to authenticated;/);
+  assert.equal((sql.match(/insert into public\./g) ?? []).length, 6);
+  // Same policy as before: fixed bills essential, other spending not, purpose only as chosen.
+  assert.match(sql, /'Fixed bills and must-haves \(from setup\)', 'other', p_fixed_bills, true/);
+  assert.match(sql, /'Other spending \(from setup\)', 'personal', p_other_spending, false/);
+  assert.match(sql, /'Savings \(from setup\)', 'savings', p_savings, p_savings_purpose/);
+
   const onboarding = read("app/onboarding/actions.ts");
   assert.match(onboarding, /redirect\("\/setup"\);\n\}\s*$/);
   const page = read("app/setup/page.tsx");
   assert.match(page, /if \(error \|\| \(count \?\? 0\) > 0\) redirect\("\/plan"\);/);
   assert.match(page, /href="\/dashboard">Skip for now</);
+  assert.match(page, /name="savings_purpose"/);
+  assert.match(page, /\{ value: "not_sure", label: "Not sure – add it later" \}/);
   assert.doesNotMatch(page, /dangerouslySetInnerHTML/);
 });
 
