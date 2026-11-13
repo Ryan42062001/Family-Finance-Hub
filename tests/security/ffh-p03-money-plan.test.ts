@@ -4,7 +4,7 @@ import test from "node:test";
 import { runMoneyPriorityEngine, type MoneyPriorityEngineResult } from "../../lib/calculations/money-priority-engine.ts";
 import { buildMoneyPrioritySnapshot } from "../../lib/calculations/money-priority-snapshot.ts";
 import { exampleHouseholdRaw } from "../../lib/plan/example-household.ts";
-import { buildMoneyPlanView, cushionBadge, debtFreeBadge, forPeople, missingItem } from "../../lib/plan/money-plan.ts";
+import { buildMoneyPlanView, cushionBadge, debtFreeBadge, emergencyAvailableCash, formatPlanMoney, forPeople, missingItem } from "../../lib/plan/money-plan.ts";
 import { planFromRaw } from "../../lib/plan/plan-result.ts";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -70,7 +70,7 @@ test("headline badges use existing calculations and fail closed", () => {
   const snapshot = buildMoneyPrioritySnapshot(exampleHouseholdRaw());
   const cushion = cushionBadge(snapshot);
   const essentials = snapshot.aggregates.monthlyEssentialExpenses + snapshot.aggregates.monthlyMinimumDebtPayments;
-  assert.deepEqual(cushion, { kind: "months", months: snapshot.aggregates.liquidCash / essentials });
+  assert.deepEqual(cushion, { kind: "months", months: (snapshot.aggregates.protectedCash + snapshot.aggregates.unallocatedCash) / essentials });
   const debtFree = debtFreeBadge(snapshot, AS_OF);
   assert.equal(debtFree.kind, "date");
   // Unknown interest rate: no date.
@@ -130,7 +130,10 @@ test("new profile fields write only allowed values that mirror the database chec
   // HSA year-to-date amounts are owned by the HSA contract and are never written from this form.
   assert.match(actions, /if \(accountType !== "hsa"\) \{\s*details\.employee_contributed_ytd/);
   // Retirement goals: one row per household, four columns, today's dollars only when an amount is given.
-  assert.match(actions, /retirement_spending_basis: spending === null \? "unknown" : "today_dollars"/);
+  // The spending basis is the household's explicit answer, validated against the database values; never inferred.
+  assert.match(actions, /const SPENDING_BASES = \["today_dollars", "future_dollars", "unknown"\] as const;/);
+  assert.match(actions, /retirement_spending_basis: basis,/);
+  assert.doesNotMatch(actions, /"today_dollars" :|: "today_dollars"/);
   assert.match(actions, /\{ onConflict: "household_id" \}/);
   // Insurance edits stay scoped to the user's household; delete supports the new kind.
   assert.match(actions, /from\("insurance_exposures"\)\.update\(\{ \.\.\.insurancePayload\(formData\), updated_at: new Date\(\)\.toISOString\(\) \}\)\.eq\("id", id\)\.eq\("household_id", householdId\)/);
@@ -162,4 +165,60 @@ test("friendlier forms submit exactly the field names the save actions validate"
   const number = read("../../components/forms/NumberField.tsx");
   assert.match(number, /<input name=\{name\} type="number"/);
   assert.doesNotMatch(number, /type="hidden"|name=\{`/);
+});
+
+test("review FFH-P03 #1: plain wording never alters amounts, rates or unknown sentences", () => {
+  for (const text of [
+    "The recorded post-promotional APR is 23.90%.",
+    "$123.45 of known legal employee contribution room remains.",
+    "Pay $1,020.50 more. APR is at or above the high-interest threshold. Then $0.49 remains.",
+  ]) {
+    const out = forPeople(text);
+    for (const figure of text.match(/\$?[\d,]+\.\d+%?/g) ?? []) assert.ok(out.includes(figure), `${figure} survives in: ${out}`);
+  }
+  assert.equal(forPeople("The recorded post-promotional APR is 23.90%."), "The recorded post-promotional APR is 23.90%.");
+  assert.equal(
+    forPeople("Pay $1,020.50 more. APR is at or above the high-interest threshold. Then $0.49 remains."),
+    "Pay $1,020.50 more. This debt's interest rate is high, so paying it down is a strong use of extra money. Then $0.49 remains.",
+  );
+  // The same function formats why-now, trade-offs and assumptions.
+  const result = engine();
+  const tampered = structuredClone(result);
+  const step = tampered.recommendations.find((r) => r.state !== "more_information_needed")!;
+  step.tradeoffs = ["$1020.00 of this higher-priority balance remains after the current monthly allocation."];
+  step.assumptions = ["Projection uses a 4.0% annual real return."];
+  const view = buildMoneyPlanView(tampered).steps.find((s) => s.id === step.id)!;
+  assert.deepEqual(view.tradeoffs, step.tradeoffs);
+  assert.deepEqual(view.assumptions, step.assumptions);
+});
+
+test("review FFH-P03 #2: plan amounts are shown to the cent in the plan and the dashboard summary", () => {
+  assert.equal(formatPlanMoney(0.01), "$0.01");
+  assert.equal(formatPlanMoney(0.49), "$0.49");
+  assert.equal(formatPlanMoney(125.49), "$125.49");
+  assert.equal(formatPlanMoney(1400), "$1,400.00");
+  for (const path of ["../../components/plan/MoneyPlan.tsx", "../../components/plan/PlanSummary.tsx"]) {
+    const source = read(path);
+    assert.match(source, /const money = formatPlanMoney;/, path);
+    assert.doesNotMatch(source, /maximumFractionDigits: 0/, path);
+  }
+});
+
+test("review FFH-P03 #3: the retirement-goals form shows and submits the saved spending basis", () => {
+  const page = read("../../app/financial-profile/page.tsx");
+  assert.match(page, /select\("desired_retirement_monthly_spending, retirement_spending_basis, /);
+  assert.match(page, /<Choice name="retirement_spending_basis" legend="That amount is in" variant="pills" defaultValue=\{goalsPrefs\?\.retirement_spending_basis \?\? "unknown"\}/);
+});
+
+test("review FFH-P03 #4: cushion counts only the emergency fund and unassigned cash", () => {
+  const snapshot = buildMoneyPrioritySnapshot(exampleHouseholdRaw());
+  const earmarked = structuredClone(snapshot);
+  earmarked.aggregates.protectedCash = 0;
+  earmarked.aggregates.unallocatedCash = 0;
+  earmarked.aggregates.earmarkedCash = 10000;
+  earmarked.aggregates.debtBackedCash = 500;
+  earmarked.aggregates.operatingCash = 700;
+  earmarked.aggregates.liquidCash = 11200;
+  assert.equal(emergencyAvailableCash(earmarked), 0);
+  assert.deepEqual(cushionBadge(earmarked), { kind: "months", months: 0 });
 });

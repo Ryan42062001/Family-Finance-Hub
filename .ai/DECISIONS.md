@@ -109,6 +109,18 @@
   FFH-P02 is CLOSED. FFH-P03 (money plan home screen, HIGH risk) starts on `phase/ffh-p03-money-plan`; this closing
   note reaches `main` with the FFH-P03 release.
 
+- **FFH-P03 independent review (ChatGPT): `REVIEW RESULT: FAIL` at `17a4131a86cfd1552f448fb232ccc85cfb4bfef4`.**
+  Three HIGH findings and one MEDIUM, all fixed in the phase. They need a targeted re-review.
+  - HIGH: plain-wording sentence splitting broke at decimal points ("$123.45" became "45", "23.90%" became "90%").
+    Now only exact whole-sentence substitutions; every other character is kept.
+  - HIGH: plan amounts were rounded to whole dollars. They are now shown to the cent through `formatPlanMoney` in
+    the plan and the dashboard summary.
+  - HIGH: saving retirement goals inferred the spending basis. The form now shows the saved basis as an explicit
+    answer (Today's dollars / Future dollars / Not sure), and the action validates and writes only that answer.
+  - MEDIUM: the cushion badge counted earmarked, debt-backed and everyday cash. It now uses emergency-fund plus
+    unassigned cash only, matching the engine's cash purposes, and the label says so.
+  Preview smoke test at `17a4131` was 12/12 (run by Ryan on a new desktop).
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

@@ -6,6 +6,11 @@ import type { MoneyPrioritySnapshot } from "../calculations/money-priority-snaps
 import { calculateEmergencyFund } from "../calculations/emergency-fund.ts";
 import { projectDebtStrategy } from "../calculations/debt-payoff.ts";
 
+// Plan amounts are the engine's own figures and are shown exactly to the cent (never rounded to whole dollars).
+export function formatPlanMoney(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+}
+
 export type PlanStep = {
   id: string;
   rank: number;
@@ -69,9 +74,12 @@ const PLAIN_SENTENCES: Record<string, string> = {
   "Projection results are planning estimates, not guarantees.": "These are planning estimates, not guarantees.",
 };
 
+// Replaces only exact occurrences of known whole sentences. Nothing is split or re-joined, so every other
+// character (amounts like $123.45, rates like 23.90%) is kept exactly as the engine wrote it.
 function plainSentences(text: string): string {
-  const sentences = text.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) ?? [text];
-  return sentences.map((sentence) => PLAIN_SENTENCES[sentence.trim()] ?? sentence.trim()).join(" ");
+  let out = text;
+  for (const [technical, plain] of Object.entries(PLAIN_SENTENCES)) out = out.split(technical).join(plain);
+  return out;
 }
 
 export function forPeople(text: string): string {
@@ -196,12 +204,18 @@ export type DebtFreeBadge =
   | { kind: "not_reached" }
   | { kind: "unavailable"; reason: string };
 
-// Months of essential spending (essential expenses + debt minimums) covered by liquid cash: the same definition the
-// emergency-fund planner uses.
+// Months of essential spending (essential expenses + debt minimums) covered by cash the household can treat as a
+// safety reserve: the emergency fund ("protected reserve") plus cash not yet assigned to anything. Cash set aside
+// for a goal, a debt, everyday spending or marked as not usable is excluded, matching how the engine treats
+// recorded cash purposes.
+export function emergencyAvailableCash(snapshot: MoneyPrioritySnapshot): number {
+  return Math.max(0, snapshot.aggregates.protectedCash) + Math.max(0, snapshot.aggregates.unallocatedCash);
+}
+
 export function cushionBadge(snapshot: MoneyPrioritySnapshot): CushionBadge {
   const essentials = snapshot.aggregates.monthlyEssentialExpenses + snapshot.aggregates.monthlyMinimumDebtPayments;
   if (!Number.isFinite(essentials) || essentials <= 0) return { kind: "unavailable", reason: "Add essential expenses to see your cushion" };
-  const result = calculateEmergencyFund({ currentSavings: snapshot.aggregates.liquidCash, monthlyEssentialExpenses: essentials, targetMonths: 0 });
+  const result = calculateEmergencyFund({ currentSavings: emergencyAvailableCash(snapshot), monthlyEssentialExpenses: essentials, targetMonths: 0 });
   return result.coverageMonths === null ? { kind: "unavailable", reason: "Add essential expenses to see your cushion" } : { kind: "months", months: result.coverageMonths };
 }
 

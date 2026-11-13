@@ -2,6 +2,7 @@ import ProfileSection from "@/components/ProfileSection";
 import ProfileWorkspace from "@/components/ProfileWorkspace";
 import Link from "next/link";
 import NumberField from "@/components/forms/NumberField";
+import { Choice } from "@/components/forms/Controls";
 import { AccountFields, DebtFields, ExpenseFields, GoalFields, IncomeFields, InsuranceFields, RetirementFields } from "@/components/forms/ProfileFields";
 import { MoneyPrioritySnapshotValidationError } from "@/lib/calculations/money-priority-snapshot";
 import { planFromSnapshot, todayUtc } from "@/lib/plan/plan-result";
@@ -81,7 +82,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
 
   const [insurance, preferences] = await Promise.all([
     supabase.from("insurance_exposures").select("id, name, insurance_type, deductible_amount, family_deductible_amount, out_of_pocket_max, is_relevant_to_reserve").eq("household_id", household.id).order("created_at"),
-    supabase.from("household_financial_preferences").select("desired_retirement_monthly_spending, planning_social_security_monthly, planning_pension_monthly").eq("household_id", household.id).maybeSingle(),
+    supabase.from("household_financial_preferences").select("desired_retirement_monthly_spending, retirement_spending_basis, planning_social_security_monthly, planning_pension_monthly").eq("household_id", household.id).maybeSingle(),
   ]);
   const goalsPrefs = preferences.data;
   const [accounts, income, expenses, debts, retirement, goals] = await Promise.all([
@@ -152,7 +153,10 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form friendly-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><RetirementFields d={item} isHsa={item.account_type === "hsa"} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts yet. Add a 401(k), IRA or pension.</p> : null}
           <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form friendly-form" action={saveRetirementGoals}>
-            <NumberField name="desired_retirement_monthly_spending" label="Monthly spending you want in retirement" example="In today's dollars" period="month" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? null} />
+            <NumberField name="desired_retirement_monthly_spending" label="Monthly spending you want in retirement" period="month" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? null} />
+            <Choice name="retirement_spending_basis" legend="That amount is in" variant="pills" defaultValue={goalsPrefs?.retirement_spending_basis ?? "unknown"} options={[
+              { value: "today_dollars", label: "Today's dollars" }, { value: "future_dollars", label: "Future dollars" }, { value: "unknown", label: "Not sure" },
+            ]} />
             <NumberField name="planning_social_security_monthly" label="Expected Social Security each month" example="From your ssa.gov estimate" defaultValue={goalsPrefs?.planning_social_security_monthly ?? null} />
             <NumberField name="planning_pension_monthly" label="Expected pension each month" placeholder="Leave blank if none" defaultValue={goalsPrefs?.planning_pension_monthly ?? null} />
             <button type="submit">Save retirement goals</button>
