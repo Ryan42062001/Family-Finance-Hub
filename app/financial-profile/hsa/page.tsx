@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import DetailedToolNotice from "@/components/DetailedToolNotice";
 import {
   addHsaAccount,
   addHsaPerson,
@@ -68,7 +69,7 @@ export default async function HsaProfilePage({ searchParams }: PageProps) {
   const money = (value: number | string | null) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value ?? 0));
   const currentTaxYear = new Date().getUTCFullYear();
 
-  return <main className="page-shell">
+  return <main className="page-shell"><DetailedToolNotice path="/financial-profile/hsa" />
     <section className="hero-card">
       <div><p className="eyebrow">FFH-D005 HSA input contract</p><h1>HSA legal-fact profile</h1><p className="muted">Record the person, tax-year, monthly eligibility/coverage, Medicare timing, and contribution facts the Money Priority Engine will use. This page captures facts only; it does not calculate legal contribution room.</p></div>
       <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Financial profile</Link><Link className="secondary-button" href="/planning/retirement">Retirement planning</Link></div>

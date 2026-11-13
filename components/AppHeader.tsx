@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import MobileNavigation from "@/components/MobileNavigation";
 import DesktopNavLink from "@/components/DesktopNavLink";
 import ThemeToggle from "@/components/ThemeToggle";
+import SimpleModeSwitch from "@/components/SimpleModeSwitch";
+import { readSimpleMode, SIMPLE_NAV_PATHS } from "@/lib/profile/view-mode";
 
 const links = [
   ["Your plan", "/plan"],
@@ -17,6 +19,9 @@ export default async function AppHeader() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const authenticated = Boolean(data?.claims?.sub);
+  // FFH-P05: the signed-in user's own view preference (detailed if anything is unexpected).
+  const simple = authenticated ? await readSimpleMode(supabase, data?.claims?.sub) : false;
+  const shown = simple ? links.filter(([, href]) => (SIMPLE_NAV_PATHS as readonly string[]).includes(href)) : links;
   // Shown only to the signed-in user, in their own account menu, so a wrong-account sign-in is obvious.
   const signedInEmail = typeof data?.claims?.email === "string" ? data.claims.email : null;
 
@@ -33,7 +38,7 @@ export default async function AppHeader() {
           {/* App sections are only shown to signed-in users; sign-in/sign-up pages show just the brand. */}
           {authenticated ? (
             <nav className="site-nav" aria-label="Primary navigation">
-              {links.map(([name, href]) => <DesktopNavLink key={href} href={href} label={name} />)}
+              {shown.map(([name, href]) => <DesktopNavLink key={href} href={href} label={name} />)}
             </nav>
           ) : null}
           <ThemeToggle />
@@ -45,13 +50,13 @@ export default async function AppHeader() {
                   <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
                 </svg>
               </summary>
-              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
+              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><SimpleModeSwitch simple={simple} /><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
             </details>
           ) : null}
         </div>
       </div>
     </header>
-    {authenticated ? <MobileNavigation /> : null}
+    {authenticated ? <MobileNavigation simple={simple} /> : null}
     </>
   );
 }

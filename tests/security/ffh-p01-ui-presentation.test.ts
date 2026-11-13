@@ -92,7 +92,7 @@ test("authenticated navigation owns section switching and sign out without dashb
   assert.match(header, /\{authenticated \? \(\s*<nav className="site-nav"/);
   assert.match(header, /<form action=\{logout\}>/);
   assert.equal((header.match(/<nav className="site-nav"/g) ?? []).length, 1);
-  assert.match(header, /authenticated \? <MobileNavigation \/> : null/);
+  assert.match(header, /authenticated \? <MobileNavigation simple=\{simple\} \/> : null/);
   assert.doesNotMatch(dashboard, /action=\{logout\}/);
   assert.doesNotMatch(dashboard, />Edit financial profile</);
 });
