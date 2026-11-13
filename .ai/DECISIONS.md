@@ -130,6 +130,10 @@
     household, checked server-side and by the database's composite foreign key. The owner question in "What's
     missing" now links to the form. An engine regression test shows the YTD request disappears once an owner is set.
 
+- **Automated sign-in and isolation tests added to the roadmap (Ryan, 2026-11-13)** as the phase after FFH-P03.
+  Work mode can't type or read passwords, so Ryan enters TestA/TestB logins only in its secure sign-in window,
+  never in a chat. The Work mode prompt and QA checklist now say so.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

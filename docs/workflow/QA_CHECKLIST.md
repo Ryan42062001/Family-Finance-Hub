@@ -4,8 +4,8 @@ Run this on the **Vercel Preview of the phase branch** after each merge into the
 (Cloud Browser) normally runs it; Ryan can too. The Builder updates this file whenever a phase adds or changes
 screens.
 
-- **Test accounts:** use only the synthetic test accounts **TestA** and **TestB**. Ryan supplies their passwords
-  directly in the Work chat; they are never stored in the repository.
+- **Test accounts:** use only the synthetic test accounts **TestA** and **TestB**. Ryan types their logins
+  only in Work mode's secure sign-in window (never in the chat); they are never stored in the repository.
 - **Data:** synthetic data only. Never enter real names, amounts, accounts or personal details.
 - **Isolation of accounts:** sign in to only one account at a time (sign out before switching). Two tabs in one
   browser share a single login.
