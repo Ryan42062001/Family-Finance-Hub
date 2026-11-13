@@ -16,6 +16,3 @@ export function browserLaunchOptions(origin: string): { proxy: { server: string;
 export const CONTEXT_OPTIONS: { serviceWorkers: "block"; extraHTTPHeaders: Record<string, string> };
 export const WEBRTC_TRAP: string;
 export const VIOLATION_KINDS: string[];
-export function describeViolations(kinds: string[]): string;
-export function describeBuild(info: { commit?: unknown; environment?: unknown } | null): string;
-export function safeErrorKind(error: unknown): string;

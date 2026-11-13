@@ -210,6 +210,18 @@
     Rehearsed: a planted page encoded the typed password into the host names of 12 image requests (plain, hex,
     base64). Result: REFUSED, and the full captured output contained none of those forms or the host name.
 
+- **FFH-P04 fourth targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `87a5d2311bc788d401982560afd60e35a7df53b2`.** The host-name logging fix was confirmed FIXED and every earlier
+  protection preserved. One new HIGH finding (pre-existing diagnostics) is fixed in the phase:
+  - HIGH: site-chosen numbers could still encode a credential in the log: the exact HTTP status of a page and the
+    count of blocked attempts. Output is now fixed sentences only: no status codes, counts, kinds, commit fragments
+    from the site, error names or marker counts. The only variable output is one PASS/FAIL line per named check,
+    the pass total, our own labels, the CI-supplied commit under test and the names of missing secrets. A
+    structural test enforces this, and every `record()` failure detail must be a fixed literal. A REFUSED run now
+    also says to rotate the TestA/TestB passwords. Rehearsed against a page returning HTTP 465 (an encoded "A"), a
+    page firing a password-dependent number of blocked requests, and a page encoding the password into host names.
+    The full captured output contained none of `465`, `115`, the password, its hex form or the host name.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

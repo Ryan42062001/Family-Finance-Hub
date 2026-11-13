@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, WEBRTC_TRAP, credentialsFrom, describeBuild, describeViolations, safeErrorKind, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
+import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, WEBRTC_TRAP, credentialsFrom, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
 
 const PREVIEW = "https://family-finance-hub-preview.vercel.app/";
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -53,7 +53,7 @@ test("FFH-P04 leak detection finds the other household's markers case-insensitiv
 });
 
 test("FFH-P04 the suite never prints credentials or records traces and is read-only", () => {
-  assert.doesNotMatch(script, /console\.(log|error)\([^)]*(password|\.email\b)/i);
+  assert.doesNotMatch(script, /console\.(log|error)\([^)]*\$\{[^}]*(password|email)/i);
   assert.doesNotMatch(script, /\.screenshot\(|tracing\.start|recordVideo|storageState/);
   assert.doesNotMatch(script, /method:\s*["'](POST|PUT|PATCH|DELETE)/i);
 });
@@ -108,7 +108,7 @@ test("FFH-P04 review fix: navigation and submissions can never leave the tested 
   assert.match(script, /route\.fetch\(\{ maxRedirects: 0 \}\)/);
   assert.match(script, /request\.isNavigationRequest\(\) \|\| request\.method\(\) !== "GET"/);
   assert.ok(script.indexOf("const formAction =") < script.indexOf('page.fill(\'input[name="email"]\''));
-  assert.match(script, /REFUSED: \$\{describeViolations\(error\.kinds\)\}/);
+  assert.match(script, /"REFUSED: the site tried to reach another address\. Every such attempt was blocked and nothing was concluded\. Rotate the TestA\/TestB passwords\."/);
 });
 
 test("FFH-P04 review fix: the negative control exercises the real identity and leak checks", () => {
@@ -169,37 +169,38 @@ test("FFH-P04 second re-review fix: every request and redirect hop leaving the o
   assert.ok(guard.indexOf('context.on("request"') < guard.indexOf('context.route("**/*"'));
 });
 
-test("FFH-P04 third re-review fix: nothing the tested site controls is ever printed", () => {
-  // Every violation is recorded as a fixed kind, never as a host, URL or path.
+test("FFH-P04 third and fourth re-review fix: nothing the tested site can choose is ever printed", () => {
+  // Every violation is recorded as a fixed kind, never as a host, URL or path, and kinds are never printed.
   const pushes = [...script.matchAll(/violations\.push\(([^)]*)\)/g)].map((match) => match[1]);
   assert.ok(pushes.length >= 5);
   for (const pushed of pushes) assert.match(pushed, /^"(request|redirect|websocket|webrtc)"$/, pushed);
-  assert.doesNotMatch(script, /hostOf|\.hosts\b/);
+  assert.doesNotMatch(script, /hostOf|\.hosts\b|describeViolations|describeBuild|safeErrorKind/);
 
-  // Every value interpolated into output comes from this approved list (constants, counts, our own labels, the
-  // expected SHA from CI, and the sanitising helpers). Page text, URLs, paths and build metadata are not on it.
+  // Every value interpolated into output is on this list: our own labels and constants, the CI-supplied commit,
+  // the missing secret NAMES, and PASS/FAIL verdicts with their totals. No site-chosen string or number (status
+  // code, count of attempts or markers, kinds, paths, URLs, build metadata, error text) is on it.
   const allowed = new Set([
     'ok ? "PASS" : "FAIL"', "name", 'ok || !detail ? "" : `  -> ${detail}`', "detail", "target.reason",
-    'creds.missing.join(", ")', "describeBuild(build.info)", "expectedSha.slice(0, 7)", "describeViolations(error.kinds)",
-    "safeErrorKind(error)", 'identityRuleWorks ? "PASS" : "FAIL"', 'leakRuleWorks ? "PASS" : "FAIL"', "who", "path",
-    "other.label", "Number(pageResult.status) || 0", 'pageResult.finalPath === path ? "" : ", ended on a different page"',
-    "leaks.length", 'failed ? "FAIL" : "PASS"', "results.length - failed", "results.length",
+    'creds.missing.join(", ")', "expectedSha.slice(0, 7)", 'identityRuleWorks ? "PASS" : "FAIL"',
+    'leakRuleWorks ? "PASS" : "FAIL"', "who", "path", "other.label", 'failed ? "FAIL" : "PASS"',
+    "results.length - failed", "results.length",
   ]);
-  const outputCalls = script.split("\n").filter((line) => /console\.(log|error)\(|record\(`/.test(line));
-  for (const line of outputCalls) {
+  const outputLines = script.split("\n").filter((line) => /console\.(log|error)\(|record\(`/.test(line));
+  assert.ok(outputLines.length >= 20);
+  for (const line of outputLines) {
     for (const [, expression] of line.matchAll(/\$\{((?:[^{}]|\{[^{}]*\})*)\}/g)) {
       assert.ok(allowed.has(expression), `unapproved value in output: ${expression}`);
     }
   }
+  // A record() failure detail is always a fixed literal, never a variable.
+  for (const line of outputLines.filter((line) => line.includes("record(`"))) {
+    const detail = line.match(/,\s*([^,]+)\);\s*$/)?.[1]?.trim() ?? "";
+    const hasDetail = (line.match(/,/g) ?? []).length >= 2;
+    if (hasDetail) assert.match(detail, /^("[^"$]*"|`[^`]*`)$/, `record detail must be a literal: ${line.trim()}`);
+  }
+  assert.doesNotMatch(script, /pageResult\.status\)|kinds\.length|leaks\.length\}/);
 
-  // The helpers echo only validated shapes.
-  const secret = "c3ludGhldGljLWE"; // base64 of a synthetic password, standing in for any encoded form
-  assert.equal(describeViolations(["request", "webrtc", "request"]), "3 blocked attempt(s) to reach another address (request, webrtc)");
-  assert.doesNotMatch(describeViolations([`${secret}.evil.example`]), new RegExp(secret));
-  assert.equal(describeBuild({ commit: SHA, environment: "preview" }), "the Preview address serves commit 79bcc52 (preview)");
-  assert.doesNotMatch(describeBuild({ commit: secret, environment: secret }), new RegExp(secret));
-  const thrown = new Error(secret); thrown.name = secret;
-  assert.equal(safeErrorKind(thrown), "browser error");
   // Unexpected crashes print a fixed message, never the raw error.
   assert.match(script, /process\.on\("uncaughtException", crash\);\n\s+process\.on\("unhandledRejection", crash\);\n\s+main\(\)\.catch\(crash\);/);
+  assert.match(script, /console\.error\("BLOCKED: the Preview could not be exercised\. Nothing was concluded\."\)/);
 });
