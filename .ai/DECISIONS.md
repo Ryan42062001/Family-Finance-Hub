@@ -309,6 +309,15 @@
   plan page shows only allowlisted notices from `lib/plan/plan-notices.ts`, with a link to Financial profile, and
   never displays text from the URL. This needs a short targeted re-review of the change.
 
+- **FFH-P05 targeted re-review of the notice fix (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `221e351d545b84cb4c9b13462ec6ea3afb1cf4a0`.** The MEDIUM (setup notices not shown) was FIXED, with no new
+  blocking findings and one LOW (backlog).
+- **FFH-P05 released (Ryan's explicit authorization).** PR #136 merged into `main` as `1bd1b59` (exact reviewed head
+  `221e351`). Vercel Production deployment Ready; Production smoke test after release 12/12; Production
+  `/api/build-info` reports commit `1bd1b5984f952f0104dd4bfb1be04226b0be0b67`, environment `production`. FFH-P05 is
+  CLOSED. FFH-P06 (household invitations, HIGH risk) starts on `phase/ffh-p06-household-invitations`; this note
+  reaches `main` with the FFH-P06 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -347,3 +356,6 @@
   not essential. This follows the question wording, but a fixed bill can be discretionary and some variable spending
   essential. Add an explanation and a correction step (or mark them provisional until confirmed), with tests showing
   how a changed classification affects required outflow.
+- LOW (FFH-P05 re-review): `app/setup/page.tsx` treats a failed record-count lookup the same as "household already has
+  records" and shows the "Setup didn't add anything" notice. Setup stays safely unavailable, but the message is
+  misleading. Split the branches and show a fixed "We couldn't check your household details. Please try again."

@@ -35,8 +35,15 @@ independent review after five rounds.
 
 ## FFH-P05 — Simple mode with guided setup
 
-State: BUILDING. Risk: HIGH. Branch `phase/ffh-p05-simple-mode`. Scope: `.ai/CURRENT_PHASE.md` (item 3 below).
-Production deployment remains a separate decision.
+State: CLOSED. Risk: HIGH. Released to Production via PR #136 at `1bd1b59` (2026-11-13), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Per-user Simple view, an atomic guided setup for every new
+household (savings saved only with a chosen purpose), and home-screen install. Two hosted migrations were applied
+with authorization (parity 9/9). Passed the independent review after three rounds.
+
+## FFH-P06 — Household invitations
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p06-household-invitations`. Scope: `.ai/CURRENT_PHASE.md` (item 4
+below). Production deployment remains a separate decision.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
