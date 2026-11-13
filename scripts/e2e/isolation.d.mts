@@ -11,8 +11,11 @@ export function leakedMarkers(text: string, otherMarkers: string[]): string[];
 export function identityMatches(displayedEmail: string, expectedEmail: string): boolean;
 export function buildMatches(info: { commit?: unknown; environment?: unknown } | null, expectedSha: string): boolean;
 export function leavesOrigin(requestUrl: string, origin: string): boolean;
-export class OriginViolation extends Error { hosts: string[]; constructor(hosts?: string[]); }
-export function hostOf(requestUrl: string): string;
+export class OriginViolation extends Error { kinds: string[]; constructor(kinds?: string[]); }
 export function browserLaunchOptions(origin: string): { proxy: { server: string; bypass: string }; args: string[] };
 export const CONTEXT_OPTIONS: { serviceWorkers: "block"; extraHTTPHeaders: Record<string, string> };
 export const WEBRTC_TRAP: string;
+export const VIOLATION_KINDS: string[];
+export function describeViolations(kinds: string[]): string;
+export function describeBuild(info: { commit?: unknown; environment?: unknown } | null): string;
+export function safeErrorKind(error: unknown): string;

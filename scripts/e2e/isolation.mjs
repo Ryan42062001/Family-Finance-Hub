@@ -68,16 +68,21 @@ export function leavesOrigin(requestUrl, origin) {
   try { return new URL(requestUrl).origin !== origin; } catch { return true; }
 }
 
-// Host names only (never full URLs, which could carry data in a query string).
-export function hostOf(requestUrl) {
-  try { return new URL(requestUrl).host || "unknown"; } catch { return "unparseable"; }
+// Output rule: nothing the tested site controls (host names, URLs, paths, page text, build metadata, error text) is
+// ever printed, because a compromised page could encode a typed credential into any of them. Violations are
+// recorded as one of these fixed kinds and reported only as kinds and a count.
+export const VIOLATION_KINDS = ["request", "redirect", "websocket", "webrtc", "form", "page"];
+
+export function describeViolations(kinds) {
+  const known = [...new Set(kinds.filter((kind) => VIOLATION_KINDS.includes(kind)))].sort();
+  return `${kinds.length} blocked attempt(s) to reach another address (${known.join(", ") || "unclassified"})`;
 }
 
 export class OriginViolation extends Error {
-  constructor(hosts = []) {
-    super("the site tried to send the browser to another address");
+  constructor(kinds = []) {
+    super("the site tried to reach another address");
     this.name = "OriginViolation";
-    this.hosts = [...new Set(hosts)];
+    this.kinds = [...kinds];
   }
 }
 
@@ -128,16 +133,16 @@ async function installOriginGuard(context, origin, violations) {
   // Every request the browser issues, including each hop of a redirect that the route handler does not see again,
   // is checked here. The dead proxy stops the connection; this makes sure the attempt is recorded as REFUSED.
   context.on("request", (request) => {
-    if (leavesOrigin(request.url(), origin)) violations.push(hostOf(request.url()));
+    if (leavesOrigin(request.url(), origin)) violations.push("request");
   });
   await context.routeWebSocket((url) => leavesOrigin(url.href, origin), (ws) => {
-    violations.push(hostOf(ws.url()));
+    violations.push("websocket");
     return ws.close();
   });
   await context.route("**/*", async (route) => {
     const request = route.request();
     if (leavesOrigin(request.url(), origin)) {
-      violations.push(hostOf(request.url()));
+      violations.push("request");
       return route.abort("blockedbyclient");
     }
     const sensitive = request.isNavigationRequest() || request.method() !== "GET";
@@ -145,7 +150,7 @@ async function installOriginGuard(context, origin, violations) {
     const response = await route.fetch({ maxRedirects: 0 });
     const location = response.headers()["location"];
     if (response.status() >= 300 && response.status() < 400 && location && leavesOrigin(new URL(location, request.url()).href, origin)) {
-      violations.push(hostOf(new URL(location, request.url()).href));
+      violations.push("redirect");
       return route.abort("blockedbyclient");
     }
     return route.fulfill({ response });
@@ -153,7 +158,7 @@ async function installOriginGuard(context, origin, violations) {
 }
 
 async function assertOnOrigin(page, origin, violations) {
-  if (violations.length || new URL(page.url()).origin !== origin) throw new OriginViolation(violations);
+  if (violations.length || new URL(page.url()).origin !== origin) throw new OriginViolation(violations.length ? violations : ["page"]);
 }
 
 async function signIn(context, origin, account, violations) {
@@ -162,7 +167,7 @@ async function signIn(context, origin, account, violations) {
   await assertOnOrigin(page, origin, violations);
   // The login form must submit to this same origin before any credential is typed.
   const formAction = await page.$eval("form.auth-form", (form) => form.action).catch(() => null);
-  if (!formAction || leavesOrigin(formAction, origin)) throw new OriginViolation([formAction ? hostOf(formAction) : "no form"]);
+  if (!formAction || leavesOrigin(formAction, origin)) throw new OriginViolation(["form"]);
   await page.fill('input[name="email"]', account.email);
   await page.fill('input[name="password"]', account.password);
   await Promise.all([page.waitForURL((url) => !url.pathname.startsWith("/auth/"), { timeout: 30000 }).catch(() => null), page.click('form.auth-form button[type="submit"]')]);
@@ -231,6 +236,17 @@ async function runAccount(browser, origin, account) {
 
 class BuildDrift extends Error {}
 
+// Only values validated against a fixed shape are described; anything else from the site is never echoed.
+export function describeBuild(info) {
+  const commit = typeof info?.commit === "string" && /^[0-9a-f]{40}$/.test(info.commit) ? `commit ${info.commit.slice(0, 7)}` : "an unrecognised build";
+  const environment = ["preview", "production", "development"].includes(info?.environment) ? info.environment : "unknown environment";
+  return info ? `the Preview address serves ${commit} (${environment})` : "the Preview address gave no readable build information";
+}
+
+export function safeErrorKind(error) {
+  return error instanceof Error && ["TimeoutError", "TypeError", "Error"].includes(error.name) ? error.name : "browser error";
+}
+
 async function readBuildInfo(origin) {
   try {
     const response = await fetch(`${origin}/api/build-info`, { redirect: "manual", cache: "no-store" });
@@ -265,8 +281,7 @@ async function main() {
     if (!/^[0-9a-f]{40}$/.test(expectedSha)) { console.error("BLOCKED: FFH_E2E_EXPECTED_SHA (the commit under test) is missing. Nothing was tested."); process.exit(3); }
     const build = await verifyBuild(target.origin, expectedSha);
     if (!build.ok) {
-      const seen = build.info?.commit ? `commit ${String(build.info.commit).slice(0, 7)} (${build.info.environment ?? "unknown"})` : "no readable build information";
-      console.error(`BLOCKED: the Preview address serves ${seen}, not ${expectedSha.slice(0, 7)} as a Preview. Is the Preview domain pointing at this phase branch? Nothing was tested.`);
+      console.error(`BLOCKED: ${describeBuild(build.info)}, not commit ${expectedSha.slice(0, 7)} as a Preview. Is the Preview domain pointing at this phase branch? Nothing was tested.`);
       process.exit(3);
     }
     console.log(`PASS  the Preview address serves commit ${expectedSha.slice(0, 7)}`);
@@ -285,14 +300,14 @@ async function main() {
   } catch (error) {
     await browser.close();
     if (error instanceof OriginViolation) {
-      console.error(`REFUSED: the site tried to reach another address (${error.hosts.join(", ") || "unknown"}). Every such request was blocked and nothing was concluded.`);
+      console.error(`REFUSED: ${describeViolations(error.kinds)}. Every such attempt was blocked and nothing was concluded.`);
       process.exit(2);
     }
     if (error instanceof BuildDrift) {
       console.error(`BLOCKED: the Preview address stopped serving ${expectedSha.slice(0, 7)} during the run (a newer build took over). Nothing was concluded.`);
       process.exit(3);
     }
-    console.error(`BLOCKED: the Preview could not be exercised (${error instanceof Error ? error.name : "error"}). Nothing was concluded.`);
+    console.error(`BLOCKED: the Preview could not be exercised (${safeErrorKind(error)}). Nothing was concluded.`);
     process.exit(3);
   }
   await browser.close();
@@ -324,7 +339,7 @@ async function main() {
     }
     for (const path of PAGES) {
       const pageResult = run.pages[path];
-      record(`${who} ${path} loads while signed in`, pageResult.status < 400 && pageResult.finalPath === path, `status ${pageResult.status}, ended at ${pageResult.finalPath}`);
+      record(`${who} ${path} loads while signed in`, pageResult.status < 400 && pageResult.finalPath === path, `status ${Number(pageResult.status) || 0}${pageResult.finalPath === path ? "" : ", ended on a different page"}`);
       const leaks = leakedMarkers(pageResult.text, otherMarkers);
       record(`${who} ${path} shows nothing from ${other.label}`, leaks.length === 0, `${leaks.length} marker(s) from ${other.label} found`);
     }
@@ -339,4 +354,10 @@ async function main() {
   process.exit(failed ? 1 : 0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  // An unexpected crash must not print a raw error (it can contain URLs or page text): fixed message, BLOCKED.
+  const crash = () => { console.error("BLOCKED: the check stopped unexpectedly. Nothing was concluded."); process.exit(3); };
+  process.on("uncaughtException", crash);
+  process.on("unhandledRejection", crash);
+  main().catch(crash);
+}
