@@ -236,6 +236,12 @@
   e2e-isolation all PASS (E2E_ISOLATION PASS 34/34, both negative controls PASS). The QA checklist gains Q18
   (`/api/build-info` shows only the commit and environment).
 
+- **FFH-P04 Work mode QA (focused pass) at `1fe4914553124c9d0d7a3ff6cc413ecda597349e`: 9 PASS, 0 FAIL, 9 NOT RUN.**
+  Passed: Q1, Q2, Q3, Q7, Q8, Q14, Q15, Q17 and Q18; the rest were out of scope for this phase. No cross-household
+  exposure and no new `qa-finding` issues. Phase CI run 43484372566 at `1fe4914`: fast, rls-matrix and
+  e2e-isolation all PASS. Release checklist: no environment variables or migrations changed in this phase. FFH-P04
+  is a release candidate awaiting Ryan's release decision.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
