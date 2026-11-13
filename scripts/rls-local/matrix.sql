@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 16 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 17 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -275,6 +275,10 @@ DECLARE
   a_viewer uuid := gen_random_uuid();
   b_owner uuid := gen_random_uuid();
   outsider uuid := gen_random_uuid();
+  -- FFH-P05: a brand-new, empty household C for the atomic guided-setup function.
+  c_owner uuid := gen_random_uuid();
+  c_viewer uuid := gen_random_uuid();
+  c uuid := gen_random_uuid();
   a uuid := gen_random_uuid();
   b uuid := gen_random_uuid();
   pa1 uuid; pa2 uuid; pb1 uuid; pb2 uuid;
@@ -649,6 +653,62 @@ BEGIN
   PERFORM pg_temp.ffh_probe(a_member,format(
     'SELECT count(*) FROM public.profiles WHERE id=%L',a_owner),'COUNT',0,
     'profile-simple-mode-same-household-read','profiles');
+
+  -- FFH-P05 review fix: public.complete_household_setup runs as the caller (RLS
+  -- applies), never takes a household from input, saves only into an EMPTY
+  -- household, is all-or-nothing, and refuses to run a second time.
+  INSERT INTO auth.users(id,instance_id,aud,role) VALUES
+    (c_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
+    (c_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM set_config('request.jwt.claim.sub',c_owner::text,true);
+  IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM c_owner THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_C_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(c,'ffh-local-household-c',c_owner);
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claim.sub','',true);
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES(c,c_viewer,'viewer');
+  -- Signed-out callers cannot execute it at all.
+  PERFORM pg_temp.ffh_probe(NULL,
+    'SELECT public.complete_household_setup(1,1,1,NULL,NULL,NULL,NULL,NULL,false)',
+    'FORBIDDEN',NULL,'setup-anon-execute','households');
+  -- A signed-in user with no household is refused.
+  PERFORM pg_temp.ffh_probe(outsider,
+    'SELECT public.complete_household_setup(1,1,1,NULL,NULL,NULL,NULL,NULL,false)',
+    'FORBIDDEN',NULL,'setup-no-household','households');
+  -- Household A already has records: nothing is written.
+  checked := (SELECT count(*) FROM public.income_sources WHERE household_id=a);
+  PERFORM pg_temp.ffh_probe(a_owner,
+    'SELECT (public.complete_household_setup(5000,2000,500,NULL,NULL,NULL,NULL,NULL,false)=''already_set_up'')::int',
+    'COUNT',1,'setup-nonempty-refused','income_sources');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'SELECT count(*) FROM public.income_sources WHERE household_id=%L',a),'COUNT',checked,
+    'setup-nonempty-unchanged','income_sources');
+  -- A viewer of empty household C cannot write; the failed call leaves nothing behind.
+  PERFORM pg_temp.ffh_probe(c_viewer,
+    'SELECT public.complete_household_setup(5000,2000,500,NULL,NULL,NULL,NULL,NULL,false)',
+    'RLS',NULL,'setup-viewer-denied','income_sources');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.income_sources WHERE household_id=%1$L)+(SELECT count(*) FROM public.expenses WHERE household_id=%1$L)+(SELECT count(*) FROM public.debts WHERE household_id=%1$L)+(SELECT count(*) FROM public.accounts WHERE household_id=%1$L)',c),
+    'COUNT',0,'setup-viewer-left-nothing','income_sources');
+  -- The owner of empty household C saves everything in one call.
+  PERFORM pg_temp.ffh_probe(c_owner,
+    'SELECT (public.complete_household_setup(5000,2000,500,4200,120,24.9,1500,''protected_reserve'',true)=''saved'')::int',
+    'COUNT',1,'setup-owner-saved','income_sources');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.income_sources WHERE household_id=%1$L AND monthly_amount=5000)+(SELECT count(*) FROM public.expenses WHERE household_id=%1$L)+(SELECT count(*) FROM public.debts WHERE household_id=%1$L AND minimum_payment=120)+(SELECT count(*) FROM public.accounts WHERE household_id=%1$L AND cash_purpose=''protected_reserve'')',c),
+    'COUNT',5,'setup-owner-rows','income_sources');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.profiles WHERE id=%L AND simple_mode',c_owner),'COUNT',1,
+    'setup-owner-simple-view','profiles');
+  -- A second submission saves nothing more.
+  PERFORM pg_temp.ffh_probe(c_owner,
+    'SELECT (public.complete_household_setup(9999,9999,9999,NULL,NULL,NULL,NULL,NULL,false)=''already_set_up'')::int',
+    'COUNT',1,'setup-second-call-refused','income_sources');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.income_sources WHERE household_id=%1$L)+(SELECT count(*) FROM public.expenses WHERE household_id=%1$L)+(SELECT count(*) FROM public.debts WHERE household_id=%1$L)+(SELECT count(*) FROM public.accounts WHERE household_id=%1$L)',c),
+    'COUNT',5,'setup-second-call-no-duplicates','income_sources');
   PERFORM pg_temp.ffh_probe(a_member,format(
     'SELECT count(*) FROM public.households WHERE id=%L',a),'COUNT',1,
     'household-member-read','households');

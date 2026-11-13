@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { completeSetup } from "@/app/setup/actions";
 import NumberField from "@/components/forms/NumberField";
-import { Toggle } from "@/components/forms/Controls";
+import { Choice, Toggle } from "@/components/forms/Controls";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +62,13 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
         <section className="panel setup-step">
           <p className="setup-step-number">5 of 5 · optional</p>
           <NumberField name="savings" label="How much do you have in savings right now?" example="Leave empty if none" />
+          {/* Savings are saved only with a purpose the person chooses; "Not sure" saves nothing yet. */}
+          <Choice name="savings_purpose" legend="What are these savings for?" variant="pills" required={false} options={[
+            { value: "protected_reserve", label: "Emergency fund – keep it safe" },
+            { value: "unallocated", label: "Free for the plan to use" },
+            { value: "operating_cash", label: "Everyday spending money" },
+            { value: "not_sure", label: "Not sure – add it later" },
+          ]} />
         </section>
         <section className="panel setup-step">
           <Toggle name="simple_view" label="Use Simple view" hint="Shows just your plan and the essentials. You can switch it anytime in your account menu." />
