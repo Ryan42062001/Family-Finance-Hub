@@ -109,7 +109,8 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   - Production and every host except `https://family-finance-hub-preview.vercel.app` are refused (exit 2). While it
     runs, every request the browser makes is checked: any request, redirect or WebSocket to another address is
     blocked and the run reports REFUSED (exit 2), naming only the host. The browser also runs behind a dead proxy
-    that only the Preview bypasses, with service workers off, so credentials can only ever reach the Preview.
+    that only the Preview bypasses, with service workers off and WebRTC disabled (trapped in every frame and limited
+    to the dead proxy), so credentials can only ever reach the Preview.
   - Before signing in, the suite reads `/api/build-info` and requires that the Preview address serves this exact
     commit as a Preview build, and checks again after each account. If the fixed Preview domain points at another
     branch or an older build, or a newer build takes over during the run, it reports BLOCKED (exit 3). Point the domain at the current phase branch (see Preview setup).

@@ -183,6 +183,20 @@
   guard blocked it; nothing left the browser. The `x-vercel-skip-toolbar` header was not enough. Turning the toolbar
   off keeps the lockdown with no host exceptions. The setting applies to new builds only.
 
+- **FFH-P04 second targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `e2e8f0048e6eb0a3b5b8a15f7455e03f486f70a7`.** The external-GET and `javascript:` fixes, the build-drift fix and
+  the Toolbar handling were all confirmed. Both new findings are fixed in the phase:
+  - HIGH: WebRTC traffic was not confined. Every WebRTC API (`RTCPeerConnection` and related) is now replaced in
+    every frame, before any page script runs, with a locked trap. Calling it reports back to the guard (the run is
+    REFUSED) and throws, so no ICE/STUN/TURN traffic starts. Chromium also runs with
+    `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`, so WebRTC may only use the dead proxy.
+    Rehearsed with a planted WebRTC leak to a listening UDP server, from the page and from a fresh iframe. Both were
+    REFUSED with 0 packets received. Controls: an unguarded Chromium sent 5 packets, and the browser policy alone
+    (trap off) sent 0, so each barrier holds on its own.
+  - MEDIUM (fixed rather than deferred): redirect hops after the first, which the route handler does not see again,
+    could escape recording. A `request` listener now records every request the browser issues, including each
+    redirect hop. Rehearsed with a same-origin image that 302s to another origin: REFUSED, 0 hits received.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

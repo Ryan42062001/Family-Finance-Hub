@@ -15,3 +15,4 @@ export class OriginViolation extends Error { hosts: string[]; constructor(hosts?
 export function hostOf(requestUrl: string): string;
 export function browserLaunchOptions(origin: string): { proxy: { server: string; bypass: string }; args: string[] };
 export const CONTEXT_OPTIONS: { serviceWorkers: "block"; extraHTTPHeaders: Record<string, string> };
+export const WEBRTC_TRAP: string;
