@@ -1004,3 +1004,10 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
   .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel>summary{justify-self:start;width:auto}
   .profile-section-body .record-row:has(.edit-panel[open]) .edit-panel .data-form.friendly-form{margin:0;padding:0;border:0;background:transparent;box-shadow:none}
 }
+.profile-people{margin:0 0 .9rem;padding:.75rem .9rem;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}
+.profile-people>summary{cursor:pointer;color:var(--accent-text);font-weight:600}
+.profile-people-list{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0;padding:0;list-style:none}
+.profile-people-list li{display:grid;padding:.4rem .75rem;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface)}
+.profile-people-list small{color:var(--muted);font-size:.75rem;text-transform:capitalize}
+.profile-people[open]>.data-form{margin-top:.75rem}
+.profile-owner-hint{grid-column:1/-1;margin:0}

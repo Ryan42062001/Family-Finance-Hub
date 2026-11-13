@@ -23,6 +23,7 @@ const MATCH_STATUSES = ["not_offered", "unknown", "not_fully_captured", "fully_c
 const EMPLOYER_CONTRIBUTION_TYPES = ["match", "nonelective", "profit_sharing", "other", "unknown"] as const;
 const INSURANCE_TYPES = ["health", "auto", "homeowners", "renters", "umbrella", "pet", "other"] as const;
 const SPENDING_BASES = ["today_dollars", "future_dollars", "unknown"] as const;
+const RELATIONSHIPS = ["self", "spouse_partner", "child", "dependent_adult", "other"] as const;
 
 function requiredText(formData: FormData, key: string, max = 100) {
   const value = String(formData.get(key) ?? "").trim();
@@ -140,6 +141,18 @@ function cashPurposeUpdate(formData: FormData) {
 
 // Optional retirement details. YTD amounts are not written for HSA rows: those carry a separate tax-year contract
 // (HSA details page), so this form never changes them.
+// Account owner: blank means "not set". A chosen person must belong to this household; the database also enforces
+// this with the (owner_person_id, household_id) foreign key, so an id from another household can never be saved.
+async function ownerPersonId(supabase: Awaited<ReturnType<typeof createClient>>, householdId: string, formData: FormData) {
+  const raw = String(formData.get("owner_person_id") ?? "").trim();
+  if (!raw) return null;
+  if (!UUID.test(raw)) throw new Error("Invalid account owner");
+  const { data, error } = await supabase.from("household_people").select("id").eq("id", raw).eq("household_id", householdId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Account owner not found in this household");
+  return raw;
+}
+
 function retirementDetails(formData: FormData, accountType: string) {
   const employerType = String(formData.get("employer_contribution_type") ?? "").trim();
   const details: Record<string, string | number | null> = {
@@ -206,7 +219,7 @@ export async function addDebt(formData: FormData) {
 export async function addRetirementAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const accountType = allowed(requiredText(formData, "account_type", 30), RETIREMENT_TYPES, "retirement account type");
-  const { error } = await supabase.from("retirement_accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), ...retirementDetails(formData, accountType) });
+  const { error } = await supabase.from("retirement_accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), owner_person_id: await ownerPersonId(supabase, householdId, formData), ...retirementDetails(formData, accountType) });
   if (error) throw new Error(error.message);
   done("Retirement account added.");
 }
@@ -261,7 +274,7 @@ export async function updateRetirementAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
   const accountType = allowed(requiredText(formData, "account_type", 30), RETIREMENT_TYPES, "retirement account type");
-  const { data, error } = await supabase.from("retirement_accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), ...retirementDetails(formData, accountType), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const { data, error } = await supabase.from("retirement_accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), owner_person_id: await ownerPersonId(supabase, householdId, formData), ...retirementDetails(formData, accountType), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Record not found");
   done("Retirement account updated.");
@@ -330,4 +343,20 @@ export async function saveRetirementGoals(formData: FormData) {
   }, { onConflict: "household_id" });
   if (error) throw new Error(error.message);
   done("Retirement goals saved.");
+}
+
+// People in the household (also used by the HSA page). Same fields and values as addHsaPerson.
+export async function addPerson(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const relationship = allowed(String(formData.get("relationship") ?? "").trim(), RELATIONSHIPS, "relationship");
+  const { error } = await supabase.from("household_people").insert({
+    household_id: householdId,
+    display_name: requiredText(formData, "display_name"),
+    relationship,
+    birth_date: optionalDate(formData, "birth_date"),
+    is_dependent: relationship === "child" || relationship === "dependent_adult",
+    is_active: true,
+  });
+  if (error) throw new Error(error.message);
+  done("Person added.");
 }
