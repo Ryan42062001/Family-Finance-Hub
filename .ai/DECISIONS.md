@@ -178,6 +178,11 @@
   - MEDIUM (re-review 2, fixed rather than deferred): the build is re-checked after each account's run. If the
     Preview address stops serving the expected commit, the run reports BLOCKED (exit 3).
 
+- **Vercel Toolbar turned off (Ryan, 2026-11-13), for Pre-Production and Production deployments.** The first
+  Preview run with the full lockdown (`f177be1`) was REFUSED because Vercel's toolbar loads from `vercel.live`. The
+  guard blocked it; nothing left the browser. The `x-vercel-skip-toolbar` header was not enough. Turning the toolbar
+  off keeps the lockdown with no host exceptions. The setting applies to new builds only.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
