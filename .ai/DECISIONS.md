@@ -197,6 +197,19 @@
     could escape recording. A `request` listener now records every request the browser issues, including each
     redirect hop. Rehearsed with a same-origin image that 302s to another origin: REFUSED, 0 hits received.
 
+- **FFH-P04 third targeted re-review (ChatGPT): `RE-REVIEW RESULT: FAIL` at
+  `f8b80e85fb9d4c4d363a54f05b4de6364092138c`.** The WebRTC (HIGH) and redirect-hop (MEDIUM) fixes were confirmed
+  FIXED. One new HIGH finding, about behaviour that predates the last fix, is fixed in the phase:
+  - HIGH: blocked requests were reported by host name, so a compromised page could put an encoded credential into a
+    host name and have it printed in the CI log. Now nothing the tested site controls is ever printed: no host
+    names, URLs, paths, page text, build metadata or error text. Violations are recorded as fixed kinds (`request`,
+    `redirect`, `websocket`, `webrtc`, `form`, `page`) and reported as kinds plus a count. The build mismatch message
+    echoes only a validated 40-hex commit and a known environment name. A wrong final page is reported as "ended on
+    a different page". Error names are allowlisted. An unexpected crash prints a fixed BLOCKED message instead of a
+    raw error. A structural test requires every value printed by the script to come from an approved list.
+    Rehearsed: a planted page encoded the typed password into the host names of 12 image requests (plain, hex,
+    base64). Result: REFUSED, and the full captured output contained none of those forms or the host name.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, WEBRTC_TRAP, credentialsFrom, hostOf, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
+import { browserLaunchOptions, buildMatches, checkTarget, CONTEXT_OPTIONS, WEBRTC_TRAP, credentialsFrom, describeBuild, describeViolations, safeErrorKind, identityMatches, leakedMarkers, leavesOrigin, localhostAllowed, PAGES } from "../../scripts/e2e/isolation.mjs";
 
 const PREVIEW = "https://family-finance-hub-preview.vercel.app/";
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -108,7 +108,7 @@ test("FFH-P04 review fix: navigation and submissions can never leave the tested 
   assert.match(script, /route\.fetch\(\{ maxRedirects: 0 \}\)/);
   assert.match(script, /request\.isNavigationRequest\(\) \|\| request\.method\(\) !== "GET"/);
   assert.ok(script.indexOf("const formAction =") < script.indexOf('page.fill(\'input[name="email"]\''));
-  assert.match(script, /REFUSED: the site tried to reach another address/);
+  assert.match(script, /REFUSED: \$\{describeViolations\(error\.kinds\)\}/);
 });
 
 test("FFH-P04 review fix: the negative control exercises the real identity and leak checks", () => {
@@ -124,7 +124,7 @@ test("FFH-P04 re-review fix: every request to another origin is blocked, whateve
   // The origin check comes first and does not depend on method or navigation type.
   const guard = script.slice(script.indexOf("async function installOriginGuard"), script.indexOf("async function assertOnOrigin"));
   assert.ok(guard.indexOf("if (leavesOrigin(request.url(), origin))") < guard.indexOf("const sensitive ="));
-  assert.match(guard, /if \(leavesOrigin\(request\.url\(\), origin\)\) \{\n\s+violations\.push\(hostOf\(request\.url\(\)\)\);\n\s+return route\.abort\("blockedbyclient"\);/);
+  assert.match(guard, /if \(leavesOrigin\(request\.url\(\), origin\)\) \{\n\s+violations\.push\("request"\);\n\s+return route\.abort\("blockedbyclient"\);/);
   assert.doesNotMatch(guard, /leavesOrigin[^\n]*\n[^\n]*route\.continue/);
   assert.match(guard, /context\.routeWebSocket\(\(url\) => leavesOrigin\(url\.href, origin\)/);
   // Any blocked request makes the whole run REFUSED, even if the page otherwise worked.
@@ -132,9 +132,6 @@ test("FFH-P04 re-review fix: every request to another origin is blocked, whateve
   // The login form must post to the same origin; no javascript: exception.
   assert.doesNotMatch(script, /javascript:/);
   assert.match(script, /if \(!formAction \|\| leavesOrigin\(formAction, origin\)\)/);
-  // Reports name hosts only, never full URLs.
-  assert.equal(hostOf("https://evil.example/collect?p=secret"), "evil.example");
-  assert.equal(hostOf("nonsense"), "unparseable");
 });
 
 test("FFH-P04 re-review fix: a browser-level boundary backs up the request guard", () => {
@@ -167,7 +164,42 @@ test("FFH-P04 second re-review fix: WebRTC is trapped in every frame and confine
 
 test("FFH-P04 second re-review fix: every request and redirect hop leaving the origin is recorded", () => {
   const guard = script.slice(script.indexOf("async function installOriginGuard"), script.indexOf("async function assertOnOrigin"));
-  assert.match(guard, /context\.on\("request", \(request\) => \{\n\s+if \(leavesOrigin\(request\.url\(\), origin\)\) violations\.push\(hostOf\(request\.url\(\)\)\);/);
+  assert.match(guard, /context\.on\("request", \(request\) => \{\n\s+if \(leavesOrigin\(request\.url\(\), origin\)\) violations\.push\("request"\);/);
   // Recording is installed before routing, so it is in place for the very first request.
   assert.ok(guard.indexOf('context.on("request"') < guard.indexOf('context.route("**/*"'));
+});
+
+test("FFH-P04 third re-review fix: nothing the tested site controls is ever printed", () => {
+  // Every violation is recorded as a fixed kind, never as a host, URL or path.
+  const pushes = [...script.matchAll(/violations\.push\(([^)]*)\)/g)].map((match) => match[1]);
+  assert.ok(pushes.length >= 5);
+  for (const pushed of pushes) assert.match(pushed, /^"(request|redirect|websocket|webrtc)"$/, pushed);
+  assert.doesNotMatch(script, /hostOf|\.hosts\b/);
+
+  // Every value interpolated into output comes from this approved list (constants, counts, our own labels, the
+  // expected SHA from CI, and the sanitising helpers). Page text, URLs, paths and build metadata are not on it.
+  const allowed = new Set([
+    'ok ? "PASS" : "FAIL"', "name", 'ok || !detail ? "" : `  -> ${detail}`', "detail", "target.reason",
+    'creds.missing.join(", ")', "describeBuild(build.info)", "expectedSha.slice(0, 7)", "describeViolations(error.kinds)",
+    "safeErrorKind(error)", 'identityRuleWorks ? "PASS" : "FAIL"', 'leakRuleWorks ? "PASS" : "FAIL"', "who", "path",
+    "other.label", "Number(pageResult.status) || 0", 'pageResult.finalPath === path ? "" : ", ended on a different page"',
+    "leaks.length", 'failed ? "FAIL" : "PASS"', "results.length - failed", "results.length",
+  ]);
+  const outputCalls = script.split("\n").filter((line) => /console\.(log|error)\(|record\(`/.test(line));
+  for (const line of outputCalls) {
+    for (const [, expression] of line.matchAll(/\$\{((?:[^{}]|\{[^{}]*\})*)\}/g)) {
+      assert.ok(allowed.has(expression), `unapproved value in output: ${expression}`);
+    }
+  }
+
+  // The helpers echo only validated shapes.
+  const secret = "c3ludGhldGljLWE"; // base64 of a synthetic password, standing in for any encoded form
+  assert.equal(describeViolations(["request", "webrtc", "request"]), "3 blocked attempt(s) to reach another address (request, webrtc)");
+  assert.doesNotMatch(describeViolations([`${secret}.evil.example`]), new RegExp(secret));
+  assert.equal(describeBuild({ commit: SHA, environment: "preview" }), "the Preview address serves commit 79bcc52 (preview)");
+  assert.doesNotMatch(describeBuild({ commit: secret, environment: secret }), new RegExp(secret));
+  const thrown = new Error(secret); thrown.name = secret;
+  assert.equal(safeErrorKind(thrown), "browser error");
+  // Unexpected crashes print a fixed message, never the raw error.
+  assert.match(script, /process\.on\("uncaughtException", crash\);\n\s+process\.on\("unhandledRejection", crash\);\n\s+main\(\)\.catch\(crash\);/);
 });
