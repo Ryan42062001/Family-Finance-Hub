@@ -22,8 +22,14 @@ authorization; Production smoke test 12/12 after release. Presentation only.
 
 ## FFH-P03 — Your money plan (home screen)
 
-State: BUILDING. Risk: HIGH. Branch `phase/ffh-p03-money-plan`. Scope: `.ai/CURRENT_PHASE.md` (item 1 below, with the
-example household, "what's missing" checklist and headline badges).
+State: CLOSED. Risk: HIGH. Released to Production via PR #113 at `6fe7e11` (2026-11-13), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Money plan, example household, profile fields for the
+plan's facts, friendlier forms and the signed-in notice.
+
+## FFH-P04 — Automated sign-in and isolation tests
+
+State: BUILDING. Risk: HIGH. Branch `phase/ffh-p04-auto-isolation-tests`. Scope: `.ai/CURRENT_PHASE.md` (item 2
+below).
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

@@ -140,6 +140,12 @@
   owner, marked "(inactive)". Runtime persistence and hosted RLS for the new writes are covered by Work mode Q16 and
   Q7/Q8 on the Preview, not by local tests.
 
+- **FFH-P03 released (Ryan's explicit authorization).** PR #113 merged into `main` as `6fe7e11`. Production deployment
+  Ready, and the Production smoke test after the release passed 12/12. Before release: Work mode QA re-tested Q7, Q8
+  and Q16 (all PASS, #117 closed); the Preview smoke test at the final head `82918f8` was 12/12. FFH-P03 is CLOSED.
+  FFH-P04 (automated sign-in and isolation tests, HIGH risk) starts on `phase/ffh-p04-auto-isolation-tests`; this
+  note reaches `main` with the FFH-P04 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
