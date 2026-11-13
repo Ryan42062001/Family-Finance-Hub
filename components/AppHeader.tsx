@@ -6,6 +6,7 @@ import DesktopNavLink from "@/components/DesktopNavLink";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const links = [
+  ["Your plan", "/plan"],
   ["Overview", "/dashboard"],
   ["Financial profile", "/financial-profile"],
   ["Planning", "/planning"],

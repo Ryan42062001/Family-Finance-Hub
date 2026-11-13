@@ -39,7 +39,9 @@ export async function updateSession(request: NextRequest) {
     path === "/auth/login" ||
     path === "/auth/sign-up" ||
     path === "/auth/callback" ||
-    path === "/auth/confirm";
+    path === "/auth/confirm" ||
+    // Read-only example household with fixed made-up numbers; it never reads household data (FFH-P03).
+    path === "/demo";
 
   if (!userId && !isPublic) {
     const trusted = trustedRequestUrl(request.url);

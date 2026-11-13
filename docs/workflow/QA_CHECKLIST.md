@@ -32,6 +32,13 @@ Preview: `https://family-finance-hub-preview.vercel.app`, which always serves th
 | Q11 | Dark mode follows the device | Set the browser/OS to dark mode (or use a dark-preference browser profile), open the Preview signed out, then sign in as TestA and visit all four tabs | The whole app is dark: no white panels, unreadable text or invisible borders; the money-flow chart and its labels are readable |
 | Q12 | Theme switch | Click the moon/sun button in the header, reload the page, then sign out and back in | The chosen theme stays after reload and sign-in; the button's label says what it will switch to |
 
+| Q13 | Money plan (TestA) | Signed in as TestA, click **Your plan** (first item in the navigation) | The page shows three headline cards (This month, Months of cushion, Debt-free date), a numbered list of steps with a status (Recommended / Worth considering) and a monthly amount where one applies, and a **What's missing** section. Each "Why this step" expands. Links in What's missing open the matching Financial profile section; items the app can't record say so instead of linking. Nothing on the page changes saved data |
+| Q14 | Plan summary on Overview | Signed in as TestA, open **Overview** | A "Your money plan · Next steps" card at the top lists up to three steps that match the first steps on the plan page, and **See your full plan** opens it |
+| Q15 | Example household (signed out) | Sign out. On the Sign in page click **See an example household's plan** | `/demo` opens without signing in and is clearly labelled "Example household · made-up numbers"; it shows a full plan with no TestA/TestB data; there is no sidebar, account menu or link into anyone's profile |
+
+| Q16 | New profile details (TestA) | Financial profile → **Insurance** → Add insurance `ZZ-A-Health` (Health, deductible `1500`). **Retirement** → if missing add `ZZ-A-401k` (401(k), balance `1000`, contributions `100`/`50`), then Edit → **More details**: Employer match "Getting the full match", your contributions so far this year `500`. Open **Retirement goals** and save monthly spending `4000` | Each save shows a success message and the values are still there after reload. **Your plan** → What's missing no longer asks for the insurance deductible or the employer match for ZZ-A-401k. TestB (Q7) still sees none of these |
+| Q17 | Already signed in | While signed in as TestA, open `/auth/login` directly | A notice says "You're already signed in as <TestA's email>" with **Go to your plan** and **Sign out**; Sign out works |
+
 Finish signed out.
 
 ## Reporting

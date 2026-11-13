@@ -13,6 +13,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatSignedCurrency } from "@/lib/formatting/financial-presentation";
 import MonthlyMoneyFlow from "@/components/dashboard/MonthlyMoneyFlow";
 import { balanceBar } from "@/lib/formatting/balance-bar";
+import PlanSummary from "@/components/plan/PlanSummary";
+import { MoneyPrioritySnapshotValidationError } from "@/lib/calculations/money-priority-snapshot";
+import { planFromSnapshot, todayUtc, type PlanResult } from "@/lib/plan/plan-result";
+import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +92,13 @@ export default async function DashboardPage() {
   const completion = profileCompletion([accounts.length, income.length, expenses.length, debts.length, retirement.length, goals.length]);
   const health = calculateFinancialHealth({ completion, monthlyIncome: summary.monthlyIncome, monthlyCashFlow: summary.monthlyCashFlow, savingsRate: summary.savingsRate, totalDebt, retirementAssets, goalCount: goals.length });
 
+  let plan: PlanResult;
+  try {
+    plan = planFromSnapshot(await loadMoneyPrioritySnapshot(household.id), todayUtc());
+  } catch (error) {
+    if (!(error instanceof MoneyPrioritySnapshotValidationError)) throw error;
+    plan = { ok: false, reason: "Some saved numbers are invalid, so no plan is shown. Review your Financial profile." };
+  }
   const netWorthBar = balanceBar(accountAssets + retirementAssets, totalDebt);
   const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   const percent = summary.savingsRate === null ? "—" : `${Math.round(summary.savingsRate * 100)}%`;
@@ -107,6 +118,7 @@ export default async function DashboardPage() {
     <main className="page-shell">
       <section className="dashboard-mobile-overview" aria-label="Household overview">
         <div className="mobile-dashboard-heading"><p className="eyebrow">Household overview</p><h1>{household.name}</h1></div>
+        <PlanSummary plan={plan} headingId="plan-summary-mobile" />
         {completion < 100 ? <Link href="/financial-profile" className="mobile-completion-link">Complete financial profile · {completion}%</Link> : null}
         <div className="mobile-cashflow-feature">
           <span>Monthly cash flow</span><strong>{hasCashFlowData ? money(summary.monthlyCashFlow) : "—"}</strong>
@@ -142,6 +154,8 @@ export default async function DashboardPage() {
         <div><p className="eyebrow">Overview</p><h1>{household.name}</h1></div>
         <div className="hero-actions"><Link className="secondary-button" href="/financial-profile">Edit profile</Link><Link className="secondary-button" href="/planning">Planning tools</Link></div>
       </section>
+
+      <PlanSummary plan={plan} headingId="plan-summary-desktop" />
 
       {/* Bento overview: display only; every number comes from the existing summary above. */}
       <section className="bento-grid" aria-label="Household numbers">

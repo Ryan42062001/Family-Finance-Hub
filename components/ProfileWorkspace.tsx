@@ -7,6 +7,7 @@ const sections = [
   { id: "income", name: "Income" },
   { id: "expenses", name: "Expenses" },
   { id: "debts", name: "Debts" },
+  { id: "insurance", name: "Insurance" },
   { id: "retirement", name: "Retirement" },
   { id: "goals", name: "Goals" },
 ] as const;

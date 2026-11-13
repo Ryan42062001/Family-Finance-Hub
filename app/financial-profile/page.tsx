@@ -8,8 +8,11 @@ import {
   addExpense,
   addGoal,
   addIncome,
+  addInsurance,
   addRetirementAccount,
   deleteRecord,
+  saveRetirementGoals,
+  updateInsurance,
   updateAccount,
   updateDebt,
   updateExpense,
@@ -63,6 +66,45 @@ function GoalIntelligenceFields({ defaults = {} }: { defaults?: GoalFormDefaults
   </>);
 }
 
+// FFH-P03: optional facts the money plan asks for. Blank means "unknown"; nothing is guessed.
+type FieldDefaults = Record<string, unknown>;
+const fieldValue = (value: unknown): string | number => (typeof value === "number" || typeof value === "string" ? value : "");
+function CashPurposeField({ current }: { current?: string | null }) {
+  const linked = current === "earmarked_goal" || current === "debt_backed_reserve";
+  return <label>What is this cash for?<select name="cash_purpose" defaultValue={linked ? "keep" : String(current ?? "unallocated")}>
+    {linked ? <option value="keep">{current === "earmarked_goal" ? "Set aside for a goal (keep)" : "Set aside for a debt (keep)"}</option> : null}
+    <option value="unallocated">Not decided</option>
+    <option value="protected_reserve">Emergency fund</option>
+    <option value="operating_cash">Everyday spending</option>
+    <option value="not_applicable">Not cash I can use</option>
+  </select></label>;
+}
+
+function RetirementDetailFields({ defaults = {}, isHsa = false }: { defaults?: FieldDefaults; isHsa?: boolean }) {
+  return <details className="profile-more-fields">
+    <summary>More details (optional)</summary>
+    <label>Employer match<select name="match_status" defaultValue={String(fieldValue(defaults.match_status) || "unknown")}><option value="unknown">Not sure</option><option value="not_offered">No match offered</option><option value="not_fully_captured">Offered, not getting all of it</option><option value="fully_captured">Getting the full match</option></select></label>
+    <label>Your monthly contribution needed for the full match<input name="full_match_employee_contribution_monthly" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.full_match_employee_contribution_monthly)} placeholder="Leave blank if unknown" /></label>
+    <label>Type of employer contribution<select name="employer_contribution_type" defaultValue={String(fieldValue(defaults.employer_contribution_type) || "")}><option value="">Not sure</option><option value="match">Match</option><option value="nonelective">Fixed contribution (not a match)</option><option value="profit_sharing">Profit sharing</option><option value="other">Other</option></select></label>
+    {isHsa ? <p className="muted">Year-to-date HSA amounts are set on the HSA details page.</p> : <>
+      <label>Your contributions so far this year<input name="employee_contributed_ytd" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.employee_contributed_ytd)} placeholder="Leave blank if unknown" /></label>
+      <label>Employer contributions so far this year<input name="employer_contributed_ytd" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.employer_contributed_ytd)} placeholder="Leave blank if unknown" /></label>
+    </>}
+    <label>Yearly pay from this employer that counts for the plan<input name="plan_eligible_compensation_annual" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.plan_eligible_compensation_annual)} placeholder="Leave blank if unknown" /></label>
+  </details>;
+}
+
+function InsuranceFields({ defaults = {} }: { defaults?: FieldDefaults }) {
+  return <>
+    <label>Name<input name="name" maxLength={100} required defaultValue={String(fieldValue(defaults.name) || "")} placeholder="Family health plan" /></label>
+    <label>Type<select name="insurance_type" defaultValue={String(fieldValue(defaults.insurance_type) || "health")}><option value="health">Health</option><option value="auto">Auto</option><option value="homeowners">Homeowners</option><option value="renters">Renters</option><option value="umbrella">Umbrella</option><option value="pet">Pet</option><option value="other">Other</option></select></label>
+    <label>Deductible<input name="deductible_amount" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.deductible_amount)} placeholder="Leave blank if unknown" /></label>
+    <label>Family deductible<input name="family_deductible_amount" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.family_deductible_amount)} placeholder="Leave blank if none" /></label>
+    <label>Out-of-pocket maximum<input name="out_of_pocket_max" type="number" min="0" step="0.01" defaultValue={fieldValue(defaults.out_of_pocket_max)} placeholder="Leave blank if unknown" /></label>
+    <label className="checkbox-label"><input name="is_relevant_to_reserve" type="checkbox" defaultChecked={defaults.is_relevant_to_reserve !== false} /> Keep cash for this deductible</label>
+  </>;
+}
+
 export default async function FinancialProfilePage({ searchParams }: PageProps) {
   const { message } = await searchParams;
   const supabase = await createClient();
@@ -73,12 +115,17 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
   if (!households?.length) redirect("/onboarding");
   const household = households[0];
 
+  const [insurance, preferences] = await Promise.all([
+    supabase.from("insurance_exposures").select("id, name, insurance_type, deductible_amount, family_deductible_amount, out_of_pocket_max, is_relevant_to_reserve").eq("household_id", household.id).order("created_at"),
+    supabase.from("household_financial_preferences").select("desired_retirement_monthly_spending, planning_social_security_monthly, planning_pension_monthly").eq("household_id", household.id).maybeSingle(),
+  ]);
+  const goalsPrefs = preferences.data;
   const [accounts, income, expenses, debts, retirement, goals] = await Promise.all([
-    supabase.from("accounts").select("id, name, account_type, balance").eq("household_id", household.id).order("created_at"),
-    supabase.from("income_sources").select("id, name, monthly_amount").eq("household_id", household.id).order("created_at"),
+    supabase.from("accounts").select("id, name, account_type, balance, cash_purpose").eq("household_id", household.id).order("created_at"),
+    supabase.from("income_sources").select("id, name, monthly_amount, monthly_gross_amount").eq("household_id", household.id).order("created_at"),
     supabase.from("expenses").select("id, name, category, monthly_amount, is_essential").eq("household_id", household.id).order("created_at"),
     supabase.from("debts").select("id, name, debt_type, current_balance, interest_rate, minimum_payment").eq("household_id", household.id).order("created_at"),
-    supabase.from("retirement_accounts").select("id, name, account_type, balance, monthly_employee_contribution, monthly_employer_contribution").eq("household_id", household.id).order("created_at"),
+    supabase.from("retirement_accounts").select("id, name, account_type, balance, monthly_employee_contribution, monthly_employer_contribution, match_status, full_match_employee_contribution_monthly, employer_contribution_type, employee_contributed_ytd, employer_contributed_ytd, plan_eligible_compensation_annual").eq("household_id", household.id).order("created_at"),
     supabase.from("goals").select("id, name, target_amount, current_amount, target_date, priority, goal_class, necessity, deadline_flexibility, consequence_level, planned_monthly_contribution, core_need_amount, underlying_need, desired_solution, goal_nature, underfunding_consequence, borrowing_likelihood, expected_borrowing_amount, expected_borrowing_apr").eq("household_id", household.id).order("created_at"),
   ]);
 
@@ -98,17 +145,17 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <details className="profile-add-disclosure"><summary>Add account</summary><form className="data-form" action={addAccount}>
             <label>Name<input name="name" maxLength={100} required placeholder="Checking" /></label>
             <label>Type<select name="account_type" defaultValue="checking"><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label>
-            <label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><button type="submit">Add account</button>
+            <label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><CashPurposeField /><button type="submit">Add account</button>
           </form></details>
-          <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{accounts.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="account" id={item.id}><form className="data-form edit-form" action={updateAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="checking">Checking</option><option value="savings">Savings</option><option value="cash">Cash</option><option value="brokerage">Brokerage</option><option value="other_asset">Other asset</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><CashPurposeField current={item.cash_purpose} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(accounts.data?.length ?? 0) === 0 ? <p className="empty-state">No accounts saved yet. Select Add to begin.</p> : null}
         </ProfileSection>
 
         <ProfileSection id="income" title="Income" count={income.data?.length ?? 0} description={money((income.data ?? []).reduce((sum, item) => sum + Number(item.monthly_amount ?? 0), 0)) + "/month"}>
           <details className="profile-add-disclosure"><summary>Add income</summary><form className="data-form" action={addIncome}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Primary job" /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" required /></label><button type="submit">Add income</button>
+            <label>Name<input name="name" maxLength={100} required placeholder="Primary job" /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" required /></label><label>Monthly gross pay (before taxes)<input name="monthly_gross_amount" type="number" min="0" step="0.01" placeholder="Optional" /></label><button type="submit">Add income</button>
           </form></details>
-          <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{income.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo</small></span><RecordActions kind="income" id={item.id}><form className="data-form edit-form" action={updateIncome}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Monthly take-home<input name="monthly_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_amount} required /></label><label>Monthly gross pay (before taxes)<input name="monthly_gross_amount" type="number" min="0" step="0.01" defaultValue={item.monthly_gross_amount ?? ""} placeholder="Optional" /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(income.data?.length ?? 0) === 0 ? <p className="empty-state">No income sources saved yet. Select Add to begin.</p> : null}
         </ProfileSection>
 
@@ -133,12 +180,26 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           {(debts.data?.length ?? 0) === 0 ? <p className="empty-state">No debts saved yet. Select Add to begin.</p> : null}
         </ProfileSection>
 
+        <ProfileSection id="insurance" title="Insurance" count={insurance.data?.length ?? 0} description={(insurance.data ?? []).filter((item) => item.is_relevant_to_reserve && item.deductible_amount !== null).length ? money((insurance.data ?? []).filter((item) => item.is_relevant_to_reserve).reduce((sum, item) => sum + Number(item.deductible_amount ?? 0), 0)) + " in deductibles" : "Deductibles help size your cushion"}>
+          <details className="profile-add-disclosure"><summary>Add insurance</summary><form className="data-form" action={addInsurance}>
+            <InsuranceFields /><button type="submit">Add insurance</button>
+          </form></details>
+          <div className="record-list">{insurance.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{item.deductible_amount !== null ? `${money(item.deductible_amount)} deductible` : "Deductible not set"}</small></span><RecordActions kind="insurance" id={item.id}><form className="data-form edit-form" action={updateInsurance}><input type="hidden" name="id" value={item.id} /><InsuranceFields defaults={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          {(insurance.data?.length ?? 0) === 0 ? <p className="empty-state">No insurance saved yet. Add plans with a deductible so the plan can size your emergency cushion.</p> : null}
+        </ProfileSection>
+
         <ProfileSection id="retirement" title="Retirement" count={retirement.data?.length ?? 0} description={money((retirement.data ?? []).reduce((sum, item) => sum + Number(item.balance ?? 0), 0))}>
           <details className="profile-add-disclosure"><summary>Add retirement account</summary><form className="data-form" action={addRetirementAccount}>
-            <label>Name<input name="name" maxLength={100} required placeholder="Work 401(k)" /></label><label>Type<select name="account_type" defaultValue="401k"><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" required /></label><button type="submit">Add retirement account</button>
+            <label>Name<input name="name" maxLength={100} required placeholder="Work 401(k)" /></label><label>Type<select name="account_type" defaultValue="401k"><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" required /></label><RetirementDetailFields /><button type="submit">Add retirement account</button>
           </form></details>
-          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employee_contribution} required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employer_contribution} required /></label><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{retirement.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.balance)}</small></span><RecordActions kind="retirement" id={item.id}><form className="data-form edit-form" action={updateRetirementAccount}><input type="hidden" name="id" value={item.id} /><label>Name<input name="name" defaultValue={item.name} maxLength={100} required /></label><label>Type<select name="account_type" defaultValue={item.account_type}><option value="401k">401(k)</option><option value="403b">403(b)</option><option value="457">457</option><option value="traditional_ira">Traditional IRA</option><option value="roth_ira">Roth IRA</option><option value="hsa">HSA</option><option value="pension">Pension</option><option value="other">Other</option></select></label><label>Balance<input name="balance" type="number" min="0" step="0.01" defaultValue={item.balance} required /></label><label>Your monthly contribution<input name="monthly_employee_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employee_contribution} required /></label><label>Employer monthly contribution<input name="monthly_employer_contribution" type="number" min="0" step="0.01" defaultValue={item.monthly_employer_contribution} required /></label><RetirementDetailFields defaults={item} isHsa={item.account_type === "hsa"} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(retirement.data?.length ?? 0) === 0 ? <p className="empty-state">No retirement accounts saved yet. Select Add to begin.</p> : null}
+          <details className="profile-retirement-goals"><summary>Retirement goals (optional)</summary><form className="data-form" action={saveRetirementGoals}>
+            <label>Monthly spending you want in retirement (today&apos;s dollars)<input name="desired_retirement_monthly_spending" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.desired_retirement_monthly_spending ?? ""} placeholder="Leave blank if unknown" /></label>
+            <label>Expected Social Security per month<input name="planning_social_security_monthly" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.planning_social_security_monthly ?? ""} placeholder="Leave blank if unknown" /></label>
+            <label>Expected pension per month<input name="planning_pension_monthly" type="number" min="0" step="0.01" defaultValue={goalsPrefs?.planning_pension_monthly ?? ""} placeholder="Leave blank if none" /></label>
+            <button type="submit">Save retirement goals</button>
+          </form></details>
         </ProfileSection>
 
         <ProfileSection id="goals" title="Goals" count={goals.data?.length ?? 0} description={money((goals.data ?? []).reduce((sum, item) => sum + Number(item.current_amount ?? 0), 0))}>

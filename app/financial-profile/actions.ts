@@ -16,6 +16,12 @@ const CONSEQUENCE_LEVELS = ["critical", "high", "moderate", "low", "unknown"] as
 const GOAL_NATURES = ["preservation", "improvement", "mixed", "unknown"] as const;
 const UNDERFUNDING_CONSEQUENCES = ["safely_delay", "reduce_solution", "inconvenience", "likely_financing", "higher_future_cost", "employment_disruption", "housing_disruption", "health_safety", "caregiving_disruption", "contractual_payment", "other_material", "unknown"] as const;
 const BORROWING_LIKELIHOODS = ["unlikely", "possible", "likely", "unknown"] as const;
+// FFH-P03: extra facts the money plan asks for. Every value list mirrors a database check constraint.
+// Cash purposes linked to a goal or debt also need a related record, so the form offers only these four and "keep".
+const SIMPLE_CASH_PURPOSES = ["unallocated", "protected_reserve", "operating_cash", "not_applicable"] as const;
+const MATCH_STATUSES = ["not_offered", "unknown", "not_fully_captured", "fully_captured"] as const;
+const EMPLOYER_CONTRIBUTION_TYPES = ["match", "nonelective", "profit_sharing", "other", "unknown"] as const;
+const INSURANCE_TYPES = ["health", "auto", "homeowners", "renters", "umbrella", "pet", "other"] as const;
 
 function requiredText(formData: FormData, key: string, max = 100) {
   const value = String(formData.get(key) ?? "").trim();
@@ -82,6 +88,7 @@ async function context() {
 }
 
 function done(message: string): never {
+  revalidatePath("/plan");
   revalidatePath("/dashboard");
   revalidatePath("/financial-profile");
   redirect(`/financial-profile?message=${encodeURIComponent(message)}`);
@@ -122,17 +129,53 @@ function goalPayload(formData: FormData) {
   };
 }
 
+// Cash purpose: "keep" leaves a goal- or debt-linked purpose untouched; the four simple purposes clear any link
+// (the database requires links only for the linked purposes).
+function cashPurposeUpdate(formData: FormData) {
+  const raw = String(formData.get("cash_purpose") ?? "keep").trim();
+  if (raw === "keep") return {};
+  return { cash_purpose: allowed(raw, SIMPLE_CASH_PURPOSES, "cash purpose"), related_goal_id: null, related_debt_id: null };
+}
+
+// Optional retirement details. YTD amounts are not written for HSA rows: those carry a separate tax-year contract
+// (HSA details page), so this form never changes them.
+function retirementDetails(formData: FormData, accountType: string) {
+  const employerType = String(formData.get("employer_contribution_type") ?? "").trim();
+  const details: Record<string, string | number | null> = {
+    match_status: allowed(String(formData.get("match_status") ?? "unknown").trim() || "unknown", MATCH_STATUSES, "match status"),
+    full_match_employee_contribution_monthly: amount(formData, "full_match_employee_contribution_monthly", { required: false }),
+    employer_contribution_type: employerType ? allowed(employerType, EMPLOYER_CONTRIBUTION_TYPES, "employer contribution type") : null,
+    plan_eligible_compensation_annual: amount(formData, "plan_eligible_compensation_annual", { required: false }),
+  };
+  if (accountType !== "hsa") {
+    details.employee_contributed_ytd = amount(formData, "employee_contributed_ytd", { required: false });
+    details.employer_contributed_ytd = amount(formData, "employer_contributed_ytd", { required: false });
+  }
+  return details;
+}
+
+function insurancePayload(formData: FormData) {
+  return {
+    name: requiredText(formData, "name"),
+    insurance_type: allowed(requiredText(formData, "insurance_type", 30), INSURANCE_TYPES, "insurance type"),
+    deductible_amount: amount(formData, "deductible_amount", { required: false }),
+    family_deductible_amount: amount(formData, "family_deductible_amount", { required: false }),
+    out_of_pocket_max: amount(formData, "out_of_pocket_max", { required: false }),
+    is_relevant_to_reserve: formData.get("is_relevant_to_reserve") === "on",
+  };
+}
+
 export async function addAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const accountType = allowed(requiredText(formData, "account_type", 30), ACCOUNT_TYPES, "account type");
-  const { error } = await supabase.from("accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance") });
+  const { error } = await supabase.from("accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), ...cashPurposeUpdate(formData) });
   if (error) throw new Error(error.message);
   done("Account added.");
 }
 
 export async function addIncome(formData: FormData) {
   const { supabase, householdId } = await context();
-  const { error } = await supabase.from("income_sources").insert({ household_id: householdId, name: requiredText(formData, "name"), monthly_amount: amount(formData, "monthly_amount") });
+  const { error } = await supabase.from("income_sources").insert({ household_id: householdId, name: requiredText(formData, "name"), monthly_amount: amount(formData, "monthly_amount"), monthly_gross_amount: amount(formData, "monthly_gross_amount", { required: false }) });
   if (error) throw new Error(error.message);
   done("Income source added.");
 }
@@ -162,7 +205,7 @@ export async function addDebt(formData: FormData) {
 export async function addRetirementAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const accountType = allowed(requiredText(formData, "account_type", 30), RETIREMENT_TYPES, "retirement account type");
-  const { error } = await supabase.from("retirement_accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution") });
+  const { error } = await supabase.from("retirement_accounts").insert({ household_id: householdId, name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), ...retirementDetails(formData, accountType) });
   if (error) throw new Error(error.message);
   done("Retirement account added.");
 }
@@ -178,7 +221,7 @@ export async function updateAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
   const accountType = allowed(requiredText(formData, "account_type", 30), ACCOUNT_TYPES, "account type");
-  const { data, error } = await supabase.from("accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const { data, error } = await supabase.from("accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), ...cashPurposeUpdate(formData), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Record not found");
   done("Account updated.");
@@ -187,7 +230,7 @@ export async function updateAccount(formData: FormData) {
 export async function updateIncome(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
-  const { data, error } = await supabase.from("income_sources").update({ name: requiredText(formData, "name"), monthly_amount: amount(formData, "monthly_amount"), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const { data, error } = await supabase.from("income_sources").update({ name: requiredText(formData, "name"), monthly_amount: amount(formData, "monthly_amount"), monthly_gross_amount: amount(formData, "monthly_gross_amount", { required: false }), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Record not found");
   done("Income source updated.");
@@ -217,7 +260,7 @@ export async function updateRetirementAccount(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
   const accountType = allowed(requiredText(formData, "account_type", 30), RETIREMENT_TYPES, "retirement account type");
-  const { data, error } = await supabase.from("retirement_accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const { data, error } = await supabase.from("retirement_accounts").update({ name: requiredText(formData, "name"), account_type: accountType, balance: amount(formData, "balance"), monthly_employee_contribution: amount(formData, "monthly_employee_contribution"), monthly_employer_contribution: amount(formData, "monthly_employer_contribution"), ...retirementDetails(formData, accountType), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Record not found");
   done("Retirement account updated.");
@@ -244,6 +287,7 @@ export async function deleteRecord(formData: FormData) {
     debt: "debts",
     retirement: "retirement_accounts",
     goal: "goals",
+    insurance: "insurance_exposures",
   } as const;
   const table = tables[kind as keyof typeof tables];
   if (!table) throw new Error("Invalid record type");
@@ -251,4 +295,37 @@ export async function deleteRecord(formData: FormData) {
   const { error } = await supabase.from(table).delete().eq("id", id).eq("household_id", householdId);
   if (error) throw new Error(error.message);
   done("Record deleted.");
+}
+
+export async function addInsurance(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const { error } = await supabase.from("insurance_exposures").insert({ household_id: householdId, ...insurancePayload(formData) });
+  if (error) throw new Error(error.message);
+  done("Insurance added.");
+}
+
+export async function updateInsurance(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const id = recordId(formData);
+  const { data, error } = await supabase.from("insurance_exposures").update({ ...insurancePayload(formData), updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Record not found");
+  done("Insurance updated.");
+}
+
+// Retirement goals live on the household's single preferences row. Only these four columns are written; every
+// other preference keeps its saved value (or its database default when the row is created).
+export async function saveRetirementGoals(formData: FormData) {
+  const { supabase, householdId } = await context();
+  const spending = amount(formData, "desired_retirement_monthly_spending", { required: false });
+  const { error } = await supabase.from("household_financial_preferences").upsert({
+    household_id: householdId,
+    desired_retirement_monthly_spending: spending,
+    retirement_spending_basis: spending === null ? "unknown" : "today_dollars",
+    planning_social_security_monthly: amount(formData, "planning_social_security_monthly", { required: false }),
+    planning_pension_monthly: amount(formData, "planning_pension_monthly", { required: false }),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "household_id" });
+  if (error) throw new Error(error.message);
+  done("Retirement goals saved.");
 }
