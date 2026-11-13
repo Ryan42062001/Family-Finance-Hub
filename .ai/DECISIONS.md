@@ -229,6 +229,13 @@
   Safeguard: **if a Preview run is ever REFUSED, Ryan rotates the TestA/TestB passwords and updates the four GitHub
   secrets.** The REFUSED message and `docs/WORKFLOW.md` say so. Nothing else the site can choose is ever printed.
 
+- **FFH-P04 fifth targeted re-review (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `376b02efdac95b89dba08d80410c07ef68165acb`.** The numeric-channel HIGH was confirmed FIXED and every earlier
+  protection preserved. The owner-accepted verdict channel was judged a reasonable accepted residual, with no new
+  findings. The HIGH-risk review gate is cleared. Phase CI run 43482481911 at `376b02e`: fast, rls-matrix and
+  e2e-isolation all PASS (E2E_ISOLATION PASS 34/34, both negative controls PASS). The QA checklist gains Q18
+  (`/api/build-info` shows only the commit and environment).
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

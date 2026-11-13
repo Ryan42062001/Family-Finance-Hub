@@ -38,6 +38,7 @@ Preview: `https://family-finance-hub-preview.vercel.app`, which always serves th
 
 | Q16 | New profile details (TestA) | Financial profile → **Insurance** → Add insurance `ZZ-A-Health` (Health, deductible `1500`). **Retirement** → if missing add `ZZ-A-401k` (401(k), balance `1000`, contributions `100`/`50`), then under **People in your household** add `ZZ-A-Person` (Me) if missing, Edit `ZZ-A-401k` → **Whose account is this?** `ZZ-A-Person` → **More details**: Employer match "Getting the full match", your contributions so far this year `500`. Open **Retirement goals**, enter monthly spending `4000`, pick **Today's dollars**, and save; then reopen it, change only Social Security to `1500`, save, and check the answer is still **Today's dollars** | Each save shows a success message and the values are still there after reload. **Your plan** → What's missing no longer asks for the insurance deductible, the employer match, the account owner or employee contributions YTD for ZZ-A-401k. TestB (Q7) still sees none of these |
 | Q17 | Already signed in | While signed in as TestA, open `/auth/login` directly | A notice says "You're already signed in as <TestA's email>" with **Go to your plan** and **Sign out**; Sign out works |
+| Q18 | Build info page (signed out) | Signed out, open `/api/build-info` on the Preview | A tiny text page with exactly two fields: `commit` (a 40-character code) and `environment` (`preview`). Nothing else: no names, emails, amounts or account details. No sign-in is needed |
 
 Finish signed out.
 
