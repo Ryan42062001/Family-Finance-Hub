@@ -102,7 +102,7 @@ test("example household is synthetic, public and never touches the database", ()
   const example = read("../../lib/plan/example-household.ts");
   assert.doesNotMatch(example, /@|supabase/i);
   const proxy = read("../../lib/supabase/proxy.ts");
-  assert.match(proxy, /path === "\/demo";/);
+  assert.match(proxy, /path === "\/demo"( \|\||;)/);
   // Only the exact path is public; nothing below it.
   assert.doesNotMatch(proxy, /startsWith\("\/demo/);
   assert.ok(planFromRaw(exampleHouseholdRaw(), AS_OF).ok);

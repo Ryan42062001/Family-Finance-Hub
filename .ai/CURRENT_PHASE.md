@@ -37,7 +37,8 @@ mode then focuses on look-and-feel and new screens.
 
 ## Out of scope / boundaries
 
-- No app, schema, RLS or auth changes. No real data; synthetic TestA/TestB only.
+- No schema, RLS or auth changes. The one app change is a public `/api/build-info` route that returns only Vercel's
+  commit SHA and environment, so the suite can prove which build it is testing (added for the independent review). No real data; synthetic TestA/TestB only.
 - The tests never create, edit or delete records or accounts.
 
 ## Done when

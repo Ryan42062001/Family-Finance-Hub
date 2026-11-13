@@ -8,3 +8,7 @@ export function localhostAllowed(env: Record<string, string | undefined>): boole
 export function checkTarget(raw: string, env?: Record<string, string | undefined>): TargetCheck;
 export function credentialsFrom(env: Record<string, string | undefined>): Credentials;
 export function leakedMarkers(text: string, otherMarkers: string[]): string[];
+export function identityMatches(displayedEmail: string, expectedEmail: string): boolean;
+export function buildMatches(info: { commit?: unknown; environment?: unknown } | null, expectedSha: string): boolean;
+export function leavesOrigin(requestUrl: string, origin: string): boolean;
+export class OriginViolation extends Error {}
