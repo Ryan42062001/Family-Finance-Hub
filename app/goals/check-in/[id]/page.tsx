@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import NumberField from "@/components/forms/NumberField";
 import { Choice } from "@/components/forms/Controls";
 import { deleteCheckIn, updateCheckIn } from "@/app/goals/actions";
-import { checkInNetWorth, monthLabel, type CheckInItemType } from "@/lib/calculations/check-in-snapshot";
+import { checkInNetWorth, formatCents, monthLabel, type CheckInItemType } from "@/lib/calculations/check-in-snapshot";
 import { goalsContext } from "@/lib/goals/context";
 import { goalsNotice } from "@/lib/goals/notices";
 import { formatPlanMoney } from "@/lib/plan/money-plan";
@@ -34,7 +34,7 @@ export default async function CheckInPage({ params, searchParams }: PageProps) {
   try {
     const worth = checkInNetWorth(lines.map((line) => ({ itemType: line.item_type, amount: line.amount })));
     worthText = worth.state === "complete"
-      ? `${formatPlanMoney(worth.netWorth)} (${formatPlanMoney(worth.assets)} in assets minus ${formatPlanMoney(worth.debts)} owed)`
+      ? `${formatCents(worth.netWorthCents)} (${formatCents(worth.assetCents)} in assets minus ${formatCents(worth.debtCents)} owed)`
       : `Incomplete — ${worth.missingCount} balance${worth.missingCount === 1 ? "" : "s"} not entered, so no total is shown`;
   } catch { worthText = "Not available"; }
   const month = String(checkIn.check_in_month);

@@ -27,8 +27,10 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   Preview commit `b361463`. Accepted for the head `6370380`: the only user-visible change after `b361463` is the
   "Not available" wording on a check-in (shown only with no income and no expenses, not TestA's case); the C6 rule
   itself is covered by 9 RLS matrix probes, and `e2e-isolation` passed at `6370380` (run 43564007082).
-- **Next:** independent different-model HIGH-risk review at the frozen phase head (draft phase PR into `main`, not
-  to be merged without Ryan's release authorization).
+- **Independent review (ChatGPT) at `d64b2439`: FAIL** with F01 HIGH (half-up ties), F03/F04 MEDIUM (exact cents),
+  F05 LOW (month range): all fixed in exact BigInt integer cents with regression tests; F02 MEDIUM (direct check-in
+  table writes) recorded in the backlog (`.ai/DECISIONS.md`). Next: re-check of the fixes by the same reviewer at the
+  new frozen head, then Ryan's separate release decision.
 - **Waiting on Ryan:** run the independent review (prompt and SHA in the Builder's message); later, the separate
   Production release decision for the phase PR into `main`.
 - **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import NumberField from "@/components/forms/NumberField";
 import { TextField } from "@/components/forms/Controls";
 import { addSavingsGoal, deleteSavingsGoal, updateSavingsGoal } from "@/app/goals/actions";
-import { checkInNetWorth, currentUtcMonth, monthLabel, type CheckInItemType } from "@/lib/calculations/check-in-snapshot";
+import { checkInNetWorth, currentUtcMonth, formatCents, monthLabel, type CheckInItemType } from "@/lib/calculations/check-in-snapshot";
 import { evaluateSavingsGoal, type GoalTrackerResult } from "@/lib/calculations/goal-tracker";
 import { goalsContext } from "@/lib/goals/context";
 import { goalsNotice } from "@/lib/goals/notices";
@@ -115,7 +115,7 @@ export default async function GoalsPage({ searchParams }: PageProps) {
             let worth: string;
             try {
               const result = checkInNetWorth(lines.map((line) => ({ itemType: line.item_type, amount: line.amount })));
-              worth = result.state === "complete" ? formatPlanMoney(result.netWorth) : `Incomplete — ${result.missingCount} balance${result.missingCount === 1 ? "" : "s"} not entered`;
+              worth = result.state === "complete" ? formatCents(result.netWorthCents) : `Incomplete — ${result.missingCount} balance${result.missingCount === 1 ? "" : "s"} not entered`;
             } catch { worth = "Not available"; }
             return <li key={row.id} className="check-in-row">
               <Link href={`/goals/check-in/${row.id}`}><strong>{monthLabel(String(row.check_in_month))}</strong></Link>
