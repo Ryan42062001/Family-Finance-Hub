@@ -34,6 +34,7 @@ test("FFH-P05 the switch writes only the caller's own profile row, with a strict
   // Return page is allowlisted, never an arbitrary URL.
   assert.equal(safeReturnPath("/dashboard"), "/dashboard");
   assert.equal(safeReturnPath("/scenario-lab"), "/scenario-lab");
+  assert.equal(safeReturnPath("/goals"), "/goals");
   for (const bad of ["https://evil.example/", "//evil.example", "/plan?x=1", "/auth/login", "", null, 42, "/plan/../admin"]) {
     assert.equal(safeReturnPath(bad), "/plan", String(bad));
   }
