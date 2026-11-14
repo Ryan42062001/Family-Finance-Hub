@@ -128,3 +128,12 @@ the Builder diagnoses it. Do not change hosted objects to force a match.
    `docs/workflow/QA_CHECKLIST.md`, reported PASS/FAIL/NOT RUN per item at the commit shown by `/api/build-info`.
 3. Independent different-model review at the frozen head (`docs/workflow/REVIEW_PROMPT.md`).
 4. The phase stays out of `main` until the release checklist and Ryan's separate production-release authorization.
+
+## Result (2026-11-14)
+
+Applied by Ryan. Precheck as expected; migration applied in one transaction; version `20261114100000` recorded. The
+first body check showed `has_cr = true` on all five functions: the SQL Editor stored the paste with CRLF line
+endings (each hash equalled the repository body with `\r\n`, verified by the Builder). The step 3 fix (tested first on
+a local database, where it restored the exact hashes and kept security, `search_path`, grants and triggers, with the
+1208-assertion matrix still passing) was run once; all five bodies then matched exactly with `has_cr = false`.
+Final hosted `parity.sql`: **9/9 match**, migrations 20.
