@@ -331,6 +331,19 @@
   `parity.expected.txt` **9/9** on the first run (columns 227, constraints 176, function_grants 20, functions 10,
   migrations 18, policies 62, rls 17, table_grants 211, triggers 2).
 
+- **FFH-P06 independent review: FAIL at `02ebd6e` (recorded on PR #143 while the Builder was unavailable).**
+  HIGH: two *different* valid invitations accepted at the same moment by one account could each pass the
+  membership precheck, giving that account two households (the row lock covers only one invitation). MEDIUM: the
+  table-wide INSERT grant let an owner set future `created_at`/`expires_at` values that satisfy the relative 7-day
+  check. LOW: QA Q24 expected the public invite page to reveal validity (by design it checks only token shape). A
+  ChatGPT session prepared detached remediation commits `dc61f05` and `9f8841b` (UNIQUE(user_id) on
+  household_members with a fail-closed guard for existing conflicts; column-level INSERT grants; a sanitized
+  unique-violation in accept; a real two-session concurrency test; matrix target 970; Q24 reconciled) and placed a
+  no-deploy hold (no pushes, because pushes build Previews), pending CI evidence.
+- **No-deploy hold lifted (Ryan, 2026-11-14): "Lift hold, push normally".** The Builder fast-forwarded its working
+  branch to `9f8841b` unchanged (`npm run verify` PASS locally: 980/980, 203/203). The parity fingerprint comes only
+  from the CI run on the 19-migration database, never by guessing.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
