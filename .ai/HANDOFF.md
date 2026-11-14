@@ -24,8 +24,8 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   (migrations 20). Procedure and result: `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. Preview domain pointed at the
   P07 phase branch by Ryan.
 - **Next:** `e2e-isolation` re-run on the phase head; Work mode QA Q27–Q31 + regressions; then the independent
-  different-model HIGH-risk review at the frozen head. C6 decided by Ryan: original wording (follow-up migration `20261114110000`, hosted apply pending Ryan; steps in
-  `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`, part 2).
+  different-model HIGH-risk review at the frozen head. C6 decided by Ryan: original wording (follow-up migration `20261114110000`, applied to hosted by Ryan; hosted
+  parity 9/9, migrations 21).
 - **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
   Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
   and redeploy, then re-run the job.

@@ -465,3 +465,5 @@
   available" only when the Financial profile has no active income AND no expenses; with only one of them it is shown
   (and can be negative). Implemented by follow-up migration `20261114110000_ffh_p07_cash_flow_availability.sql`
   (replaces the one trigger function body). Already-saved check-ins are not recalculated. Hosted apply needs Ryan.
+- **FFH-P07 C6 hosted migration applied (Ryan, 2026-11-14).** `20261114110000` applied; trigger body matches the
+  repository exactly; hosted parity **9/9** (migrations 21).
