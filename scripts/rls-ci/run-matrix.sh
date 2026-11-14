@@ -2,7 +2,7 @@
 # FFH-P01 two-household RLS matrix on a disposable GitHub Actions runner.
 #
 # Builds a brand-new local Supabase PostgreSQL in an isolated temp project,
-# applies the 18 canonical migrations, runs the unchanged read-only
+# applies the 19 canonical migrations, runs the unchanged read-only
 # preflight.sql and the unchanged BEGIN/ROLLBACK matrix.sql, checks the exact
 # success markers, and always tears the database down.
 #
@@ -11,8 +11,8 @@
 set -euo pipefail
 
 CLI="supabase@2.122.0"
-EXPECTED_MIGRATIONS=18
-EXPECTED_ASSERTIONS=961
+EXPECTED_MIGRATIONS=19
+EXPECTED_ASSERTIONS=970
 # Unique per CI run and attempt, so it can never match a pre-existing project.
 PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
 CONTAINER="supabase_db_${PROJECT_ID}"
@@ -193,3 +193,8 @@ grep -qx "MATRIX_ASSERTIONS_PASS=${EXPECTED_ASSERTIONS}" "$matrix_out" ||
   fail "zero-residue marker is not the final line"
 
 echo "RLS_CI_MATRIX=PASS ASSERTIONS=${EXPECTED_ASSERTIONS} ROLLBACK=COMPLETE ZERO_RESIDUE=PASS"
+
+# FFH-P06 high-risk review: genuine TWO-CONNECTION race, before/after the
+# database uniqueness guard, entirely within the disposable CI container.
+# No hosted SQL and no persistent synthetic fixture may survive.
+bash scripts/rls-ci/test-invitation-concurrency.sh "$CONTAINER" "$work"

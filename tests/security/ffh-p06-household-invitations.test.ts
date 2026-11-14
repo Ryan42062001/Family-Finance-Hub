@@ -8,6 +8,12 @@ import { householdNotice } from "../../lib/household/notices.ts";
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const sql = read("supabase/migrations/20261114010000_ffh_p06_household_invitations.sql").replace(/--.*$/gm, "");
+const hardened = read("supabase/migrations/20261114020000_ffh_p06_invitation_security_remediation.sql").replace(/--.*$/gm, "");
+const preflight = read("scripts/rls-local/preflight.sql");
+const matrix = read("scripts/rls-local/matrix.sql");
+const runner = read("scripts/rls-ci/run-matrix.sh");
+const concurrency = read("scripts/rls-ci/test-invitation-concurrency.sh");
+const qa = read("docs/workflow/QA_CHECKLIST.md");
 const actions = read("app/household/actions.ts");
 const invitePage = read("app/invite/[token]/page.tsx");
 const householdPage = read("app/household/page.tsx");
@@ -94,4 +100,61 @@ test("FFH-P06 invite landing page: public by exact pattern, shows no household d
   assert.doesNotMatch(invitePage, /from\("|\.rpc\(/, "the page reads nothing about the household");
   assert.match(invitePage, /if \(!isInviteToken\(token\)\)/);
   assert.doesNotMatch(invitePage, /\{token\}<|>\{token\}/, "the token is never printed as text");
+});
+
+
+test("FFH-P06 HIGH: migration adds a database-enforced one-household-per-account invariant", () => {
+  assert.match(hardened, /group by user_id having count\(\*\) > 1/);
+  assert.match(hardened, /FFH_P06_MEMBERSHIP_COLLISION_MANUAL_REVIEW_REQUIRED/);
+  assert.match(hardened, /FFH_P06_FUTURE_DATED_INVITATIONS_MANUAL_REVIEW_REQUIRED/);
+  assert.match(hardened, /add constraint household_members_one_household_per_user unique \(user_id\)/);
+  assert.match(hardened, /begin;[\s\S]+commit;/);
+  assert.doesNotMatch(hardened, /delete from public\.household_members/i);
+  assert.match(hardened, /exception when unique_violation then/);
+  assert.match(hardened, /permission denied: you already belong to a household/);
+  assert.match(preflight, /PREFLIGHT_ONE_HOUSEHOLD_UNIQUE_CONSTRAINT_MISSING/);
+  assert.match(matrix, /membership-creator-second-household-denied/);
+  assert.match(matrix, /membership-privileged-duplicate-rejected/);
+});
+
+test("FFH-P06 MEDIUM: column-scoped INSERT prevents owner-controlled invite timestamps", () => {
+  assert.match(hardened, /revoke insert on public\.household_invitations from authenticated/);
+  assert.match(hardened, /grant insert \(household_id, role, label, token_hash\)/);
+  assert.doesNotMatch(hardened, /grant insert \([^)]*(?:created_at|expires_at|created_by|accepted_at)/i);
+  assert.match(sql, /created_at timestamptz not null default now\(\)/);
+  assert.match(sql, /expires_at timestamptz not null default now\(\) \+ interval '7 days'/);
+  for (const column of ["id", "created_by", "created_at", "expires_at", "accepted_at", "accepted_by"])
+    assert.ok(preflight.includes("'"+column+"'"), "missing protected column privilege probe: " + column);
+  for (const probe of [
+    "invite-future-created-at-denied", "invite-client-expiry-denied",
+    "invite-client-creator-denied", "invite-client-id-denied",
+    "invite-client-acceptance-denied", "invite-server-clock-seven-days",
+  ]) assert.ok(matrix.includes(probe), "missing SQL probe: " + probe);
+});
+
+test("FFH-P06 HIGH: two actual parallel psql sessions prove unguarded race and guarded rejection", () => {
+  assert.match(concurrency, /docker exec -i "\$container" psql/);
+  assert.match(concurrency, /SET LOCAL ROLE authenticated;/);
+  assert.match(concurrency, /pg_sleep\(4\)/);
+  assert.match(concurrency, /accept "\$token_a" >"\$log_a" 2>&1 &/);
+  assert.match(concurrency, /accept "\$token_b" >"\$log_b" 2>&1 &/);
+  assert.match(concurrency, /DROP CONSTRAINT household_members_one_household_per_user/);
+  assert.match(concurrency, /FFH_P06_CONCURRENT_UNGUARDED=REPRODUCED_TWO_HOUSEHOLDS/);
+  assert.match(concurrency, /FFH_P06_EXISTING_DATA_MIGRATION=FAIL_CLOSED/);
+  assert.match(concurrency, /FFH_P06_LEGACY_FUTURE_INVITE=FAIL_CLOSED/);
+  assert.match(concurrency, /DUPLICATE_MIGRATION_GUARD_NOT_EXECUTED/);
+  assert.match(concurrency, /FUTURE_MIGRATION_GUARD_NOT_EXECUTED/);
+  assert.match(concurrency, /FFH_P06_CONCURRENT_GUARDED=ONE_WINNER_ONE_DENIED/);
+  assert.match(concurrency, /FFH_P06_CONCURRENCY=PASS ZERO_RESIDUE=PASS/);
+  assert.match(runner, /bash scripts\/rls-ci\/test-invitation-concurrency\.sh/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=19/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=970/);
+});
+
+test("FFH-P06 LOW: Q24 checks cancelled link only after acceptance, never enumerates on landing", () => {
+  assert.match(qa, /Q24[^\n]*choose \*\*Join the household\*\*/);
+  assert.match(qa, /Q24[^\n]*generic invitation shell/);
+  assert.match(invitePage, /if \(!isInviteToken\(token\)\)/);
+  assert.doesNotMatch(invitePage, /from\("|\.rpc\(/);
+  assert.match(actions, /redirect\(already \? "\/invite\/already-member" : "\/invite\/invalid"\)/);
 });

@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 18 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 19 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -177,6 +177,9 @@ BEGIN
        AND (error_message ILIKE '%permission denied%'
             OR (mode <> 'GRANT' AND error_message ILIKE '%row-level security%')) THEN
       denied := true;
+    ELSIF mode='UNIQUE' AND error_state='23505'
+       AND error_constraint=wanted_constraint THEN
+      denied := true;
     ELSIF mode='FK' AND error_state='23503'
        AND error_constraint=wanted_constraint THEN
       denied := true;
@@ -193,7 +196,7 @@ BEGIN
     IF denied OR observed IS DISTINCT FROM expected THEN
       RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',probe_category,probe_family;
     END IF;
-  ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE') THEN
+  ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE','UNIQUE') THEN
     IF NOT denied THEN
       RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',probe_category,probe_family;
     END IF;
@@ -308,6 +311,7 @@ DECLARE
   target_scope text;
   principal record;
   checked integer;
+  collision_constraint text;
   family_names text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
     'goals','household_people','insurance_exposures',
@@ -737,6 +741,16 @@ BEGIN
   INSERT INTO public.households(id,name,created_by) VALUES(d,'ffh-local-household-d',d_owner);
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  -- Schema-backed one-household invariant: checked before invitation probes.
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint
+      WHERE conrelid='public.household_members'::regclass
+        AND conname='household_members_one_household_per_user'
+        AND contype='u') THEN
+    RAISE EXCEPTION 'MATRIX_ONE_HOUSEHOLD_UNIQUE_CONSTRAINT_MISSING';
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family)
+    VALUES('membership-db-unique-invariant','household_members');
+
   -- Owners create invitations for their own household only; never an owner role.
   PERFORM pg_temp.ffh_probe(d_owner,format(
     'INSERT INTO public.household_invitations(household_id,role,label,token_hash) VALUES(%L,''member'',''synthetic-e'',%L)',d,h1),
@@ -753,6 +767,28 @@ BEGIN
   PERFORM pg_temp.ffh_probe(a_member,format(
     'INSERT INTO public.household_invitations(household_id,role,token_hash) VALUES(%L,''member'',%L)',a,hx),
     'RLS',NULL,'invite-member-create-denied','household_invitations');
+  -- Owner-inserted timestamps and protected fields are never client writable.
+  -- Future-dated created_at + expires_at could otherwise satisfy the old
+  -- relative check despite violating the 7-day wall-clock contract.
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash,created_at,expires_at) VALUES(%L,''member'',%L,now()+interval ''30 days'',now()+interval ''37 days'')',d,hx),
+    'GRANT',NULL,'invite-future-created-at-denied','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash,expires_at) VALUES(%L,''member'',%L,now()+interval ''6 days'')',d,hx),
+    'GRANT',NULL,'invite-client-expiry-denied','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash,created_by) VALUES(%L,''member'',%L,%L)',d,hx,d_owner),
+    'GRANT',NULL,'invite-client-creator-denied','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(id,household_id,role,token_hash) VALUES(gen_random_uuid(),%L,''member'',%L)',d,hx),
+    'GRANT',NULL,'invite-client-id-denied','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'INSERT INTO public.household_invitations(household_id,role,token_hash,accepted_at) VALUES(%L,''member'',%L,NULL)',d,hx),
+    'GRANT',NULL,'invite-client-acceptance-denied','household_invitations');
+  PERFORM pg_temp.ffh_probe(d_owner,format(
+    'SELECT count(*) FROM public.household_invitations WHERE household_id=%L AND token_hash=%L AND created_by=%L AND created_at=now() AND expires_at=created_at+interval ''7 days'' AND accepted_at IS NULL AND accepted_by IS NULL',d,h1,d_owner),
+    'COUNT',1,'invite-server-clock-seven-days','household_invitations');
+
   -- Only the owner can see invitations; never across households.
   PERFORM pg_temp.ffh_probe(a_owner,format('SELECT count(*) FROM public.household_invitations WHERE household_id=%L',d),
     'COUNT',0,'invite-cross-owner-read','household_invitations');
@@ -787,6 +823,26 @@ BEGIN
     'FORBIDDEN',NULL,'invite-accept-expired','household_invitations');
   PERFORM pg_temp.ffh_probe(d_owner,format('SELECT count(*) FROM public.household_members WHERE household_id=%L AND user_id=%L',d,f_joiner),
     'COUNT',0,'invite-rejected-joiner-not-member','household_members');
+  -- The unique constraint covers both privileged membership insertion and
+  -- authenticated creation of another household (creator trigger).
+  BEGIN
+    INSERT INTO public.household_members (household_id,user_id,role)
+    VALUES (a,e_joiner,'member');
+    RAISE EXCEPTION 'MATRIX_DUPLICATE_MEMBERSHIP_WAS_ALLOWED';
+  EXCEPTION WHEN unique_violation THEN
+    GET STACKED DIAGNOSTICS collision_constraint=CONSTRAINT_NAME;
+    IF collision_constraint <> 'household_members_one_household_per_user' THEN
+      RAISE EXCEPTION 'MATRIX_WRONG_UNIQUE_COLLISION';
+    END IF;
+  END;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family)
+    VALUES('membership-privileged-duplicate-rejected','household_members');
+  PERFORM pg_temp.ffh_probe(e_joiner,format(
+    'INSERT INTO public.households(name,created_by) VALUES(%L,%L)',
+    'synthetic-second-home',e_joiner),'UNIQUE',NULL,
+    'membership-creator-second-household-denied','household_members',
+    'household_members_one_household_per_user');
+
   -- Roles and removal: owner only, never the owner; the new role is enforced.
   PERFORM pg_temp.ffh_probe(e_joiner,format('SELECT public.set_household_member_role(%L,%L,''viewer'')',d,d_owner),
     'FORBIDDEN',NULL,'role-change-by-member','household_members');

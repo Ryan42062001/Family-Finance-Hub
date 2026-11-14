@@ -193,9 +193,9 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   for (const name of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_URL", "DATABASE_URL", "PGHOST", "PGPASSWORD"]) {
     assert.ok(runner.includes(name), "runner must refuse " + name);
   }
-  // Fresh isolated temp project with exactly the 18 tracked migrations (FFH-P05 simple_mode and atomic setup; FFH-P06 invitations).
+  // Fresh isolated temp project with exactly the 19 tracked migrations (FFH-P05 and both FFH-P06 migrations).
   assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=18/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=19/);
   assert.match(runner, /mktemp -d/);
   assert.match(runner, /supabase@2\.122\.0/);
   assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
@@ -205,8 +205,8 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   // Unchanged SQL piped in; exact markers required.
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
-  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=18 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=961/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=970/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
