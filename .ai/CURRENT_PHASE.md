@@ -11,8 +11,8 @@ Production baseline: FFH-P06, merged PR #143 at `8d1a6aaa6e55f9f3369369ddfa1f3cd
 
 Every merge into `main` is a Production release and requires a NEW, explicit, exact-SHA authorization
 from Ryan, the release checklist in `docs/WORKFLOW.md`, and 12/12 Production smoke afterward.
-This P07 scope approval is NOT authorization to deploy, change hosted Supabase/Vercel, use real data,
-modify financial policy, or merge to `main`.
+Production deployment is NOT authorized by this FFH-P07 scope approval. It does not authorize a
+merge to `main`, any hosted Supabase/Vercel change, use of real data, or a new financial policy.
 
 ## Goal
 
