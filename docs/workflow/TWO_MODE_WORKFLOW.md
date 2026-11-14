@@ -45,10 +45,25 @@ Ryan's part when switching:
 - **ChatGPT → Claude:** tell Claude "I continued with ChatGPT". Claude reads HANDOFF and the PR, checks ChatGPT's work,
   and continues.
 
-## Saving credits
+## What ChatGPT builds in Mode B
 
-- **Claude:** batch decisions into one question; avoid many small "check again" turns; skip screenshots unless a
-  screen changed.
-- **Work mode:** only for new or changed screens, with a focused check list (not the full checklist). Phases with no
-  screen changes skip it.
+Claude stays the default builder. In Mode B, ChatGPT builds **LOW/MEDIUM-risk** work (screens, wording, docs, small
+fixes) and **prepares** HIGH-risk work (plans, migrations, tests) on a `chatgpt/...` branch. HIGH-risk work (auth,
+household isolation, money calculations, schema/RLS) is released only after CI evidence and an independent review,
+and preferably after Claude has checked it. Reviews always come from a different chat than the builder.
+
+## Saving Claude credits
+
+- **One session per phase.** Every message re-reads the whole conversation, so long sessions get expensive. Start a
+  new session after each release (or when a phase starts) and say "continue from HANDOFF".
+- **Big instructions, few turns.** For example: "Build FFH-P07 from the roadmap; use your recommendations unless it
+  is a money rule; stop only for Supabase steps and the release." Claude asks its questions in one batch at the start.
+- **Talking work goes to free ChatGPT:** roadmap questions, explanations, review and QA prompts.
+- **Lighter model for routine work** (`/model`): docs, small UI tweaks and recording results. Use the strongest model
+  for HIGH-risk work.
+- **Fewer images.** Crop screenshots to what matters, or paste terminal text. No reply is needed for "still running"
+  or "merged" updates.
+- **Claude's own habits:** screenshots only when a screen changed; record results inside the next code PR rather than
+  separate docs PRs; wait for CI once and report once; short replies.
+- **Work mode** only for new or changed screens, with a focused check list. Phases without screen changes skip it.
 - **Reviews** always go to free ChatGPT chats.
