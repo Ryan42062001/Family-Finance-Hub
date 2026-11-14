@@ -344,6 +344,15 @@
   branch to `9f8841b` unchanged (`npm run verify` PASS locally: 980/980, 203/203). The parity fingerprint comes only
   from the CI run on the 19-migration database, never by guessing.
 
+- **FFH-P06 remediation merged and re-reviewed.** PR #144 merged into the phase branch as `eceacfd`. Phase-head CI
+  run 43539148684: fast, rls-matrix (parity MATCH against the committed fingerprint, 970/970, two-session concurrency
+  PASS, both historical-data guards fail closed, zero residue) and e2e-isolation (34/34 plus negative controls) all
+  SUCCESS. Fresh independent ChatGPT targeted re-review: `RE-REVIEW RESULT: PASS` at
+  `eceacfdc529bb884ed89da9cb7008d627e03d86d`; HIGH, MEDIUM and LOW FIXED; two new LOW (N01, N02) and a dependency
+  note, none blocking. Manager accepted (PR #143 comment 6869561549). Hosted migration `20261114020000` is NOT yet
+  applied; the step-by-step procedure, each step separately authorized by Ryan, is
+  `docs/workflow/FFH-P06_HOSTED_MIGRATION.md`. Hosted parity is unverified until its step 5 shows 9/9.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -385,3 +394,12 @@
 - LOW (FFH-P05 re-review): `app/setup/page.tsx` treats a failed record-count lookup the same as "household already has
   records" and shows the "Setup didn't add anything" notice. Setup stays safely unavailable, but the message is
   misleading. Split the branches and show a fixed "We couldn't check your household details. Please try again."
+- LOW (FFH-P06 re-review N01): `app/onboarding/actions.ts` (household create) redirects with the raw
+  `householdError.message`. If another invitation is accepted between the precheck and the insert, the database
+  correctly refuses the second household, but the unique-constraint text can appear in the URL/page. Map the
+  uniqueness error to a fixed "You already belong to a household" notice and never show raw database messages
+  (the same applies to the `profileError` redirect beside it). Not a bypass of the one-household rule.
+- LOW (FFH-P06 re-review N02): `.ai/HANDOFF.md` described `02ebd6e` and the pending fingerprint work after the
+  remediation had merged. Fixed in the hosted-migration procedure PR (handoff now at `eceacfd`).
+- LOW (dependency hygiene, FFH-P06 re-review note): `npm audit` reports eight moderate advisories; the `fast` job's
+  high-severity threshold passes. Review and upgrade in a separate dependency PR.

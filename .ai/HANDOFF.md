@@ -2,14 +2,13 @@
 
 Updated: 2026-11-14 by Claude Code.
 
-- **Phase:** FFH-P06 household invitations (HIGH risk). Phase branch `phase/ffh-p06-household-invitations` at
-  `02ebd6e`; phase PR #143 (draft into `main`). Production is FFH-P05 at `1bd1b59`.
-- **Status:** the independent review FAILED at `02ebd6e` (HIGH: two invites accepted at once → two households;
-  MEDIUM: owner-set invitation timestamps; LOW: Q24 wording). The remediation (ChatGPT commits `dc61f05`, `9f8841b`)
-  is on `claude/great-shannon-wflzwr`. Ryan lifted the no-deploy hold on 2026-11-14.
-- **In progress:** take the new 19-migration schema fingerprint from CI, commit it, then confirm the 970-check RLS
-  matrix and the two-session concurrency test pass.
-- **Next:** PR into the phase branch, merge when green, focused ChatGPT re-review of the remediation, then Ryan
-  applies migration `20261114020000` to hosted Supabase (with the CRLF clean-up), then parity, Work mode Q23–Q26,
-  and the release decision.
-- **Waiting on Ryan:** nothing yet; the hosted SQL step comes after the re-review.
+- **Phase:** FFH-P06 household invitations (HIGH risk). Phase branch `phase/ffh-p06-household-invitations`; phase
+  PR #143 (draft into `main`, NOT merged). Production is FFH-P05 at `1bd1b59`.
+- **Status:** remediation merged at `eceacfd` (PR #144); CI run 43539148684 green (fast, rls-matrix 970/970 +
+  concurrency, e2e 34/34). Fresh independent re-review PASS at `eceacfd`; Manager accepted.
+- **Next:** Ryan authorizes and runs the hosted migration `20261114020000` steps in
+  `docs/workflow/FFH-P06_HOSTED_MIGRATION.md` one at a time (precheck, apply, CRLF check/fix only if needed, record
+  version, parity 9/9 with migrations 19). Then Work mode QA Q23–Q26 plus auth regressions on the Preview, then the
+  release checklist and Ryan's separate production-release authorization.
+- **Waiting on Ryan:** authorization for step 1 (read-only precheck) of the hosted migration.
+- **Backlog added:** N01 (raw onboarding error message), dependency advisories. N02 (this file) fixed.
