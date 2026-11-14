@@ -1,6 +1,6 @@
 # FFH-P07 design — Goals tracker and monthly check-in
 
-Status: **PROPOSED — awaiting Ryan's approval of the rules marked "NEEDS APPROVAL"** (2026-11-14).
+Status: **APPROVED by Ryan as recommended (2026-11-14)**: D1, G1–G10 with R1 = half-up and R2 = floor, C1–C10.
 Base: `phase/ffh-p07-goals-and-check-ins` at `b3c0dc39592389244b8b5477cfdb53a7362aeedf`.
 Nothing below is implemented until Ryan approves it. Scope source: `.ai/CURRENT_PHASE.md`.
 
@@ -47,7 +47,7 @@ stay exactly as they are. To avoid two things called "goals", the new screen is 
 | C3 | **A check-in does not change the Financial profile.** Balances entered stay in the check-in only. (Updating the profile from a check-in can be a later, separately approved feature.) |
 | C4 | **Unknown balance:** a line may be left blank = "not entered" (stored as null, never as 0). |
 | C5 | **Net-worth snapshot** = sum of asset lines − sum of debt lines, the same formula as the dashboard, exact to the cent (database numeric, no float). If any line is "not entered", net worth is **not shown**: "Incomplete — 2 balances not entered." No partial total is presented as net worth. |
-| C6 | **Cash-flow snapshot** = the dashboard's *planned* monthly cash flow (active income − expenses − debt minimums − employee retirement contributions) read from the Financial profile **by the database at the moment the check-in is first saved**, stored with its four parts. Labelled "Planned monthly cash flow when you checked in", never as actual spending. If there is no active income and no expenses, it is stored as "not available". The client cannot submit these numbers. |
+| C6 | **Cash-flow snapshot** = the dashboard's *planned* monthly cash flow (active income − expenses − debt minimums − employee retirement contributions) read from the Financial profile **by the database at the moment the check-in is first saved**, stored with its four parts. Labelled "Planned monthly cash flow when you checked in", never as actual spending. Unless there is active income and at least one expense (the dashboard's own rule), it is stored as "not available". The client cannot submit these numbers. |
 | C7 | **"Did you follow this month's plan?"** Yes/No, required. Only the answer is stored; the plan steps themselves are not snapshotted in P07. |
 | C8 | **Editing:** owner/member may edit a check-in's balances and Yes/No answer; net worth is recalculated from the edited lines. The cash-flow snapshot is **never recalculated** — it stays as frozen at first save. Changing the profile never alters any saved check-in. Each check-in records who created it and who last edited it, and when. |
 | C9 | **Deleting:** owner/member may delete a whole check-in (with confirmation). Viewer cannot create, edit or delete. |

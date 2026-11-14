@@ -12,8 +12,13 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   manual monthly balances, yes/no plan-followed check-in and historical net-worth/cash-flow snapshots.
   Owner/member can edit; viewer read-only.
 - **Defers:** Can We Afford It, irregular-cost set-asides, per-paycheck view and 30-day balance reminders.
-- **Design:** `docs/FFH-P07_DESIGN.md` (branch `claude/ffh-p07-ownership-handoff-6ky7io`). Waiting on Ryan to approve
-  D1 (new `savings_goals` table, not the engine's `goals`), R1/R2 rounding and check-in rules C1–C10.
+- **Design:** `docs/FFH-P07_DESIGN.md`, **approved by Ryan as recommended** (2026-11-14). Builder clarification for
+  Ryan to confirm: C6 "not available" uses the dashboard's exact rule (needs active income AND at least one expense).
+- **Built (branch `claude/ffh-p07-ownership-handoff-6ky7io`, draft PR #151):** migration
+  `20261114100000_ffh_p07_goals_and_check_ins.sql` (3 tables, snapshot trigger, 2 invoker RPCs), RLS matrix
+  1208 assertions (+3 families, +43 P07 probes), `lib/calculations/goal-tracker.ts` (engine-parity tested),
+  `lib/calculations/check-in-snapshot.ts`, `/goals`, `/goals/check-in`, `/goals/check-in/[id]`, QA rows Q27–Q31,
+  `/goals` added to the e2e isolation pages. Hosted migration NOT applied (needs Ryan).
 - **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
   Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
   and redeploy, then re-run the job.

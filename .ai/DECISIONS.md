@@ -448,3 +448,12 @@
   does not authorize changing hosted Supabase, merging into `main`, or a Production release.
 - **Documentation note:** `main` retains a P06 `.ai/CURRENT_PHASE.md` until a separately approved release;
   the active phase-branch documents are updated now. Do not merge to Production for documentation tidiness.
+
+## 2026-11-14 — FFH-P07 financial rules approved by Ryan
+
+- Ryan approved `docs/FFH-P07_DESIGN.md` **as recommended**: D1 (separate `savings_goals` table the Money Priority
+  Engine never reads), goal rules G1–G10 with R1 = half-up to the cent (matches Your plan) and R2 = progress percent
+  rounded down, and check-in rules C1–C10 (one per household per month, no future months; per-item balances
+  pre-filled from the profile with copied names; check-ins never change the profile; blank = not entered and makes
+  net worth "Incomplete"; planned cash flow frozen at first save; required Yes/No; owner/member edit/delete, viewer
+  read-only; history list without charts or change figures). Hosted migrations and Production remain separate approvals.

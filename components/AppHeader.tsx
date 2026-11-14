@@ -11,6 +11,7 @@ const links = [
   ["Your plan", "/plan"],
   ["Overview", "/dashboard"],
   ["Financial profile", "/financial-profile"],
+  ["Goals", "/goals"],
   ["Planning", "/planning"],
   ["Scenario Lab", "/scenario-lab"],
 ] as const;
@@ -50,7 +51,7 @@ export default async function AppHeader() {
                   <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
                 </svg>
               </summary>
-              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><Link className="account-menu-link" href="/household">Household &amp; invitations</Link><SimpleModeSwitch simple={simple} /><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
+              <div><span>{signedInEmail ? <>Signed in as <b className="account-email">{signedInEmail}</b></> : "Household account"}</span><Link className="account-menu-link" href="/household">Household &amp; invitations</Link><Link className="account-menu-link" href="/goals">Goals &amp; check-ins</Link><SimpleModeSwitch simple={simple} /><form action={logout}><button className="nav-sign-out" type="submit">Sign out</button></form></div>
             </details>
           ) : null}
         </div>
