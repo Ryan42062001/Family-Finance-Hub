@@ -31,7 +31,7 @@ BEGIN
   END IF;
   IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 19 OR
      (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 19 THEN
-    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_18_CANONICAL_MIGRATIONS';
+    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_19_CANONICAL_MIGRATIONS';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') OR
      to_regclass('auth.users') IS NULL OR to_regprocedure('auth.uid()') IS NULL THEN

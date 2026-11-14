@@ -116,7 +116,7 @@ run_cli() {
 }
 
 run_cli --version
-# Full local stack on the disposable runner; applies the 18 migrations to a
+# Full local stack on the disposable runner; applies the 19 migrations to a
 # brand-new database (no seed file exists in the temp project).
 run_cli start
 
@@ -133,7 +133,7 @@ preflight_out="$work/preflight.out"
 psql_in_db < scripts/rls-local/preflight.sql > "$preflight_out" 2>&1 ||
   { cat "$preflight_out" >&2; fail "preflight.sql failed"; }
 [[ "$(last_line < "$preflight_out")" == \
-   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=18 ROLES=2 NO_FIXTURES=1" ]] ||
+   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1" ]] ||
   { cat "$preflight_out" >&2; fail "preflight success marker missing"; }
 echo "RLS_CI_PREFLIGHT=PASS"
 
