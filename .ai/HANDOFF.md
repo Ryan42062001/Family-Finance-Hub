@@ -18,7 +18,12 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   `20261114100000_ffh_p07_goals_and_check_ins.sql` (3 tables, snapshot trigger, 2 invoker RPCs), RLS matrix
   1208 assertions (+3 families, +43 P07 probes), `lib/calculations/goal-tracker.ts` (engine-parity tested),
   `lib/calculations/check-in-snapshot.ts`, `/goals`, `/goals/check-in`, `/goals/check-in/[id]`, QA rows Q27–Q31,
-  `/goals` added to the e2e isolation pages. Hosted migration NOT applied (needs Ryan).
+  `/goals` added to the e2e isolation pages. CI green at `9571ac7` (run 43559892101: `fast` pass, `rls-matrix`
+  1208/1208, parity MATCH with the new fingerprint in `scripts/rls-local/parity.expected.txt`).
+- **Hosted migration NOT applied (needs Ryan).** Preview and Production share one Supabase project, so `/goals` on the
+  Preview shows "We couldn't load your goals" until Ryan authorizes applying
+  `20261114100000_ffh_p07_goals_and_check_ins.sql` (additive: 3 new tables, 2 functions, 2 trigger functions; no change
+  to existing tables) and hosted parity is re-checked against the new fingerprint.
 - **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
   Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
   and redeploy, then re-run the job.
