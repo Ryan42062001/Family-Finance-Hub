@@ -2,7 +2,8 @@
 
 FFH-P07 — Goals and monthly check-in
 
-State: PLANNED — **OWNER SCOPE APPROVED** (2026-11-14); Builder design and implementation not started
+State: PLANNED — **OWNER SCOPE APPROVED** (2026-11-14); Builder design proposed in `docs/FFH-P07_DESIGN.md`,
+**awaiting Ryan's approval of its financial rules**; implementation not started
 Risk: HIGH (goal savings calculations and new household financial data/RLS)
 Owner: Ryan
 Phase branch / future phase PR: `phase/ffh-p07-goals-and-check-ins` → `main`
