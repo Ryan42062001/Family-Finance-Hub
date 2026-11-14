@@ -44,14 +44,15 @@ Expected: `0 | 0 | false | false | 18`.
 ## Step 2: apply the migration (authorize: "apply migration 20261114020000")
 
 Open `supabase/migrations/20261114020000_ffh_p06_invitation_security_remediation.sql` at the reviewed commit, copy
-the **whole file** (it has its own `begin;` … `commit;`), paste and **Run**.
+the **whole file exactly as it is** (it has its own `begin;` … `commit;`), paste and **Run**. Do not strip comments:
+comments inside a function body (between `$$` markers) are stored and hashed by the parity check.
 
 - **Success:** "Success. No rows returned."
 - **Fails closed:** the error names `FFH_P06_MEMBERSHIP_COLLISION_MANUAL_REVIEW_REQUIRED` or
   `FFH_P06_FUTURE_DATED_INVITATIONS_MANUAL_REVIEW_REQUIRED`, or a lock timeout. The whole transaction rolls back and
   nothing changes. STOP and report the error code name only. A lock timeout can be retried once after a minute.
 
-## Step 3: line-ending check, then normalize only if needed (authorize: "CRLF check and fix if needed")
+## Step 3: line-ending and body check, then normalize only if needed (authorize: "CRLF check and fix if needed")
 
 The SQL Editor on Windows can store `\r` characters in the function body, which changes the parity fingerprint.
 Check first (read-only):
@@ -62,6 +63,15 @@ select position(E'\r' in pg_get_functiondef(
 ```
 
 - **`false`:** skip the fix and go to step 4.
+- Run this check again (with the body hash below) after **any** later re-paste of the function, right before parity:
+  a paste from a phone or Windows can bring the `\r` characters back.
+
+```sql
+select md5(prosrc) as body_md5, position(E'\r' in prosrc) > 0 as has_carriage_returns
+from pg_proc where oid = 'public.accept_household_invitation(text)'::regprocedure;
+```
+
+Expected: `e63a30221324cd2e7698a04afc84c1be | false` (the body exactly as in the repo file).
 - **`true`:** run this once, then re-run the check and expect `false`:
 
 ```sql
@@ -113,3 +123,11 @@ the Builder diagnoses it. Do not change hosted objects to force a match. Hosted 
    synthetic TestA/TestB only: Q23–Q26 plus the auth regressions in `docs/workflow/QA_CHECKLIST.md`. Report
    PASS/FAIL/NOT RUN per item at the deployed commit shown by `/api/build-info`.
 3. PR #143 stays out of `main` until the release checklist and Ryan's separate production-release authorization.
+
+## Result (2026-11-14)
+
+Applied by Ryan. Precheck `0 | 0 | false | false | 18`; migration applied; version recorded. First parity run was
+8/9 (`functions` differed) because the Builder had sent a copy of the migration with comments removed, including the
+four inside the function body. Ryan re-created the function from the exact repo body (`create or replace`, which keeps
+owner, grants and SECURITY DEFINER); that paste arrived with CRLF line endings (hash `0ca5ab32…`, identical to the repo
+body with `\r\n`), which the line-ending fix removed. Final hosted `parity.sql`: **9/9 match**, migrations 19.
