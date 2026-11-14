@@ -12,8 +12,8 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   manual monthly balances, yes/no plan-followed check-in and historical net-worth/cash-flow snapshots.
   Owner/member can edit; viewer read-only.
 - **Defers:** Can We Afford It, irregular-cost set-asides, per-paycheck view and 30-day balance reminders.
-- **Design:** `docs/FFH-P07_DESIGN.md`, **approved by Ryan as recommended** (2026-11-14). Builder clarification for
-  Ryan to confirm: C6 "not available" uses the dashboard's exact rule (needs active income AND at least one expense).
+- **Design:** `docs/FFH-P07_DESIGN.md`, **approved by Ryan as recommended** (2026-11-14); C6 then confirmed with
+  its original wording (not available only with no active income AND no expenses).
 - **Built (branch `claude/ffh-p07-ownership-handoff-6ky7io`, draft PR #151):** migration
   `20261114100000_ffh_p07_goals_and_check_ins.sql` (3 tables, snapshot trigger, 2 invoker RPCs), RLS matrix
   1208 assertions (+3 families, +43 P07 probes), `lib/calculations/goal-tracker.ts` (engine-parity tested),
@@ -24,7 +24,8 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   (migrations 20). Procedure and result: `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. Preview domain pointed at the
   P07 phase branch by Ryan.
 - **Next:** `e2e-isolation` re-run on the phase head; Work mode QA Q27–Q31 + regressions; then the independent
-  different-model HIGH-risk review at the frozen head. Open Owner question: C6 availability rule (dashboard rule built).
+  different-model HIGH-risk review at the frozen head. C6 decided by Ryan: original wording (follow-up migration `20261114110000`, hosted apply pending Ryan; steps in
+  `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`, part 2).
 - **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
   Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
   and redeploy, then re-run the job.

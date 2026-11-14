@@ -147,8 +147,8 @@ test("FFH-P06 HIGH: two actual parallel psql sessions prove unguarded race and g
   assert.match(concurrency, /FFH_P06_CONCURRENT_GUARDED=ONE_WINNER_ONE_DENIED/);
   assert.match(concurrency, /FFH_P06_CONCURRENCY=PASS ZERO_RESIDUE=PASS/);
   assert.match(runner, /bash scripts\/rls-ci\/test-invitation-concurrency\.sh/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=20/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1208/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=21/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1217/);
 });
 
 test("FFH-P06 LOW: Q24 checks cancelled link only after acceptance, never enumerates on landing", () => {

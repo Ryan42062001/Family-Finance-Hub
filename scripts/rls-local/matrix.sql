@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 20 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 21 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -329,6 +329,8 @@ DECLARE
   collision_constraint text;
   -- FFH-P07 check-in fixtures (household C).
   ci_oct uuid; ci_sep uuid; ci_aug uuid; line_savings uuid; line_aug uuid;
+  g_owner uuid := gen_random_uuid();
+  g uuid := gen_random_uuid();
   next_month date := (date_trunc('month', (now() at time zone 'utc')) + interval '1 month')::date;
   family_names text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
@@ -1154,6 +1156,45 @@ BEGIN
   PERFORM pg_temp.ffh_probe(c_owner,format(
     'SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%L',ci_oct),
     'COUNT',0,'p07-delete-removes-lines','monthly_check_in_balances');
+  -- C6 (original wording): planned cash flow is "not available" only with no active income AND
+  -- no expenses. Fresh empty household G; expense-only and income-only profiles are available.
+  INSERT INTO auth.users(id,instance_id,aud,role) VALUES
+    (g_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM set_config('request.jwt.claim.sub',g_owner::text,true);
+  IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM g_owner THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_G_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(g,'ffh-local-household-g',g_owner);
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan) VALUES(%L,DATE ''2026-01-01'',true)',g),
+    'ROWS',1,'p07-c6-empty-profile-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND check_in_month=DATE ''2026-01-01'' AND planned_cash_flow IS NULL',g),
+    'COUNT',1,'p07-c6-no-income-no-expenses-unavailable','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.expenses(household_id,name,category,monthly_amount) VALUES(%L,%L,%L,100)',g,'synthetic-g-expense','other'),
+    'ROWS',1,'p07-c6-expense-only-profile','expenses');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan) VALUES(%L,DATE ''2026-02-01'',true)',g),
+    'ROWS',1,'p07-c6-expense-only-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND check_in_month=DATE ''2026-02-01'' AND planned_cash_flow=-100 AND planned_monthly_income=0',g),
+    'COUNT',1,'p07-c6-expense-only-available-negative','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'DELETE FROM public.expenses WHERE household_id=%L',g),
+    'ROWS',1,'p07-c6-expense-removed','expenses');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.income_sources(household_id,name,monthly_amount) VALUES(%L,%L,500)',g,'synthetic-g-income'),
+    'ROWS',1,'p07-c6-income-only-profile','income_sources');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan) VALUES(%L,DATE ''2026-03-01'',true)',g),
+    'ROWS',1,'p07-c6-income-only-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND ((check_in_month=DATE ''2026-03-01'' AND planned_cash_flow=500) OR (check_in_month=DATE ''2026-01-01'' AND planned_cash_flow IS NULL))',g),
+    'COUNT',2,'p07-c6-income-only-available-history-kept','monthly_check_ins');
   -- Savings goals: viewer cannot add; amounts are validated by the database.
   PERFORM pg_temp.ffh_probe(c_viewer,format(
     'INSERT INTO public.savings_goals(household_id,name,target_amount) VALUES(%L,%L,100)',c,'synthetic-goal'),

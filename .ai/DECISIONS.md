@@ -461,3 +461,7 @@
   hosted Supabase with authorization via `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. The SQL Editor stored CRLF in
   the five function bodies; the documented one-time fix restored the exact repository bodies. Hosted parity **9/9**
   (migrations 20). Additive only; Production code does not use the new tables until the P07 release.
+- **FFH-P07 rule C6 (Ryan, 2026-11-14): "use the original wording".** The planned cash-flow snapshot is "not
+  available" only when the Financial profile has no active income AND no expenses; with only one of them it is shown
+  (and can be negative). Implemented by follow-up migration `20261114110000_ffh_p07_cash_flow_availability.sql`
+  (replaces the one trigger function body). Already-saved check-ins are not recalculated. Hosted apply needs Ryan.

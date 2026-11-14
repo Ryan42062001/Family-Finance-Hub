@@ -196,9 +196,9 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   for (const name of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_URL", "DATABASE_URL", "PGHOST", "PGPASSWORD"]) {
     assert.ok(runner.includes(name), "runner must refuse " + name);
   }
-  // Fresh isolated temp project with exactly the 20 tracked migrations (FFH-P05, both FFH-P06 and the FFH-P07 migration).
+  // Fresh isolated temp project with exactly the 21 tracked migrations (FFH-P05, both FFH-P06 and both FFH-P07 migrations).
   assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=20/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=21/);
   assert.match(runner, /mktemp -d/);
   assert.match(runner, /supabase@2\.122\.0/);
   assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
@@ -208,8 +208,8 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   // Unchanged SQL piped in; exact markers required.
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
-  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=20 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1208/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=21 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1217/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -272,6 +272,8 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   // FFH-P07 adds three financial families (65 generic receipts each) and 43 goal and
   // check-in probes (snapshot, tampering, RPC, viewer and cross-household; household C).
   assert.equal(970 + 3 * 65 + 43, 1208);
+  // FFH-P07 C6 (original wording) adds 9 cash-flow availability probes (household G).
+  assert.equal(1208 + 9, 1217);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {

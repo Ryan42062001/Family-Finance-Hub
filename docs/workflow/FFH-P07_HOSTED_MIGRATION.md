@@ -137,3 +137,71 @@ endings (each hash equalled the repository body with `\r\n`, verified by the Bui
 a local database, where it restored the exact hashes and kept security, `search_path`, grants and triggers, with the
 1208-assertion matrix still passing) was run once; all five bodies then matched exactly with `has_cr = false`.
 Final hosted `parity.sql`: **9/9 match**, migrations 20.
+
+## Part 2: follow-up migration `20261114110000` (rule C6, original wording)
+
+Applies `supabase/migrations/20261114110000_ffh_p07_cash_flow_availability.sql`: one `create or replace` of the
+trigger function `private.monthly_check_in_before_write()`, so that planned cash flow is "not available" only when the
+profile has no active income AND no expenses. No table, policy, grant or saved row changes. Same evidence rule.
+
+### 2.1 Read-only precheck (authorize: "read-only precheck 2")
+
+```sql
+select
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114100000') as p07_applied,
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114110000') as c6_already_recorded,
+  (select count(*) from supabase_migrations.schema_migrations) as migrations_recorded,
+  (select md5(prosrc) from pg_proc where oid = 'private.monthly_check_in_before_write()'::regprocedure) as current_body_md5;
+```
+
+Expected: `true | false | 20 | 39153e14e6f3e138a5b191e1636f816c`. Anything else: STOP and report the row.
+
+### 2.2 Apply (authorize: "apply migration 20261114110000")
+
+Copy the raw file from GitHub at the reviewed commit (link in the Builder's message), type `begin;` above it and
+`commit;` below it, **Run**. Expected: "Success. No rows returned."
+
+### 2.3 Body check, fix only if needed (authorize: "body check 2 and fix if needed")
+
+```sql
+select md5(prosrc) as body_md5, position(E'\r' in prosrc) > 0 as has_cr
+from pg_proc where oid = 'private.monthly_check_in_before_write()'::regprocedure;
+```
+
+Expected: `8199463bb22feceef9dc5e60441a6cd6 | false`. If `has_cr` is `true`, run:
+
+```sql
+do $fix$
+begin
+  execute replace(pg_get_functiondef('private.monthly_check_in_before_write()'::regprocedure), E'\r', '');
+end
+$fix$;
+```
+
+then repeat the check. A different hash with `has_cr = false`: STOP and report it.
+
+### 2.4 Record the version (authorize: "record migration version 2")
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261114110000', 'ffh_p07_cash_flow_availability');
+```
+
+### 2.5 Hosted parity (authorize: "run hosted parity 2")
+
+Run `scripts/rls-local/parity.sql` from the phase branch. All 9 rows must match exactly (only `functions` and
+`migrations` differ from part 1):
+
+```
+columns|257|e4de6fc819eaaf171e21f72919569848
+constraints|196|b286c0f850718815f957143c6fd11cbf
+function_grants|30|02defe5787f4b590f4f4b26c86a69249
+functions|15|f09b98b85c628efd66cbf532256a64b7
+migrations|21|ec9ec6cf3c29d2a7e71e5813d7559a2d
+policies|74|c50ee01053a71b1fa7a23bc2aa5142b8
+rls|20|51d68635fe4a6ccbb613d6215363fe43
+table_grants|234|ba748e33bdbc3a76ef44d4f918559ba1
+triggers|4|61c4012ae44b99794d82609f1cb36e53
+```
+
+Any mismatch: STOP and share the mismatching rows.

@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20261114100000_ffh_p07_goals_and_check_ins.sql", "utf8");
+const c6 = readFileSync("supabase/migrations/20261114110000_ffh_p07_cash_flow_availability.sql", "utf8");
 const actions = readFileSync("app/goals/actions.ts", "utf8");
 const goalsPage = readFileSync("app/goals/page.tsx", "utf8");
 const newCheckIn = readFileSync("app/goals/check-in/page.tsx", "utf8");
@@ -43,7 +44,14 @@ test("C6/C8: the planned cash-flow snapshot is computed by the database and froz
   for (const column of ["planned_monthly_income", "planned_monthly_expenses", "planned_debt_minimums", "planned_employee_retirement", "planned_cash_flow", "created_by", "created_at", "check_in_month"]) {
     assert.match(migration, new RegExp(`new\\.${column} := old\\.${column};`));
   }
-  assert.match(migration, /when v_active_income > 0 and v_expense_rows > 0/);
+  // C6, original wording (Ryan, 2026-11-14): replaced by the follow-up migration, which changes only that rule.
+  assert.match(c6, /when v_active_income > 0 or v_expense_rows > 0/);
+  assert.equal(c6.replace("when v_active_income > 0 or v_expense_rows > 0", "when v_active_income > 0 and v_expense_rows > 0")
+    .replace(/^[\s\S]*?create or replace function/, "create or replace function")
+    .replace(/    -- C6 \(Ryan[\s\S]*?can be negative\.\n/, ""),
+    migration.slice(migration.indexOf("create or replace function private.monthly_check_in_before_write()"),
+      migration.indexOf("$$;", migration.indexOf("create or replace function private.monthly_check_in_before_write()")) + 3)
+      .replace("    -- Same availability rule as the dashboard: active income and at least one expense.\n", "") + "\n");
   assert.match(migration, /check-in month cannot be in the future/);
   // The app never sends snapshot values.
   assert.doesNotMatch(actions, /planned_/);
