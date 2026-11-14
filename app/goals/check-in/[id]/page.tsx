@@ -49,7 +49,7 @@ export default async function CheckInPage({ params, searchParams }: PageProps) {
           <div><dt>Followed the plan</dt><dd>{checkIn.followed_plan ? "Yes" : "No"}</dd></div>
           <div><dt>Net worth</dt><dd>{worthText}</dd></div>
           <div><dt>Planned monthly cash flow when you checked in</dt><dd>{checkIn.planned_cash_flow === null
-            ? "Not available (needs active income and at least one expense in your Financial profile)"
+            ? "Not available (your Financial profile had no active income and no expenses)"
             : <>{formatPlanMoney(Number(checkIn.planned_cash_flow))}<small className="muted"> = income {formatPlanMoney(Number(checkIn.planned_monthly_income))} − expenses {formatPlanMoney(Number(checkIn.planned_monthly_expenses))} − debt minimums {formatPlanMoney(Number(checkIn.planned_debt_minimums))} − your retirement contributions {formatPlanMoney(Number(checkIn.planned_employee_retirement))}. This is what was planned, not what was actually spent, and it doesn&apos;t change when you edit this check-in.</small></>}</dd></div>
         </dl>
         <h2>Balances</h2>
