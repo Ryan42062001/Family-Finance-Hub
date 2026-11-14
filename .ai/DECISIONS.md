@@ -372,6 +372,20 @@
   the Production deployment Ready and the Production smoke test 12/12. FFH-P06 is CLOSED. FFH-P07 (goals and monthly
   check-in) starts on `phase/ffh-p07-goals-and-check-ins`; this note reaches `main` with the FFH-P07 release.
 
+- **FFH-P07 owner scope approved (Ryan, 2026-11-14).** FFH-P07 is a focused **Goals and monthly
+  check-in** phase, HIGH risk for household data/RLS and new savings calculations. Include
+  (1) a standalone named goals tracker with target amount/date, amount saved, and an
+  informational monthly savings requirement, **not integrated into or reprioritizing** the
+  existing Money Priority Engine; (2) monthly check-ins with manually entered balances,
+  a yes/no indication of following that month's plan, and historical net worth and cash-flow
+  snapshots; and (3) owner/member editing with viewer read-only and strict household isolation.
+  Defer **Can we afford it?**, irregular-cost monthly set-asides, per-paycheck planning and
+  the 30-day in-app balance reminder to later owner-scoped phases. No automatic transfer,
+  source-account mutation, financial policy change, live-data access or release is authorized.
+  The Builder must document and confirm the months/rounding convention and snapshot meaning
+  before implementing financial calculations; do not fabricate missing details. The canonical
+  accepted scope is `.ai/CURRENT_PHASE.md` on `phase/ffh-p07-goals-and-check-ins`.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

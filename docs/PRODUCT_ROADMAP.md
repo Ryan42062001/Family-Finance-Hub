@@ -50,8 +50,19 @@ remediation round.
 
 ## FFH-P07 — Goals and monthly check-in
 
-State: PLANNED. Risk: HIGH (money calculations). Branch `phase/ffh-p07-goals-and-check-ins`. Scope:
-`.ai/CURRENT_PHASE.md` (item 5 below). Production deployment remains a separate decision.
+State: PLANNED / OWNER SCOPE APPROVED (2026-11-14); implementation not started. Risk: HIGH
+(household data/RLS and a new standalone goal-savings calculation). Branch:
+`phase/ffh-p07-goals-and-check-ins`.
+
+**In FFH-P07:** named goals (target amount/date, saved so far, informational monthly
+amount needed) **separate from the Money Priority Engine**; monthly check-ins with manually
+entered balances, plan-followed yes/no, and net-worth/cash-flow snapshot history.
+Owner/member can edit; viewer is read-only; all data household-isolated.
+
+**Deferred:** `Can we afford it?`, irregular-cost monthly set-asides, per-paycheck
+plan view, and 30-day in-app balance-update reminder. These require separate phases.
+The canonical approved scope and implementation boundaries live in
+`.ai/CURRENT_PHASE.md`. Production deployment remains a separate Owner decision.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
@@ -73,13 +84,17 @@ State: PLANNED. Risk: HIGH (money calculations). Branch `phase/ffh-p07-goals-and
    IRA pages, chart details and most planning tools. Off by default; each person turns their own view on or off. Also:
    **install on the phone home screen** (web app manifest and icons).
 4. Household invitations (spouse joins the household; uses the existing owner/member/viewer roles).
-5. Goals with target dates and the monthly amount needed; a monthly check-in ("did you do this month's plan?") with
-   history of net worth and cash flow. Also:
-   - **"Can we afford it?"**: a big-purchase check showing how the plan changes (surfaces the existing
-     home-affordability calculation and generalises the question);
-   - **irregular costs** (yearly or quarterly bills) set aside as a monthly amount;
-   - a **per-paycheck view** of the plan, building on the paycheck planner;
-   - an in-app **balance update reminder** after 30 days (email reminders wait for email deliverability).
+5. **FFH-P07 (Owner scope approved 2026-11-14):** separate goals tracker and monthly
+   check-in, with owner/member editing, viewer read-only, household-isolated RLS, and
+   no change to the existing Money Priority Engine. Goals show target, saved so far,
+   date and informational monthly requirement. Check-ins record manually entered
+   balances, plan-followed yes/no and net-worth/cash-flow snapshot history.
+   **Deferred to later separately reviewed phases:**
+   - **"Can we afford it?"** large-purchase check;
+   - **irregular costs** (yearly or quarterly bills) as monthly set-asides;
+   - a **per-paycheck view** building on the paycheck planner;
+   - an in-app **balance update reminder** after 30 days
+     (email reminders await email deliverability).
 6. Account settings: change password and email, delete account (also enables test-account cleanup), and
    **two-factor sign-in** (authenticator app). HIGH risk (auth).
 7. Bills and due dates with optional reminders, then export of the plan (PDF/CSV).
