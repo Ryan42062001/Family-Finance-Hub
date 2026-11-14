@@ -27,12 +27,12 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   Preview commit `b361463`. Accepted for the head `6370380`: the only user-visible change after `b361463` is the
   "Not available" wording on a check-in (shown only with no income and no expenses, not TestA's case); the C6 rule
   itself is covered by 9 RLS matrix probes, and `e2e-isolation` passed at `6370380` (run 43564007082).
-- **Independent review (ChatGPT) at `d64b2439`: FAIL** with F01 HIGH (half-up ties), F03/F04 MEDIUM (exact cents),
-  F05 LOW (month range): all fixed in exact BigInt integer cents with regression tests; F02 MEDIUM (direct check-in
-  table writes) recorded in the backlog (`.ai/DECISIONS.md`). Next: re-check of the fixes by the same reviewer at the
-  new frozen head, then Ryan's separate release decision.
-- **Waiting on Ryan:** run the independent review (prompt and SHA in the Builder's message); later, the separate
-  Production release decision for the phase PR into `main`.
+- **Independent review (ChatGPT):** FAIL at `d64b2439` (F01 HIGH; F03/F04 MEDIUM; F05 LOW; F02 MEDIUM), fixed in
+  PR #156; **re-review PASS at code head `6e4e712f633c7c447d25e62e73c0edef294e8230`** (CI run 43566044631 green).
+  F02 and the engine's rounding-tie flaw are in the backlog (`.ai/DECISIONS.md`). Commits after `6e4e712f` are
+  docs only.
+- **Waiting on Ryan:** the separate Production release decision for draft PR #155 (`phase/ffh-p07-goals-and-check-ins`
+  → `main`) at its exact head, then the Production smoke test (12/12).
 - **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.
 - **Repository bookkeeping:** `main`'s P06-era `.ai/CURRENT_PHASE.md` remains a historical/stale snapshot
   until an Owner-approved production release (merging docs to `main` would also deploy Production). The

@@ -490,3 +490,8 @@
 - **Engine backlog (LOW, not changed: P07 forbids Money Priority Engine changes):** `money-priority-goal-intelligence.ts`
   `roundMoney` has the same float tie flaw as F01 (`requiredMonthlyFunding` can be one cent low on exact half-cent
   ties). Fix in its own reviewed engine change with integer-cent rounding.
+- **Re-review (same reviewer) at `6e4e712f633c7c447d25e62e73c0edef294e8230`: REVIEW RESULT PASS.** F01, F03, F04 and
+  F05 FIXED; F02 NOT FIXED (accepted MEDIUM backlog); no new findings; exact-head CI run 43566044631 green (`fast`,
+  `rls-matrix` 1217, `e2e-isolation`). Reviewer note for the F02 fix: the check-in functions are SECURITY INVOKER, so
+  revoking direct table writes requires changing their execution/authorization model in the same migration (e.g.
+  SECURITY DEFINER with explicit membership and owner/member checks), or legitimate saves would break.
