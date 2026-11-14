@@ -363,6 +363,15 @@
   procedure: paste migration files unedited and re-check line endings right before parity. No row data was read or
   changed. Next: Work mode QA Q23–Q26 plus auth regressions on the Preview.
 
+- **FFH-P06 released (Ryan's explicit authorization, 2026-11-14).** Release checklist run by the Builder at exact head
+  `543e61fe43aba6157ada8a357df2a7866348f0d5` (only docs changed after the PASS at `eceacfd`; CI run 43555092901 fast,
+  rls-matrix and e2e-isolation SUCCESS; Work mode QA 12 PASS / 0 FAIL / 14 NOT RUN, scoped to Q1-Q3, Q6-Q8, Q17, Q18
+  and Q23-Q26; hosted parity 9/9 as recorded from Ryan's SQL Editor run; Vercel and live hosted state not reachable from
+  the Builder's sandbox, so marked UNVERIFIED there). Ryan authorized the merge; PR #143 merged into `main` as
+  `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c` with the exact head (main's tree is identical to `543e61f`). Ryan reported
+  the Production deployment Ready and the Production smoke test 12/12. FFH-P06 is CLOSED. FFH-P07 (goals and monthly
+  check-in) starts on `phase/ffh-p07-goals-and-check-ins`; this note reaches `main` with the FFH-P07 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and

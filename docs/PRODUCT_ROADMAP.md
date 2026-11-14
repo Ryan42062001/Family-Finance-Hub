@@ -42,8 +42,16 @@ with authorization (parity 9/9). Passed the independent review after three round
 
 ## FFH-P06 — Household invitations
 
-State: BUILDING. Risk: HIGH. Branch `phase/ffh-p06-household-invitations`. Scope: `.ai/CURRENT_PHASE.md` (item 4
-below). Production deployment remains a separate decision.
+State: CLOSED. Risk: HIGH. Released to Production via PR #143 at `8d1a6aa` (2026-11-14), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Owners share single-use, 7-day invite links; owner-only
+role changes and removal; one household per account, enforced by the database. RLS matrix 970 plus a two-session
+concurrency test. Hosted migrations applied with authorization (parity 9/9). Passed the independent review after one
+remediation round.
+
+## FFH-P07 — Goals and monthly check-in
+
+State: PLANNED. Risk: HIGH (money calculations). Branch `phase/ffh-p07-goals-and-check-ins`. Scope:
+`.ai/CURRENT_PHASE.md` (item 5 below). Production deployment remains a separate decision.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

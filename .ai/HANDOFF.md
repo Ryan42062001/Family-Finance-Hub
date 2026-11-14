@@ -2,11 +2,11 @@
 
 Updated: 2026-11-14 by Claude Code.
 
-- **Phase:** FFH-P06 household invitations (HIGH risk). Phase branch `phase/ffh-p06-household-invitations`; phase
-  PR #143 (draft into `main`, NOT merged). Production is FFH-P05 at `1bd1b59`.
-- **Status:** hosted migration `20261114020000` applied and hosted parity **9/9** (2026-11-14). Remediation merged at `eceacfd` (PR #144); CI run 43539148684 green (fast, rls-matrix 970/970 +
-  concurrency, e2e 34/34). Fresh independent re-review PASS at `eceacfd`; Manager accepted.
-- **Next:** Work mode QA on the Preview (Q23–Q26 plus auth regressions Q1–Q3, Q6–Q8, Q17, Q18), then the release
-  checklist and Ryan's separate production-release authorization for PR #143.
-- **Waiting on Ryan:** starting Work mode QA with the handoff prompt.
-- **Backlog added:** N01 (raw onboarding error message), dependency advisories. N02 (this file) fixed.
+- **Production:** FFH-P06 household invitations, released at `8d1a6aa` (PR #143) with Ryan's authorization; Production
+  smoke 12/12. FFH-P06 is CLOSED.
+- **Phase:** FFH-P07 goals and monthly check-in (HIGH risk), branch `phase/ffh-p07-goals-and-check-ins`. State:
+  PLANNED. Scope and open questions in `.ai/CURRENT_PHASE.md`.
+- **Next:** Ryan answers the FFH-P07 decisions (scope split, goals vs the money plan, what a check-in records); then
+  build schema + RLS probes first, then screens.
+- **Waiting on Ryan:** the FFH-P07 decisions.
+- **Backlog:** N01 (raw onboarding error message), moderate npm advisories, and earlier items in `.ai/DECISIONS.md`.
