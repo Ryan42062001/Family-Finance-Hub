@@ -2,7 +2,7 @@
 
 FFH-P07 — Goals and monthly check-in
 
-State: IN PROGRESS — **OWNER SCOPE APPROVED** (2026-11-14); financial rules in `docs/FFH-P07_DESIGN.md`
+State: BUILDING — **OWNER SCOPE APPROVED** (2026-11-14); financial rules in `docs/FFH-P07_DESIGN.md`
 **approved by Ryan as recommended** (2026-11-14); implementation on `claude/ffh-p07-ownership-handoff-6ky7io`
 Risk: HIGH (goal savings calculations and new household financial data/RLS)
 Owner: Ryan
