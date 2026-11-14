@@ -1,7 +1,8 @@
 # Family Finance Hub agent guidance
 
-Read `docs/WORKFLOW.md` (how work flows and what needs approval) and `.ai/CURRENT_PHASE.md` (what is being built now)
-before starting. `.ai/DECISIONS.md` records standing decisions. Repository evidence outranks chat memory; `.history/` is
+Read `docs/WORKFLOW.md` (how work flows and what needs approval), `.ai/HANDOFF.md` (where the last builder stopped)
+and `.ai/CURRENT_PHASE.md` (what is being built now) before starting. When Claude Code is out of credits, ChatGPT
+builds instead: see `docs/workflow/TWO_MODE_WORKFLOW.md`. `.ai/DECISIONS.md` records standing decisions. Repository evidence outranks chat memory; `.history/` is
 historical evidence only.
 
 ## Working rules
