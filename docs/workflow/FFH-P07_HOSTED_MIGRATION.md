@@ -205,3 +205,8 @@ triggers|4|61c4012ae44b99794d82609f1cb36e53
 ```
 
 Any mismatch: STOP and share the mismatching rows.
+
+## Part 2 result (2026-11-14)
+
+Applied by Ryan from phase head `63703807`. Function body `8199463bb22feceef9dc5e60441a6cd6`, `has_cr = false`;
+version `20261114110000` recorded. Final hosted `parity.sql`: **9/9 match**, migrations 21.

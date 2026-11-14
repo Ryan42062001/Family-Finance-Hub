@@ -23,18 +23,14 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
 - **Hosted migration APPLIED (Ryan, 2026-11-14):** `20261114100000` applied, CRLF fixed, hosted parity **9/9**
   (migrations 20). Procedure and result: `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. Preview domain pointed at the
   P07 phase branch by Ryan.
-- **Next:** `e2e-isolation` re-run on the phase head; Work mode QA Q27–Q31 + regressions; then the independent
-  different-model HIGH-risk review at the frozen head. C6 decided by Ryan: original wording (follow-up migration `20261114110000`, hosted apply pending Ryan; steps in
-  `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`, part 2).
-- **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
-  Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
-  and redeploy, then re-run the job.
-- **Next for Claude Code Builder:** verify latest branch/head, read active project workflow and approved phase scope,
-  propose any missing financial arithmetic/date/snapshot definitions for Owner approval, then implement schema +
-  household RLS matrix and app UI in the normal phase workflow. Do not change Money Priority Engine policy.
-- **Waiting on Ryan:** only **specific new financial-policy details if the Builder cannot ground them in existing
-  canonical code**; P07 feature scope and role permissions are approved. Hosted database, Vercel and Production
-  permissions are still separate approvals.
+- **Preview QA PASS (ChatGPT Work mode, 2026-11-14):** Q1–Q8, Q23–Q25, Q27–Q31 all PASS, no `qa-finding` issues, at
+  Preview commit `b361463`. Accepted for the head `6370380`: the only user-visible change after `b361463` is the
+  "Not available" wording on a check-in (shown only with no income and no expenses, not TestA's case); the C6 rule
+  itself is covered by 9 RLS matrix probes, and `e2e-isolation` passed at `6370380` (run 43564007082).
+- **Next:** independent different-model HIGH-risk review at the frozen phase head (draft phase PR into `main`, not
+  to be merged without Ryan's release authorization).
+- **Waiting on Ryan:** run the independent review (prompt and SHA in the Builder's message); later, the separate
+  Production release decision for the phase PR into `main`.
 - **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.
 - **Repository bookkeeping:** `main`'s P06-era `.ai/CURRENT_PHASE.md` remains a historical/stale snapshot
   until an Owner-approved production release (merging docs to `main` would also deploy Production). The
