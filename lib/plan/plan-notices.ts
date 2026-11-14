@@ -8,6 +8,12 @@ export const PLAN_NOTICES = {
     body: "You chose \"Not sure\" for what your savings are for, so they weren't added. When you know, add them under Financial profile → Accounts and pick what they're for.",
     link: { href: "/financial-profile#accounts", label: "Add your savings" },
   },
+  joined: {
+    tone: "info",
+    title: "You've joined the household",
+    body: "This is the household's shared money plan. Your role decides whether you can edit its details.",
+    link: { href: "/household", label: "See who's in your household" },
+  },
   already_set_up: {
     tone: "info",
     title: "Setup didn't add anything",

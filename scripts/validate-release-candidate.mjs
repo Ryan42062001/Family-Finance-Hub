@@ -2,7 +2,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
 
-const expectedAi = ['ARCHITECTURE.md', 'CURRENT_PHASE.md', 'DECISIONS.md', 'PROJECT.md', 'REPO_MAP.md'];
+// HANDOFF.md: where the last builder stopped (two-mode workflow, Ryan 2026-11-14).
+const expectedAi = ['ARCHITECTURE.md', 'CURRENT_PHASE.md', 'DECISIONS.md', 'HANDOFF.md', 'PROJECT.md', 'REPO_MAP.md'];
 const failures = [];
 const check = (condition, message) => { if (!condition) failures.push(message); };
 const files = dir => existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name).replaceAll('\\', '/')]) : [];

@@ -1034,3 +1034,21 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 .setup-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem}
 .setup-household{max-width:720px;margin-top:1rem;font-size:.85rem}
 .plan-notice{margin-bottom:1rem}
+
+/* FFH-P06: household page and invitations */
+.household-people{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}
+.household-person{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem 0;border-top:1px solid var(--line)}
+.household-person>span:first-child{display:grid;gap:.15rem}.household-person small{color:var(--muted)}
+.household-person-actions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.5rem}.household-person-actions form{margin:0}
+.household-remove summary{cursor:pointer;padding:.55rem .8rem;border:1px solid var(--danger-line);border-radius:9px;color:var(--danger);font-weight:700;list-style:none}
+.household-remove summary::-webkit-details-marker{display:none}
+.household-remove form{display:grid;gap:.5rem;margin-top:.5rem;max-width:320px}
+.danger-button,button.danger-button[type=submit]{background:var(--danger);background-image:none;color:#fff;border:0}
+.invite-link-box{display:grid;gap:.6rem;margin-top:1rem;padding:1rem;border:1px solid var(--accent-line);border-radius:var(--radius-md);background:var(--accent-soft)}
+.invite-link-box p{margin:0}.invite-link-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.invite-link-row input{flex:1 1 260px;min-height:44px;border:1px solid var(--line-strong);border-radius:9px;padding:.6rem .75rem;background:var(--input-bg);color:var(--text);font-family:ui-monospace,monospace;font-size:.82rem}
+.invite-card{max-width:620px;display:grid;gap:.75rem}.invite-actions{display:flex;flex-wrap:wrap;gap:.6rem}.invite-actions form{margin:0}
+.account-menu-link{display:block;padding:.55rem 0;color:var(--accent-text);font-weight:700}
+/* Secondary submit buttons keep the secondary look (beats button[type=submit]:not(.nav-sign-out)). */
+button.secondary-button[type=submit]{background:var(--accent-soft);background-image:none;color:var(--accent-text);border:1px solid var(--accent-line);box-shadow:none}
+button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}

@@ -180,7 +180,7 @@ test("FFH-P05 the home-screen manifest is public and carries no user data", () =
   assert.match(manifest, /display: "standalone"/);
   assert.doesNotMatch(manifest, /createClient|cookies|headers\(|process\.env|household|email/);
   const proxy = read("lib/supabase/proxy.ts");
-  assert.match(proxy, /path === "\/manifest\.webmanifest";/);
+  assert.match(proxy, /path === "\/manifest\.webmanifest"( \|\||;)/);
   assert.doesNotMatch(proxy, /startsWith\("\/manifest|startsWith\("\/icons/);
   for (const icon of ["public/icons/icon-192.png", "public/icons/icon-512.png", "public/icons/icon-maskable-512.png", "app/apple-icon.png"]) {
     assert.equal(readFileSync(new URL(`../../${icon}`, import.meta.url)).subarray(1, 4).toString(), "PNG", icon);
@@ -190,7 +190,8 @@ test("FFH-P05 the home-screen manifest is public and carries no user data", () =
 import { PLAN_NOTICES, planNotice } from "../../lib/plan/plan-notices.ts";
 
 test("FFH-P05 re-review fix: the plan page shows only fixed, allowlisted setup notices", () => {
-  assert.deepEqual(Object.keys(PLAN_NOTICES).sort(), ["already_set_up", "savings_pending"]);
+  // FFH-P06 adds "joined" (after accepting an invitation).
+  assert.deepEqual(Object.keys(PLAN_NOTICES).sort(), ["already_set_up", "joined", "savings_pending"]);
   assert.equal(planNotice("savings_pending")?.link.href, "/financial-profile#accounts");
   assert.equal(planNotice("already_set_up")?.link.href, "/financial-profile");
   for (const bad of ["", "unknown", "__proto__", "constructor", "toString", "<script>", ["savings_pending"], 1, null, undefined]) {

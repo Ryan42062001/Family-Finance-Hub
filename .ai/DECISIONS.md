@@ -309,6 +309,60 @@
   plan page shows only allowlisted notices from `lib/plan/plan-notices.ts`, with a link to Financial profile, and
   never displays text from the URL. This needs a short targeted re-review of the change.
 
+- **FFH-P05 targeted re-review of the notice fix (ChatGPT): `RE-REVIEW RESULT: PASS` at
+  `221e351d545b84cb4c9b13462ec6ea3afb1cf4a0`.** The MEDIUM (setup notices not shown) was FIXED, with no new
+  blocking findings and one LOW (backlog).
+- **FFH-P05 released (Ryan's explicit authorization).** PR #136 merged into `main` as `1bd1b59` (exact reviewed head
+  `221e351`). Vercel Production deployment Ready; Production smoke test after release 12/12; Production
+  `/api/build-info` reports commit `1bd1b5984f952f0104dd4bfb1be04226b0be0b67`, environment `production`. FFH-P05 is
+  CLOSED. FFH-P06 (household invitations, HIGH risk) starts on `phase/ffh-p06-household-invitations`; this note
+  reaches `main` with the FFH-P06 release.
+
+- **FFH-P06 scope decisions (Ryan, 2026-11-13, "go with your recommendations").** Invitations are links the owner
+  copies and shares; valid 7 days; single use; only the owner invites and manages roles. Design recorded in
+  `.ai/CURRENT_PHASE.md`.
+
+- **FFH-P06 build complete and hosted migration applied (Ryan, 2026-11-13).** PR #141 merged into the phase branch:
+  invitations schema with owner-only RLS and three narrow SECURITY DEFINER membership functions; RLS matrix 961
+  (31 new probes); the Household page; invite links (shown once, hash stored); the signed-out remembered invite and
+  onboarding "Join that household"; QA Q23–Q26. Ryan applied `20261114010000_ffh_p06_household_invitations` in the
+  hosted SQL editor, normalised the three function bodies from `pg_get_functiondef` with carriage returns removed
+  (the CRLF lesson from FFH-P05, applied up front), and recorded the version. Hosted `parity.sql` matched
+  `parity.expected.txt` **9/9** on the first run (columns 227, constraints 176, function_grants 20, functions 10,
+  migrations 18, policies 62, rls 17, table_grants 211, triggers 2).
+
+- **FFH-P06 independent review: FAIL at `02ebd6e` (recorded on PR #143 while the Builder was unavailable).**
+  HIGH: two *different* valid invitations accepted at the same moment by one account could each pass the
+  membership precheck, giving that account two households (the row lock covers only one invitation). MEDIUM: the
+  table-wide INSERT grant let an owner set future `created_at`/`expires_at` values that satisfy the relative 7-day
+  check. LOW: QA Q24 expected the public invite page to reveal validity (by design it checks only token shape). A
+  ChatGPT session prepared detached remediation commits `dc61f05` and `9f8841b` (UNIQUE(user_id) on
+  household_members with a fail-closed guard for existing conflicts; column-level INSERT grants; a sanitized
+  unique-violation in accept; a real two-session concurrency test; matrix target 970; Q24 reconciled) and placed a
+  no-deploy hold (no pushes, because pushes build Previews), pending CI evidence.
+- **No-deploy hold lifted (Ryan, 2026-11-14): "Lift hold, push normally".** The Builder fast-forwarded its working
+  branch to `9f8841b` unchanged (`npm run verify` PASS locally: 980/980, 203/203). The parity fingerprint comes only
+  from the CI run on the 19-migration database, never by guessing.
+
+- **FFH-P06 remediation merged and re-reviewed.** PR #144 merged into the phase branch as `eceacfd`. Phase-head CI
+  run 43539148684: fast, rls-matrix (parity MATCH against the committed fingerprint, 970/970, two-session concurrency
+  PASS, both historical-data guards fail closed, zero residue) and e2e-isolation (34/34 plus negative controls) all
+  SUCCESS. Fresh independent ChatGPT targeted re-review: `RE-REVIEW RESULT: PASS` at
+  `eceacfdc529bb884ed89da9cb7008d627e03d86d`; HIGH, MEDIUM and LOW FIXED; two new LOW (N01, N02) and a dependency
+  note, none blocking. Manager accepted (PR #143 comment 6869561549). Hosted migration `20261114020000` is NOT yet
+  applied; the step-by-step procedure, each step separately authorized by Ryan, is
+  `docs/workflow/FFH-P06_HOSTED_MIGRATION.md`. Hosted parity is unverified until its step 5 shows 9/9.
+
+- **FFH-P06 hosted migration applied and hosted parity verified (Ryan, 2026-11-14).** Ryan authorized and ran each
+  step of `docs/workflow/FFH-P06_HOSTED_MIGRATION.md`: read-only precheck `0 | 0 | false | false | 18` (no account with
+  two households, no future-dated pending invitations); migration `20261114020000` applied; version recorded. First
+  parity run 8/9: the Builder's pasted copy had dropped the comments inside `accept_household_invitation`'s body
+  (behavior identical, stored text different). Ryan re-created the function from the exact repo body, removed the CRLF
+  line endings that paste added, and confirmed the body hash `e63a3022…` (repo). Hosted `parity.sql` then matched
+  `parity.expected.txt` **9/9** (constraints 177, functions 10, migrations 19, table_grants 210). Lesson recorded in the
+  procedure: paste migration files unedited and re-check line endings right before parity. No row data was read or
+  changed. Next: Work mode QA Q23–Q26 plus auth regressions on the Preview.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -347,3 +401,15 @@
   not essential. This follows the question wording, but a fixed bill can be discretionary and some variable spending
   essential. Add an explanation and a correction step (or mark them provisional until confirmed), with tests showing
   how a changed classification affects required outflow.
+- LOW (FFH-P05 re-review): `app/setup/page.tsx` treats a failed record-count lookup the same as "household already has
+  records" and shows the "Setup didn't add anything" notice. Setup stays safely unavailable, but the message is
+  misleading. Split the branches and show a fixed "We couldn't check your household details. Please try again."
+- LOW (FFH-P06 re-review N01): `app/onboarding/actions.ts` (household create) redirects with the raw
+  `householdError.message`. If another invitation is accepted between the precheck and the insert, the database
+  correctly refuses the second household, but the unique-constraint text can appear in the URL/page. Map the
+  uniqueness error to a fixed "You already belong to a household" notice and never show raw database messages
+  (the same applies to the `profileError` redirect beside it). Not a bypass of the one-household rule.
+- LOW (FFH-P06 re-review N02): `.ai/HANDOFF.md` described `02ebd6e` and the pending fingerprint work after the
+  remediation had merged. Fixed in the hosted-migration procedure PR (handoff now at `eceacfd`).
+- LOW (dependency hygiene, FFH-P06 re-review note): `npm audit` reports eight moderate advisories; the `fast` job's
+  high-severity threshold passes. Review and upgrade in a separate dependency PR.

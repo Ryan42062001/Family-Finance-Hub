@@ -1,11 +1,11 @@
 # Current phase
 
-FFH-P05 — Simple mode with guided setup
+FFH-P06 — Household invitations
 
 State: BUILDING
-Risk: HIGH (a schema migration on the self-scoped profiles table, and a guided setup that writes household data)
+Risk: HIGH (adds people to a household: membership, roles and RLS)
 Owner: Ryan
-Phase branch / PR: `phase/ffh-p05-simple-mode` → `main`
+Phase branch / PR: `phase/ffh-p06-household-invitations` → `main`
 
 Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
 approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
@@ -13,36 +13,44 @@ not authorized by anything else in this phase.
 
 ## Goal
 
-Make the app easy for someone who wants a plan without the detail (Ryan's friend): a per-user **Simple mode** switch
-and a short guided setup that goes straight to the money plan. Detailed mode stays exactly as it is.
+Let a household owner invite another person (for example a spouse or partner) to join their household, using the
+existing owner / member / viewer roles, so a family can plan together without sharing one login.
 
-## Scope (roadmap item 3)
+## Scope (roadmap item 4)
 
-- **Simple mode switch, stored per user** (Ryan, 2026-11-13): a `simple_mode` column on `profiles`, off by default.
-  Each signed-in person turns their own view on or off; it never changes what anyone else in the household sees.
-  `profiles` is already self-scoped by RLS (select/insert/update only your own row), so no new policy is needed. The
-  migration is in a reviewed PR, and the RLS matrix gains checks that nobody can read or change another user's
-  setting.
-- With Simple mode on, the app hides Scenario Lab, the HSA/SIMPLE IRA pages, chart details and most planning tools.
-  Your plan and the essentials stay. Hiding is presentation only: the pages and the data are unchanged.
-- **Guided setup, offered to every new household** (Ryan, 2026-11-13), with a way to skip it: about five questions (take-home pay, fixed bills, other spending, debts, savings) that saves
-  through the existing validated profile actions, then opens Your plan. No new financial policy: the plan still
-  comes only from the Money Priority Engine.
-- **Install on the phone home screen**: a web app manifest and icons.
+- An owner creates an invitation for a chosen role (member or viewer) and shares it; the invited person signs in or
+  signs up and accepts it, and only then becomes a household member.
+- Owners can see pending invitations and cancel them, and can change or remove a member's role.
+- Membership changes are migrations with RLS in a reviewed PR, covered by new RLS matrix probes (nobody can join a
+  household without a valid invitation; invitations cannot be read, used or forged across households; viewers stay
+  read-only).
 - QA checklist and the automated isolation check updated for the new screens.
 
 ## Decisions (Ryan, 2026-11-13)
 
-- Simple mode is per user, not per household, so each person sees the view they want.
-- The guided setup is offered to every new household (it can be skipped).
+- Invitations are a link the owner copies and sends themselves (no app email yet).
+- An invitation is valid for 7 days and can be used once.
+- Only the household owner can invite, change roles or remove people. The owner can never be demoted or removed.
+
+## Design
+
+- `household_invitations` (owner-only RLS): role (member or viewer), optional label (for example "Jordan"), a SHA-256
+  hash of the secret link token (the token itself is never stored), 7-day expiry, and who accepted. Owners can create,
+  see and cancel (delete) their household's pending invitations.
+- Membership changes go only through narrow SECURITY DEFINER functions (`search_path = ''`, EXECUTE for authenticated
+  only): accept an invitation (valid, unused, unexpired; locked so it is used once; the person must not already belong
+  to a household), set a member's role (owner only; never the owner), remove a member (owner only; never the owner).
+  Direct writes to `household_members` stay forbidden.
+- No sign-in changes: an invite link opened while signed out is remembered in a short-lived httpOnly cookie, and the
+  "create your household" screen then offers to join instead.
 
 ## Out of scope / boundaries
 
-- No change to the money calculations or the engine's recommendations.
-- Synthetic data only; no real household or financial data.
+- No change to money calculations. Synthetic data only.
 
 ## Done when
 
-- CI green (`fast`, `rls-matrix`, `e2e-isolation`); `npm run verify` passes; the RLS matrix covers the new setting.
-- Work mode QA on the Preview, and independent review by a different model (ChatGPT), because this phase is HIGH risk.
+- CI green (`fast`, `rls-matrix`, `e2e-isolation`); `npm run verify` passes; the RLS matrix covers invitations.
+- Work mode QA on the Preview for the new screens, and independent review by a different model (ChatGPT).
+- Any hosted migration applied with Ryan's authorization and hosted parity matching.
 - Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.

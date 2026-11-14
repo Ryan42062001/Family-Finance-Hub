@@ -9,7 +9,7 @@ DECLARE
     '20260829223716','20260829223935','20260829234300',
     '20260829234446','20260831235822','20260901020220',
     '20260902190000','20260903134156','20260909005000',
-    '20260909033000','20260911170000','20261113210000','20261113230000'
+    '20260909033000','20260911170000','20261113210000','20261113230000','20261114010000','20261114020000'
   ];
   financial text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
@@ -29,9 +29,9 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='supabase_migrations') THEN
     RAISE EXCEPTION 'PREFLIGHT_MIGRATION_TRACKING_ABSENT';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 17 OR
-     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 17 THEN
-    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_17_CANONICAL_MIGRATIONS';
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 19 OR
+     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_19_CANONICAL_MIGRATIONS';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') OR
      to_regclass('auth.users') IS NULL OR to_regprocedure('auth.uid()') IS NULL THEN
@@ -80,6 +80,28 @@ BEGIN
       AND tgname='household_creator_membership_trigger' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'PREFLIGHT_HOUSEHOLD_TRIGGER_MISSING';
   END IF;
+  -- One account = one household enforced for every INSERT path, including
+  -- concurrent invitation accepts and owner-creation trigger.
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint c
+      JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=ANY(c.conkey)
+      WHERE c.conrelid='public.household_members'::regclass
+        AND c.conname='household_members_one_household_per_user'
+        AND c.contype='u' AND a.attname='user_id'
+        AND array_length(c.conkey,1)=1) THEN
+    RAISE EXCEPTION 'PREFLIGHT_ONE_HOUSEHOLD_UNIQUE_CONSTRAINT_MISSING';
+  END IF;
+  -- Only four invitation input columns are client writable; server stamps
+  -- timestamps and protected fields even for an authorized owner.
+  FOREACH t IN ARRAY ARRAY['household_id','role','label','token_hash'] LOOP
+    IF NOT has_column_privilege('authenticated','public.household_invitations',t,'INSERT') THEN
+      RAISE EXCEPTION 'PREFLIGHT_INVITATION_INPUT_PRIVILEGE_MISSING';
+    END IF;
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['id','created_by','created_at','expires_at','accepted_at','accepted_by'] LOOP
+    IF has_column_privilege('authenticated','public.household_invitations',t,'INSERT') THEN
+      RAISE EXCEPTION 'PREFLIGHT_INVITATION_PROTECTED_COLUMN_WRITABLE';
+    END IF;
+  END LOOP;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint
      WHERE conrelid='public.households'::regclass AND conname='households_created_by_fkey') THEN
     RAISE EXCEPTION 'PREFLIGHT_CREATOR_FK_MISSING';
@@ -102,7 +124,7 @@ BEGIN
      EXISTS(SELECT 1 FROM pg_policies WHERE tablename='household_members' AND cmd='DELETE') THEN
     RAISE EXCEPTION 'PREFLIGHT_UNEXPECTED_HOUSEHOLD_DELETE_POLICY';
   END IF;
-  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=17 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3';
+  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=19 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3';
 END
 $pre$;
 
@@ -130,4 +152,4 @@ BEGIN
 END
 $roles$;
 ROLLBACK;
-\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=17 ROLES=2 NO_FIXTURES=1
+\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1
