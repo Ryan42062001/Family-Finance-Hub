@@ -10,15 +10,6 @@ import { goalsNotice } from "@/lib/goals/notices";
 export const dynamic = "force-dynamic";
 type PageProps = { searchParams: Promise<{ notice?: string | string[] }> };
 
-// The current UTC month and the 23 before it, newest first (C1: never a future month).
-function recentMonths(count = 24): string[] {
-  const [year, month] = currentUtcMonth().split("-").map(Number);
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(Date.UTC(year, month - 1 - index, 1));
-    return date.toISOString().slice(0, 7);
-  });
-}
-
 const BALANCE_HINT = { account: "Cash account", retirement_account: "Retirement account", debt: "Debt (amount owed)" } as const;
 
 // FFH-P07: a new monthly check-in. Balances are pre-filled from the Financial profile as a
@@ -36,8 +27,10 @@ export default async function NewCheckInPage({ searchParams }: PageProps) {
   if (accounts.error || retirement.error || debts.error || existing.error) {
     return <main className="page-shell"><section className="panel"><h1>Monthly check-in</h1><p className="form-error" role="status">We couldn&apos;t load your Financial profile. Please try again.</p><Link className="secondary-button" href="/goals">Back to goals</Link></section></main>;
   }
+  // C1 (review F05): any past month or this month (UTC); no rolling window, no minimum year.
+  const thisMonth = currentUtcMonth();
   const taken = new Set((existing.data ?? []).map((row) => String(row.check_in_month).slice(0, 7)));
-  const months = recentMonths().filter((month) => !taken.has(month));
+  const takenList = [...taken].sort().reverse();
   const items = [
     ...(accounts.data ?? []).map((row) => ({ type: "account" as const, id: row.id, name: row.name, value: row.balance })),
     ...(retirement.data ?? []).map((row) => ({ type: "retirement_account" as const, id: row.id, name: row.name, value: row.balance })),
@@ -50,10 +43,10 @@ export default async function NewCheckInPage({ searchParams }: PageProps) {
         <p className="eyebrow">Monthly check-in</p>
         <h1>How did this month go?</h1>
         {notice ? <p className={notice.ok ? "form-success" : "form-error"} role="status">{notice.text}</p> : null}
-        {months.length === 0 ? <><p className="muted">Every month in the last two years already has a check-in. Open one from the list to change it.</p><Link className="secondary-button" href="/goals">Back to goals</Link></> :
         <form className="data-form friendly-form check-in-form" action={createCheckIn}>
           <label className="field"><span className="field-label">Month</span>
-            <select name="month" required defaultValue={months[0]}>{months.map((month) => <option key={month} value={month}>{monthLabel(month)}</option>)}</select>
+            <input type="month" name="month" required max={thisMonth} defaultValue={taken.has(thisMonth) ? "" : thisMonth} />
+            <small className="field-hint">This month or any earlier month.{takenList.length ? ` Already checked in: ${takenList.map(monthLabel).join(", ")}.` : ""}</small>
           </label>
           <Choice name="followed_plan" legend="Did you follow this month's plan?" variant="pills" options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
           <fieldset className="check-in-balances">
@@ -65,7 +58,7 @@ export default async function NewCheckInPage({ searchParams }: PageProps) {
           <p className="muted">We&apos;ll also save your planned monthly cash flow from your Financial profile as it is right now. It won&apos;t change later.</p>
           <button type="submit">Save check-in</button>
           <Link className="secondary-button" href="/goals">Cancel</Link>
-        </form>}
+        </form>
       </section>
     </main>
   );

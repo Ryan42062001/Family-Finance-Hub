@@ -467,3 +467,26 @@
   (replaces the one trigger function body). Already-saved check-ins are not recalculated. Hosted apply needs Ryan.
 - **FFH-P07 C6 hosted migration applied (Ryan, 2026-11-14).** `20261114110000` applied; trigger body matches the
   repository exactly; hosted parity **9/9** (migrations 21).
+
+## 2026-11-14 — FFH-P07 independent review (ChatGPT) at `d64b2439`: REVIEW RESULT FAIL, remediated
+
+- **F01 HIGH (fixed):** goal monthly amount used float half-up (`Math.round((x + EPSILON) * 100)`), so exact half-cent
+  ties rounded down ($4.27 / 2 gave $2.13, not $2.14). `lib/calculations/goal-tracker.ts` now computes in BigInt
+  integer cents with exact half-up division; regression tests for $4.27, $4.35, $4.77, $1.01, $0.01 and the maximum.
+- **F03 MEDIUM (fixed):** check-in net worth summed JS-number cents and lost cents beyond 2^53. Now BigInt cents end
+  to end, formatted from cents (`formatCents`); tests with 100–300 maximum balances and negative balances.
+- **F04 MEDIUM (fixed):** progress used `floor(percent + 1e-9)`, which could round up (32.999999999% → 33%). Now
+  `floor(saved_cents * 100 / target_cents)` in BigInt; tests one cent below boundaries.
+- **F05 LOW (fixed):** the check-in month was limited to the last 24 months and year ≥ 2000. Now any past month or
+  this month (UTC), via a month input with a `max`; the one-per-month rule is unchanged.
+- **F02 MEDIUM (backlog, not fixed in P07):** owners/members can write check-in rows directly through the table API
+  (RLS-scoped to their own household), so the database does not enforce that a check-in has exactly one line per
+  profile item, and direct line edits don't update the parent's `updated_by`/`updated_at`; `create_monthly_check_in`
+  also accepts an empty balance list (shown as a complete $0.00 net worth). No cross-household or viewer access.
+  Suggested fix (own reviewed change with a hosted migration): revoke direct INSERT/UPDATE/DELETE on the two check-in
+  tables, route all writes through the functions, have `create_monthly_check_in` build the line set from the profile
+  server-side (amounts keyed by profile item id), and bump the parent audit fields on every line change; add tests for
+  omitted, duplicated and deleted lines.
+- **Engine backlog (LOW, not changed: P07 forbids Money Priority Engine changes):** `money-priority-goal-intelligence.ts`
+  `roundMoney` has the same float tie flaw as F01 (`requiredMonthlyFunding` can be one cent low on exact half-cent
+  ties). Fix in its own reviewed engine change with integer-cent rounding.

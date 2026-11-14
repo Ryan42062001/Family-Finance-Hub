@@ -88,18 +88,60 @@ function engineResult(target: number, saved: number, targetDate: string | null, 
   return evaluateGoalIntelligence(buildMoneyPrioritySnapshot(raw), asOf)[0];
 }
 
-test("parity: months left and monthly amount match the engine's goal arithmetic", () => {
+test("parity: months and remaining match the engine; monthly amount is exact half-up", () => {
   const asOfs = ["2026-11-14", "2026-01-31", "2028-02-29", "2026-12-01"];
   const dates = [null, "2026-11-14", "2026-12-01", "2027-01-31", "2027-02-28", "2027-03-01", "2029-06-15", "2025-05-05"];
   const amounts: Array<[number, number]> = [[100, 0], [12000, 2000.5], [0.05, 0], [500, 750], [999.99, 333.33], [1000000, 1]];
   let compared = 0;
+  let engineTieDiffs = 0;
   for (const asOf of asOfs) for (const date of dates) for (const [target, saved] of amounts) {
     const ours = evaluateSavingsGoal({ targetAmount: target, savedAmount: saved, targetDate: date }, asOf);
     const engine = engineResult(target, saved, date, asOf);
     assert.equal(ours.remainingAmount, engine.remainingTargetAmount, `remaining ${asOf} ${date} ${target}/${saved}`);
     assert.equal(ours.monthsLeft, engine.monthsRemaining, `months ${asOf} ${date}`);
-    assert.equal(ours.monthlyNeeded, engine.requiredMonthlyFunding, `monthly ${asOf} ${date} ${target}/${saved}`);
+    const months = engine.monthsRemaining;
+    const remainingCents = Math.round(target * 100) - Math.round(saved * 100);
+    const exact = remainingCents <= 0 ? 0 : months === null || months === 0 ? null
+      : Math.floor((remainingCents * 2 + months) / (months * 2)) / 100;
+    assert.equal(ours.monthlyNeeded, exact, `monthly ${asOf} ${date} ${target}/${saved}`);
+    if (exact !== null && engine.requiredMonthlyFunding !== null && engine.requiredMonthlyFunding !== exact) {
+      engineTieDiffs += 1;
+      assert.ok(Math.abs(engine.requiredMonthlyFunding - exact) <= 0.0100001, "engine differs only by the one-cent tie flaw");
+    }
     compared += 1;
   }
   assert.equal(compared, 4 * 8 * 6);
+  // The grid includes $0.05 / 2 = 0.025, a tie the engine's float rounding gets right, so no difference here;
+  // the F01 tie cases are covered above.
+  assert.equal(engineTieDiffs, 0);
+});
+
+test("F01: exact half-cent ties round up (half-up), never down from float error", () => {
+  const monthly = (target: number, saved = 0, date = "2027-01-14") =>
+    evaluateSavingsGoal({ targetAmount: target, savedAmount: saved, targetDate: date }, TODAY).monthlyNeeded;
+  assert.equal(monthly(4.27), 2.14); // 2.135
+  assert.equal(monthly(4.35), 2.18); // 2.175
+  assert.equal(monthly(4.77), 2.39); // 2.385
+  assert.equal(monthly(1.01), 0.51); // 0.505
+  assert.equal(monthly(0.01), 0.01); // 0.005
+  assert.equal(monthly(999999999999.99, 0, "2027-01-14"), 500000000000); // 499,999,999,999.995
+  assert.equal(monthly(100, 0, "2027-02-14"), 33.33); // 33.333…, below the tie
+  assert.equal(monthly(200, 0, "2027-02-14"), 66.67); // 66.666…, above the tie
+});
+
+test("F04: progress is floored from exact cents, one cent below a boundary never rounds up", () => {
+  const p = (saved: number, target: number) => evaluateSavingsGoal({ targetAmount: target, savedAmount: saved, targetDate: null }, TODAY).progressPercent;
+  assert.equal(p(329999999.99, 1000000000), 32);
+  assert.equal(p(330000000, 1000000000), 33);
+  assert.equal(p(0.32, 1), 32);
+  assert.equal(p(0.33, 1), 33);
+  assert.equal(p(989999999999.99, 999999999999.99), 98);
+  for (let cents = 1; cents < 1000; cents += 1) {
+    assert.equal(p(cents / 100, 10), Math.floor(cents / 10), `saved ${cents / 100} of 10`);
+  }
+});
+
+test("sub-cent amounts are refused", () => {
+  assert.throws(() => evaluateSavingsGoal({ targetAmount: 10.005, savedAmount: 0, targetDate: null }, TODAY));
+  assert.throws(() => evaluateSavingsGoal({ targetAmount: 10, savedAmount: 0.001, targetDate: null }, TODAY));
 });
