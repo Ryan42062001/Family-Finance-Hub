@@ -20,10 +20,11 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   `lib/calculations/check-in-snapshot.ts`, `/goals`, `/goals/check-in`, `/goals/check-in/[id]`, QA rows Q27–Q31,
   `/goals` added to the e2e isolation pages. CI green at `9571ac7` (run 43559892101: `fast` pass, `rls-matrix`
   1208/1208, parity MATCH with the new fingerprint in `scripts/rls-local/parity.expected.txt`).
-- **Hosted migration NOT applied (needs Ryan).** Preview and Production share one Supabase project, so `/goals` on the
-  Preview shows "We couldn't load your goals" until Ryan authorizes applying
-  `20261114100000_ffh_p07_goals_and_check_ins.sql` (additive: 3 new tables, 2 functions, 2 trigger functions; no change
-  to existing tables) and hosted parity is re-checked against the new fingerprint.
+- **Hosted migration APPLIED (Ryan, 2026-11-14):** `20261114100000` applied, CRLF fixed, hosted parity **9/9**
+  (migrations 20). Procedure and result: `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. Preview domain pointed at the
+  P07 phase branch by Ryan.
+- **Next:** `e2e-isolation` re-run on the phase head; Work mode QA Q27–Q31 + regressions; then the independent
+  different-model HIGH-risk review at the frozen head. Open Owner question: C6 availability rule (dashboard rule built).
 - **CI at `b3c0dc3` (run 43557846653):** `fast` and `rls-matrix` passed; `e2e-isolation` BLOCKED (exit 3): the fixed
   Preview domain does not serve the P07 branch. Ryan: point the Preview domain at `phase/ffh-p07-goals-and-check-ins`
   and redeploy, then re-run the job.

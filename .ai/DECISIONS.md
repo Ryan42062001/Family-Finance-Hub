@@ -457,3 +457,7 @@
   pre-filled from the profile with copied names; check-ins never change the profile; blank = not entered and makes
   net worth "Incomplete"; planned cash flow frozen at first save; required Yes/No; owner/member edit/delete, viewer
   read-only; history list without charts or change figures). Hosted migrations and Production remain separate approvals.
+- **FFH-P07 hosted migration applied (Ryan, 2026-11-14).** `20261114100000_ffh_p07_goals_and_check_ins` applied to
+  hosted Supabase with authorization via `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. The SQL Editor stored CRLF in
+  the five function bodies; the documented one-time fix restored the exact repository bodies. Hosted parity **9/9**
+  (migrations 20). Additive only; Production code does not use the new tables until the P07 release.
