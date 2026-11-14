@@ -189,5 +189,19 @@ values ('20261114110000', 'ffh_p07_cash_flow_availability');
 
 ### 2.5 Hosted parity (authorize: "run hosted parity 2")
 
-Run `scripts/rls-local/parity.sql` from the phase branch; all 9 rows must equal `scripts/rls-local/parity.expected.txt`
-on the phase branch (`migrations|21`). Any mismatch: STOP and share the mismatching rows.
+Run `scripts/rls-local/parity.sql` from the phase branch. All 9 rows must match exactly (only `functions` and
+`migrations` differ from part 1):
+
+```
+columns|257|e4de6fc819eaaf171e21f72919569848
+constraints|196|b286c0f850718815f957143c6fd11cbf
+function_grants|30|02defe5787f4b590f4f4b26c86a69249
+functions|15|f09b98b85c628efd66cbf532256a64b7
+migrations|21|ec9ec6cf3c29d2a7e71e5813d7559a2d
+policies|74|c50ee01053a71b1fa7a23bc2aa5142b8
+rls|20|51d68635fe4a6ccbb613d6215363fe43
+table_grants|234|ba748e33bdbc3a76ef44d4f918559ba1
+triggers|4|61c4012ae44b99794d82609f1cb36e53
+```
+
+Any mismatch: STOP and share the mismatching rows.
