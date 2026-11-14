@@ -422,3 +422,29 @@
   remediation had merged. Fixed in the hosted-migration procedure PR (handoff now at `eceacfd`).
 - LOW (dependency hygiene, FFH-P06 re-review note): `npm audit` reports eight moderate advisories; the `fast` job's
   high-severity threshold passes. Review and upgrade in a separate dependency PR.
+
+## 2026-11-14 — FFH-P07 scope approved by Ryan (Owner decision)
+
+- **FFH-P06 is CLOSED / RELEASED.** PR #143 merged into protected `main` as
+  `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c` from reviewed phase head
+  `543e61fe43aba6157ada8a357df2a7866348f0d5`. Ryan reported Vercel Production Ready and
+  Production smoke **12/12**; existing GitHub post-merge CI evidence remains authoritative for CI.
+- **FFH-P07 approved scope:** a **separate** household savings-goals tracker containing name, target amount,
+  current saved amount, date and calculated monthly savings requirement; and a **monthly financial check-in**
+  with manually entered balances, a yes/no indicating whether that month's plan was followed, and historical
+  net-worth/cash-flow snapshots.
+- **Goals do NOT alter the Money Priority Engine** or create/reorder financial plan steps in P07. Any such
+  integration needs a separate Owner financial-policy decision.
+- **Permission decision:** household **owners and members can create/edit** goals and check-ins; **viewers are
+  read-only**. RLS and server-side enforcement are required.
+- **Not part of P07:** Can We Afford It, irregular expenses/monthly set-asides, a per-paycheck plan view,
+  and the 30-day in-app balance reminder. Carry them forward as future roadmap candidates.
+- **Unspecified financial semantics remain explicitly unapproved:** if no canonical existing calculation
+  exists, the Builder must propose date-boundary/month-counting, rounding, partial/late goals, net-worth and
+  cash-flow snapshot sources and missing-data behavior for Ryan's approval **before implementing policy**.
+  Scope approval is not permission to invent a recommendation or change money calculations.
+- **Execution:** P07 remains **PLANNED / OWNER SCOPE APPROVED**, with one Claude Code Primary Builder.
+  Phase implementation, QA, review, and hosted migrations still follow `docs/WORKFLOW.md`. This approval
+  does not authorize changing hosted Supabase, merging into `main`, or a Production release.
+- **Documentation note:** `main` retains a P06 `.ai/CURRENT_PHASE.md` until a separately approved release;
+  the active phase-branch documents are updated now. Do not merge to Production for documentation tidiness.

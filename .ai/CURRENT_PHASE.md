@@ -2,43 +2,78 @@
 
 FFH-P07 — Goals and monthly check-in
 
-State: PLANNED (decisions from Ryan needed before building)
-Risk: HIGH (new money calculations and new household data, with RLS)
+State: PLANNED — **OWNER SCOPE APPROVED** (2026-11-14); Builder design and implementation not started
+Risk: HIGH (goal savings calculations and new household financial data/RLS)
 Owner: Ryan
-Phase branch / PR: `phase/ffh-p07-goals-and-check-ins` → `main`
+Phase branch / future phase PR: `phase/ffh-p07-goals-and-check-ins` → `main`
+Production baseline: FFH-P06 released via PR #143, merge `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c`.
 
-Merging this phase into `main` is a Production release (Vercel auto-deploys `main`); it needs Ryan's explicit release
-approval, the release checklist in `docs/WORKFLOW.md`, and a Production smoke test right after. Production deployment is
-not authorized by anything else in this phase.
+Merging this phase into `main` is a **separate Production release**, requiring Ryan's explicit exact-head authorization,
+the release checklist in `docs/WORKFLOW.md`, and a Production smoke test. Approval of this P07 scope does **not**
+authorize a hosted migration, changes to the Money Priority Engine, or any Production action.
 
 ## Goal
 
-Help a household work toward named goals and keep the plan current: goals with target dates and the monthly amount
-needed, and a monthly check-in with history of net worth and cash flow.
+Help households track named savings goals and make consistent monthly financial check-ins without changing the
+existing Money Priority Engine or asserting new financial policy.
 
-## Scope (roadmap item 5)
+## Owner-approved FFH-P07 product scope (2026-11-14)
 
-- Goals: name, target amount, target date, amount saved so far; the monthly amount needed to reach it on time.
-- Monthly check-in ("did you do this month's plan?") that records a snapshot, with history of net worth and cash flow.
-- Also listed under item 5, to be split into later phases if the scope is too large for one reviewed phase:
-  "Can we afford it?", irregular costs as a monthly set-aside, a per-paycheck view, and an in-app balance reminder
-  after 30 days.
+### 1. Goals tracker
 
-## Decisions needed from Ryan before building (no financial policy is invented)
+- Household goals have a **name**, **target amount**, **target date**, and **amount saved so far**.
+- Show a **calculated monthly savings requirement** to reach the target by its date, with clear explanation of the
+  inputs, handling of missing/expired dates, and honest unavailable states.
+- **Goals remain a separate tracker** in P07. Do **not** add, rank, deduct, or recommend goal amounts as new steps
+  in the Money Priority Engine. Any future integration needs separate Ryan financial-policy approval.
 
-- Which parts of item 5 belong in FFH-P07 and which move to a later phase.
-- How goals relate to the money plan (for example, whether a goal's monthly amount appears as a plan step, and its
-  order relative to the engine's existing steps), or whether goals stay a separate tracker for now.
-- What a check-in records (balances entered by hand, a yes/no on the month's plan, or both) and who in the household
-  may do it (owner and member, not viewer, by default).
+### 2. Monthly financial check-in and history
 
-## Out of scope / boundaries
+- A monthly check-in records **manually entered balances** and **whether the household followed that month's plan**
+  (yes/no).
+- Preserve **historical net-worth and cash-flow snapshots** so previous check-ins can be viewed later.
+- Keep saved historical snapshots distinct from current live balances or recalculated plans; no implicit rewriting
+  of historical records when current financial details change.
+- Builder must document what data populates each snapshot, and how an unknown/unavailable value is represented,
+  before implementing a new financial calculation. Do not invent missing amounts or interpretations.
 
-- No change to existing money-engine calculations unless Ryan decides it. Synthetic data only.
+### 3. Household permissions and privacy
+
+- **Owner and member** may create/update goals and check-ins.
+- **Viewer** is read-only; cannot edit, submit or delete financial records.
+- All reads/writes must be scoped to the signed-in household. Enforce with reviewed migrations/RLS and server
+  authorization, not presentation-only buttons. Preserve the one-household-per-user invariant.
+
+## Explicitly deferred beyond FFH-P07
+
+- **“Can we afford it?”** big-purchase scenario.
+- **Irregular expenses** and automatic monthly set-asides.
+- **Per-paycheck** planning/view.
+- **30-day in-app balance update reminders**.
+
+These remain roadmap candidates for separately scoped future phases; do not quietly implement them as part of P07.
+
+## Builder implementation boundaries
+
+- Start with a bounded data model, invariants, RLS matrix additions, synthetic fixtures and reproducible tests,
+  then implement the goals and check-in UI. One active Builder on the phase implementation branch.
+- Do not change existing Money Priority Engine calculations or priorities. If a monthly-required amount,
+  rounding/cadence rule, date-boundary convention, net-worth/cash-flow snapshot definition or missing-value
+  treatment is not already defined by a verified reusable source, **propose the specific rule for Ryan's
+  approval before implementing it**. Product scope approval alone does not authorize invented financial policy.
+- Use synthetic-only data for code, testing, Preview QA and issues. No real account or household data in
+  repository/CI/evidence.
+- Any hosted schema or configuration change requires **Ryan's explicit per-change authorization**, separate from
+  this scope approval; hosted parity must be verified.
+- No application changes, provider changes or Production release have been authorized by this documentation sync.
 
 ## Done when
 
-- CI green (`fast`, `rls-matrix`, `e2e-isolation`); `npm run verify` passes; the RLS matrix covers any new tables.
-- Work mode QA on the Preview for the new screens, and independent review by a different model (ChatGPT).
-- Any hosted migration applied with Ryan's authorization and hosted parity matching.
-- Ryan approves the release; the Builder merges into `main`, then the Production smoke test passes 12/12.
+- Real tests and exact-head CI green (`fast`, `rls-matrix`, `e2e-isolation` where applicable);
+  `npm run verify` passes, and new owner/member/viewer RLS checks are proven against disposable data.
+- Browser QA in ChatGPT Work Cloud Browser on approved Preview using synthetic TestA/TestB, plus relevant
+  authentication/household regressions.
+- Fresh independent **different-model** HIGH-risk audit at the exact frozen application code SHA.
+- Hosted migrations only after Ryan authorizes each one; required hosted parity matches documented fingerprint.
+- Ryan approves the exact release candidate for merge into `main` as a separate Production decision, and
+  post-deployment Production smoke completes **12/12**.
