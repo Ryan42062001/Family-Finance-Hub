@@ -353,6 +353,16 @@
   applied; the step-by-step procedure, each step separately authorized by Ryan, is
   `docs/workflow/FFH-P06_HOSTED_MIGRATION.md`. Hosted parity is unverified until its step 5 shows 9/9.
 
+- **FFH-P06 hosted migration applied and hosted parity verified (Ryan, 2026-11-14).** Ryan authorized and ran each
+  step of `docs/workflow/FFH-P06_HOSTED_MIGRATION.md`: read-only precheck `0 | 0 | false | false | 18` (no account with
+  two households, no future-dated pending invitations); migration `20261114020000` applied; version recorded. First
+  parity run 8/9: the Builder's pasted copy had dropped the comments inside `accept_household_invitation`'s body
+  (behavior identical, stored text different). Ryan re-created the function from the exact repo body, removed the CRLF
+  line endings that paste added, and confirmed the body hash `e63a3022…` (repo). Hosted `parity.sql` then matched
+  `parity.expected.txt` **9/9** (constraints 177, functions 10, migrations 19, table_grants 210). Lesson recorded in the
+  procedure: paste migration files unedited and re-check line endings right before parity. No row data was read or
+  changed. Next: Work mode QA Q23–Q26 plus auth regressions on the Preview.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
