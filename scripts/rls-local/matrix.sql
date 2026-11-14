@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 19 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 22 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -37,7 +37,8 @@ BEGIN
     'goals','household_people','insurance_exposures',
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
-    'household_hsa_legal_spouse_authorities'
+    'household_hsa_legal_spouse_authorities',
+    'savings_goals'
   ] LOOP
     IF NOT EXISTS (
       SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
@@ -94,6 +95,7 @@ CREATE FUNCTION pg_temp.ffh_fixture_sql(
 ) RETURNS text LANGUAGE plpgsql AS $fixture$
 DECLARE nm text := 'ffh-local-' || variant::text;
         yr integer := 2026 + variant;
+        parent uuid;
 BEGIN
   CASE tab
   WHEN 'accounts' THEN
@@ -122,6 +124,17 @@ BEGIN
     RETURN format('INSERT INTO public.household_hsa_married_allocations(household_id,tax_year,person_one_id,person_two_id,person_one_ordinary_amount,person_two_ordinary_amount) VALUES(%L,%s,%L,%L,1,1) RETURNING id',hh,yr,person1,person2);
   WHEN 'household_hsa_legal_spouse_authorities' THEN
     RETURN format('INSERT INTO public.household_hsa_legal_spouse_authorities(household_id,tax_year,person_one_id,person_two_id) VALUES(%L,%s,%L,%L) RETURNING id',hh,yr,person1,person2);
+  WHEN 'savings_goals' THEN
+    RETURN format('INSERT INTO public.savings_goals(household_id,name,target_amount) VALUES(%L,%L,1) RETURNING id',hh,nm);
+  WHEN 'monthly_check_ins' THEN
+    -- 2025-02 .. 2025-12 by variant; 2025-01 is the balance-line parent below.
+    RETURN format('INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan) VALUES(%L,%L,true) RETURNING id',hh,make_date(2025,variant+2,1));
+  WHEN 'monthly_check_in_balances' THEN
+    -- Parent looked up here, as the privileged fixture builder, never by the probed role.
+    SELECT ci.id INTO parent FROM public.monthly_check_ins ci
+    WHERE ci.household_id=hh AND ci.check_in_month=DATE '2025-01-01';
+    IF parent IS NULL THEN RAISE EXCEPTION 'MATRIX_CHECK_IN_PARENT_MISSING'; END IF;
+    RETURN format('INSERT INTO public.monthly_check_in_balances(household_id,check_in_id,item_type,name,amount) VALUES(%L,%L,%L,%L,1) RETURNING id',hh,parent,'account',nm);
   ELSE RAISE EXCEPTION 'MATRIX_UNRECOGNIZED_FINANCIAL_FAMILY';
   END CASE;
 END
@@ -183,6 +196,8 @@ BEGIN
     ELSIF mode='FK' AND error_state='23503'
        AND error_constraint=wanted_constraint THEN
       denied := true;
+    ELSIF mode='INVALID' AND error_state IN ('22023','23514') THEN
+      denied := true;
     ELSIF mode='IMMUTABLE' AND error_state='42501'
        AND error_message ILIKE '%created_by is immutable%' THEN
       denied := true;
@@ -196,7 +211,7 @@ BEGIN
     IF denied OR observed IS DISTINCT FROM expected THEN
       RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',probe_category,probe_family;
     END IF;
-  ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE','UNIQUE') THEN
+  ELSIF mode IN ('RLS','GRANT','ANON_INSERT','FK','IMMUTABLE','UNIQUE','INVALID') THEN
     IF NOT denied THEN
       RAISE EXCEPTION 'MATRIX_DENIAL_NOT_OBSERVED category=% family=%',probe_category,probe_family;
     END IF;
@@ -312,12 +327,20 @@ DECLARE
   principal record;
   checked integer;
   collision_constraint text;
+  -- FFH-P07 check-in fixtures (household C).
+  ci_oct uuid; ci_aug uuid; line_savings uuid; line_debt uuid; line_aug uuid;
+  ci_a uuid; ci_b uuid; line_a uuid; line_b uuid; c_account uuid; c_debt uuid; full_set jsonb;
+  ci_a_digest text; ci_b_digest text; line_a_digest text; line_b_digest text;
+  g_owner uuid := gen_random_uuid();
+  g uuid := gen_random_uuid();
+  next_month date := (date_trunc('month', (now() at time zone 'utc')) + interval '1 month')::date;
   family_names text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
     'goals','household_people','insurance_exposures',
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
-    'household_hsa_legal_spouse_authorities'
+    'household_hsa_legal_spouse_authorities',
+    'savings_goals'
   ];
 BEGIN
   -- All auth.users rows have null email/password. They exist ONLY inside the
@@ -403,7 +426,11 @@ BEGIN
   EXECUTE pg_temp.ffh_fixture_sql('person_hsa_tax_year_profiles',b,pb1,pb2,0) INTO row_id;
   INSERT INTO pg_temp.ffh_rls_baselines(family,scope,row_id) VALUES('person_hsa_tax_year_profiles','B',row_id);
 
-  -- Full CRUD positive controls (13 families x owner A, member A, owner B).
+  -- FFH-P07: one parent check-in per household (2025-01) for balance-line fixtures.
+  INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan) VALUES
+    (a,DATE '2025-01-01',true),(b,DATE '2025-01-01',false);
+
+  -- Full CRUD positive controls (14 families x owner A, member A, owner B).
   -- Parents exist; no conflicting one-row preferences/allocation yet.
   FOREACH family IN ARRAY family_names LOOP
     PERFORM pg_temp.ffh_positive(a_owner,a,family,pg_temp.ffh_fixture_sql(family,a,pa1,pa2,1));
@@ -435,7 +462,7 @@ BEGIN
       WHERE f.family=matrix_block.family AND f.scope=scope_name;
     END LOOP;
   END LOOP;
-  IF (SELECT count(*) FROM pg_temp.ffh_rls_baselines) <> 26 THEN
+  IF (SELECT count(*) FROM pg_temp.ffh_rls_baselines) <> 28 THEN
     RAISE EXCEPTION 'MATRIX_INCOMPLETE_FINANCIAL_BASELINE';
   END IF;
 
@@ -454,7 +481,7 @@ BEGIN
     hh := CASE WHEN target_scope='A' THEN a ELSE b END;
     p1 := CASE WHEN target_scope='A' THEN pa1 ELSE pb1 END;
     p2 := CASE WHEN target_scope='A' THEN pa2 ELSE pb2 END;
-    FOR checked IN 1..13 LOOP
+    FOR checked IN 1..array_length(family_names,1) LOOP
       family := family_names[checked];
       pk := CASE WHEN family='household_financial_preferences' THEN 'household_id' ELSE 'id' END;
       SELECT f.row_id,f.digest INTO baseline_id,base_digest
@@ -996,8 +1023,283 @@ BEGIN
   INSERT INTO pg_temp.ffh_rls_receipts(category,family)
     VALUES('membership-revocation','household_members');
 
+  -- FFH-P07: goals and monthly check-ins (docs/FFH-P07_DESIGN.md). savings_goals runs in the
+  -- generic family loops. The two check-in tables are read-only for clients (review F02): only
+  -- the two check-in functions write them, and owners/members may delete a whole check-in.
+  IF NOT has_table_privilege('authenticated','public.monthly_check_ins','SELECT') OR
+     NOT has_table_privilege('authenticated','public.monthly_check_ins','DELETE') OR
+     has_table_privilege('authenticated','public.monthly_check_ins','INSERT') OR
+     has_table_privilege('authenticated','public.monthly_check_ins','UPDATE') OR
+     NOT has_table_privilege('authenticated','public.monthly_check_in_balances','SELECT') OR
+     has_table_privilege('authenticated','public.monthly_check_in_balances','INSERT') OR
+     has_table_privilege('authenticated','public.monthly_check_in_balances','UPDATE') OR
+     has_table_privilege('authenticated','public.monthly_check_in_balances','DELETE') OR
+     has_table_privilege('anon','public.monthly_check_ins','SELECT') OR
+     has_table_privilege('anon','public.monthly_check_in_balances','SELECT') OR
+     NOT (SELECT prosecdef FROM pg_proc WHERE oid='public.create_monthly_check_in(date,boolean,jsonb)'::regprocedure) OR
+     NOT (SELECT prosecdef FROM pg_proc WHERE oid='public.update_monthly_check_in(uuid,boolean,jsonb)'::regprocedure) THEN
+    RAISE EXCEPTION 'MATRIX_P07_CHECK_IN_GRANTS_WRONG';
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p07-check-in-grants','monthly_check_ins');
+  -- Synthetic A/B rows (fixture-only, privileged): the 2025-01 parents plus one line each.
+  SELECT ci.id INTO ci_a FROM public.monthly_check_ins ci WHERE ci.household_id=a AND ci.check_in_month=DATE '2025-01-01';
+  SELECT ci.id INTO ci_b FROM public.monthly_check_ins ci WHERE ci.household_id=b AND ci.check_in_month=DATE '2025-01-01';
+  INSERT INTO public.monthly_check_in_balances(household_id,check_in_id,item_type,name,amount)
+    VALUES(a,ci_a,'account','synthetic-a-line',1) RETURNING id INTO line_a;
+  INSERT INTO public.monthly_check_in_balances(household_id,check_in_id,item_type,name,amount)
+    VALUES(b,ci_b,'account','synthetic-b-line',1) RETURNING id INTO line_b;
+  SELECT md5(row_to_json(t)::text) INTO ci_a_digest FROM public.monthly_check_ins t WHERE t.id=ci_a;
+  SELECT md5(row_to_json(t)::text) INTO ci_b_digest FROM public.monthly_check_ins t WHERE t.id=ci_b;
+  SELECT md5(row_to_json(t)::text) INTO line_a_digest FROM public.monthly_check_in_balances t WHERE t.id=line_a;
+  SELECT md5(row_to_json(t)::text) INTO line_b_digest FROM public.monthly_check_in_balances t WHERE t.id=line_b;
+  -- Other households, outsiders and signed-out callers see and delete nothing.
+  FOR principal IN SELECT * FROM (VALUES
+    (a_owner,'B'),(a_member,'B'),(a_viewer,'B'),(b_owner,'A'),
+    (outsider,'A'),(outsider,'B'),(NULL::uuid,'A'),(NULL::uuid,'B')
+  ) AS p(user_id,target) LOOP
+    hh := CASE WHEN principal.target='A' THEN a ELSE b END;
+    PERFORM pg_temp.ffh_probe(principal.user_id,format(
+      'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L',hh),
+      CASE WHEN principal.user_id IS NULL THEN 'ANON_SELECT' ELSE 'COUNT' END,0,'p07-foreign-check-in-read','monthly_check_ins');
+    PERFORM pg_temp.ffh_probe(principal.user_id,format(
+      'SELECT count(*) FROM public.monthly_check_in_balances WHERE household_id=%L',hh),
+      CASE WHEN principal.user_id IS NULL THEN 'ANON_SELECT' ELSE 'COUNT' END,0,'p07-foreign-line-read','monthly_check_in_balances');
+    PERFORM pg_temp.ffh_probe(principal.user_id,format(
+      'DELETE FROM public.monthly_check_ins WHERE household_id=%L',hh),
+      CASE WHEN principal.user_id IS NULL THEN 'ANON_WRITE' ELSE 'DENY' END,0,'p07-foreign-check-in-delete','monthly_check_ins');
+  END LOOP;
+  -- Even the household's own owner and member cannot write check-in rows directly.
+  FOREACH who IN ARRAY ARRAY[a_owner,a_member] LOOP
+    PERFORM pg_temp.ffh_probe(who,format(
+      'INSERT INTO public.monthly_check_ins(household_id,check_in_month,followed_plan,planned_cash_flow) VALUES(%L,DATE ''2025-06-01'',true,999999)',a),
+      'GRANT',NULL,'p07-direct-check-in-insert-denied','monthly_check_ins');
+    PERFORM pg_temp.ffh_probe(who,format(
+      'UPDATE public.monthly_check_ins SET followed_plan=false,planned_cash_flow=1 WHERE id=%L',ci_a),
+      'GRANT',NULL,'p07-direct-check-in-update-denied','monthly_check_ins');
+    PERFORM pg_temp.ffh_probe(who,format(
+      'INSERT INTO public.monthly_check_in_balances(household_id,check_in_id,item_type,name,amount) VALUES(%L,%L,%L,%L,1)',a,ci_a,'account','synthetic-extra'),
+      'GRANT',NULL,'p07-direct-line-insert-denied','monthly_check_in_balances');
+    PERFORM pg_temp.ffh_probe(who,format(
+      'UPDATE public.monthly_check_in_balances SET amount=2 WHERE id=%L',line_a),
+      'GRANT',NULL,'p07-direct-line-update-denied','monthly_check_in_balances');
+    PERFORM pg_temp.ffh_probe(who,format(
+      'DELETE FROM public.monthly_check_in_balances WHERE id=%L',line_a),
+      'GRANT',NULL,'p07-direct-line-delete-denied','monthly_check_in_balances');
+  END LOOP;
+  -- The viewer reads its own household but cannot delete.
+  PERFORM pg_temp.ffh_probe(a_viewer,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%L)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE id=%L)',ci_a,line_a),
+    'COUNT',2,'p07-viewer-own-read','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(a_viewer,format(
+    'DELETE FROM public.monthly_check_ins WHERE id=%L',ci_a),
+    'DENY',0,'p07-viewer-own-delete-denied','monthly_check_ins');
+  IF (SELECT md5(row_to_json(t)::text) FROM public.monthly_check_ins t WHERE t.id=ci_a) IS DISTINCT FROM ci_a_digest OR
+     (SELECT md5(row_to_json(t)::text) FROM public.monthly_check_ins t WHERE t.id=ci_b) IS DISTINCT FROM ci_b_digest OR
+     (SELECT md5(row_to_json(t)::text) FROM public.monthly_check_in_balances t WHERE t.id=line_a) IS DISTINCT FROM line_a_digest OR
+     (SELECT md5(row_to_json(t)::text) FROM public.monthly_check_in_balances t WHERE t.id=line_b) IS DISTINCT FROM line_b_digest THEN
+    RAISE EXCEPTION 'MATRIX_P07_CHECK_IN_BASELINE_CHANGED';
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p07-check-in-baselines-unchanged','monthly_check_ins');
+
+  -- Check-in functions, household C (guided setup gave it one net-worth account and one debt;
+  -- planned cash flow 5000 - 2500 - 120 - 0 = 2380).
+  SELECT x.id INTO c_account FROM public.accounts x WHERE x.household_id=c AND x.include_in_net_worth;
+  SELECT x.id INTO c_debt FROM public.debts x WHERE x.household_id=c;
+  IF c_account IS NULL OR c_debt IS NULL OR
+     (SELECT count(*) FROM public.accounts x WHERE x.household_id=c AND x.include_in_net_worth)<>1 OR
+     (SELECT count(*) FROM public.retirement_accounts x WHERE x.household_id=c)<>0 THEN
+    RAISE EXCEPTION 'MATRIX_P07_C_PROFILE_UNEXPECTED';
+  END IF;
+  full_set := jsonb_build_array(
+    jsonb_build_object('item_type','account','item_id',c_account,'amount','1500.00'),
+    jsonb_build_object('item_type','debt','item_id',c_debt,'amount',NULL));
+  PERFORM pg_temp.ffh_probe(NULL,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',full_set),
+    'FORBIDDEN',NULL,'p07-rpc-anon-execute','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(outsider,
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,''[]''::jsonb)',
+    'FORBIDDEN',NULL,'p07-rpc-no-household','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',full_set),
+    'FORBIDDEN',NULL,'p07-rpc-viewer-create-denied','monthly_check_ins');
+  -- Incomplete, padded, repeated or foreign balance sets are refused (review F02).
+  PERFORM pg_temp.ffh_probe(c_owner,
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,''[]''::jsonb)',
+    'INVALID',NULL,'p07-rpc-empty-set-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',jsonb_build_array(full_set->0)),
+    'INVALID',NULL,'p07-rpc-missing-item-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',
+    full_set || jsonb_build_array(jsonb_build_object('item_type','account','item_id',gen_random_uuid(),'amount','1.00'))),
+    'INVALID',NULL,'p07-rpc-extra-item-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',full_set || jsonb_build_array(full_set->1)),
+    'INVALID',NULL,'p07-rpc-duplicate-item-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',jsonb_build_array(full_set->0,
+      jsonb_build_object('item_type','debt','item_id',(SELECT x.id FROM public.debts x WHERE x.household_id=a LIMIT 1),'amount','1.00'))),
+    'INVALID',NULL,'p07-rpc-foreign-item-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',jsonb_build_array(full_set->0,
+      jsonb_build_object('item_type','account','item_id',c_debt,'amount','1.00'))),
+    'INVALID',NULL,'p07-rpc-wrong-kind-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',jsonb_build_array(full_set->0,
+      jsonb_build_object('item_type','debt','item_id',c_debt,'amount','12.345'))),
+    'INVALID',NULL,'p07-malformed-amount-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb)',jsonb_build_array(full_set->0,
+      jsonb_build_object('item_type','debt','item_id',c_debt,'amount','-5.00'))),
+    'INVALID',NULL,'p07-negative-debt-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(%L::date,true,%L::jsonb)',next_month,full_set),
+    'INVALID',NULL,'p07-future-month-refused','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%1$L)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE household_id=%1$L)',c),
+    'COUNT',0,'p07-refused-creates-left-nothing','monthly_check_ins');
+  -- The owner of C saves a complete set: names come from the profile, a blank stays null,
+  -- and planned cash flow comes from the profile, never from the client.
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (public.create_monthly_check_in(DATE ''2026-10-01'',true,%L::jsonb) IS NOT NULL)::int',full_set),
+    'COUNT',1,'p07-rpc-owner-create','monthly_check_ins');
+  SELECT ci.id INTO ci_oct FROM public.monthly_check_ins ci WHERE ci.household_id=c AND ci.check_in_month=DATE '2026-10-01';
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE id=%L AND planned_monthly_income=5000 AND planned_monthly_expenses=2500 AND planned_debt_minimums=120 AND planned_employee_retirement=0 AND planned_cash_flow=2380 AND created_by=%L AND updated_by=%L',ci_oct,c_owner,c_owner),
+    'COUNT',1,'p07-snapshot-from-profile','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%L AND ((item_type=''account'' AND name=''Savings (from setup)'' AND amount=1500 AND sort_order=0) OR (item_type=''debt'' AND name=''Debts (from setup)'' AND amount IS NULL AND sort_order=1))',ci_oct),
+    'COUNT',2,'p07-lines-from-profile-blank-stays-null','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.create_monthly_check_in(DATE ''2026-10-01'',false,%L::jsonb)',full_set),
+    'UNIQUE',NULL,'p07-one-per-month','monthly_check_ins','monthly_check_ins_household_month_key');
+  -- Changing the profile never rewrites a saved check-in; a NEW check-in uses the new profile.
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'UPDATE public.income_sources SET monthly_amount=6000 WHERE household_id=%L',c),
+    'ROWS',1,'p07-profile-changed','income_sources');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE id=%L AND planned_cash_flow=2380',ci_oct),
+    'COUNT',1,'p07-history-not-rewritten','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (public.create_monthly_check_in(DATE ''2026-08-01'',true,%L::jsonb) IS NOT NULL)::int',full_set),
+    'COUNT',1,'p07-rpc-owner-create-second','monthly_check_ins');
+  SELECT ci.id INTO ci_aug FROM public.monthly_check_ins ci WHERE ci.household_id=c AND ci.check_in_month=DATE '2026-08-01';
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE id=%L AND planned_cash_flow=3380',ci_aug),
+    'COUNT',1,'p07-new-check-in-uses-current-profile','monthly_check_ins');
+  -- Editing: every line needs exactly one amount; answer, amounts and audit stamp change
+  -- together; the snapshot never does.
+  SELECT l.id INTO line_savings FROM public.monthly_check_in_balances l WHERE l.check_in_id=ci_oct AND l.item_type='account';
+  SELECT l.id INTO line_debt FROM public.monthly_check_in_balances l WHERE l.check_in_id=ci_oct AND l.item_type='debt';
+  SELECT l.id INTO line_aug FROM public.monthly_check_in_balances l WHERE l.check_in_id=ci_aug AND l.item_type='account';
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.update_monthly_check_in(%L,false,%L::jsonb)',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1.00'))),
+    'INVALID',NULL,'p07-update-missing-line-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.update_monthly_check_in(%L,false,%L::jsonb)',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1.00'),jsonb_build_object('id',line_savings,'amount','2.00'))),
+    'INVALID',NULL,'p07-update-duplicate-line-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT public.update_monthly_check_in(%L,false,%L::jsonb)',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1.00'),jsonb_build_object('id',line_aug,'amount','1.00'))),
+    'INVALID',NULL,'p07-update-foreign-line-refused','monthly_check_in_balances');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%1$L AND followed_plan)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE id=%2$L AND amount=1500)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE id=%3$L AND amount=1500)',
+    ci_oct,line_savings,line_aug),'COUNT',3,'p07-refused-edits-rolled-back','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'SELECT public.update_monthly_check_in(%L,false,%L::jsonb)',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1.00'),jsonb_build_object('id',line_debt,'amount',NULL))),
+    'FORBIDDEN',NULL,'p07-rpc-viewer-update-denied','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(a_owner,format(
+    'SELECT public.update_monthly_check_in(%L,false,%L::jsonb)',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1.00'),jsonb_build_object('id',line_debt,'amount',NULL))),
+    'FORBIDDEN',NULL,'p07-rpc-cross-household-update-denied','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM (SELECT public.update_monthly_check_in(%L,false,%L::jsonb)) x',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_debt,'amount','4200.00'),jsonb_build_object('id',line_savings,'amount','1600.50'))),
+    'COUNT',1,'p07-rpc-owner-update','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%1$L AND NOT followed_plan AND planned_cash_flow=2380 AND updated_by=%2$L AND updated_at>=created_at)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%1$L AND ((id=%3$L AND amount=1600.50 AND name=''Savings (from setup)'') OR (id=%4$L AND amount=4200)))',
+    ci_oct,c_owner,line_savings,line_debt),'COUNT',3,'p07-update-applied-audited-snapshot-kept','monthly_check_ins');
+  -- Viewer reads history but cannot delete; anon sees nothing; owner delete removes the lines too.
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L',c),
+    'COUNT',2,'p07-viewer-reads-history','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'DELETE FROM public.monthly_check_ins WHERE id=%L',ci_oct),
+    'DENY',0,'p07-viewer-delete-denied','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(NULL,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L',c),
+    'ANON_SELECT',0,'p07-anon-read-denied','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'DELETE FROM public.monthly_check_ins WHERE id=%L',ci_oct),
+    'ROWS',1,'p07-owner-delete','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%L',ci_oct),
+    'COUNT',0,'p07-delete-removes-lines','monthly_check_in_balances');
+
+  -- C6 (original wording): planned cash flow is "not available" only with no active income AND
+  -- no expenses. Fresh empty household G; expense-only and income-only profiles are available.
+  INSERT INTO auth.users(id,instance_id,aud,role) VALUES
+    (g_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  PERFORM set_config('request.jwt.claim.sub',g_owner::text,true);
+  IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM g_owner THEN
+    RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_G_FAIL';
+  END IF;
+  INSERT INTO public.households(id,name,created_by) VALUES(g,'ffh-local-household-g',g_owner);
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM pg_temp.ffh_probe(g_owner,
+    'SELECT (public.create_monthly_check_in(DATE ''2026-01-01'',true,''[]''::jsonb) IS NOT NULL)::int',
+    'COUNT',1,'p07-c6-empty-profile-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND check_in_month=DATE ''2026-01-01'' AND planned_cash_flow IS NULL',g),
+    'COUNT',1,'p07-c6-no-income-no-expenses-unavailable','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.expenses(household_id,name,category,monthly_amount) VALUES(%L,%L,%L,100)',g,'synthetic-g-expense','other'),
+    'ROWS',1,'p07-c6-expense-only-profile','expenses');
+  PERFORM pg_temp.ffh_probe(g_owner,
+    'SELECT (public.create_monthly_check_in(DATE ''2026-02-01'',true,''[]''::jsonb) IS NOT NULL)::int',
+    'COUNT',1,'p07-c6-expense-only-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND check_in_month=DATE ''2026-02-01'' AND planned_cash_flow=-100 AND planned_monthly_income=0',g),
+    'COUNT',1,'p07-c6-expense-only-available-negative','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'DELETE FROM public.expenses WHERE household_id=%L',g),
+    'ROWS',1,'p07-c6-expense-removed','expenses');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'INSERT INTO public.income_sources(household_id,name,monthly_amount) VALUES(%L,%L,500)',g,'synthetic-g-income'),
+    'ROWS',1,'p07-c6-income-only-profile','income_sources');
+  PERFORM pg_temp.ffh_probe(g_owner,
+    'SELECT (public.create_monthly_check_in(DATE ''2026-03-01'',true,''[]''::jsonb) IS NOT NULL)::int',
+    'COUNT',1,'p07-c6-income-only-insert','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(g_owner,format(
+    'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L AND ((check_in_month=DATE ''2026-03-01'' AND planned_cash_flow=500) OR (check_in_month=DATE ''2026-01-01'' AND planned_cash_flow IS NULL))',g),
+    'COUNT',2,'p07-c6-income-only-available-history-kept','monthly_check_ins');
+  -- Savings goals: viewer cannot add; amounts are validated by the database.
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'INSERT INTO public.savings_goals(household_id,name,target_amount) VALUES(%L,%L,100)',c,'synthetic-goal'),
+    'RLS',NULL,'p07-goal-viewer-insert-denied','savings_goals');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'INSERT INTO public.savings_goals(household_id,name,target_amount) VALUES(%L,%L,0)',c,'synthetic-goal'),
+    'INVALID',NULL,'p07-goal-zero-target-refused','savings_goals');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'INSERT INTO public.savings_goals(household_id,name,target_amount,saved_amount) VALUES(%L,%L,100,-1)',c,'synthetic-goal'),
+    'INVALID',NULL,'p07-goal-negative-saved-refused','savings_goals');
+  PERFORM pg_temp.ffh_probe(c_owner,format(
+    'INSERT INTO public.savings_goals(household_id,name,target_amount,saved_amount,target_date) VALUES(%L,%L,100,150,DATE ''2027-01-01'')',c,'synthetic-goal'),
+    'ROWS',1,'p07-goal-owner-insert-saved-above-target','savings_goals');
+  PERFORM pg_temp.ffh_probe(c_viewer,format(
+    'SELECT count(*) FROM public.savings_goals WHERE household_id=%L',c),
+    'COUNT',1,'p07-goal-viewer-read','savings_goals');
+  PERFORM pg_temp.ffh_probe(b_owner,format(
+    'SELECT count(*) FROM public.savings_goals WHERE household_id=%L',c),
+    'COUNT',0,'p07-goal-cross-household-read','savings_goals');
+
   -- Final private oracle: all A/B baselines except deliberate owner metadata
-  -- update remain identical and all 26 synthetic financial rows still exist.
+  -- update remain identical and all 28 synthetic financial rows still exist.
   FOR principal IN SELECT * FROM pg_temp.ffh_rls_baselines LOOP
     now_digest := pg_temp.ffh_digest(principal.family,principal.row_id);
     IF now_digest IS DISTINCT FROM principal.digest THEN
@@ -1034,7 +1336,8 @@ BEGIN
     'goals','household_people','insurance_exposures',
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
-    'household_hsa_legal_spouse_authorities'
+    'household_hsa_legal_spouse_authorities',
+    'savings_goals','monthly_check_ins','monthly_check_in_balances'
   ] LOOP
     EXECUTE format('SELECT count(*) FROM public.%I',t) INTO n;
     IF n<>0 THEN RAISE EXCEPTION 'MATRIX_ROLLBACK_RESIDUE_FOUND family=%',t; END IF;

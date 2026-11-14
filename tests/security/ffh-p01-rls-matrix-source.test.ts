@@ -23,16 +23,17 @@ const financial = [
   "person_hsa_month_statuses",
   "household_hsa_married_allocations",
   "household_hsa_legal_spouse_authorities",
+  "savings_goals",
 ];
 
-test("FFH-P01 matrix declares explicit valid INSERT fixtures for all 13 financial families", () => {
-  assert.equal(financial.length, 13);
+test("FFH-P01 matrix declares explicit valid INSERT fixtures for all 14 financial families", () => {
+  assert.equal(financial.length, 14);
   for (const table of financial) {
     assert.ok(matrix.includes("WHEN '" + table + "' THEN"), "fixture not defined: " + table);
     assert.ok(preflight.includes("'" + table + "'"), "preflight missing: " + table);
   }
   assert.match(matrix, /MATRIX_INCOMPLETE_FINANCIAL_BASELINE/);
-  assert.match(matrix, /count\(\*\) FROM pg_temp\.ffh_rls_baselines\) <> 26/);
+  assert.match(matrix, /count\(\*\) FROM pg_temp\.ffh_rls_baselines\) <> 28/);
 });
 
 test("FFH-P01 RLS probes execute under effective non-bypass roles and synthetic claims", () => {
@@ -193,9 +194,9 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   for (const name of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "SUPABASE_URL", "DATABASE_URL", "PGHOST", "PGPASSWORD"]) {
     assert.ok(runner.includes(name), "runner must refuse " + name);
   }
-  // Fresh isolated temp project with exactly the 19 tracked migrations (FFH-P05 and both FFH-P06 migrations).
+  // Fresh isolated temp project with exactly the 22 tracked migrations (FFH-P05, both FFH-P06 and the three FFH-P07 migrations).
   assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=19/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=22/);
   assert.match(runner, /mktemp -d/);
   assert.match(runner, /supabase@2\.122\.0/);
   assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
@@ -205,8 +206,8 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   // Unchanged SQL piped in; exact markers required.
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
-  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=970/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=22 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1122/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -266,6 +267,14 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   assert.equal(919 + 11, 930);
   // FFH-P06 adds 31 household-invitation probes (household D).
   assert.equal(930 + 31, 961);
+  // FFH-P07 adds three financial families (65 generic receipts each) and 43 goal and
+  // check-in probes (snapshot, tampering, RPC, viewer and cross-household; household C).
+  assert.equal(970 + 3 * 65 + 43, 1208);
+  // FFH-P07 C6 (original wording) adds 9 cash-flow availability probes (household G).
+  assert.equal(1208 + 9, 1217);
+  // FFH-P07 review F02: the two check-in tables leave the generic full-CRUD loop (-2 x 65) and get
+  // dedicated read-only/function-only probes: 1217 - 130 - 43 (old P07 probes) + 78 (new) = 1122.
+  assert.equal(1217 - 2 * 65 - 43 + 78, 1122);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {

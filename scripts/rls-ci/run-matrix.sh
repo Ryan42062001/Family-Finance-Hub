@@ -2,7 +2,7 @@
 # FFH-P01 two-household RLS matrix on a disposable GitHub Actions runner.
 #
 # Builds a brand-new local Supabase PostgreSQL in an isolated temp project,
-# applies the 19 canonical migrations, runs the unchanged read-only
+# applies the 22 canonical migrations, runs the unchanged read-only
 # preflight.sql and the unchanged BEGIN/ROLLBACK matrix.sql, checks the exact
 # success markers, and always tears the database down.
 #
@@ -11,8 +11,8 @@
 set -euo pipefail
 
 CLI="supabase@2.122.0"
-EXPECTED_MIGRATIONS=19
-EXPECTED_ASSERTIONS=970
+EXPECTED_MIGRATIONS=22
+EXPECTED_ASSERTIONS=1122
 # Unique per CI run and attempt, so it can never match a pre-existing project.
 PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
 CONTAINER="supabase_db_${PROJECT_ID}"
@@ -116,7 +116,7 @@ run_cli() {
 }
 
 run_cli --version
-# Full local stack on the disposable runner; applies the 19 migrations to a
+# Full local stack on the disposable runner; applies the 22 migrations to a
 # brand-new database (no seed file exists in the temp project).
 run_cli start
 
@@ -133,7 +133,7 @@ preflight_out="$work/preflight.out"
 psql_in_db < scripts/rls-local/preflight.sql > "$preflight_out" 2>&1 ||
   { cat "$preflight_out" >&2; fail "preflight.sql failed"; }
 [[ "$(last_line < "$preflight_out")" == \
-   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1" ]] ||
+   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=22 ROLES=2 NO_FIXTURES=1" ]] ||
   { cat "$preflight_out" >&2; fail "preflight success marker missing"; }
 echo "RLS_CI_PREFLIGHT=PASS"
 

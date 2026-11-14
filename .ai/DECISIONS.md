@@ -363,6 +363,15 @@
   procedure: paste migration files unedited and re-check line endings right before parity. No row data was read or
   changed. Next: Work mode QA Q23–Q26 plus auth regressions on the Preview.
 
+- **FFH-P06 released (Ryan's explicit authorization, 2026-11-14).** Release checklist run by the Builder at exact head
+  `543e61fe43aba6157ada8a357df2a7866348f0d5` (only docs changed after the PASS at `eceacfd`; CI run 43555092901 fast,
+  rls-matrix and e2e-isolation SUCCESS; Work mode QA 12 PASS / 0 FAIL / 14 NOT RUN, scoped to Q1-Q3, Q6-Q8, Q17, Q18
+  and Q23-Q26; hosted parity 9/9 as recorded from Ryan's SQL Editor run; Vercel and live hosted state not reachable from
+  the Builder's sandbox, so marked UNVERIFIED there). Ryan authorized the merge; PR #143 merged into `main` as
+  `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c` with the exact head (main's tree is identical to `543e61f`). Ryan reported
+  the Production deployment Ready and the Production smoke test 12/12. FFH-P06 is CLOSED. FFH-P07 (goals and monthly
+  check-in) starts on `phase/ffh-p07-goals-and-check-ins`; this note reaches `main` with the FFH-P07 release.
+
 ## Final-audit backlog (MEDIUM / LOW / NIT)
 
 - LOW: `lib/calculations/money-priority-build.ts` has two unused functions, `consumeRetirementCapacity` and
@@ -413,3 +422,85 @@
   remediation had merged. Fixed in the hosted-migration procedure PR (handoff now at `eceacfd`).
 - LOW (dependency hygiene, FFH-P06 re-review note): `npm audit` reports eight moderate advisories; the `fast` job's
   high-severity threshold passes. Review and upgrade in a separate dependency PR.
+
+## 2026-11-14 — FFH-P07 scope approved by Ryan (Owner decision)
+
+- **FFH-P06 is CLOSED / RELEASED.** PR #143 merged into protected `main` as
+  `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c` from reviewed phase head
+  `543e61fe43aba6157ada8a357df2a7866348f0d5`. Ryan reported Vercel Production Ready and
+  Production smoke **12/12**; existing GitHub post-merge CI evidence remains authoritative for CI.
+- **FFH-P07 approved scope:** a **separate** household savings-goals tracker containing name, target amount,
+  current saved amount, date and calculated monthly savings requirement; and a **monthly financial check-in**
+  with manually entered balances, a yes/no indicating whether that month's plan was followed, and historical
+  net-worth/cash-flow snapshots.
+- **Goals do NOT alter the Money Priority Engine** or create/reorder financial plan steps in P07. Any such
+  integration needs a separate Owner financial-policy decision.
+- **Permission decision:** household **owners and members can create/edit** goals and check-ins; **viewers are
+  read-only**. RLS and server-side enforcement are required.
+- **Not part of P07:** Can We Afford It, irregular expenses/monthly set-asides, a per-paycheck plan view,
+  and the 30-day in-app balance reminder. Carry them forward as future roadmap candidates.
+- **Unspecified financial semantics remain explicitly unapproved:** if no canonical existing calculation
+  exists, the Builder must propose date-boundary/month-counting, rounding, partial/late goals, net-worth and
+  cash-flow snapshot sources and missing-data behavior for Ryan's approval **before implementing policy**.
+  Scope approval is not permission to invent a recommendation or change money calculations.
+- **Execution:** P07 remains **PLANNED / OWNER SCOPE APPROVED**, with one Claude Code Primary Builder.
+  Phase implementation, QA, review, and hosted migrations still follow `docs/WORKFLOW.md`. This approval
+  does not authorize changing hosted Supabase, merging into `main`, or a Production release.
+- **Documentation note:** `main` retains a P06 `.ai/CURRENT_PHASE.md` until a separately approved release;
+  the active phase-branch documents are updated now. Do not merge to Production for documentation tidiness.
+
+## 2026-11-14 — FFH-P07 financial rules approved by Ryan
+
+- Ryan approved `docs/FFH-P07_DESIGN.md` **as recommended**: D1 (separate `savings_goals` table the Money Priority
+  Engine never reads), goal rules G1–G10 with R1 = half-up to the cent (matches Your plan) and R2 = progress percent
+  rounded down, and check-in rules C1–C10 (one per household per month, no future months; per-item balances
+  pre-filled from the profile with copied names; check-ins never change the profile; blank = not entered and makes
+  net worth "Incomplete"; planned cash flow frozen at first save; required Yes/No; owner/member edit/delete, viewer
+  read-only; history list without charts or change figures). Hosted migrations and Production remain separate approvals.
+- **FFH-P07 hosted migration applied (Ryan, 2026-11-14).** `20261114100000_ffh_p07_goals_and_check_ins` applied to
+  hosted Supabase with authorization via `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. The SQL Editor stored CRLF in
+  the five function bodies; the documented one-time fix restored the exact repository bodies. Hosted parity **9/9**
+  (migrations 20). Additive only; Production code does not use the new tables until the P07 release.
+- **FFH-P07 rule C6 (Ryan, 2026-11-14): "use the original wording".** The planned cash-flow snapshot is "not
+  available" only when the Financial profile has no active income AND no expenses; with only one of them it is shown
+  (and can be negative). Implemented by follow-up migration `20261114110000_ffh_p07_cash_flow_availability.sql`
+  (replaces the one trigger function body). Already-saved check-ins are not recalculated. Hosted apply needs Ryan.
+- **FFH-P07 C6 hosted migration applied (Ryan, 2026-11-14).** `20261114110000` applied; trigger body matches the
+  repository exactly; hosted parity **9/9** (migrations 21).
+
+## 2026-11-14 — FFH-P07 independent review (ChatGPT) at `d64b2439`: REVIEW RESULT FAIL, remediated
+
+- **F01 HIGH (fixed):** goal monthly amount used float half-up (`Math.round((x + EPSILON) * 100)`), so exact half-cent
+  ties rounded down ($4.27 / 2 gave $2.13, not $2.14). `lib/calculations/goal-tracker.ts` now computes in BigInt
+  integer cents with exact half-up division; regression tests for $4.27, $4.35, $4.77, $1.01, $0.01 and the maximum.
+- **F03 MEDIUM (fixed):** check-in net worth summed JS-number cents and lost cents beyond 2^53. Now BigInt cents end
+  to end, formatted from cents (`formatCents`); tests with 100–300 maximum balances and negative balances.
+- **F04 MEDIUM (fixed):** progress used `floor(percent + 1e-9)`, which could round up (32.999999999% → 33%). Now
+  `floor(saved_cents * 100 / target_cents)` in BigInt; tests one cent below boundaries.
+- **F05 LOW (fixed):** the check-in month was limited to the last 24 months and year ≥ 2000. Now any past month or
+  this month (UTC), via a month input with a `max`; the one-per-month rule is unchanged.
+- **F02 MEDIUM (fixed before release, Ryan 2026-11-14 "fix it now before the merge"; was backlog):** owners/members can write check-in rows directly through the table API
+  (RLS-scoped to their own household), so the database does not enforce that a check-in has exactly one line per
+  profile item, and direct line edits don't update the parent's `updated_by`/`updated_at`; `create_monthly_check_in`
+  also accepts an empty balance list (shown as a complete $0.00 net worth). No cross-household or viewer access.
+  Suggested fix (own reviewed change with a hosted migration): revoke direct INSERT/UPDATE/DELETE on the two check-in
+  tables, route all writes through the functions, have `create_monthly_check_in` build the line set from the profile
+  server-side (amounts keyed by profile item id), and bump the parent audit fields on every line change; add tests for
+  omitted, duplicated and deleted lines.
+- **Engine backlog (LOW, not changed: P07 forbids Money Priority Engine changes):** `money-priority-goal-intelligence.ts`
+  `roundMoney` has the same float tie flaw as F01 (`requiredMonthlyFunding` can be one cent low on exact half-cent
+  ties). Fix in its own reviewed engine change with integer-cent rounding.
+- **Re-review (same reviewer) at `6e4e712f633c7c447d25e62e73c0edef294e8230`: REVIEW RESULT PASS.** F01, F03, F04 and
+  F05 FIXED; F02 NOT FIXED (accepted MEDIUM backlog); no new findings; exact-head CI run 43566044631 green (`fast`,
+  `rls-matrix` 1217, `e2e-isolation`). Reviewer note for the F02 fix: the check-in functions are SECURITY INVOKER, so
+  revoking direct table writes requires changing their execution/authorization model in the same migration (e.g.
+  SECURITY DEFINER with explicit membership and owner/member checks), or legitimate saves would break.
+- **F02 fixed (Ryan: fix before merge).** Migration `20261114120000_ffh_p07_check_in_write_integrity.sql`: direct
+  client writes to check-in lines and direct INSERT/UPDATE of check-ins revoked (SELECT kept; owners/members may still
+  delete a whole check-in under RLS). `create_monthly_check_in` / `update_monthly_check_in` are now SECURITY DEFINER
+  with `search_path=''`, check sign-in, take the household from the caller's own membership and require owner/member
+  (`private.can_write_household_financials`). Create builds the lines from the profile and requires exactly one entry
+  per profile item (none missing, extra, repeated, foreign or of the wrong kind); edit requires one amount per line and
+  always stamps the parent's `updated_by`/`updated_at`. RLS matrix 1122 assertions (check-in tables moved out of the
+  generic full-CRUD loop into 78 dedicated probes); mutation checks: re-granting direct writes, removing the
+  completeness checks and skipping the audit stamp each fail the matrix. Hosted apply needs Ryan (procedure part 3).

@@ -49,7 +49,7 @@ test("FFH-P04 credentials come only from the four secrets and fail closed when a
 test("FFH-P04 leak detection finds the other household's markers case-insensitively", () => {
   assert.deepEqual(leakedMarkers("Welcome, Alpha household · ZZ-A-Rent", ["Bravo Household", "ZZ-B-", "b@synthetic.invalid"]), []);
   assert.deepEqual(leakedMarkers("bravo HOUSEHOLD and zz-b-groceries", ["Bravo Household", "ZZ-B-", ""]), ["Bravo Household", "ZZ-B-"]);
-  assert.deepEqual(PAGES, ["/plan", "/dashboard", "/financial-profile", "/planning", "/scenario-lab"]);
+  assert.deepEqual(PAGES, ["/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/scenario-lab"]);
 });
 
 test("FFH-P04 the suite never prints credentials or records traces and is read-only", () => {

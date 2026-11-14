@@ -9,14 +9,16 @@ DECLARE
     '20260829223716','20260829223935','20260829234300',
     '20260829234446','20260831235822','20260901020220',
     '20260902190000','20260903134156','20260909005000',
-    '20260909033000','20260911170000','20261113210000','20261113230000','20261114010000','20261114020000'
+    '20260909033000','20260911170000','20261113210000','20261113230000','20261114010000','20261114020000',
+    '20261114100000','20261114110000','20261114120000'
   ];
   financial text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
     'goals','household_people','insurance_exposures',
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
-    'household_hsa_legal_spouse_authorities'
+    'household_hsa_legal_spouse_authorities',
+    'savings_goals','monthly_check_ins','monthly_check_in_balances'
   ];
   t text;
   op text;
@@ -29,9 +31,9 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='supabase_migrations') THEN
     RAISE EXCEPTION 'PREFLIGHT_MIGRATION_TRACKING_ABSENT';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 19 OR
-     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 19 THEN
-    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_19_CANONICAL_MIGRATIONS';
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 22 OR
+     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 22 THEN
+    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_22_CANONICAL_MIGRATIONS';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') OR
      to_regclass('auth.users') IS NULL OR to_regprocedure('auth.uid()') IS NULL THEN
@@ -111,6 +113,12 @@ BEGIN
      NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='household_hsa_legal_spouse_authorities_person_one_fkey') THEN
     RAISE EXCEPTION 'PREFLIGHT_COMPOSITE_FK_MISSING';
   END IF;
+  -- FFH-P07: the check-in snapshot trigger and same-household line FK must exist.
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.monthly_check_ins'::regclass
+      AND tgname='monthly_check_in_before_write_trigger' AND NOT tgisinternal) OR
+     NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='monthly_check_in_balances_check_in_household_fkey') THEN
+    RAISE EXCEPTION 'PREFLIGHT_P07_SNAPSHOT_GUARD_MISSING';
+  END IF;
   FOREACH t IN ARRAY ARRAY['authenticated','anon'] LOOP
     IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=t AND NOT rolbypassrls AND NOT rolsuper AND NOT rolcanlogin) THEN
       RAISE EXCEPTION 'PREFLIGHT_NONBYPASS_ROLE_INVALID %',t;
@@ -124,7 +132,7 @@ BEGIN
      EXISTS(SELECT 1 FROM pg_policies WHERE tablename='household_members' AND cmd='DELETE') THEN
     RAISE EXCEPTION 'PREFLIGHT_UNEXPECTED_HOUSEHOLD_DELETE_POLICY';
   END IF;
-  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=19 FINANCIAL_RLS_TABLES=13 POLICY_CASES=52 FOUNDATION_TABLES=3';
+  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=22 FINANCIAL_RLS_TABLES=16 POLICY_CASES=64 FOUNDATION_TABLES=3';
 END
 $pre$;
 
@@ -152,4 +160,4 @@ BEGIN
 END
 $roles$;
 ROLLBACK;
-\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=19 ROLES=2 NO_FIXTURES=1
+\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=22 ROLES=2 NO_FIXTURES=1
