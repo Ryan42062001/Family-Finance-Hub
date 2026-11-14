@@ -58,8 +58,11 @@ stay exactly as they are. To avoid two things called "goals", the new screen is 
 - New tables `savings_goals`, `monthly_check_ins` (unique `household_id, check_in_month`), `monthly_check_in_balances`
   (lines, `household_id` carried for RLS). RLS: select = `private.can_read_household`, insert/update/delete =
   `private.can_write_household_financials`; lines must belong to a check-in of the same household.
-- Check-in create/edit through one atomic `security invoker` database function (RLS still applies) that writes the
-  check-in and its lines in one transaction, computes net worth and, on create only, the cash-flow snapshot.
+- Check-in create/edit only through two atomic `security definer` database functions (review F02, migration
+  `20261114120000`): they check sign-in, take the household from the caller's membership and require owner/member;
+  create builds the lines from the profile and requires exactly one amount per item; edit requires one amount per
+  line and stamps `updated_by`/`updated_at`. Clients have no direct INSERT/UPDATE on check-ins and no direct writes
+  to lines; owners/members may delete a whole check-in. The cash-flow snapshot is computed by the database.
 - Server actions re-check the role and fail closed; viewers see no edit controls, and the database refuses them anyway.
 - RLS matrix additions: owner/member/viewer × own/other household × select/insert/update/delete on all three tables,
   cross-household line injection, snapshot-tampering attempts, and a viewer RPC refusal. Synthetic `ZZ-` data only.

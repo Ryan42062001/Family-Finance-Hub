@@ -210,3 +210,89 @@ Any mismatch: STOP and share the mismatching rows.
 
 Applied by Ryan from phase head `63703807`. Function body `8199463bb22feceef9dc5e60441a6cd6`, `has_cr = false`;
 version `20261114110000` recorded. Final hosted `parity.sql`: **9/9 match**, migrations 21.
+
+## Part 3: migration `20261114120000` (review F02: check-in write integrity)
+
+Applies `supabase/migrations/20261114120000_ffh_p07_check_in_write_integrity.sql`: revokes direct client writes to
+check-in lines and direct INSERT/UPDATE of check-ins, and replaces the two check-in functions (now SECURITY DEFINER,
+with their own sign-in, membership and owner/member checks, complete line sets and audited edits). No table, column,
+policy or saved row changes. Same evidence rule.
+
+### 3.1 Read-only precheck (authorize: "read-only precheck 3")
+
+```sql
+select
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114110000') as c6_applied,
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114120000') as f02_already_recorded,
+  (select count(*) from supabase_migrations.schema_migrations) as migrations_recorded,
+  (select prosecdef from pg_proc where oid = 'public.create_monthly_check_in(date, boolean, jsonb)'::regprocedure) as create_is_definer;
+```
+
+Expected: `true | false | 21 | false`. Anything else: STOP and report the row.
+
+### 3.2 Apply (authorize: "apply migration 20261114120000")
+
+Copy the raw file from GitHub at the commit named in the Builder's message, type `begin;` above it and `commit;` below
+it, **Run**. Expected: "Success. No rows returned." Any error: nothing changed; report the first line only.
+
+### 3.3 Body check, fix only if needed (authorize: "body check 3 and fix if needed")
+
+```sql
+select p.proname, md5(p.prosrc) as body_md5, position(E'\r' in p.prosrc) > 0 as has_cr, p.prosecdef
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname in ('create_monthly_check_in', 'update_monthly_check_in')
+order by 1;
+```
+
+Expected:
+
+```
+create_monthly_check_in | 2f05ea946b72678cd163afe5d3f3e9ca | false | true
+update_monthly_check_in | 5832e507467d982d3456cf5d13e50ed8 | false | true
+```
+
+If `has_cr` is `true`, run this once and repeat the check (`create or replace` keeps SECURITY DEFINER, search_path,
+owner and grants):
+
+```sql
+do $fix$
+declare
+  f regprocedure;
+begin
+  foreach f in array array[
+    'public.create_monthly_check_in(date, boolean, jsonb)'::regprocedure,
+    'public.update_monthly_check_in(uuid, boolean, jsonb)'::regprocedure]
+  loop
+    execute replace(pg_get_functiondef(f), E'\r', '');
+  end loop;
+end
+$fix$;
+```
+
+A different hash with `has_cr = false`: STOP and report it.
+
+### 3.4 Record the version (authorize: "record migration version 3")
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261114120000', 'ffh_p07_check_in_write_integrity');
+```
+
+### 3.5 Hosted parity (authorize: "run hosted parity 3")
+
+Run `scripts/rls-local/parity.sql` from the phase branch; all 9 rows must equal `scripts/rls-local/parity.expected.txt`
+on the phase branch (`migrations|22`). Compared with part 2, `functions`, `migrations` and `table_grants` change:
+
+```
+columns|257|e4de6fc819eaaf171e21f72919569848
+constraints|196|b286c0f850718815f957143c6fd11cbf
+function_grants|30|02defe5787f4b590f4f4b26c86a69249
+functions|15|154265c51a66559b9027e16e9ee138a2
+migrations|22|65094a44d3d91f1d872a1d471a25afc7
+policies|74|c50ee01053a71b1fa7a23bc2aa5142b8
+rls|20|51d68635fe4a6ccbb613d6215363fe43
+table_grants|229|c682cc8651cfc5ee5f9a3729452298b4
+triggers|4|61c4012ae44b99794d82609f1cb36e53
+```
+
+Any mismatch: STOP and share the mismatching rows.

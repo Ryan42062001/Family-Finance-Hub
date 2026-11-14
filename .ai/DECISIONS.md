@@ -479,7 +479,7 @@
   `floor(saved_cents * 100 / target_cents)` in BigInt; tests one cent below boundaries.
 - **F05 LOW (fixed):** the check-in month was limited to the last 24 months and year ≥ 2000. Now any past month or
   this month (UTC), via a month input with a `max`; the one-per-month rule is unchanged.
-- **F02 MEDIUM (backlog, not fixed in P07):** owners/members can write check-in rows directly through the table API
+- **F02 MEDIUM (fixed before release, Ryan 2026-11-14 "fix it now before the merge"; was backlog):** owners/members can write check-in rows directly through the table API
   (RLS-scoped to their own household), so the database does not enforce that a check-in has exactly one line per
   profile item, and direct line edits don't update the parent's `updated_by`/`updated_at`; `create_monthly_check_in`
   also accepts an empty balance list (shown as a complete $0.00 net worth). No cross-household or viewer access.
@@ -495,3 +495,12 @@
   `rls-matrix` 1217, `e2e-isolation`). Reviewer note for the F02 fix: the check-in functions are SECURITY INVOKER, so
   revoking direct table writes requires changing their execution/authorization model in the same migration (e.g.
   SECURITY DEFINER with explicit membership and owner/member checks), or legitimate saves would break.
+- **F02 fixed (Ryan: fix before merge).** Migration `20261114120000_ffh_p07_check_in_write_integrity.sql`: direct
+  client writes to check-in lines and direct INSERT/UPDATE of check-ins revoked (SELECT kept; owners/members may still
+  delete a whole check-in under RLS). `create_monthly_check_in` / `update_monthly_check_in` are now SECURITY DEFINER
+  with `search_path=''`, check sign-in, take the household from the caller's own membership and require owner/member
+  (`private.can_write_household_financials`). Create builds the lines from the profile and requires exactly one entry
+  per profile item (none missing, extra, repeated, foreign or of the wrong kind); edit requires one amount per line and
+  always stamps the parent's `updated_by`/`updated_at`. RLS matrix 1122 assertions (check-in tables moved out of the
+  generic full-CRUD loop into 78 dedicated probes); mutation checks: re-granting direct writes, removing the
+  completeness checks and skipping the audit stamp each fail the matrix. Hosted apply needs Ryan (procedure part 3).
