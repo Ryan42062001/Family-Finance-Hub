@@ -50,7 +50,7 @@ remediation round.
 
 ## FFH-P07 — Goals and monthly check-in
 
-State: **PLANNED — OWNER SCOPE APPROVED** (2026-11-14). Risk: HIGH (new goal calculation and
+State: PLANNED — OWNER SCOPE APPROVED (2026-11-14). Risk: HIGH (new goal calculation and
 household financial records / RLS). Branch `phase/ffh-p07-goals-and-check-ins`.
 Scope: named savings goals with targets, saved balances, deadlines and calculated monthly requirements; a
 separate tracker **not integrated into the Money Priority Engine**; monthly manual-balance and yes/no

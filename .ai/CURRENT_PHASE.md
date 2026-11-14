@@ -8,7 +8,7 @@ Owner: Ryan
 Phase branch / future phase PR: `phase/ffh-p07-goals-and-check-ins` → `main`
 Production baseline: FFH-P06 released via PR #143, merge `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c`.
 
-Merging this phase into `main` is a **separate Production release**, requiring Ryan's explicit exact-head authorization,
+**Production deployment is not authorized by this scope approval.** Merging this phase into `main` is a **separate Production release**, requiring Ryan's explicit exact-head authorization,
 the release checklist in `docs/WORKFLOW.md`, and a Production smoke test. Approval of this P07 scope does **not**
 authorize a hosted migration, changes to the Money Priority Engine, or any Production action.
 
