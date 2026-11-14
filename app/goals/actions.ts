@@ -116,8 +116,9 @@ export async function deleteSavingsGoal(formData: FormData) {
   finish(error ? noticeFor(error) : data?.length === 1 ? "goal_deleted" : "read_only");
 }
 
-// C2: one line per Financial profile item at check-in time (accounts counted in net worth,
-// retirement accounts, debts), with the name copied from the profile, never from the form.
+// C2: one amount (or "not entered") per Financial profile item at check-in time (accounts counted
+// in net worth, retirement accounts, debts). The database requires exactly that set and copies the
+// names itself (review F02); if the profile changed since the page loaded, nothing is saved.
 export async function createCheckIn(formData: FormData) {
   const { supabase, householdId } = await editor();
   const month = String(formData.get("month") ?? "");
@@ -137,12 +138,12 @@ export async function createCheckIn(formData: FormData) {
   ];
 
   let followedPlan: boolean;
-  let lines: Array<{ item_type: string; name: string; amount: string | null }>;
+  let lines: Array<{ item_type: string; item_id: string; amount: string | null }>;
   try {
     followedPlan = yesNo(formData, "followed_plan");
     lines = items.map((item) => ({
       item_type: item.itemType,
-      name: String(item.name).slice(0, 100),
+      item_id: String(item.id),
       amount: balance(formData, `balance_${item.itemType}_${item.id}`, item.itemType),
     }));
   } catch { finish("invalid"); }

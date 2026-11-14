@@ -31,8 +31,11 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   PR #156; **re-review PASS at code head `6e4e712f633c7c447d25e62e73c0edef294e8230`** (CI run 43566044631 green).
   F02 and the engine's rounding-tie flaw are in the backlog (`.ai/DECISIONS.md`). Commits after `6e4e712f` are
   docs only.
-- **Waiting on Ryan:** the separate Production release decision for draft PR #155 (`phase/ffh-p07-goals-and-check-ins`
-  → `main`) at its exact head, then the Production smoke test (12/12).
+- **F02 fixed before release (Ryan's request):** migration `20261114120000` (check-in writes only through the two
+  definer functions, complete line sets, audited edits). Needs Ryan's hosted apply (procedure part 3) and a re-check by
+  the reviewer of just this fix before the release decision.
+- **Waiting on Ryan:** hosted apply of `20261114120000` (procedure part 3), the reviewer's F02 re-check, then the
+  separate Production release decision for draft PR #155 at its exact head and the Production smoke test (12/12).
 - **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.
 - **Repository bookkeeping:** `main`'s P06-era `.ai/CURRENT_PHASE.md` remains a historical/stale snapshot
   until an Owner-approved production release (merging docs to `main` would also deploy Production). The

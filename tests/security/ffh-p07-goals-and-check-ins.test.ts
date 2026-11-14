@@ -5,6 +5,7 @@ import test from "node:test";
 
 const migration = readFileSync("supabase/migrations/20261114100000_ffh_p07_goals_and_check_ins.sql", "utf8");
 const c6 = readFileSync("supabase/migrations/20261114110000_ffh_p07_cash_flow_availability.sql", "utf8");
+const f02 = readFileSync("supabase/migrations/20261114120000_ffh_p07_check_in_write_integrity.sql", "utf8");
 const actions = readFileSync("app/goals/actions.ts", "utf8");
 const goalsPage = readFileSync("app/goals/page.tsx", "utf8");
 const newCheckIn = readFileSync("app/goals/check-in/page.tsx", "utf8");
@@ -57,7 +58,7 @@ test("C6/C8: the planned cash-flow snapshot is computed by the database and froz
   assert.doesNotMatch(actions, /planned_/);
 });
 
-test("check-in RPCs run as the caller, take the household from membership and are not executable by anon", () => {
+test("original check-in RPCs (superseded by the F02 migration) took the household from membership; never anon", () => {
   for (const fn of ["create_monthly_check_in", "update_monthly_check_in"]) {
     const start = migration.indexOf(`create or replace function public.${fn}(`);
     assert.ok(start >= 0);
@@ -89,12 +90,41 @@ test("G10/C9: every write action requires an owner or member; viewers get read-o
   assert.equal((actions.match(/formData\.get\("confirm"\) !== "yes"/g) ?? []).length, 2);
 });
 
-test("C2/C4: line names come from the profile, blanks stay null, amounts are exact strings", () => {
-  assert.match(actions, /name: String\(item\.name\)\.slice\(0, 100\)/);
+test("C2/C4: the app sends profile item ids (never names), blanks stay null, amounts are exact strings", () => {
+  assert.match(actions, /item_id: String\(item\.id\)/);
+  assert.doesNotMatch(actions, /name: String\(item\.name\)/);
   assert.match(actions, /value === null \? null : value\.toFixed\(2\)/);
   assert.doesNotMatch(actions, /formData\.get\(`name_/);
 });
 
 test("notices shown from the URL come from a fixed list", () => {
   for (const page of [goalsPage, newCheckIn, checkInPage]) assert.match(page, /goalsNotice\(\(await searchParams\)\.notice\)/);
+});
+
+test("F02: check-in rows are written only by the two definer functions, which check identity and role", () => {
+  assert.match(f02, /revoke insert, update, delete on public\.monthly_check_in_balances from authenticated;/);
+  assert.match(f02, /revoke insert, update on public\.monthly_check_ins from authenticated;/);
+  assert.doesNotMatch(f02, /grant (insert|update|delete)[^;]*on public\.monthly_check_in/i);
+  for (const fn of ["create_monthly_check_in", "update_monthly_check_in"]) {
+    const start = f02.indexOf(`create or replace function public.${fn}(`);
+    assert.ok(start >= 0, fn);
+    const body = f02.slice(start, f02.indexOf("$$;", start));
+    assert.match(body, /security definer/);
+    assert.match(body, /set search_path = ''/);
+    assert.match(body, /v_user uuid := auth\.uid\(\);/);
+    assert.match(body, /if v_user is null then/);
+    assert.match(body, /from public\.household_members m\s+where m\.user_id = v_user;/);
+    assert.match(body, /private\.can_write_household_financials\(v_household\)/);
+    assert.doesNotMatch(body, /p_household/);
+    assert.match(body, /listed more than once/);
+    assert.match(f02, new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated;`));
+    assert.match(f02, new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\) to authenticated;`));
+  }
+  // Create builds the lines from the profile and requires one entry per item, nothing extra.
+  assert.match(f02, /balance is missing for a Financial profile item/);
+  assert.match(f02, /balance does not match a Financial profile item/);
+  assert.match(f02, /left\(v_item\.name, 100\)/);
+  // Update needs every line and always stamps the parent (trigger sets updated_by/updated_at).
+  assert.match(f02, /every balance line needs exactly one amount/);
+  assert.match(f02, /update public\.monthly_check_ins set followed_plan = p_followed_plan/);
 });
