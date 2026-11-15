@@ -369,3 +369,8 @@ triggers|4|61c4012ae44b99794d82609f1cb36e53
 ```
 
 Any mismatch: STOP and share the mismatching rows.
+
+## Part 4 result (2026-11-15)
+
+Applied by Ryan from phase head `34fa4093`. Final hosted `parity.sql`: **9/9 match**, migrations 23 (the `functions`
+row confirms the edit-lock body is exactly the repository text).

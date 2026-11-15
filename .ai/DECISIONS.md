@@ -517,3 +517,5 @@
     functions to owners makes the matrix fail.
   - Reviewer note (UNVERIFIED, not a finding): check-ins saved before F02 are not rewritten. Production never served
     the Goals pages; the only check-ins in the shared database are synthetic Preview QA rows saved through the app.
+- **FFH-P07 N01 hosted migration applied (Ryan, 2026-11-15).** `20261114130000` applied; hosted parity **9/9**
+  (migrations 23).
