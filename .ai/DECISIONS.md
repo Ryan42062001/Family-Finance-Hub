@@ -517,3 +517,9 @@
     functions to owners makes the matrix fail.
   - Reviewer note (UNVERIFIED, not a finding): check-ins saved before F02 are not rewritten. Production never served
     the Goals pages; the only check-ins in the shared database are synthetic Preview QA rows saved through the app.
+- **FFH-P07 N01 hosted migration applied (Ryan, 2026-11-15).** `20261114130000` applied; hosted parity **9/9**
+  (migrations 23).
+- **N01/N02 re-review (same reviewer) at `34fa409319955db11cd3a450d15d16b1d619787f`: REVIEW RESULT PASS.** N01 and
+  N02 FIXED, no new findings; exact-head CI run 43676392748 green (`fast`, `rls-matrix` 1126 + both concurrency
+  tests, `e2e-isolation`). The reviewer marked the hosted apply UNVERIFIED from CI alone; Ryan's hosted parity 9/9 at
+  migrations 23 (above) covers it. No BLOCKER/CRITICAL/HIGH/MEDIUM finding remains open for P07.
