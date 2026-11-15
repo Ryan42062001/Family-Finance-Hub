@@ -354,5 +354,18 @@ values ('20261114130000', 'ffh_p07_check_in_edit_lock');
 ### 4.5 Hosted parity (authorize: "run hosted parity 4")
 
 Run `scripts/rls-local/parity.sql` from the phase branch; all 9 rows must equal `scripts/rls-local/parity.expected.txt`
-on the phase branch (`migrations|23`; the exact rows are in the Builder's message). Any mismatch: STOP and share the
-mismatching rows.
+on the phase branch (`migrations|23`). Compared with part 3, only `functions` and `migrations` change:
+
+```
+columns|257|e4de6fc819eaaf171e21f72919569848
+constraints|196|b286c0f850718815f957143c6fd11cbf
+function_grants|30|02defe5787f4b590f4f4b26c86a69249
+functions|15|032b0b9337f02530966cd9dfec973b94
+migrations|23|03f85666006fe05d94286c2e9c11dbe3
+policies|74|c50ee01053a71b1fa7a23bc2aa5142b8
+rls|20|51d68635fe4a6ccbb613d6215363fe43
+table_grants|229|c682cc8651cfc5ee5f9a3729452298b4
+triggers|4|61c4012ae44b99794d82609f1cb36e53
+```
+
+Any mismatch: STOP and share the mismatching rows.
