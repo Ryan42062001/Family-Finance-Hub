@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 22 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 23 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -296,6 +296,8 @@ DECLARE
   -- FFH-P05: a brand-new, empty household C for the atomic guided-setup function.
   c_owner uuid := gen_random_uuid();
   c_viewer uuid := gen_random_uuid();
+  -- FFH-P07 review N02: an active member of C, for successful check-in saves by a member.
+  c_member uuid := gen_random_uuid();
   c uuid := gen_random_uuid();
   -- FFH-P06: household D and two people with no household, for invitations.
   d_owner uuid := gen_random_uuid();
@@ -328,7 +330,7 @@ DECLARE
   checked integer;
   collision_constraint text;
   -- FFH-P07 check-in fixtures (household C).
-  ci_oct uuid; ci_aug uuid; line_savings uuid; line_debt uuid; line_aug uuid;
+  ci_oct uuid; ci_aug uuid; ci_sep uuid; line_savings uuid; line_debt uuid; line_aug uuid;
   ci_a uuid; ci_b uuid; line_a uuid; line_b uuid; c_account uuid; c_debt uuid; full_set jsonb;
   ci_a_digest text; ci_b_digest text; line_a_digest text; line_b_digest text;
   g_owner uuid := gen_random_uuid();
@@ -703,7 +705,8 @@ BEGIN
   -- household, is all-or-nothing, and refuses to run a second time.
   INSERT INTO auth.users(id,instance_id,aud,role) VALUES
     (c_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
-    (c_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+    (c_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
+    (c_member,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',c_owner::text,true);
   IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM c_owner THEN
@@ -712,7 +715,7 @@ BEGIN
   INSERT INTO public.households(id,name,created_by) VALUES(c,'ffh-local-household-c',c_owner);
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
-  INSERT INTO public.household_members(household_id,user_id,role) VALUES(c,c_viewer,'viewer');
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES(c,c_viewer,'viewer'),(c,c_member,'member');
   -- Signed-out callers cannot execute it at all.
   PERFORM pg_temp.ffh_probe(NULL,
     'SELECT public.complete_household_setup(1,1,1,NULL,NULL,NULL,NULL,NULL,false)',
@@ -1222,10 +1225,25 @@ BEGIN
   PERFORM pg_temp.ffh_probe(c_owner,format(
     'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%1$L AND NOT followed_plan AND planned_cash_flow=2380 AND updated_by=%2$L AND updated_at>=created_at)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%1$L AND ((id=%3$L AND amount=1600.50 AND name=''Savings (from setup)'') OR (id=%4$L AND amount=4200)))',
     ci_oct,c_owner,line_savings,line_debt),'COUNT',3,'p07-update-applied-audited-snapshot-kept','monthly_check_ins');
+  -- Review N02: an active member saves through the functions too, as themselves.
+  PERFORM pg_temp.ffh_probe(c_member,format(
+    'SELECT (public.create_monthly_check_in(DATE ''2026-09-01'',false,%L::jsonb) IS NOT NULL)::int',full_set),
+    'COUNT',1,'p07-rpc-member-create','monthly_check_ins');
+  SELECT ci.id INTO ci_sep FROM public.monthly_check_ins ci WHERE ci.household_id=c AND ci.check_in_month=DATE '2026-09-01';
+  PERFORM pg_temp.ffh_probe(c_member,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%1$L AND NOT followed_plan AND created_by=%2$L AND updated_by=%2$L AND planned_cash_flow=3380)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE check_in_id=%1$L)',ci_sep,c_member),
+    'COUNT',3,'p07-member-create-stamped','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_member,format(
+    'SELECT count(*) FROM (SELECT public.update_monthly_check_in(%L,true,%L::jsonb)) x',ci_oct,
+    jsonb_build_array(jsonb_build_object('id',line_savings,'amount','1700.00'),jsonb_build_object('id',line_debt,'amount','4100.00'))),
+    'COUNT',1,'p07-rpc-member-update','monthly_check_ins');
+  PERFORM pg_temp.ffh_probe(c_member,format(
+    'SELECT (SELECT count(*) FROM public.monthly_check_ins WHERE id=%1$L AND followed_plan AND created_by=%2$L AND updated_by=%3$L AND planned_cash_flow=2380)+(SELECT count(*) FROM public.monthly_check_in_balances WHERE (id=%4$L AND amount=1700) OR (id=%5$L AND amount=4100))',
+    ci_oct,c_owner,c_member,line_savings,line_debt),'COUNT',3,'p07-member-update-stamped-snapshot-kept','monthly_check_ins');
   -- Viewer reads history but cannot delete; anon sees nothing; owner delete removes the lines too.
   PERFORM pg_temp.ffh_probe(c_viewer,format(
     'SELECT count(*) FROM public.monthly_check_ins WHERE household_id=%L',c),
-    'COUNT',2,'p07-viewer-reads-history','monthly_check_ins');
+    'COUNT',3,'p07-viewer-reads-history','monthly_check_ins');
   PERFORM pg_temp.ffh_probe(c_viewer,format(
     'DELETE FROM public.monthly_check_ins WHERE id=%L',ci_oct),
     'DENY',0,'p07-viewer-delete-denied','monthly_check_ins');

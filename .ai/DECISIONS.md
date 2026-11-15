@@ -506,3 +506,14 @@
   completeness checks and skipping the audit stamp each fail the matrix. Hosted apply needs Ryan (procedure part 3).
 - **FFH-P07 F02 hosted migration applied (Ryan).** `20261114120000` applied; hosted parity **9/9** (migrations 22,
   `table_grants` 229).
+- **F02 re-review (same reviewer) at `b9c182eb`: REVIEW RESULT PASS**, F02 FIXED, two new LOW findings, both fixed
+  before release at Ryan's request ("Fix N01 and N02 first"):
+  - **N01 LOW (fixed):** simultaneous edits of one check-in listing lines in different orders could deadlock. Migration
+    `20261114130000_ffh_p07_check_in_edit_lock.sql` locks the check-in row (`FOR UPDATE`) before any line.
+    `scripts/rls-ci/test-check-in-concurrency.sh` (CI only, real parallel sessions) reproduces the deadlock on the old
+    body and requires both saves, applied as complete sets, on the fixed body; zero residue.
+  - **N02 LOW (fixed):** the matrix now has an active member of household C who creates and edits check-ins through
+    the functions (`created_by`/`updated_by` = the member, snapshot unchanged); 1126 assertions. Restricting the
+    functions to owners makes the matrix fail.
+  - Reviewer note (UNVERIFIED, not a finding): check-ins saved before F02 are not rewritten. Production never served
+    the Goals pages; the only check-ins in the shared database are synthetic Preview QA rows saved through the app.

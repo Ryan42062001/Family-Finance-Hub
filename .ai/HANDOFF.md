@@ -32,9 +32,11 @@ Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; 
   F02 and the engine's rounding-tie flaw are in the backlog (`.ai/DECISIONS.md`). Commits after `6e4e712f` are
   docs only.
 - **F02 fixed before release (Ryan's request):** migration `20261114120000` (check-in writes only through the two
-  definer functions, complete line sets, audited edits). Applied to hosted by Ryan (parity 9/9, migrations 22); awaiting
-  the reviewer's re-check of just this fix before the release decision.
-- **Waiting on Ryan:** the reviewer's F02 re-check, then the
+  definer functions, complete line sets, audited edits). Applied to hosted by Ryan (parity 9/9, migrations 22). Re-review
+  PASS at `b9c182eb` with two LOW findings, fixed before release at Ryan's request: N01 (edit deadlock; migration
+  `20261114130000` + CI two-session race test) and N02 (active-member matrix probes; 1126 assertions). Needs Ryan's
+  hosted apply (procedure part 4) and the reviewer's re-check of N01/N02.
+- **Waiting on Ryan:** hosted apply of `20261114130000` (part 4) and the reviewer's N01/N02 re-check, then the
   separate Production release decision for draft PR #155 at its exact head and the Production smoke test (12/12).
 - **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.
 - **Repository bookkeeping:** `main`'s P06-era `.ai/CURRENT_PHASE.md` remains a historical/stale snapshot

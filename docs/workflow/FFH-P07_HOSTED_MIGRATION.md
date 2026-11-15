@@ -301,3 +301,58 @@ Any mismatch: STOP and share the mismatching rows.
 
 Applied by Ryan from phase head `b9c182eb`. Final hosted `parity.sql`: **9/9 match**, migrations 22 (the `functions`
 row confirms both function bodies are exactly the repository text).
+
+## Part 4: migration `20261114130000` (re-review N01: edit lock)
+
+Applies `supabase/migrations/20261114130000_ffh_p07_check_in_edit_lock.sql`: one `create or replace` of
+`public.update_monthly_check_in` that locks the check-in row before changing its lines. No table, grant, policy or
+saved row changes. Same evidence rule.
+
+### 4.1 Read-only precheck (authorize: "read-only precheck 4")
+
+```sql
+select
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114120000') as f02_applied,
+  exists (select 1 from supabase_migrations.schema_migrations where version = '20261114130000') as n01_already_recorded,
+  (select count(*) from supabase_migrations.schema_migrations) as migrations_recorded,
+  (select md5(prosrc) from pg_proc where oid = 'public.update_monthly_check_in(uuid, boolean, jsonb)'::regprocedure) as current_body_md5;
+```
+
+Expected: `true | false | 22 | 5832e507467d982d3456cf5d13e50ed8`. Anything else: STOP and report the row.
+
+### 4.2 Apply (authorize: "apply migration 20261114130000")
+
+Copy the raw file from GitHub at the commit named in the Builder's message, type `begin;` above it and `commit;` below
+it, **Run**. Expected: "Success. No rows returned."
+
+### 4.3 Body check, fix only if needed (authorize: "body check 4 and fix if needed")
+
+```sql
+select md5(prosrc) as body_md5, position(E'\r' in prosrc) > 0 as has_cr, prosecdef
+from pg_proc where oid = 'public.update_monthly_check_in(uuid, boolean, jsonb)'::regprocedure;
+```
+
+Expected: `373e21e73c0e27350494fb4a6e6356ed | false | true`. If `has_cr` is `true`, run:
+
+```sql
+do $fix$
+begin
+  execute replace(pg_get_functiondef('public.update_monthly_check_in(uuid, boolean, jsonb)'::regprocedure), E'\r', '');
+end
+$fix$;
+```
+
+then repeat the check. A different hash with `has_cr = false`: STOP and report it.
+
+### 4.4 Record the version (authorize: "record migration version 4")
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name)
+values ('20261114130000', 'ffh_p07_check_in_edit_lock');
+```
+
+### 4.5 Hosted parity (authorize: "run hosted parity 4")
+
+Run `scripts/rls-local/parity.sql` from the phase branch; all 9 rows must equal `scripts/rls-local/parity.expected.txt`
+on the phase branch (`migrations|23`; the exact rows are in the Builder's message). Any mismatch: STOP and share the
+mismatching rows.
