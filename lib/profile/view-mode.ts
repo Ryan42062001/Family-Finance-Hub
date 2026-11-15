@@ -17,7 +17,7 @@ export function isDetailedOnlyPath(path: string): boolean {
 
 // Where the switch may send the user back to: only fixed in-app paths (never an
 // arbitrary URL), falling back to Your plan.
-const RETURN_PATHS = new Set(["/plan", "/dashboard", "/financial-profile", "/planning", "/planning/debt", "/planning/paycheck", "/planning/retirement", "/scenario-lab", "/financial-profile/hsa", "/financial-profile/simple"]);
+const RETURN_PATHS = new Set(["/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/planning/debt", "/planning/paycheck", "/planning/retirement", "/scenario-lab", "/financial-profile/hsa", "/financial-profile/simple"]);
 export function safeReturnPath(raw: unknown): string {
   return typeof raw === "string" && RETURN_PATHS.has(raw) ? raw : "/plan";
 }

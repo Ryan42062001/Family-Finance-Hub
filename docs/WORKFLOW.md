@@ -99,7 +99,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
   Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
   address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
-  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Planning and Scenario Lab
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning and Scenario Lab
   load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
   renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
   control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.

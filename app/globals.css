@@ -1052,3 +1052,18 @@ button.danger-button[type=submit]{color:var(--danger);background:var(--danger-so
 /* Secondary submit buttons keep the secondary look (beats button[type=submit]:not(.nav-sign-out)). */
 button.secondary-button[type=submit]{background:var(--accent-soft);background-image:none;color:var(--accent-text);border:1px solid var(--accent-line);box-shadow:none}
 button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
+
+/* FFH-P07: savings goals and monthly check-ins. */
+.goal-list,.check-in-list{list-style:none;margin:0 0 1rem;padding:0;display:grid;gap:.75rem}
+.goal-card{border:1px solid var(--line);border-radius:var(--radius-sm);padding:.9rem 1rem;display:grid;gap:.45rem}
+.goal-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .75rem}
+.goal-progress{height:.6rem;border-radius:999px;background:var(--line);overflow:hidden}
+.goal-progress span{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.goal-explain{margin:0}
+.check-in-row{border:1px solid var(--line);border-radius:var(--radius-sm);padding:.75rem 1rem;display:grid;gap:.2rem}
+.check-in-summary{display:grid;gap:.6rem;margin:0 0 1rem}
+.check-in-summary div{display:grid;gap:.15rem}.check-in-summary dt{font-weight:650}.check-in-summary dd{margin:0}
+.check-in-summary small{display:block;margin-top:.2rem}
+.check-in-balances{border:0;padding:0;margin:0;display:grid;gap:.6rem;min-width:0}
+.check-in-balances legend{font-weight:700;margin-bottom:.25rem}
+.check-in-form select{min-height:44px}
