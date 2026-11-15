@@ -61,7 +61,8 @@ stay exactly as they are. To avoid two things called "goals", the new screen is 
 - Check-in create/edit only through two atomic `security definer` database functions (review F02, migration
   `20261114120000`): they check sign-in, take the household from the caller's membership and require owner/member;
   create builds the lines from the profile and requires exactly one amount per item; edit requires one amount per
-  line and stamps `updated_by`/`updated_at`. Clients have no direct INSERT/UPDATE on check-ins and no direct writes
+  line, locks the check-in row first so simultaneous edits queue instead of deadlocking (re-review N01, migration
+  `20261114130000`), and stamps `updated_by`/`updated_at`. Clients have no direct INSERT/UPDATE on check-ins and no direct writes
   to lines; owners/members may delete a whole check-in. The cash-flow snapshot is computed by the database.
 - Server actions re-check the role and fail closed; viewers see no edit controls, and the database refuses them anyway.
 - RLS matrix additions: owner/member/viewer × own/other household × select/insert/update/delete on all three tables,

@@ -6,6 +6,10 @@ import test from "node:test";
 const migration = readFileSync("supabase/migrations/20261114100000_ffh_p07_goals_and_check_ins.sql", "utf8");
 const c6 = readFileSync("supabase/migrations/20261114110000_ffh_p07_cash_flow_availability.sql", "utf8");
 const f02 = readFileSync("supabase/migrations/20261114120000_ffh_p07_check_in_write_integrity.sql", "utf8");
+const n01 = readFileSync("supabase/migrations/20261114130000_ffh_p07_check_in_edit_lock.sql", "utf8");
+const raceTest = readFileSync("scripts/rls-ci/test-check-in-concurrency.sh", "utf8");
+const runner = readFileSync("scripts/rls-ci/run-matrix.sh", "utf8");
+const matrix = readFileSync("scripts/rls-local/matrix.sql", "utf8");
 const actions = readFileSync("app/goals/actions.ts", "utf8");
 const goalsPage = readFileSync("app/goals/page.tsx", "utf8");
 const newCheckIn = readFileSync("app/goals/check-in/page.tsx", "utf8");
@@ -127,4 +131,33 @@ test("F02: check-in rows are written only by the two definer functions, which ch
   // Update needs every line and always stamps the parent (trigger sets updated_by/updated_at).
   assert.match(f02, /every balance line needs exactly one amount/);
   assert.match(f02, /update public\.monthly_check_ins set followed_plan = p_followed_plan/);
+});
+
+test("N01: edits lock the check-in row before any line, and CI races two real sessions", () => {
+  const body = n01.slice(n01.indexOf("create or replace function public.update_monthly_check_in("));
+  const lock = body.indexOf("for update;");
+  assert.ok(lock > 0, "the check-in row is locked");
+  assert.ok(lock < body.indexOf("update public.monthly_check_in_balances"), "lock comes before the first line update");
+  assert.match(body, /security definer/);
+  assert.match(body, /set search_path = ''/);
+  assert.match(body, /private\.can_write_household_financials\(v_household\)/);
+  // Apart from the lock, the body is the F02 body unchanged.
+  const f02Body = f02.slice(f02.indexOf("create or replace function public.update_monthly_check_in("), f02.indexOf("$$;", f02.indexOf("create or replace function public.update_monthly_check_in(")) + 3);
+  const n01Body = body.slice(0, body.indexOf("$$;") + 3);
+  assert.equal(n01Body.replace(/  -- Review N01:[\s\S]*?for update;\n\n/, ""), f02Body);
+  // The concurrency test is CI-only, reproduces the deadlock on the old body and requires both saves on the new one.
+  assert.match(runner, /bash scripts\/rls-ci\/test-check-in-concurrency\.sh "\$CONTAINER" "\$work"/);
+  assert.match(raceTest, /GITHUB_ACTIONS:-\}" == "true"/);
+  assert.doesNotMatch(raceTest, /LOCAL_DB|local_rehearsal/);
+  assert.match(raceTest, /DEADLOCK_NOT_REPRODUCED/);
+  assert.match(raceTest, /CONCURRENT_EDITS_NOT_BOTH_SAVED/);
+  assert.match(raceTest, /MIXED_OR_UNSTAMPED_RESULT/);
+  assert.match(raceTest, /ZERO_RESIDUE=PASS/);
+});
+
+test("N02: the matrix proves an active member can create and edit check-ins as themselves", () => {
+  assert.match(matrix, /VALUES\(c,c_viewer,'viewer'\),\(c,c_member,'member'\)/);
+  for (const category of ["p07-rpc-member-create", "p07-member-create-stamped", "p07-rpc-member-update", "p07-member-update-stamped-snapshot-kept"]) {
+    assert.ok(matrix.includes(`'${category}'`), category);
+  }
 });
