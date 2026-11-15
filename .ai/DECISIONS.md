@@ -504,3 +504,5 @@
   always stamps the parent's `updated_by`/`updated_at`. RLS matrix 1122 assertions (check-in tables moved out of the
   generic full-CRUD loop into 78 dedicated probes); mutation checks: re-granting direct writes, removing the
   completeness checks and skipping the audit stamp each fail the matrix. Hosted apply needs Ryan (procedure part 3).
+- **FFH-P07 F02 hosted migration applied (Ryan).** `20261114120000` applied; hosted parity **9/9** (migrations 22,
+  `table_grants` 229).
