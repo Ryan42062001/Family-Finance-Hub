@@ -143,8 +143,10 @@ All are Ryan-only, per change, with before/after evidence in a `docs/workflow/FF
 
 0. **Spike (no hosted changes):** in the CI disposable stack, prove `auth.mfa_factors` exists, `postgres` can delete
    `auth.users`, and what cascades; Ryan runs one read-only hosted privilege query (provided) to confirm the same.
-1. Phase branch `phase/ffh-p08-account-security` from the P07 close-out commit (`a55b211`, PR #161), so P07's
-   closure reaches `main` with P08; Ryan points the fixed Preview domain at it.
+1. Non-Production phase branch `phase/ffh-p08-account-security` has been created from the P07 close-out
+   and P08 proposal source commit `80278f2e5a0e73e41b87ffac5ab6e5712ff8a79b` (draft PR #161), based
+   on protected `main` release `1c4753da`. P07 close-out stays out of `main` until a separately
+   approved Production merge. Ryan separately authorizes moving the fixed Preview domain to P08.
 2. Part A (password) + Account page → CI → merge to phase → Preview QA.
 3. Part C (deletion) migration + matrix + UI → hosted migration (Ryan) → QA on a throw-away synthetic account.
 4. Part B (2FA) helper migration + matrix + sign-in step + proxy gate → hosted migration (Ryan) → TestC QA.

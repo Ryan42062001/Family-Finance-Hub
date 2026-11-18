@@ -56,11 +56,21 @@ authorization; Production smoke test 12/12 after release. Four hosted migrations
 Scope: named savings goals with targets, saved balances, deadlines and calculated monthly requirements; a
 separate tracker **not integrated into the Money Priority Engine**; monthly manual-balance and yes/no
 plan-followed check-ins with historical net-worth/cash-flow snapshots. **Owner/member edit; viewer read-only**.
-Detailed contract: `.ai/CURRENT_PHASE.md`. Financial semantics not defined by existing canonical code
-require Ryan's approval before implementation. Production and hosted changes still need separate authorization.
+Released design and confirmed financial conventions: `docs/FFH-P07_DESIGN.md`. Release evidence and
+open LOW findings are retained in `.ai/DECISIONS.md`.
 
 Deferred to later phases: Can We Afford It, irregular-cost monthly set-asides, per-paycheck view, and
 30-day in-app balance reminders.
+
+## FFH-P08 — Account settings and security
+
+State: PLANNED — P08 proposal is **not yet owner-approved**. Risk: HIGH (auth, account deletion,
+identity-provider settings, household RLS). Planning branch: `phase/ffh-p08-account-security`.
+Roadmap item 6 includes password change, email change, account deletion/test-account cleanup,
+and authenticator-app two-factor sign-in. The detailed `docs/FFH-P08_PROPOSAL.md` is a draft,
+and its decisions **R1–R8 still require Ryan's answer** before implementation.
+No hosted SQL, Supabase Auth, Vercel, real-data or Production change is approved. Production
+deployment remains a separate Owner authorization.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

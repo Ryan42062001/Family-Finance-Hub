@@ -1,81 +1,70 @@
 # Current phase
 
-FFH-P07 — Goals and monthly check-in
+FFH-P08 — Account settings and security
 
-State: CLOSED — **released to Production** (Ryan's explicit authorization, 2026-11-15) via PR #155, merge
-`1c4753dab2e3a9e38fbfbe34ce82397e92047f43` from phase head `ae97e90e7d463be62243b22ece50c7b84b2f7b5a`; Production
-smoke test **12/12** (run by Ryan, 2026-11-18). No next phase is open yet; Ryan chooses it.
-Risk: HIGH (goal savings calculations and new household financial data/RLS)
+State: PLANNED — ROADMAP NEXT; implementation design and R1–R8 decisions NOT YET APPROVED
+Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
-Phase branch / future phase PR: `phase/ffh-p07-goals-and-check-ins` → `main`
-Production baseline: FFH-P06 released via PR #143, merge `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c`.
+Phase branch: `phase/ffh-p08-account-security`
+Production baseline: FFH-P07, PR #155, merged into protected `main` as `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`
+Previous phase: FFH-P07 RELEASED / CLOSED (Owner-reported Production smoke PASS 12/12).
 
-**Production deployment is not authorized by this scope approval.** Merging this phase into `main` is a **separate Production release**, requiring Ryan's explicit exact-head authorization,
-the release checklist in `docs/WORKFLOW.md`, and a Production smoke test. Approval of this P07 scope does **not**
-authorize a hosted migration, changes to the Money Priority Engine, or any Production action.
+**Production deployment is NOT authorized by this planning/documentation cleanup.** Every future merge into
+`main` is a separate Production release requiring Ryan's explicit exact-SHA authorization. Changes to
+Supabase Auth, hosted SQL, Vercel, secrets, user accounts, or real data also require Ryan's specific
+approval per action. Starting a phase branch does not grant any of these permissions.
 
-## Goal
+## Roadmap goal (item 6)
 
-Help households track named savings goals and make consistent monthly financial check-ins without changing the
-existing Money Priority Engine or asserting new financial policy.
+Provide account settings for changing a password, changing an email address, deleting an account
+(including safe test-account cleanup), and authenticator-app two-factor sign-in. The roadmap order
+is unchanged; bills/due dates and plan export follow this item.
 
-## Owner-approved FFH-P07 product scope (2026-11-14)
+## Current planning status
 
-### 1. Goals tracker
+- A detailed, **UNAPPROVED** technical proposal is available at `docs/FFH-P08_PROPOSAL.md`.
+  It contains possible password-update, authenticator-app TOTP, account-deletion, and email-change
+  approaches with a threat model and risk-specific tests. It is a proposal, not implementation authority.
+- **R1–R8 in that proposal await Ryan's explicit choices.** This includes whether to defer email
+  changes until custom email delivery works, deletion authorization and ownership constraints,
+  permanence/recovery, authenticator recovery, password policy, 2FA strength, and synthetic QA accounts.
+- The first fresh Claude Code P08 chat should verify repository status, present those decisions
+  and a bounded phase contract for Owner approval, and request a prebuild independent HIGH-risk
+  threat-model review. Do not silently accept the proposal's recommendations.
+- Any provider capabilities, SQL privileges, auth-schema cascades, or MFA assumptions must be
+  proven in disposable/local tests and separately authorized hosted checks before use.
 
-- Household goals have a **name**, **target amount**, **target date**, and **amount saved so far**.
-- Show a **calculated monthly savings requirement** to reach the target by its date, with clear explanation of the
-  inputs, handling of missing/expired dates, and honest unavailable states.
-- **Goals remain a separate tracker** in P07. Do **not** add, rank, deduct, or recommend goal amounts as new steps
-  in the Money Priority Engine. Any future integration needs separate Ryan financial-policy approval.
+## Scope and permissions boundary
 
-### 2. Monthly financial check-in and history
+- No new financial calculations or modifications to the Money Priority Engine.
+- Do not reintroduce features deferred from P07 (Can We Afford It, irregular-cost set-asides,
+  per-paycheck view, 30-day balance reminders). Do not pull bills/export forward.
+- Auth, permissions, deletes, identity-provider changes, and recovery paths must fail closed.
+  The one-household-per-account invariant and strict household isolation remain mandatory.
+- Test only with synthetic accounts and records; preserve TestA/TestB for automated isolation.
+  Do not delete real accounts, perform cleanup against hosted data, or collect passwords/TOTP
+  secrets in repository evidence.
+- The fixed Preview URL is still assigned to the **P07** phase branch according to the P07
+  handoff. Ryan must separately authorize any Vercel configuration change for P08.
 
-- A monthly check-in records **manually entered balances** and **whether the household followed that month's plan**
-  (yes/no).
-- Preserve **historical net-worth and cash-flow snapshots** so previous check-ins can be viewed later.
-- Keep saved historical snapshots distinct from current live balances or recalculated plans; no implicit rewriting
-  of historical records when current financial details change.
-- Builder must document what data populates each snapshot, and how an unknown/unavailable value is represented,
-  before implementing a new financial calculation. Do not invent missing amounts or interpretations.
+## CI / security-maintenance gate
 
-### 3. Household permissions and privacy
+- P07 close-out + P08 proposal draft PR #161's exact-head `rls-matrix` succeeded, but `fast`
+  **FAILED** on `npm audit --audit-level=high`: 9 HIGH and 6 MODERATE reported advisories
+  at `80278f2e5a0e73e41b87ffac5ab6e5712ff8a79b`
+  ([run 44216093879](https://github.com/Ryan42062001/Family-Finance-Hub/actions/runs/44216093879)).
+- This is a dependency-audit blocker for green CI, **not evidence of a new P08 code failure**.
+  The Builder must triage affected production/development dependency paths and address the
+  advisories in a separate reviewed change before claiming `fast` green.
+  Do not weaken the severity gate or assume every advisory is remotely exploitable.
 
-- **Owner and member** may create/update goals and check-ins.
-- **Viewer** is read-only; cannot edit, submit or delete financial records.
-- All reads/writes must be scoped to the signed-in household. Enforce with reviewed migrations/RLS and server
-  authorization, not presentation-only buttons. Preserve the one-household-per-user invariant.
+## Entry checklist
 
-## Explicitly deferred beyond FFH-P07
-
-- **“Can we afford it?”** big-purchase scenario.
-- **Irregular expenses** and automatic monthly set-asides.
-- **Per-paycheck** planning/view.
-- **30-day in-app balance update reminders**.
-
-These remain roadmap candidates for separately scoped future phases; do not quietly implement them as part of P07.
-
-## Builder implementation boundaries
-
-- Start with a bounded data model, invariants, RLS matrix additions, synthetic fixtures and reproducible tests,
-  then implement the goals and check-in UI. One active Builder on the phase implementation branch.
-- Do not change existing Money Priority Engine calculations or priorities. If a monthly-required amount,
-  rounding/cadence rule, date-boundary convention, net-worth/cash-flow snapshot definition or missing-value
-  treatment is not already defined by a verified reusable source, **propose the specific rule for Ryan's
-  approval before implementing it**. Product scope approval alone does not authorize invented financial policy.
-- Use synthetic-only data for code, testing, Preview QA and issues. No real account or household data in
-  repository/CI/evidence.
-- Any hosted schema or configuration change requires **Ryan's explicit per-change authorization**, separate from
-  this scope approval; hosted parity must be verified.
-- No application changes, provider changes or Production release have been authorized by this documentation sync.
-
-## Done when
-
-- Real tests and exact-head CI green (`fast`, `rls-matrix`, `e2e-isolation` where applicable);
-  `npm run verify` passes, and new owner/member/viewer RLS checks are proven against disposable data.
-- Browser QA in ChatGPT Work Cloud Browser on approved Preview using synthetic TestA/TestB, plus relevant
-  authentication/household regressions.
-- Fresh independent **different-model** HIGH-risk audit at the exact frozen application code SHA.
-- Hosted migrations only after Ryan authorizes each one; required hosted parity matches documented fingerprint.
-- Ryan approves the exact release candidate for merge into `main` as a separate Production decision, and
-  post-deployment Production smoke completes **12/12**.
+1. Start a **fresh Claude Code chat dedicated to P08**, using this file, `.ai/HANDOFF.md`,
+   `.ai/DECISIONS.md`, `docs/PRODUCT_ROADMAP.md`, `docs/WORKFLOW.md` and the P08 proposal.
+2. Obtain Ryan's R1–R8 decisions and review the high-risk threat model before source implementation.
+3. Restore exact-head green required CI without bypassing failed tests or reducing audit thresholds.
+4. Implement via one active Claude Builder on its own PRs, owner-only hosted authorizations,
+   independent different-model audit, synthetic Preview QA, exact-SHA Production approval, and 12/12 smoke.
+5. At phase completion, explicitly notify Ryan: **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**;
+   record closure in the next phase's docs, not as an unauthorized docs-only Production release.

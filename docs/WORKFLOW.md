@@ -26,6 +26,14 @@ and git history), never active authority.
 
 Chat is for deciding *what* and reviewing *results*. Build steps are not relayed between chats.
 
+**Per-phase Claude Code chat handoff (Ryan's instruction, 2026-11-17):** At the end of each
+phase, after the release/closure result is confirmed, the Manager must clearly tell Ryan
+**PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**. The next phase starts with a new
+Claude Code Builder chat; continuity lives in `.ai/HANDOFF.md`, `.ai/DECISIONS.md`,
+`.ai/CURRENT_PHASE.md`, the roadmap and review receipts, not the previous chat.
+Carry phase close-out documentation forward to the next authorized phase release;
+do not merge docs alone into `main` merely to update status, because that deploys Production.
+
 ## Approval levels
 
 | Action | Approval |
