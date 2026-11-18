@@ -43,3 +43,7 @@ Updated: 2026-11-18 — Claude Code P08 Builder, BUILDING (build-first; all thre
   `/account/delete`, `/account/deleted`, `/auth/two-factor`; proxy sign-in gate; throw-away re-authentication in
   `lib/auth/account-security.ts`. Tests: matrix 1184, coverage probe + 9 mutations, lock-order race, real-provider
   suite (`scripts/rls-ci/p08-auth-provider.mjs`). Spike facts: `docs/workflow/FFH-P08_SPIKE_RESULTS.md`.
+- **Known item for the P08 audit (not new in P08):** sign-ins (login and P08's throw-away re-authentication) reach
+  Supabase Auth from Vercel server IPs, so Auth's per-IP rate limits apply per server address, not per visitor.
+- **Hosted steps for Ryan:** `docs/workflow/FFH-P08_HOSTED_CHANGES.md` (read-only check, Auth settings incl. R9,
+  migration + parity, Preview + TestC, Owner reset R11). None done yet.
