@@ -50,3 +50,32 @@ Rules:
 
 Afterwards, paste the findings to the Builder. BLOCKER/CRITICAL/HIGH change the design before coding;
 MEDIUM/LOW/NIT go into `.ai/DECISIONS.md` or are folded into the design.
+
+## Round 2 — targeted re-review (after Revision 1)
+
+Use the same reviewer model. Replace the placeholder with the commit that contains Revision 1.
+
+---
+
+You reviewed the FFH-P08 design at `5c87b119be0ca7efcafeb58dd2911de299803d9e` and returned FAIL (TM-01 CRITICAL;
+TM-02–TM-06 HIGH; TM-07/TM-08 MEDIUM). The Builder revised the design.
+
+- Repository: Ryan42062001/Family-Finance-Hub, branch `phase/ffh-p08-account-security`
+- Exact commit: <40-character SHA>
+- Read: `docs/FFH-P08_PROPOSAL.md` **§10** (binding; overrides §3–§8), and the disposition table in
+  `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`.
+
+Re-check **only** whether §10 resolves each of TM-01 to TM-08 at the design level, and whether §10 itself introduces
+a new BLOCKER/CRITICAL/HIGH problem. Pay particular attention to:
+1. The security epoch (`iat` vs `tokens_valid_after`) and its interaction with refresh and clock skew.
+2. Whether `recent_reauth` (fresh `amr` timestamps, single-use per session and purpose) is a sound database-verifiable
+   proof, and whether the stated 5-minute residual is acceptable.
+3. Whether the FFH factor registry closes the stolen-session factor takeover/lock-out for FFH data, and whether
+   R10's residual is described honestly.
+4. Whether the inventory plus catalog coverage probe is an adequate guarantee for TM-03, including the
+   `my_mfa_status()` exception.
+5. The household-row lock protocol for TM-05.
+
+Mark anything that depends on Supabase behaviour UNVERIFIED with what the spike (§10.9 step 2) must prove. For each
+TM item say RESOLVED / PARTIALLY RESOLVED / NOT RESOLVED. Report any new problem with severity, section, scenario
+and suggested change. End with `THREAT-MODEL RE-REVIEW RESULT: PASS` or `FAIL` and the SHA reviewed.
