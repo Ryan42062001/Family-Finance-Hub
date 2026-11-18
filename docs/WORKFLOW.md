@@ -89,7 +89,8 @@ Before the merge:
   origin; each phase Preview = that branch's Preview URL, branch-scoped), `NEXT_PUBLIC_SUPABASE_URL` and
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Missing `NEXT_PUBLIC_SITE_URL` makes auth fail closed with
   "Authentication origin is not configured".
-- Hosted Supabase parity still matches if migrations changed (`scripts/rls-local/parity.sql`).
+- Hosted Supabase parity still matches if migrations changed: after pasting a migration, always run
+  `scripts/rls-local/strip-cr.sql` (removes paste-introduced CRLF from function bodies), then `scripts/rls-local/parity.sql`.
 
 Right after the merge, once Vercel reports the Production deployment Ready:
 - `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,

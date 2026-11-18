@@ -40,8 +40,16 @@ Expected: `25`, `false`, `false`. Anything else: STOP and report the row.
      (select count(*) from public.debts where due_anchor_date is not null or reminder_days is not null) as invented_debt_schedules;
    ```
 
-5. Run `scripts/rls-local/parity.sql` and compare with `scripts/rls-local/parity.expected.txt` (must be 9/9 MATCH,
-   migrations 26). Report the rows. If a function body differs only by `\r` characters, re-paste from the raw file.
+5. **Always, before parity:** run `scripts/rls-local/strip-cr.sql` (raw file). Browser pastes turn line endings into
+   CRLF, which changes stored function bodies and the `functions` fingerprint without changing behaviour; this
+   re-creates only the affected functions without `\r` (owner, grants and settings kept; no table data touched;
+   safe to re-run). Expected last row: `functions_with_cr_left = 0`.
+6. Run `scripts/rls-local/parity.sql` and compare with `scripts/rls-local/parity.expected.txt` (must be 9/9 MATCH,
+   migrations 26). Report the rows.
+
+**Result (Ryan, 2026-11-18):** step 1 `25 | false | false`; step 2 applied and recorded, existing rows `0 | 0 | 0`;
+parity 8/9 with `functions` differing because of CRLF in `private.expenses_derive_monthly_amount` (`has_cr = true`).
+Repair: step 5, then parity again.
 
 ## 3. Preview (authorize: "P09 preview")
 
