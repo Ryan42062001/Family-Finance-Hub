@@ -563,3 +563,11 @@
   the same threshold and one exception, GHSA-fc5q-39xc-vjpf in `picomatch` (no patched release; dev-only ESLint
   toolchain; attacker must supply the glob pattern), valid while HIGH, absent from `npm audit --omit=dev`, and until
   **2027-01-18**. Any new exception needs Ryan's approval. PR #163; `docs/workflow/FFH-P08_DEPENDENCY_AUDIT.md`.
+
+## 2026-11-18 — FFH-P08 threat-model review round 1: FAIL; design Revision 1
+
+- Independent different-model review at `5c87b119be0ca7efcafeb58dd2911de299803d9e`: **FAIL** (TM-01 CRITICAL direct
+  deletion RPC; TM-02 MFA via Auth API; TM-03 incomplete MFA coverage; TM-04 provider password change; TM-05 deletion
+  race; TM-06 stale tokens after factor removal; TM-07/TM-08 MEDIUM). Receipt: `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`.
+- Builder response: `docs/FFH-P08_PROPOSAL.md` §10 (binding). R1–R8 unchanged. New decisions R9–R11 pending Ryan.
+  Implementation blocked until the targeted re-review passes.

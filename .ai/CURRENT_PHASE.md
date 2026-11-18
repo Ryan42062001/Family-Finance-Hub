@@ -2,7 +2,7 @@
 
 FFH-P08 — Account settings and security
 
-State: PLANNED — **SCOPE AND R1–R8 APPROVED by Ryan as recommended (2026-11-18)**; pre-build threat-model review pending
+State: PLANNED — scope and R1–R8 approved (2026-11-18); **pre-build threat-model review FAILED** (TM-01 CRITICAL, TM-02–06 HIGH); design **Revision 1** (proposal §10) awaiting targeted re-review and Ryan's R9–R11
 Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
 Phase branch: `phase/ffh-p08-account-security`
@@ -32,9 +32,12 @@ is unchanged; bills/due dates and plan export follow this item.
   - R6 minimum 12 characters, no forced character classes, Secure password change on.
   - R7 2FA optional per person, enforced **in the database** for anyone with a verified factor.
   - R8 TestA/TestB stay password-only; synthetic TestC for 2FA QA; a documented list of removable synthetic accounts.
-- **Next gate:** a fresh independent **different-model** HIGH-risk threat-model review of the design
-  (`docs/workflow/FFH-P08_THREAT_MODEL_REVIEW_PROMPT.md`) before any P08 code. Fix design-level BLOCKER/CRITICAL/HIGH
-  first. Then the spike (proposal §8 step 0) and parts A → C → B in the proposal's order.
+- **Threat-model review round 1: FAIL** at `5c87b119` (receipt `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`).
+  The Builder answered with **Revision 1 = proposal §10 (binding)**: security epoch, FFH factor registry, one
+  `session_ok()` predicate on every authorization path with a CI coverage probe, database-verified recent
+  re-authentication inside `delete_my_account` and other sensitive RPCs, household-row lock protocol, Owner reset
+  procedure. **Next gates:** targeted re-review (prompt "Round 2"), Ryan's **R9–R11** (§10.10), then the CI-only spike
+  (§10.9 step 2). **No P08 feature code before the re-review passes.**
 - Any provider capabilities, SQL privileges, auth-schema cascades, or MFA assumptions must be
   proven in disposable/local tests and separately authorized hosted checks before use.
 
