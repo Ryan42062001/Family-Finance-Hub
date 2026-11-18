@@ -48,9 +48,13 @@ INSERT INTO auth.users(id,instance_id,aud,role) VALUES
  ('$owner_a','00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
  ('$owner_b','00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
  ('$joiner','00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+-- FFH-P08: each synthetic user gets a live session (id = user id) for private.session_ok().
+INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+ WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
 BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$owner_a',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$owner_a','session_id','$owner_a','aal','aal1','role','authenticated')::text,true);
 INSERT INTO public.households(id,name,created_by) VALUES('$house_a','ffh-ci-race-a','$owner_a');
 INSERT INTO public.household_invitations(household_id,role,token_hash)
  VALUES('$house_a','member',encode(sha256(convert_to('$token_a','UTF8')),'hex'));
@@ -58,6 +62,7 @@ COMMIT;
 BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$owner_b',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$owner_b','session_id','$owner_b','aal','aal1','role','authenticated')::text,true);
 INSERT INTO public.households(id,name,created_by) VALUES('$house_b','ffh-ci-race-b','$owner_b');
 INSERT INTO public.household_invitations(household_id,role,token_hash)
  VALUES('$house_b','viewer',encode(sha256(convert_to('$token_b','UTF8')),'hex'));
@@ -88,6 +93,7 @@ BEGIN;
 SET LOCAL statement_timeout='20s';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$joiner',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$joiner','session_id','$joiner','aal','aal1','role','authenticated')::text,true);
 SELECT public.accept_household_invitation('$token');
 COMMIT;
 SQL

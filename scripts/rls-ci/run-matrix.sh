@@ -2,7 +2,7 @@
 # FFH-P01 two-household RLS matrix on a disposable GitHub Actions runner.
 #
 # Builds a brand-new local Supabase PostgreSQL in an isolated temp project,
-# applies the 23 canonical migrations, runs the unchanged read-only
+# applies the 24 canonical migrations, runs the unchanged read-only
 # preflight.sql and the unchanged BEGIN/ROLLBACK matrix.sql, checks the exact
 # success markers, and always tears the database down.
 #
@@ -11,8 +11,8 @@
 set -euo pipefail
 
 CLI="supabase@2.122.0"
-EXPECTED_MIGRATIONS=23
-EXPECTED_ASSERTIONS=1126
+EXPECTED_MIGRATIONS=24
+EXPECTED_ASSERTIONS=1183
 # Unique per CI run and attempt, so it can never match a pre-existing project.
 PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
 CONTAINER="supabase_db_${PROJECT_ID}"
@@ -125,7 +125,7 @@ run_cli() {
 }
 
 run_cli --version
-# Full local stack on the disposable runner; applies the 23 migrations to a
+# Full local stack on the disposable runner; applies the 24 migrations to a
 # brand-new database (no seed file exists in the temp project).
 run_cli start
 
@@ -142,7 +142,7 @@ preflight_out="$work/preflight.out"
 psql_in_db < scripts/rls-local/preflight.sql > "$preflight_out" 2>&1 ||
   { cat "$preflight_out" >&2; fail "preflight.sql failed"; }
 [[ "$(last_line < "$preflight_out")" == \
-   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=23 ROLES=2 NO_FIXTURES=1" ]] ||
+   "PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=24 ROLES=2 NO_FIXTURES=1" ]] ||
   { cat "$preflight_out" >&2; fail "preflight success marker missing"; }
 echo "RLS_CI_PREFLIGHT=PASS"
 
@@ -203,6 +203,15 @@ grep -qx "MATRIX_ASSERTIONS_PASS=${EXPECTED_ASSERTIONS}" "$matrix_out" ||
 
 echo "RLS_CI_MATRIX=PASS ASSERTIONS=${EXPECTED_ASSERTIONS} ROLLBACK=COMPLETE ZERO_RESIDUE=PASS"
 
+# FFH-P08 (TM-03/N04): catalog coverage probe plus nine rolled-back mutation tests.
+coverage_out="$work/coverage.out"
+docker exec -i "$CONTAINER" psql -X -q -t -A -v ON_ERROR_STOP=1 -P pager=off -U postgres -d postgres \
+  < scripts/rls-local/coverage.sql > "$coverage_out" 2>&1 || { cat "$coverage_out" >&2; fail "coverage.sql failed"; }
+grep -qx 'COVERAGE_CLEAN_PASS' "$coverage_out" || { cat "$coverage_out" >&2; fail "coverage probe not clean"; }
+[[ "$(grep -c 'COVERAGE_MUTATION_DETECTED' "$coverage_out")" -eq 9 ]] || { cat "$coverage_out" >&2; fail "coverage mutations not all detected"; }
+[[ "$(last_line < "$coverage_out")" == "COVERAGE_PASS MUTATIONS=9" ]] || { cat "$coverage_out" >&2; fail "coverage success marker missing"; }
+echo "RLS_CI_COVERAGE=PASS MUTATIONS=9"
+
 # FFH-P06 high-risk review: genuine TWO-CONNECTION race, before/after the
 # database uniqueness guard, entirely within the disposable CI container.
 # No hosted SQL and no persistent synthetic fixture may survive.
@@ -210,6 +219,9 @@ bash scripts/rls-ci/test-invitation-concurrency.sh "$CONTAINER" "$work"
 
 # FFH-P07 review N01: two editors saving the same check-in at once (real parallel sessions).
 bash scripts/rls-ci/test-check-in-concurrency.sh "$CONTAINER" "$work"
+
+# FFH-P08 review N03: account deletion racing an invitation acceptance (household lock first).
+bash scripts/rls-ci/test-household-lock-order.sh "$CONTAINER" "$work"
 
 # FFH-P08 spike (proposal §11.6): facts about the REAL local Auth server; prints no tokens, keys or secrets.
 bash scripts/rls-ci/p08-auth-spike.sh "$CONTAINER" "$work" "$CLI" "$PROJECT_ID"
