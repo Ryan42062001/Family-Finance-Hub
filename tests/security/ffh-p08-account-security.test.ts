@@ -18,9 +18,9 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-test("FFH-P08 password rules: 12+ characters, at most 72 bytes, confirmed, different from the current one (R6)", () => {
-  assert.equal(PASSWORD_MIN, 12);
-  assert.match(newPasswordProblem("short", "short", "old-password-1")!, /at least 12/);
+test("FFH-P08 password rules: 8+ characters, at most 72 bytes, confirmed, different from the current one (R6)", () => {
+  assert.equal(PASSWORD_MIN, 8);
+  assert.match(newPasswordProblem("short", "short", "old-password-1")!, /at least 8/);
   assert.match(newPasswordProblem("a".repeat(73), "a".repeat(73), "old")!, /too long/);
   assert.match(newPasswordProblem("é".repeat(37), "é".repeat(37), "old")!, /too long/); // 74 bytes
   assert.match(newPasswordProblem("synthetic-pass-1", "synthetic-pass-2", "old")!, /don't match/);

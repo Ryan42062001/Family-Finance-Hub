@@ -609,3 +609,8 @@ batched Owner decisions with recommendations; targeted plus final exact-head Bro
 Recorded in `docs/WORKFLOW.md`. One comprehensive different-model HIGH-risk audit at the end of P08, targeted
 re-reviews for serious fixes; all CI, RLS, isolation and release protections unchanged. P09 is being planned
 separately by ChatGPT Work; the P08 Builder does not touch it.
+
+## 2026-11-18 — R6 amended: minimum password length 8 (Ryan)
+
+Ryan chose 8 characters instead of the recommended 12 (Supabase's recommended minimum; no forced character classes).
+App validation, CI stack config, tests, QA rows and the hosted-settings procedure updated to match.

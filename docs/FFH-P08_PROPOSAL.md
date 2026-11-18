@@ -168,7 +168,7 @@ Each hosted step is a separate Ryan authorization; nothing touches Production un
 | R3 | An **owner** whose household has other people wants to delete their account | **Refuse** until they remove the others (ownership transfer is a separate future feature) |
 | R4 | Deletion **recovery** | **Permanent, no undo**, with password (+2FA) re-entry, typed `DELETE`, and a clear list of what is removed |
 | R5 | **Lost authenticator** | Allow an optional **second authenticator**; otherwise an Owner-assisted reset by you in the Supabase dashboard after you confirm identity yourself (documented) |
-| R6 | **Password rules** (provider setting) | Minimum **12** characters; no forced character classes; Secure password change on |
+| R6 | **Password rules** (provider setting) | Minimum **12** characters; no forced character classes; Secure password change on. **Amended by Ryan 2026-11-18: minimum 8** |
 | R7 | 2FA **optional or required**, and **database-level** enforcement | **Optional per person**, enforced in the **database** (helper gate) for anyone who turns it on |
 | R8 | Synthetic accounts | Keep TestA/TestB password-only; create synthetic **TestC** for 2FA QA; list which stray synthetic accounts may be cleaned up |
 

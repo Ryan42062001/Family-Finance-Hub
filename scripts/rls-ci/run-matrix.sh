@@ -80,7 +80,7 @@ shadow_port = 54333
 major_version = 17
 # FFH-P08: mirror the approved hosted Auth settings (R6 password rules, TOTP on).
 [auth]
-minimum_password_length = 12
+minimum_password_length = 8
 [auth.email]
 enable_confirmations = false
 secure_password_change = true

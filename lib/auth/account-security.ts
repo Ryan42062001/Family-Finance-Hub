@@ -9,7 +9,7 @@ import { createClient as createSupabaseClient, type SupabaseClient } from "@supa
 // only used to learn who is signed in; the throw-away session must belong to the same user id, and it is always
 // ended with a LOCAL sign-out (the default scope is global and would sign the person out everywhere).
 
-export const PASSWORD_MIN = 12; // R6
+export const PASSWORD_MIN = 8; // R6 as amended by Ryan, 2026-11-18
 export const PASSWORD_MAX_BYTES = 72; // bcrypt limit used by Supabase Auth
 export const GENERIC_FAILURE = "That didn't work. Check what you typed and try again.";
 
