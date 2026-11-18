@@ -523,3 +523,13 @@
   N02 FIXED, no new findings; exact-head CI run 43676392748 green (`fast`, `rls-matrix` 1126 + both concurrency
   tests, `e2e-isolation`). The reviewer marked the hosted apply UNVERIFIED from CI alone; Ryan's hosted parity 9/9 at
   migrations 23 (above) covers it. No BLOCKER/CRITICAL/HIGH/MEDIUM finding remains open for P07.
+
+## 2026-11-15 / 2026-11-18 — FFH-P07 released and closed (Ryan)
+
+- **Release authorized by Ryan** ("Release FFH-P07: merge PR #155 at ae97e90e… into main"). PR #155 merged into
+  protected `main` as `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`. Release checklist: only docs changed after the
+  reviewed code head `34fa4093`; clean fast-forward of `main`; no new environment variables; no Money Priority Engine
+  file changed; exactly the four P07 migrations, all already applied to hosted (parity 9/9, migrations 23).
+- **Production smoke test 12/12** (`DEPLOYED_AUTH_SMOKE PASS 12/12`, run by Ryan on 2026-11-18; the Builder's
+  container cannot reach `vercel.app`). FFH-P07 is **CLOSED**.
+- Open backlog from P07: the Money Priority Engine's float rounding-tie flaw (LOW, own reviewed engine change).

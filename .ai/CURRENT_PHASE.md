@@ -2,8 +2,9 @@
 
 FFH-P07 — Goals and monthly check-in
 
-State: BUILDING — **OWNER SCOPE APPROVED** (2026-11-14); financial rules in `docs/FFH-P07_DESIGN.md`
-**approved by Ryan as recommended** (2026-11-14); implementation on `claude/ffh-p07-ownership-handoff-6ky7io`
+State: CLOSED — **released to Production** (Ryan's explicit authorization, 2026-11-15) via PR #155, merge
+`1c4753dab2e3a9e38fbfbe34ce82397e92047f43` from phase head `ae97e90e7d463be62243b22ece50c7b84b2f7b5a`; Production
+smoke test **12/12** (run by Ryan, 2026-11-18). No next phase is open yet; Ryan chooses it.
 Risk: HIGH (goal savings calculations and new household financial data/RLS)
 Owner: Ryan
 Phase branch / future phase PR: `phase/ffh-p07-goals-and-check-ins` → `main`
