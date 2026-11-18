@@ -1430,9 +1430,9 @@ BEGIN
   PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
   INSERT INTO public.household_members(household_id,user_id,role) VALUES (h_shared,u_mem,'member');
   INSERT INTO public.accounts(household_id,name,account_type,balance) VALUES (h_plain,'ZZ-P08 cash','checking',100),(h_shared,'ZZ-P08 shared cash','checking',200);
-  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status) VALUES
-    (f_ok,u_mfa,'ok','totp','verified'),(f_rogue,u_mfa,'rogue','totp','verified'),(f_new,u_new,'new','totp','verified'),
-    (f_two_a,u_two,'a','totp','verified'),(f_two_b,u_two,'b','totp','verified');
+  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+    SELECT x.id, x.uid, x.nm, 'totp', 'verified', now(), now() FROM (VALUES
+      (f_ok,u_mfa,'ok'),(f_rogue,u_mfa,'rogue'),(f_new,u_new,'new'),(f_two_a,u_two,'a'),(f_two_b,u_two,'b')) x(id,uid,nm);
   INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_ok,u_mfa),(f_two_a,u_two),(f_two_b,u_two);
   INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES
     (s_plain,u_plain,'aal1',NULL),(s_mfa1,u_mfa,'aal1',NULL),(s_mfa2,u_mfa,'aal2',f_ok),(s_mfa_rogue,u_mfa,'aal2',f_rogue),
