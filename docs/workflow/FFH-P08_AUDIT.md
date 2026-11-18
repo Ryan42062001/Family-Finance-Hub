@@ -15,4 +15,10 @@ Different model (ChatGPT), read-only, at frozen candidate `ed915d419cd4e9e827bd1
 Verified by the auditor: gate and helpers, profile/household creation, approved-factor binding, session revocation,
 deletion authorization and R3, lock-order race, Owner reset, exact P05/P07 RPC parity. UNVERIFIED by the auditor
 (covered by Ryan's hosted checks and Browser QA): hosted settings/migration, full browser MFA lifecycle.
-Next: targeted re-review of F01 (and F02/F03) at the fix commit.
+
+
+## Targeted re-review — PASS (2026-11-18)
+
+Same reviewer model, at `ce854b7cf95691f9fed46cbc228323c24220326d` (exact-head CI run 44330433584 green). F01, F02,
+F03 RESOLVED; F04 LOW accepted backlog; no new BLOCKER/CRITICAL/HIGH. Hosted migration `20261118110000` applied by
+Ryan, parity 9/9 (25 migrations).
