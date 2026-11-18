@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-17 — FFH-P07 closure carried into FFH-P08 planning; no Production change.
+Updated: 2026-11-18 — Claude Code P08 Builder: audit gate fixed (#163), #162 merged, R1–R8 approved.
 
 - **Production:** FFH-P07 RELEASED/CLOSED; PR #155 merged the exact authorized head
   `ae97e90e7d463be62243b22ece50c7b84b2f7b5a` into protected `main` as
@@ -14,7 +14,9 @@ Updated: 2026-11-17 — FFH-P07 closure carried into FFH-P08 planning; no Produc
   Close-out originated in PR #161; this P08 branch carries its documentation without
   a separate merge into Production.
 - **Active phase:** FFH-P08 — Account settings and security, HIGH risk; `phase/ffh-p08-account-security`.
-  **PLANNED / design not approved / implementation not started**.
+  **PLANNED / scope and R1–R8 approved as recommended (Ryan, 2026-11-18) / implementation not started**.
+  Email change deferred (R1). Waiting on the pre-build **threat-model review** by a different model
+  (`docs/workflow/FFH-P08_THREAT_MODEL_REVIEW_PROMPT.md`); no P08 code before it returns.
 - **Next roadmap item:** password change, email change, account deletion/test-account cleanup,
   authenticator-app 2FA. See `docs/FFH-P08_PROPOSAL.md` as an UNAPPROVED proposal.
   Ryan must choose proposal decisions **R1–R8** before implementation.
@@ -31,3 +33,6 @@ Updated: 2026-11-17 — FFH-P07 closure carried into FFH-P08 planning; no Produc
   half-cent rounding issue retained in `.ai/DECISIONS.md`, not folded into P08 auth work.
 - **Workflow:** Each completed phase gets a clear **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**
   Manager notice. Each `main` merge independently requires Ryan's exact-SHA release approval.
+- **Audit gate (2026-11-18):** PR #163 fixed the 6 MODERATE advisories and added `scripts/audit-gate.mjs` with one
+  Ryan-approved exception (GHSA-fc5q-39xc-vjpf, picomatch, dev-only, review by **2027-01-18**). Remove the exception
+  when picomatch ships a fix. The CI blocker notes above are historical.
