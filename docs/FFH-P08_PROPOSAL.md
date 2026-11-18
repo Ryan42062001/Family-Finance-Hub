@@ -1,10 +1,11 @@
 # FFH-P08 proposal — Account settings and security
 
-Status: **REVISION 1 — awaiting targeted threat-model re-review and Ryan's R9–R11.** Scope and R1–R8 were approved by
-Ryan as recommended (2026-11-18). The pre-build threat-model review at `5c87b119` **FAILED** (TM-01 CRITICAL, TM-02–TM-06
-HIGH, TM-07/TM-08 MEDIUM; receipt `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`). **§10 is the binding design and
-overrides §3–§8 wherever they differ.** Nothing is built. Part D (email change) is deferred (R1). No approval here
-covers a hosted Supabase/Auth, Vercel, secret or Production change; each remains a separate Ryan authorization.
+Status: **REVISION 2 — awaiting targeted round 3 re-review and Ryan's R9–R11.** Scope and R1–R8 approved by Ryan as
+recommended (2026-11-18). Threat-model review round 1 **FAIL** at `5c87b119`; round 2 **FAIL** at `9af92874`
+(N01/N02 HIGH, N03/N04 MEDIUM); receipts in `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`. **§11 is binding and
+overrides §10, which overrides §3–§8, wherever they differ.** Nothing is built. Part D (email change) is deferred
+(R1). No approval here covers a hosted Supabase/Auth, Vercel, secret or Production change; each remains separate.
+R9–R11 are **pending**, not approved.
 Base: protected `main` at `1c4753dab2e3a9e38fbfbe34ce82397e92047f43` (FFH-P07 release, PR #155 merged; post-release
 CI run 43677246878 green). Carries the P07 close-out (draft PR #161, not merged into `main`).
 Roadmap item 6: "Account settings: change password and email, delete account (also enables test-account cleanup),
@@ -171,7 +172,7 @@ Each hosted step is a separate Ryan authorization; nothing touches Production un
 | R7 | 2FA **optional or required**, and **database-level** enforcement | **Optional per person**, enforced in the **database** (helper gate) for anyone who turns it on |
 | R8 | Synthetic accounts | Keep TestA/TestB password-only; create synthetic **TestC** for 2FA QA; list which stray synthetic accounts may be cleaned up |
 
-## 10. Revision 1 — response to the threat-model review (binding)
+## 10. Revision 1 — response to the threat-model review (binding except where §11 overrides)
 
 The approved product scope and R1–R8 are unchanged. What changes is **where** each guarantee is enforced: every
 sensitive guarantee must hold for a direct call to PostgREST or to the Supabase Auth API with a stolen token, not only
@@ -332,3 +333,110 @@ allowlisted exception: it returns only the caller's own boolean and is gated by 
 | R9 | Turn on the Auth setting that makes the provider **require the current password** for every password update (hosted Auth change, applied later with the others) | **Yes.** Without it a stolen session can change the password by calling the Auth API directly |
 | R10 | Accept that the Auth API can accept a **first** authenticator from a stolen session, given FFH's database ignores factors not approved through FFH; or pay for a plan with the MFA verification hook if the spike shows it is plan-gated | **Accept**, with the registry design and the warning screen; revisit if the plan changes |
 | R11 | Identity check for Owner-assisted 2FA reset | **In person, or a call you place to a number you already had**; never an inbound message alone |
+
+## 11. Revision 2 — response to round 2 (binding; overrides §10)
+
+Round 2 accepted TM-01, TM-04, TM-07 and TM-08 (TM-01/TM-04 conditional on the spike) and raised N01–N04. Revision 2
+moves the two remaining guarantees off JWT claims and clocks and onto **server-side session records**.
+
+### 11.1 Session liveness replaces the timestamp epoch (N02, TM-06)
+
+The `tokens_valid_after` / `iat` comparison (§10.1.1) is **withdrawn**. No security decision compares a JWT time with
+a database time.
+
+- `private.session_ok()` requires the JWT `session_id` claim to name a **live row in `auth.sessions`** belonging to
+  `auth.uid()` (and `not_after` null or in the future). A missing or malformed `session_id` fails closed.
+- **Revocation = deleting session rows.** Every security change (password change, 2FA enable/disable, factor
+  approval/revocation) deletes, inside the same SECURITY DEFINER RPC, every `auth.sessions` row of the caller except
+  the acting throw-away session (which is then signed out locally). `private.owner_reset_mfa` deletes **all** of the
+  person's sessions. Refresh tokens belong to sessions and go with them (**SPIKE**). An access token that names a
+  deleted session is refused by the database on its next request, whatever the clocks say. `signOut({ scope:
+  'others' })` is still called but is no longer what the guarantee rests on.
+- The check is a single indexed lookup, wrapped as `(select private.session_ok())` in policies so it runs once per
+  statement.
+- **SPIKE:** the definer owner may `SELECT`/`DELETE` `auth.sessions` locally, and (Ryan's read-only check) on hosted;
+  deleted sessions cannot be refreshed; a new session after re-login works at once. If hosted does not allow this,
+  P08 comes back to Ryan; the clock-based epoch is not reinstated as a fallback.
+- The only remaining time comparison is `recent_reauth`'s 5-minute freshness window (11.3). Skew there widens or
+  narrows a short window by the skew; it does not revive revoked access, because revocation is now by session row.
+  The spike measures the local skew and the window keeps a fixed 30-second allowance for it.
+
+### 11.2 Assurance must come from an approved factor (N01, TM-02)
+
+`session_ok()` for a person with an approved factor requires **all** of:
+1. JWT `aal = 'aal2'`;
+2. the live `auth.sessions` row has `aal = 'aal2'` **and** its `factor_id` is in `private.mfa_approved_factors` for
+   that person.
+
+So an `aal2` session reached with a rogue factor B is refused even though factor A is approved. **SPIKE (mandatory
+pass/fail):** Supabase records the verifying factor in `auth.sessions.factor_id` on MFA verify; rogue and approved
+factors can coexist; whether an `aal1` session can enroll/verify another factor once one is verified.
+**Fail-closed fallback if `factor_id` is not reliably recorded:** while any verified factor of the person is **not**
+in the registry, `session_ok()` refuses the person entirely and FFH shows the Owner-assisted reset path. Nothing in
+the design assumes the fallback is unnecessary.
+
+`recent_reauth` (11.3) applies the same session-row rule, so a fresh `totp` `amr` from a rogue factor is not a proof.
+`approve_my_mfa_factor(p_factor_id)` additionally requires the acting session row's `factor_id = p_factor_id` and
+`aal = 'aal2'`, so a factor is approved only by a session that was actually verified with it (this covers the first
+approval, before any factor is in the registry).
+
+### 11.3 `recent_reauth` (TM-01) — clarified
+
+Unchanged from §10.1.4 except: the proof session must be live (11.1); with an approved factor, the session row must
+satisfy 11.2; the freshness window is 5 minutes plus a 30-second skew allowance; and the proof is **consumed in the
+same transaction** as the sensitive operation (the `reauth_uses` insert and the operation commit or roll back
+together). **SPIKE:** refreshing a session never produces a newer `password`/`totp` `amr` timestamp; expired,
+replayed and refreshed-stolen proofs are refused.
+
+### 11.4 One lock order (N03, TM-05)
+
+**Household row first, then invitation rows, then membership rows**, everywhere:
+- `accept_household_invitation`: non-locking lookup of the invitation by token hash to read its `household_id` →
+  `SELECT … FROM public.households WHERE id = … FOR UPDATE` → `SELECT … FROM public.household_invitations WHERE id = …
+  FOR UPDATE` and **re-validate** (same household, not accepted, not expired) → membership insert. Every failure keeps
+  the existing generic "this invitation is not valid" message.
+- `set_household_member_role`, `remove_household_member`, invitation create/revoke and `delete_my_account`: lock the
+  household row first, then the rows they change (invitations in `id` order, then memberships).
+- Direct table writes on `household_members` and `household_invitations` by `authenticated` stay revoked (RPC only),
+  and the coverage probe (11.5) keeps it that way.
+- Tests: a deterministic two-session reproduction of the deadlock against the **current** function (expected to
+  deadlock before the change), then the same race serialising cleanly after it; plus deletion vs role change and vs
+  removal.
+
+### 11.5 Coverage probe includes views and privileges (N04, TM-03)
+
+The CI catalog probe fails unless, for every exposed schema (`public`, `graphql_public`, `storage` as applicable):
+- every table has RLS enabled and every policy calls `private.session_ok()` (or is on the reviewed allowlist);
+- every **view** is `security_invoker = true` over gated tables, or allowlisted; **materialized views** have no
+  `SELECT` grant to `anon`/`authenticated`/`PUBLIC`;
+- every function executable by `anon`/`authenticated`/`PUBLIC` (directly or through default privileges) calls
+  `session_ok()` or is allowlisted, and `ALTER DEFAULT PRIVILEGES` grants no `EXECUTE` to `PUBLIC`/`anon`;
+- no table/view grant to `anon` beyond the allowlist.
+
+**Mutation tests** run in the same CI job inside `BEGIN … ROLLBACK`: adding an unsafe view, an ungated
+`SECURITY DEFINER` function granted to `authenticated`, a policy without the predicate, a materialized view with a
+grant, and a permissive default privilege must each make the probe fail.
+
+### 11.6 Spike pass/fail conditions (replaces the §10.9 step 2 list)
+
+Each item passes or fails; any failure returns that part to Ryan. No ordinary green CI run counts as evidence of
+provider behaviour.
+
+| Area | Must be shown in the disposable stack |
+|---|---|
+| Session liveness | Token of a deleted session refused at once; deleted session cannot refresh; new login works |
+| Factor identity | `auth.sessions.factor_id` set on verify; rogue + approved factors coexisting; rogue-factor `aal2` refused by `session_ok()`; `aal1` enroll/verify rules |
+| Re-authentication | Fresh `password`/`totp` `amr`; refresh does not renew them; expired, replayed and stolen-refreshed proofs refused; proof consumed atomically |
+| Coverage | Every mutation in 11.5 turns the probe red |
+| Concurrency | Deadlock reproduced on the current invitation function; serialisation after the fix; deletion vs role change/removal |
+| Auth provider | Local stack enforces "require current password"; `aal2` required for password update with a verified factor; hosted availability via Ryan's read-only check before Part A |
+| Recovery | `owner_reset_mfa` leaves no session, factor or approval; every old token refused |
+| Privileges | Definer may read/delete `auth.sessions`, delete `auth.users`; cascades as expected (local, then Ryan's hosted read-only check) |
+
+### 11.7 Decisions (R9–R11 still pending; R10 reworded)
+
+| # | Decision | Builder recommendation |
+|---|---|---|
+| R9 | Turn on the provider setting that requires the current password for every password update | **Yes** |
+| R10 | The Supabase Auth API may still let a stolen `aal1` session of a person **without** 2FA enroll a first factor. With 11.2, a rogue factor never satisfies FFH's database for someone who has an approved factor (or, in the fallback, the person is refused until Owner reset). Accept this Auth-level residual rather than buy a plan with the MFA verification hook | **Accept**; revisit if the plan changes |
+| R11 | Identity check for Owner-assisted 2FA reset | **In person, or a call you place to a number you already had** |

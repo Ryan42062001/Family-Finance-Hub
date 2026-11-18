@@ -571,3 +571,11 @@
   race; TM-06 stale tokens after factor removal; TM-07/TM-08 MEDIUM). Receipt: `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`.
 - Builder response: `docs/FFH-P08_PROPOSAL.md` §10 (binding). R1–R8 unchanged. New decisions R9–R11 pending Ryan.
   Implementation blocked until the targeted re-review passes.
+
+## 2026-11-18 — FFH-P08 threat-model round 2: FAIL; design Revision 2
+
+- Re-review at `9af9287412fc04bb9e4264cbe336c82741daf375`: **FAIL** (N01 HIGH `aal2` not bound to an approved factor;
+  N02 HIGH clock-based epoch; N03 MEDIUM lock order; N04 MEDIUM view coverage). TM-01/04/07/08 resolved
+  (01/04 conditional on the spike).
+- Builder response: proposal §11 (binding). The `iat` epoch is withdrawn in favour of `auth.sessions` liveness; no
+  clock fallback. R9–R11 remain pending Ryan. Implementation still blocked.
