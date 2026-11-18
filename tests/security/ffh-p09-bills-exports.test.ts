@@ -107,3 +107,11 @@ test("FFH-P09 hosted paste repair: strips CR from FFH functions only, via their 
   assert.doesNotMatch(strip, /\b(insert|update|delete|truncate|drop|grant|revoke)\b/i);
   assert.match(read("docs/workflow/FFH-P09_HOSTED_CHANGES.md"), /Always, before parity/);
 });
+
+test("FFH-P09 QA #180: bills screens never say paid, unpaid or overdue (no payment status is implied)", () => {
+  const ui = ["app/bills/page.tsx", "app/bills/actions.ts", "components/bills/PaymentAmountFields.tsx", "components/bills/UpcomingBillsSummary.tsx", "app/plan/print/page.tsx"];
+  for (const file of ui) {
+    const code = read(file).split("\n").filter((line) => !/^\s*\/\//.test(line)).join("\n");
+    assert.doesNotMatch(code, /\b(paid|unpaid|overdue)\b/i, file);
+  }
+});

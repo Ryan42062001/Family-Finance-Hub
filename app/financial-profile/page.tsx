@@ -34,7 +34,7 @@ type PageProps = { searchParams: Promise<{ message?: string; error?: string }> }
 
 // FFH-P09: fixed, allowlisted problems after a refused expense edit; the text never comes from the URL.
 const PROFILE_ERRORS: Record<string, string> = {
-  confirm_recurrence: "Not saved: you changed how often the expense is paid. Tick the confirmation to accept the new monthly planning amount, then save again.",
+  confirm_recurrence: "Not saved: you changed how often the expense repeats. Tick the confirmation to accept the new monthly planning amount, then save again.",
   changed: "Not saved: this expense was changed somewhere else in the meantime. Review it and save again.",
 };
 
