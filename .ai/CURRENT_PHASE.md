@@ -30,7 +30,7 @@ is unchanged; bills/due dates and plan export follow this item.
   - R3 an owner whose household has other members is **refused**. R4 deletion is **permanent**, with password (+ code
     if 2FA) re-entry, typed `DELETE` and a list of what is removed.
   - R5 optional second authenticator; otherwise an Owner-assisted reset by Ryan after he confirms identity himself.
-  - R6 minimum 12 characters, no forced character classes, Secure password change on.
+  - R6 minimum **8** characters (amended by Ryan 2026-11-18 from 12), no forced character classes, Secure password change on.
   - R7 2FA optional per person, enforced **in the database** for anyone with a verified factor.
   - R8 TestA/TestB stay password-only; synthetic TestC for 2FA QA; a documented list of removable synthetic accounts.
 - **Threat-model review round 1: FAIL** at `5c87b119` (receipt `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`).

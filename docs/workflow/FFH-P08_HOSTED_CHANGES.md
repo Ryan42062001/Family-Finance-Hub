@@ -30,7 +30,7 @@ Expected: seven `true`, then `false`, then `23`. Anything else: STOP and report 
 
 In the Supabase dashboard (Authentication → Sign In / Providers → Email, and Authentication → Multi-Factor):
 - **Secure password change**: on (R6).
-- **Minimum password length**: 12; no forced character classes (R6).
+- **Minimum password length**: 8; no forced character classes (R6, amended by Ryan 2026-11-18).
 - **Require current password when updating password** (R9). If the dashboard has no switch for it, set
   `security_update_password_require_current_password: true` through the Management API's Auth config.
 - **TOTP (App Authenticator)**: enroll and verify enabled (R7).
