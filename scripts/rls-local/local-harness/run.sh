@@ -8,7 +8,8 @@
 #   scripts/rls-local/local-harness/run.sh reset      # fresh `postgres` database: auth stub + every tracked migration
 #   scripts/rls-local/local-harness/run.sh matrix     # preflight.sql + matrix.sql (reset first)
 #   scripts/rls-local/local-harness/run.sh coverage   # coverage.sql (reset first)
-#   scripts/rls-local/local-harness/run.sh all        # start + matrix + coverage
+#   scripts/rls-local/local-harness/run.sh upgrade    # FFH-P09: legacy rows before/after the P09 migration (own database)
+#   scripts/rls-local/local-harness/run.sh all        # start + matrix + coverage + upgrade
 # Untracked new migrations are not applied: `git add` them first.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; repo="$(git -C "$here" rev-parse --show-toplevel)"; cd "$repo"
@@ -51,8 +52,21 @@ coverage() {
   reset
   psql_local -d postgres -t -A < scripts/rls-local/coverage.sql 2>&1 | grep -E 'COVERAGE_(CLEAN|PASS|VIOLATION|FAIL)|ERROR'
 }
+# FFH-P09: apply every migration before P09 to a throw-away database, write legacy rows, apply P09, compare.
+upgrade() {
+  local db=ffh_p09_upgrade P09=supabase/migrations/20261118120000_ffh_p09_bills_due_dates.sql
+  psql_local -d template1 -c "drop database if exists $db" -c "create database $db" >/dev/null
+  local P=(psql_local -d "$db" -v ON_ERROR_STOP=1)
+  "${P[@]}" -f "$here/auth-stub.sql" >/dev/null
+  mapfile -t migrations < <(git ls-files 'supabase/migrations/*.sql' | sort)
+  for f in "${migrations[@]}"; do [[ "$f" < "$P09" ]] || continue; "${P[@]}" -f "$f" >/dev/null; done
+  "${P[@]}" -f scripts/rls-local/p09-upgrade-before.sql >/dev/null
+  "${P[@]}" -f "$P09" >/dev/null
+  "${P[@]}" -t -A -f scripts/rls-local/p09-upgrade-after.sql
+  psql_local -d template1 -c "drop database $db" >/dev/null
+}
 case "${1:-all}" in
-  start) start ;; reset) reset ;; matrix) matrix ;; coverage) coverage ;;
-  all) start; matrix; coverage ;;
-  *) echo "usage: $0 start|reset|matrix|coverage|all" >&2; exit 2 ;;
+  start) start ;; reset) reset ;; matrix) matrix ;; coverage) coverage ;; upgrade) upgrade ;;
+  all) start; matrix; coverage; upgrade ;;
+  *) echo "usage: $0 start|reset|matrix|coverage|upgrade|all" >&2; exit 2 ;;
 esac
