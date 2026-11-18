@@ -2,7 +2,7 @@
 
 FFH-P08 — Account settings and security
 
-State: PLANNED — scope and R1–R8 approved (2026-11-18); **pre-build threat-model review FAILED** (TM-01 CRITICAL, TM-02–06 HIGH); round 2 re-review **FAILED** (N01/N02 HIGH, N03/N04 MEDIUM); design **Revision 2** (proposal §11) awaiting round 3 re-review and Ryan's R9–R11
+State: PLANNED — scope and R1–R8 approved (2026-11-18); **pre-build threat-model review FAILED** (TM-01 CRITICAL, TM-02–06 HIGH); round 2 re-review **FAILED** (N01/N02 HIGH, N03/N04 MEDIUM); design **Revision 2** (proposal §11) awaiting round 3 re-review; **R9–R11 approved as recommended (2026-11-18)**
 Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
 Phase branch: `phase/ffh-p08-account-security`

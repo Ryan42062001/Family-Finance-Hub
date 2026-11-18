@@ -1,11 +1,11 @@
 # FFH-P08 proposal — Account settings and security
 
-Status: **REVISION 2 — awaiting targeted round 3 re-review and Ryan's R9–R11.** Scope and R1–R8 approved by Ryan as
+Status: **REVISION 2 — awaiting targeted round 3 re-review.** R9–R11 approved by Ryan as recommended (2026-11-18). Scope and R1–R8 approved by Ryan as
 recommended (2026-11-18). Threat-model review round 1 **FAIL** at `5c87b119`; round 2 **FAIL** at `9af92874`
 (N01/N02 HIGH, N03/N04 MEDIUM); receipts in `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`. **§11 is binding and
 overrides §10, which overrides §3–§8, wherever they differ.** Nothing is built. Part D (email change) is deferred
-(R1). No approval here covers a hosted Supabase/Auth, Vercel, secret or Production change; each remains separate.
-R9–R11 are **pending**, not approved.
+(R1). No approval here covers a hosted Supabase/Auth, Vercel, secret or Production change; each remains separate
+(R9's provider setting is applied later only with Ryan's per-change authorization).
 Base: protected `main` at `1c4753dab2e3a9e38fbfbe34ce82397e92047f43` (FFH-P07 release, PR #155 merged; post-release
 CI run 43677246878 green). Carries the P07 close-out (draft PR #161, not merged into `main`).
 Roadmap item 6: "Account settings: change password and email, delete account (also enables test-account cleanup),
@@ -433,7 +433,7 @@ provider behaviour.
 | Recovery | `owner_reset_mfa` leaves no session, factor or approval; every old token refused |
 | Privileges | Definer may read/delete `auth.sessions`, delete `auth.users`; cascades as expected (local, then Ryan's hosted read-only check) |
 
-### 11.7 Decisions (R9–R11 still pending; R10 reworded)
+### 11.7 Decisions — R9–R11 **approved by Ryan as recommended (2026-11-18)**
 
 | # | Decision | Builder recommendation |
 |---|---|---|
