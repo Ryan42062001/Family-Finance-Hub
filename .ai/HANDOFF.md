@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-18 — FFH-P08 released and closed.
+Updated: 2026-11-18 — FFH-P09 building (PR #178); FFH-P08 released and closed.
 
 - **Production:** FFH-P08 Account settings and security, merged as `2a62022b5e5ae9d60a32fd7ac6745ffb4366e904` from phase
   head `1aaa96cd89f1e35b49d61c23731f2a37e23ed632` (PR #176, Ryan's explicit authorization 2026-11-18). Production
@@ -16,7 +16,9 @@ Updated: 2026-11-18 — FFH-P08 released and closed.
   34/0/3 (PR #168 comment); decisions R1–R11 in `.ai/DECISIONS.md`.
 - **Backlog:** F04 LOW (invitation create/cancel as household-locked RPCs), N01 raw onboarding error message, moderate
   npm advisories, picomatch audit exception review by 2027-01-18, items in `.ai/DECISIONS.md`.
-- **Next phase:** none open in this repo; ChatGPT Work is preparing P09. Ryan chooses and starts it.
+- **Active phase:** FFH-P09 Bills, due dates & exports (spec: issue #170), `phase/ffh-p09-bills-exports`, PR #178.
+  See `.ai/CURRENT_PHASE.md`; hosted steps for Ryan: `docs/workflow/FFH-P09_HOSTED_CHANGES.md`; local DB checks
+  include `scripts/rls-local/local-harness/run.sh upgrade` (legacy rows across the P09 migration).
 - **Builder setup for the next chat:** start on the cloud environment **Family-Finance-Hub** (PostgreSQL + npm deps,
   network allows the Production and Preview sites). Rules: `AGENTS.md` → Builder efficiency. The Preview domain still
   points at `phase/ffh-p08-account-security`; move it when the next phase branch starts.

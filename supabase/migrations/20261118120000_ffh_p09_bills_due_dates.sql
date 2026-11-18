@@ -18,6 +18,11 @@
 -- No new tables, policies or callable functions: the columns inherit the existing household RLS on both tables
 -- (read: can_read_household; write: can_write_household_financials = owner/member), all gated by
 -- private.session_ok() since FFH-P08. The trigger function is not executable by any API role.
+--
+-- Safe for the released P08 app on the shared Supabase project: it still writes monthly_amount only, which the trigger
+-- accepts for monthly rows (all rows it can create); only a monthly-only edit of a P09 quarterly/yearly row is refused.
+
+begin;
 
 alter table public.expenses
   add column payment_amount numeric(14,2),
@@ -93,3 +98,5 @@ revoke all on function private.expenses_derive_monthly_amount() from public, ano
 create trigger expenses_derive_monthly_amount
   before insert or update on public.expenses
   for each row execute function private.expenses_derive_monthly_amount();
+
+commit;

@@ -639,3 +639,23 @@ App validation, CI stack config, tests, QA rows and the hosted-settings procedur
 - Production smoke **12/12** at `https://family-finance-hub-taupe.vercel.app` serving `2a62022` (run by the Builder after
   Ryan approved adding the Production and Preview hosts to the Family-Finance-Hub environment); signed-out `/account*`
   and `/auth/two-factor` redirect to sign-in. FFH-P08 is **CLOSED**.
+
+## 2026-11-18 — FFH-P09 started; Builder interpretations of issue #170
+
+Ryan authorized P09 nonproduction source implementation within #170 (fresh chat). Builder choices inside the spec,
+for the audit to check:
+- **"Today"** is the UTC calendar date, as everywhere else in the app (`todayUtc()`); all bill dates are date-only.
+- **Upcoming 30 days** = today through today + 29 days, every occurrence in that window (a monthly bill can appear
+  twice). **Forecast** = the rest of the current month from today, then the next 11 calendar months; passed dates are
+  never shown (nothing implies paid/unpaid).
+- **Debts** count as bills with their minimum payment, monthly only, on the same due-date/reminder rules.
+- **Monthly planning amount** on /bills = sum of every expense's monthly equivalent + debt minimums (scheduled or not).
+- A reminder needs a due date (database CHECK); clearing the date clears the reminder.
+- Saving the Bills form with the pre-filled next due date unchanged keeps the original anchor (so Jan 31 / Feb 29
+  anchors are not replaced by a clamped occurrence); a different date becomes the new anchor.
+- The database derives `monthly_amount` (trigger + CHECK); legacy monthly-only writers keep working for monthly
+  rows; a monthly-only change to a quarterly/yearly row is refused (no silent reinterpretation).
+- CSV: all current steps (recommended, worth considering, needs more information) in engine rank order; columns
+  Order, Step, Status, Monthly amount (USD), Goes to, Why; UTF-8 BOM, CRLF, every cell quoted, formula neutralisation
+  with a leading apostrophe. No step ids or "technical wording".
+- QA rows Q38–Q45 (P08 uses Q32–Q37).

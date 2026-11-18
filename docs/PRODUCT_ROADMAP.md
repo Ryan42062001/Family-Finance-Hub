@@ -74,6 +74,14 @@ item (R1).
 No hosted SQL, Supabase Auth, Vercel, real-data or Production change is approved. Production
 deployment remains a separate Owner authorization.
 
+## FFH-P09 — Bills, due dates & exports
+
+State: BUILDING. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
+Phase branch: `phase/ffh-p09-bills-exports`, PR #178. Binding spec: GitHub issue #170 (recurring expenses with an
+exact-cent monthly equivalent rounded up, anchored due dates, per-bill household reminders, `/bills`, print/PDF and
+CSV of the current plan). No hosted SQL, Vercel, real-data or Production change is approved; Production deployment
+remains a separate Owner authorization.
+
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
 1. **Your money plan as the home screen.** Surface the existing Money Priority Engine as a plain, ordered list of
