@@ -64,7 +64,7 @@ Deferred to later phases: Can We Afford It, irregular-cost monthly set-asides, p
 
 ## FFH-P08 — Account settings and security
 
-State: BUILDING (build-first workflow, 2026-11-18) — scope and R1–R11 approved; design = `docs/FFH-P08_PROPOSAL.md` §11.
+State: FREEZE_READY (2026-11-18) — built, hosted, QA'd, audit re-review PASS; awaiting Ryan's Production release decision.
 Risk: HIGH (auth, account deletion, identity-provider settings, household RLS). Phase branch:
 `phase/ffh-p08-account-security`. P08 builds password change, authenticator-app two-factor sign-in and account
 deletion/test-account cleanup (`docs/FFH-P08_PROPOSAL.md`); **email change is deferred** to the email-deliverability

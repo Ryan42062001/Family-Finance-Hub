@@ -625,3 +625,9 @@ App validation, CI stack config, tests, QA rows and the hosted-settings procedur
 - **Backlog (LOW, F04):** invitation create/cancel are still direct owner-only RLS writes rather than household-locked
   RPCs as proposal §11.4 states. RLS limits them to the owner's own household; no cross-household effect or deletion
   race was shown. Suggested fix: move both into RPCs that lock the household row first; revoke direct writes.
+
+## 2026-11-18 — FFH-P08 audit re-review PASS; hosted fix migration applied
+
+- Targeted re-review PASS at `ce854b7cf95691f9fed46cbc228323c24220326d` (F01–F03 resolved, F04 LOW backlog).
+- Ryan applied `20261118110000` to hosted (CRLF fixed), parity 9/9, migrations 25.
+- Production release of P08 still needs Ryan's separate exact-SHA authorization and a 12/12 Production smoke.

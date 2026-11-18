@@ -2,8 +2,8 @@
 
 FFH-P08 — Account settings and security
 
-State: BUILDING (build-first workflow, Ryan 2026-11-18) — scope, R1–R11 approved; design = proposal §11 (after two
-threat-model rounds); no further pre-build review; one independent different-model audit at the frozen end candidate
+State: FREEZE_READY — built, hosted, QA'd and independently audited (audit 1 FAIL → fixes → re-review PASS at
+`ce854b7`); waiting on Ryan's separate exact-SHA Production release decision
 Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
 Phase branch: `phase/ffh-p08-account-security`
@@ -14,6 +14,22 @@ Previous phase: FFH-P07 RELEASED / CLOSED (Owner-reported Production smoke PASS 
 `main` is a separate Production release requiring Ryan's explicit exact-SHA authorization. Changes to
 Supabase Auth, hosted SQL, Vercel, secrets, user accounts, or real data also require Ryan's specific
 approval per action. Starting a phase branch does not grant any of these permissions.
+
+## Release readiness (2026-11-18)
+
+- **Candidate:** phase head after the release-prep PR (the release PR names the exact SHA). App code reviewed at
+  `ce854b7cf95691f9fed46cbc228323c24220326d`; commits after it are docs only.
+- **CI:** exact-head green (`fast`; `rls-matrix` 1186 assertions, coverage 10/10 mutations, three race tests,
+  real-provider 38/38; `e2e-isolation` TestA/TestB on the Preview).
+- **Hosted (Ryan, 2026-11-18):** read-only privilege check as expected; Auth settings on (secure password change,
+  current password required, minimum 8, TOTP); migrations `20261118100000` + `20261118110000` applied, parity 9/9,
+  25 migrations. Preview on the phase branch, smoke 12/12.
+- **Browser QA:** 34 PASS / 0 FAIL / 3 NOT RUN (Q9, Q11 unchanged screens; Q24 last step), TestC lifecycle incl.
+  deletion; no `qa-finding` issues.
+- **Independent audit:** FAIL at `ed915d41` (F01 HIGH, F02/F03 MEDIUM, F04 LOW) → fixed → targeted re-review
+  **PASS** at `ce854b7`. F04 LOW in backlog. Receipt: `docs/workflow/FFH-P08_AUDIT.md`.
+- **Release checklist:** Production env vars unchanged since P07 (no new variables in P08); hosted parity matches;
+  after the merge, Production smoke `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12.
 
 ## Roadmap goal (item 6)
 
