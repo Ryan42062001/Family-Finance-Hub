@@ -64,11 +64,11 @@ Deferred to later phases: Can We Afford It, irregular-cost monthly set-asides, p
 
 ## FFH-P08 — Account settings and security
 
-State: PLANNED — P08 proposal is **not yet owner-approved**. Risk: HIGH (auth, account deletion,
-identity-provider settings, household RLS). Planning branch: `phase/ffh-p08-account-security`.
-Roadmap item 6 includes password change, email change, account deletion/test-account cleanup,
-and authenticator-app two-factor sign-in. The detailed `docs/FFH-P08_PROPOSAL.md` is a draft,
-and its decisions **R1–R8 still require Ryan's answer** before implementation.
+State: PLANNED — **scope and R1–R8 approved by Ryan as recommended (2026-11-18)**; awaiting the pre-build
+threat-model review. Risk: HIGH (auth, account deletion, identity-provider settings, household RLS). Phase branch:
+`phase/ffh-p08-account-security`. P08 builds password change, authenticator-app two-factor sign-in and account
+deletion/test-account cleanup (`docs/FFH-P08_PROPOSAL.md`); **email change is deferred** to the email-deliverability
+item (R1).
 No hosted SQL, Supabase Auth, Vercel, real-data or Production change is approved. Production
 deployment remains a separate Owner authorization.
 

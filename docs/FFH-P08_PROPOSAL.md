@@ -1,6 +1,9 @@
 # FFH-P08 proposal — Account settings and security
 
-Status: **PROPOSAL for Owner review — nothing approved, nothing built** (2026-11-18).
+Status: **SCOPE AND R1–R8 APPROVED by Ryan as recommended (2026-11-18) — nothing built.** Implementation waits for
+the pre-build independent threat-model review (`docs/workflow/FFH-P08_THREAT_MODEL_REVIEW_PROMPT.md`). Part D (email
+change) is deferred (R1). Approval does not cover any hosted Supabase/Auth, Vercel, secret or Production change; each
+remains a separate Ryan authorization.
 Base: protected `main` at `1c4753dab2e3a9e38fbfbe34ce82397e92047f43` (FFH-P07 release, PR #155 merged; post-release
 CI run 43677246878 green). Carries the P07 close-out (draft PR #161, not merged into `main`).
 Roadmap item 6: "Account settings: change password and email, delete account (also enables test-account cleanup),

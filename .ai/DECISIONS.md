@@ -548,3 +548,18 @@
   on the P07 close-out/proposal head had `rls-matrix` SUCCESS and `fast` FAILURE at high-severity
   `npm audit` (9 HIGH, 6 MODERATE advisories reported). Triage with package/dependency evidence;
   do not reduce the audit gate, misstate CI as green, or assume production exploitability.
+
+## 2026-11-18 — FFH-P08 decisions R1–R8 and audit exception (Ryan)
+
+- **R1–R8 approved as recommended** (`docs/FFH-P08_PROPOSAL.md` §9): email change deferred; deletion via a SECURITY
+  DEFINER SQL function only if the spike and a read-only hosted check prove it works (else back to Ryan); owners of a
+  shared household refused; deletion permanent with re-authentication and typed `DELETE`; optional second
+  authenticator plus Owner-assisted reset; 12-character minimum password, Secure password change on; optional TOTP
+  enforced in the database; TestA/TestB password-only, synthetic TestC for 2FA QA. This does **not** authorize any
+  hosted Supabase/Auth, Vercel, secret or Production change; each is separate.
+- **Before coding:** fresh independent different-model threat-model review of the design
+  (`docs/workflow/FFH-P08_THREAT_MODEL_REVIEW_PROMPT.md`).
+- **Audit gate, option 2 approved:** `scripts/audit-gate.mjs` replaces bare `npm audit --audit-level=high` in CI with
+  the same threshold and one exception, GHSA-fc5q-39xc-vjpf in `picomatch` (no patched release; dev-only ESLint
+  toolchain; attacker must supply the glob pattern), valid while HIGH, absent from `npm audit --omit=dev`, and until
+  **2027-01-18**. Any new exception needs Ryan's approval. PR #163; `docs/workflow/FFH-P08_DEPENDENCY_AUDIT.md`.
