@@ -26,6 +26,26 @@ and git history), never active authority.
 
 Chat is for deciding *what* and reviewing *results*. Build steps are not relayed between chats.
 
+**Per-phase Claude Code chat handoff (Ryan's instruction, 2026-11-17):** At the end of each
+phase, after the release/closure result is confirmed, the Manager must clearly tell Ryan
+**PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**. The next phase starts with a new
+Claude Code Builder chat; continuity lives in `.ai/HANDOFF.md`, `.ai/DECISIONS.md`,
+`.ai/CURRENT_PHASE.md`, the roadmap and review receipts, not the previous chat.
+Carry phase close-out documentation forward to the next authorized phase release;
+do not merge docs alone into `main` merely to update status, because that deploys Production.
+
+**Standing efficiency rules (Ryan, 2026-11-18):**
+1. Work autonomously within the approved phase: build, test, fix CI and merge green phase-branch work without
+   routine Manager checkpoints.
+2. Minimise PR overhead: bundle related changes and their documentation; no standalone documentation PRs unless
+   genuinely necessary.
+3. Don't idle during CI: continue independent work, but never merge before the required checks pass.
+4. Batch Owner decisions with recommended options; interrupt Ryan only for essential decisions, blockers, hosted
+   changes or Production authorization.
+5. Coordinate targeted Browser QA on stable features plus a final exact-head QA, preserving isolation and
+   regression coverage.
+6. Keep documentation concise and current alongside development, with a clear final phase handoff.
+
 ## Approval levels
 
 | Action | Approval |
@@ -43,12 +63,15 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 
 1. **Plan.** Ryan states the goal. The Builder writes a short scope in `.ai/CURRENT_PHASE.md` (one branch and one
    draft PR per phase).
-2. **Build.** The Builder works in small commits. Every push runs CI. Green PRs merge into the phase branch.
+2. **Build (build-first, Ryan 2026-11-18).** No pre-build independent design or threat-model review is required. The
+   Builder builds the whole approved phase in one chat: code, disposable spikes, tests and docs updated alongside the
+   code (no standalone documentation PRs). Every push runs CI; green PRs merge into the phase branch without waiting
+   for Manager approval. A serious vulnerability found during the build stops the affected work until it is fixed.
 3. **Preview QA, in parallel.** After a merge, the Preview is deployed and Work mode runs the QA checklist while the
    Builder moves on to the next item. The Builder picks up `qa-finding` issues and fixes them. Ryan only does the
    steps that need his accounts or approval (hosted checks, Production, secrets) and his own look-and-feel review.
-4. **Phase review.** When CI is green and the preview is accepted, the independent reviewer audits the changed scope at
-   the exact PR head (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
+4. **Phase review — one audit at the end.** When the full phase is built, CI is green and the preview is accepted, the
+   Builder freezes an exact candidate SHA and one fresh independent reviewer audits the changed scope there (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
      file and suggested fix, then continue.
@@ -90,7 +113,10 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 ## Continuous checks (`.github/workflows/ci.yml`)
 
 - **`fast`** (every push): validator, calculation tests, security tests, typecheck, lint, production build and
-  `npm audit --audit-level=high` (`npm run verify` plus audit).
+  the audit gate `scripts/audit-gate.mjs` (`npm run verify` plus audit). The gate fails on any HIGH/CRITICAL
+  advisory like `npm audit --audit-level=high`, except one listed in `scripts/audit-exceptions.json` that is HIGH (not
+  critical), dev-only (absent from `npm audit --omit=dev`) and before its review date (Ryan, 2026-11-18). Each new
+  exception needs Ryan's approval.
 - **`rls-matrix`** (every push): builds a disposable local Supabase database on the CI runner, applies all migrations,
   runs `scripts/rls-local/preflight.sql` and the 961-assertion two-household `scripts/rls-local/matrix.sql`, requires
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
@@ -99,7 +125,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
   Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
   address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
-  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning and Scenario Lab
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning, Scenario Lab and Account
   load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
   renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
   control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.

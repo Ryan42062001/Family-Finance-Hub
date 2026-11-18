@@ -22,6 +22,21 @@ historical evidence only.
 - At the end of a phase, an independent reviewer (a different AI session) audits the changed scope. Fix
   BLOCKER/CRITICAL/HIGH before merge; record MEDIUM/LOW/NIT in the final-audit backlog.
 
+## Builder efficiency (Ryan, 2026-11-18; each phase is a fresh chat, so these live here)
+
+- **Environment:** start each Claude Code chat on the cloud environment **Family-Finance-Hub** (its setup script installs
+  PostgreSQL and runs `npm ci`; created 2026-11-18). If `psql`/PostgreSQL is missing, the chat is on the wrong one.
+- **CI:** after opening a PR, subscribe to its activity (`subscribe_pr_activity`) so CI results arrive as events; don't
+  poll or sleep. Read only the failing job's last lines, not whole logs. Keep working on independent items meanwhile.
+- **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1184+ matrix, coverage in
+  seconds; needs `apt-get install -y postgresql`, which the environment setup script does). CI stays the source of
+  truth; race tests and the real-provider suite run only in CI. Real `auth.*` table shapes:
+  `docs/workflow/FFH-P08_SPIKE_RESULTS.md` (fixtures must set NOT NULL columns such as `mfa_factors.created_at`).
+- **Never push without a passing `npm run verify`.** New migrations change `scripts/rls-local/parity.expected.txt`:
+  take the new fingerprint from the first CI run's parity diff.
+- **Ask Ryan for pasted text** (SQL rows, PASS/FAIL lists, finding IDs) rather than screenshots, and ask only for what
+  the next step needs. Never copy real emails, ids or amounts from his evidence into the repo.
+
 ## Commands
 
 - `npm run verify`: validator, tests, security tests, typecheck, lint, build

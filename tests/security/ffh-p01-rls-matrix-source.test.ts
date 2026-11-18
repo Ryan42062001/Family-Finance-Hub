@@ -196,7 +196,7 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   }
   // Fresh isolated temp project with exactly the 23 tracked migrations (FFH-P05, both FFH-P06 and the four FFH-P07 migrations).
   assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=23/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=25/);
   assert.match(runner, /mktemp -d/);
   assert.match(runner, /supabase@2\.122\.0/);
   assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
@@ -206,8 +206,8 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   // Unchanged SQL piped in; exact markers required.
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
-  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=23 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1126/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=25 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1186/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -277,6 +277,9 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   assert.equal(1217 - 2 * 65 - 43 + 78, 1122);
   // FFH-P07 re-review N02 adds 4 successful active-member create/update probes.
   assert.equal(1122 + 4, 1126);
+  // FFH-P08 adds 60 account-security probes (incl. audit F01/F02) (session liveness, approved-factor binding, re-authentication,
+  // deletion, factor approval/revocation, password-change session ending, grants, Owner reset).
+  assert.equal(1126 + 60, 1186);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {

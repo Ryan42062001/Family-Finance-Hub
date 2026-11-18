@@ -408,6 +408,8 @@ test("Supabase SSR proxy cookie adapter forwards synthetic refresh cookies and h
         return {data:{claims:{sub:"synthetic-account"}}};
       },
     },
+    // FFH-P08: a live, fully signed-in session passes the sign-in gate unchanged.
+    rpc:async (name:string) => (assert.equal(name,"my_security_status"), {data:{session_ok:true,two_factor_on:false},error:null}),
   });
   const mod = executeModule("../../lib/supabase/proxy.ts", {
     "@supabase/ssr": { createServerClient },
@@ -437,4 +439,62 @@ test("source-only and live gaps remain explicit rather than asserted by this har
   assert.match(confirm, /!error && data\.session/);
   assert.match(proxy, /getClaims\(\)/);
   assert.doesNotMatch(confirm+callback+proxy, /x-forwarded-host/i);
+});
+
+// FFH-P08 sign-in gate: where a signed-in request goes for each server-side session state.
+async function gate(path: string, rpcResult: { data: unknown; error: unknown }) {
+  const signOuts: unknown[] = [];
+  const NextResponse = {
+    next: () => { const r = new Response(null, { status: 200 }) as Response & { cookies: unknown }; r.cookies = { set: () => undefined, getAll: () => [] }; return r; },
+    json: nextServer.NextResponse.json,
+    redirect: nextServer.NextResponse.redirect,
+  };
+  const createServerClient = () => ({
+    auth: {
+      getClaims: async () => ({ data: { claims: { sub: "synthetic-account" } } }),
+      signOut: async (options: unknown) => { signOuts.push(options); return { error: null }; },
+    },
+    rpc: async () => rpcResult,
+  });
+  const mod = executeModule("../../lib/supabase/proxy.ts", {
+    "@supabase/ssr": { createServerClient },
+    "next/server": { NextResponse },
+    "@/lib/auth/trusted-origin": realHelpers["@/lib/auth/trusted-origin"],
+    "@/lib/supabase/cookie-options": realHelpers["@/lib/supabase/cookie-options"],
+  }) as { updateSession: (request: unknown) => Promise<Response> };
+  const response = await mod.updateSession({ url: ORIGIN + path, nextUrl: new URL(ORIGIN + path), cookies: { getAll: () => [], set: () => undefined } });
+  return { status: response.status, location: response.headers.get("location"), signOuts };
+}
+
+test("FFH-P08 proxy gate: a dead session is signed out locally and sent to sign in", async () => {
+  for (const result of [
+    { data: null, error: { message: "permission denied" } },
+    { data: { session_ok: false, two_factor_on: false }, error: null },
+    { data: "unexpected", error: null },
+    { data: null, error: null },
+  ]) {
+    const r = await gate("/plan", result);
+    assert.equal(r.status, 307);
+    assert.equal(r.location, ORIGIN + "/auth/login?message=Please%20sign%20in%20again.");
+    assert.equal(JSON.stringify(r.signOuts), JSON.stringify([{ scope: "local" }]));
+  }
+});
+
+test("FFH-P08 proxy gate: a session still needing its code reaches only the code page", async () => {
+  const pending = { data: { session_ok: false, two_factor_on: true }, error: null };
+  for (const path of ["/plan", "/household", "/account", "/goals"]) {
+    const r = await gate(path, pending);
+    assert.equal(r.location, ORIGIN + "/auth/two-factor");
+  }
+  const onCodePage = await gate("/auth/two-factor", pending);
+  assert.equal(onCodePage.status, 200);
+  assert.equal(onCodePage.location, null);
+});
+
+test("FFH-P08 proxy gate: a fully signed-in session passes and never loops on the code page", async () => {
+  const ok = { data: { session_ok: true, two_factor_on: true }, error: null };
+  assert.equal((await gate("/plan", ok)).status, 200);
+  assert.equal((await gate("/auth/two-factor", ok)).location, ORIGIN + "/plan");
+  // Public pages never call the gate (a deleted account's final page must load signed out).
+  assert.equal((await gate("/account/deleted", { data: null, error: { message: "x" } })).status, 200);
 });

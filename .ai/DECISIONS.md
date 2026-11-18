@@ -523,3 +523,111 @@
   N02 FIXED, no new findings; exact-head CI run 43676392748 green (`fast`, `rls-matrix` 1126 + both concurrency
   tests, `e2e-isolation`). The reviewer marked the hosted apply UNVERIFIED from CI alone; Ryan's hosted parity 9/9 at
   migrations 23 (above) covers it. No BLOCKER/CRITICAL/HIGH/MEDIUM finding remains open for P07.
+
+## 2026-11-15 / 2026-11-18 — FFH-P07 released and closed (Ryan)
+
+- **Release authorized by Ryan** ("Release FFH-P07: merge PR #155 at ae97e90e… into main"). PR #155 merged into
+  protected `main` as `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`. Release checklist: only docs changed after the
+  reviewed code head `34fa4093`; clean fast-forward of `main`; no new environment variables; no Money Priority Engine
+  file changed; exactly the four P07 migrations, all already applied to hosted (parity 9/9, migrations 23).
+- **Production smoke test 12/12** (`DEPLOYED_AUTH_SMOKE PASS 12/12`, run by Ryan on 2026-11-18; the Builder's
+  container cannot reach `vercel.app`). FFH-P07 is **CLOSED**.
+- Open backlog from P07: the Money Priority Engine's float rounding-tie flaw (LOW, own reviewed engine change).
+
+## 2026-11-17 — FFH-P07 closure carry and FFH-P08 planning continuity
+
+- **Owner instruction:** announce each completed phase explicitly as **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**.
+  Claude Code Builder starts a fresh chat for each new phase; the repository handoff is the source of continuity.
+- **P07 CLOSED:** PR #155 merged to Production `main` at `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`;
+  Ryan reported Production smoke 12/12. P07 closure documentation was prepared in draft PR #161,
+  then carried into the non-Production P08 phase branch to avoid a docs-only Production deployment.
+- **P08 scope status:** roadmap account-security item is next, but the detailed proposal at
+  `docs/FFH-P08_PROPOSAL.md` and decisions R1–R8 are **NOT APPROVED**. No implementation, auth
+  provider changes, hosted SQL, real-data cleanup or Production merge authorized by this cleanup.
+- **CI blocker to address before implementation merge:** [run 44216093879](https://github.com/Ryan42062001/Family-Finance-Hub/actions/runs/44216093879)
+  on the P07 close-out/proposal head had `rls-matrix` SUCCESS and `fast` FAILURE at high-severity
+  `npm audit` (9 HIGH, 6 MODERATE advisories reported). Triage with package/dependency evidence;
+  do not reduce the audit gate, misstate CI as green, or assume production exploitability.
+
+## 2026-11-18 — FFH-P08 decisions R1–R8 and audit exception (Ryan)
+
+- **R1–R8 approved as recommended** (`docs/FFH-P08_PROPOSAL.md` §9): email change deferred; deletion via a SECURITY
+  DEFINER SQL function only if the spike and a read-only hosted check prove it works (else back to Ryan); owners of a
+  shared household refused; deletion permanent with re-authentication and typed `DELETE`; optional second
+  authenticator plus Owner-assisted reset; 12-character minimum password, Secure password change on; optional TOTP
+  enforced in the database; TestA/TestB password-only, synthetic TestC for 2FA QA. This does **not** authorize any
+  hosted Supabase/Auth, Vercel, secret or Production change; each is separate.
+- **Before coding:** fresh independent different-model threat-model review of the design
+  (`docs/workflow/FFH-P08_THREAT_MODEL_REVIEW_PROMPT.md`).
+- **Audit gate, option 2 approved:** `scripts/audit-gate.mjs` replaces bare `npm audit --audit-level=high` in CI with
+  the same threshold and one exception, GHSA-fc5q-39xc-vjpf in `picomatch` (no patched release; dev-only ESLint
+  toolchain; attacker must supply the glob pattern), valid while HIGH, absent from `npm audit --omit=dev`, and until
+  **2027-01-18**. Any new exception needs Ryan's approval. PR #163; `docs/workflow/FFH-P08_DEPENDENCY_AUDIT.md`.
+
+## 2026-11-18 — FFH-P08 threat-model review round 1: FAIL; design Revision 1
+
+- Independent different-model review at `5c87b119be0ca7efcafeb58dd2911de299803d9e`: **FAIL** (TM-01 CRITICAL direct
+  deletion RPC; TM-02 MFA via Auth API; TM-03 incomplete MFA coverage; TM-04 provider password change; TM-05 deletion
+  race; TM-06 stale tokens after factor removal; TM-07/TM-08 MEDIUM). Receipt: `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`.
+- Builder response: `docs/FFH-P08_PROPOSAL.md` §10 (binding). R1–R8 unchanged. New decisions R9–R11 pending Ryan.
+  Implementation blocked until the targeted re-review passes.
+
+## 2026-11-18 — FFH-P08 threat-model round 2: FAIL; design Revision 2
+
+- Re-review at `9af9287412fc04bb9e4264cbe336c82741daf375`: **FAIL** (N01 HIGH `aal2` not bound to an approved factor;
+  N02 HIGH clock-based epoch; N03 MEDIUM lock order; N04 MEDIUM view coverage). TM-01/04/07/08 resolved
+  (01/04 conditional on the spike).
+- Builder response: proposal §11 (binding). The `iat` epoch is withdrawn in favour of `auth.sessions` liveness; no
+  clock fallback. R9–R11 remain pending Ryan. Implementation still blocked.
+
+## 2026-11-18 — FFH-P08 R9–R11 approved (Ryan, as recommended)
+
+- **R9:** turn on the Supabase Auth setting requiring the current password for every password update (applied to
+  hosted Auth later, only with Ryan's per-change authorization).
+- **R10:** accept the Auth-level residual that a stolen `aal1` session of a person without 2FA may enroll a first
+  factor; FFH's database never honours an unapproved factor (proposal §11.2).
+- **R11:** Owner-assisted 2FA reset only after identity is confirmed in person or by a call Ryan places to a number he
+  already had; never an inbound message alone.
+- Implementation still waits for the round 3 threat-model re-review; then the CI-only spike (§11.6).
+
+## 2026-11-18 — Build-first / audit-at-the-end workflow (Ryan)
+
+- The routine pre-build independent threat-model review is **no longer a required gate** (FFH-P08's round 3 is not
+  needed). The Builder builds the complete approved phase in one chat, merges green PRs into the phase branch without
+  Manager approval, keeps CI/security tests intact, and updates docs alongside code (no standalone docs PRs).
+- After the full phase is built: freeze an exact candidate SHA for **one** fresh independent different-model HIGH-risk
+  audit; fix BLOCKER/CRITICAL/HIGH with targeted re-review of those fixes only; MEDIUM/LOW per release policy.
+- Unchanged: Ryan separately authorizes every hosted Supabase/Auth or Vercel change, secret, real-data operation and
+  Production release; synthetic data only; TestA/TestB isolation preserved; serious vulnerabilities found mid-build
+  are fixed immediately. Phase close-out still announces PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT.
+- FFH-P08 proceeds on proposal §11 (with §10/§3–§8 where not overridden) and R1–R11.
+
+## 2026-11-18 — Six standing efficiency rules (Ryan)
+
+Autonomous phase work; bundled PRs (no standalone docs PRs); keep working during CI but never merge before green;
+batched Owner decisions with recommendations; targeted plus final exact-head Browser QA; concise docs kept current.
+Recorded in `docs/WORKFLOW.md`. One comprehensive different-model HIGH-risk audit at the end of P08, targeted
+re-reviews for serious fixes; all CI, RLS, isolation and release protections unchanged. P09 is being planned
+separately by ChatGPT Work; the P08 Builder does not touch it.
+
+## 2026-11-18 — R6 amended: minimum password length 8 (Ryan)
+
+Ryan chose 8 characters instead of the recommended 12 (Supabase's recommended minimum; no forced character classes).
+App validation, CI stack config, tests, QA rows and the hosted-settings procedure updated to match.
+
+## 2026-11-18 — FFH-P08 Browser QA and independent audit 1
+
+- **Browser QA** (ChatGPT Work mode, Preview `43b5e1d`): 34 PASS / 0 FAIL / 3 NOT RUN (Q9 widths, Q11 device dark mode:
+  unchanged by P08; Q24's final cancelled-link reopen: covered by the matrix/P06 tests). TestC completed Q36 and was
+  deleted. No `qa-finding` issues. Results: PR #168 comment.
+- **Audit 1 FAIL** at `ed915d41`: F01 HIGH fixed (session must postdate the authenticator), F02/F03 MEDIUM fixed;
+  receipt `docs/workflow/FFH-P08_AUDIT.md`. Targeted re-review pending.
+- **Backlog (LOW, F04):** invitation create/cancel are still direct owner-only RLS writes rather than household-locked
+  RPCs as proposal §11.4 states. RLS limits them to the owner's own household; no cross-household effect or deletion
+  race was shown. Suggested fix: move both into RPCs that lock the household row first; revoke direct writes.
+
+## 2026-11-18 — FFH-P08 audit re-review PASS; hosted fix migration applied
+
+- Targeted re-review PASS at `ce854b7cf95691f9fed46cbc228323c24220326d` (F01–F03 resolved, F04 LOW backlog).
+- Ryan applied `20261118110000` to hosted (CRLF fixed), parity 9/9, migrations 25.
+- Production release of P08 still needs Ryan's separate exact-SHA authorization and a 12/12 Production smoke.

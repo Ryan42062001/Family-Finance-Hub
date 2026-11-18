@@ -27,7 +27,7 @@ owner='00000000-0000-4000-8000-000000000a01'
 member='00000000-0000-4000-8000-000000000a02'
 house='00000000-0000-4000-8000-000000000a11'
 before_fix='supabase/migrations/20261114120000_ffh_p07_check_in_write_integrity.sql'
-with_fix='supabase/migrations/20261114130000_ffh_p07_check_in_edit_lock.sql'
+with_fix='supabase/migrations/20261118100000_ffh_p08_account_security.sql'
 [[ -f "$before_fix" && -f "$with_fix" ]] || fail 'MIGRATION_FILES_MISSING'
 
 # Only the update function of each file is loaded (the earlier file's revokes are already applied).
@@ -53,9 +53,13 @@ db >/dev/null <<SQL
 INSERT INTO auth.users(id,instance_id,aud,role) VALUES
  ('$owner','00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
  ('$member','00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+-- FFH-P08: each synthetic user gets a live session (id = user id) for private.session_ok().
+INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+ WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
 BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$owner',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$owner','session_id','$owner','aal','aal1','role','authenticated')::text,true);
 INSERT INTO public.households(id,name,created_by) VALUES('$house','ffh-ci-check-in-race','$owner');
 COMMIT;
 INSERT INTO public.household_members(household_id,user_id,role) VALUES('$house','$member','member');
@@ -64,6 +68,7 @@ INSERT INTO public.debts(household_id,name,debt_type,current_balance) VALUES('$h
 BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$owner',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$owner','session_id','$owner','aal','aal1','role','authenticated')::text,true);
 SELECT public.create_monthly_check_in(DATE '2026-01-01', true, (
   SELECT jsonb_agg(x) FROM (
     SELECT jsonb_build_object('item_type','account','item_id',id,'amount','100.00') x FROM public.accounts WHERE household_id='$house'
@@ -104,6 +109,7 @@ BEGIN;
 SET LOCAL statement_timeout='30s';
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','$1',true);
+SELECT set_config('request.jwt.claims',json_build_object('sub','$1','session_id','$1','aal','aal1','role','authenticated')::text,true);
 SELECT public.update_monthly_check_in('$check_in', true,
   jsonb_build_array(jsonb_build_object('id','$2','amount','$3'), jsonb_build_object('id','$4','amount','$5')));
 COMMIT;

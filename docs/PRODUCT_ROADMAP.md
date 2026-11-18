@@ -50,16 +50,27 @@ remediation round.
 
 ## FFH-P07 — Goals and monthly check-in
 
-State: BUILDING — OWNER SCOPE APPROVED (2026-11-14); financial rules approved. Risk: HIGH (new goal calculation and
-household financial records / RLS). Branch `phase/ffh-p07-goals-and-check-ins`.
+State: CLOSED. Risk: HIGH. Released to Production via PR #155 at `1c4753d` (2026-11-15), with Ryan's explicit
+authorization; Production smoke test 12/12 after release. Four hosted migrations applied with authorization (parity
+9/9, 23 migrations). Passed the independent review after three remediation rounds (F01–F05, F02, N01–N02).
 Scope: named savings goals with targets, saved balances, deadlines and calculated monthly requirements; a
 separate tracker **not integrated into the Money Priority Engine**; monthly manual-balance and yes/no
 plan-followed check-ins with historical net-worth/cash-flow snapshots. **Owner/member edit; viewer read-only**.
-Detailed contract: `.ai/CURRENT_PHASE.md`. Financial semantics not defined by existing canonical code
-require Ryan's approval before implementation. Production and hosted changes still need separate authorization.
+Released design and confirmed financial conventions: `docs/FFH-P07_DESIGN.md`. Release evidence and
+open LOW findings are retained in `.ai/DECISIONS.md`.
 
 Deferred to later phases: Can We Afford It, irregular-cost monthly set-asides, per-paycheck view, and
 30-day in-app balance reminders.
+
+## FFH-P08 — Account settings and security
+
+State: FREEZE_READY (2026-11-18) — built, hosted, QA'd, audit re-review PASS; awaiting Ryan's Production release decision.
+Risk: HIGH (auth, account deletion, identity-provider settings, household RLS). Phase branch:
+`phase/ffh-p08-account-security`. P08 builds password change, authenticator-app two-factor sign-in and account
+deletion/test-account cleanup (`docs/FFH-P08_PROPOSAL.md`); **email change is deferred** to the email-deliverability
+item (R1).
+No hosted SQL, Supabase Auth, Vercel, real-data or Production change is approved. Production
+deployment remains a separate Owner authorization.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

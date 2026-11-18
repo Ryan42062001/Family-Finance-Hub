@@ -1,45 +1,51 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-14 — Claude Code took P07 ownership at phase head `b3c0dc3`; design proposed.
+Updated: 2026-11-18 — P08 FREEZE_READY: audit re-review PASS at `ce854b7`; hosted parity 9/9 (25 migrations); awaiting Ryan's Production release decision.
 
-- **Production:** FFH-P06 Household Invitations, merged as `8d1a6aaa6e55f9f3369369ddfa1f3cdb3ad62f1c`
-  from phase head `543e61fe43aba6157ada8a357df2a7866348f0d5` (PR #143). Ryan reports Production
-  deployment Ready and smoke **12/12**. P06 **CLOSED**.
-- **Active phase:** FFH-P07 — Goals and monthly check-in, **PLANNED / OWNER SCOPE APPROVED / HIGH risk**.
-  Phase branch: `phase/ffh-p07-goals-and-check-ins`. Approved requirements are in `.ai/CURRENT_PHASE.md`
-  and `.ai/DECISIONS.md`.
-- **Includes:** separate goals tracker (name, target, saved-to-date, deadline, monthly required);
-  manual monthly balances, yes/no plan-followed check-in and historical net-worth/cash-flow snapshots.
-  Owner/member can edit; viewer read-only.
-- **Defers:** Can We Afford It, irregular-cost set-asides, per-paycheck view and 30-day balance reminders.
-- **Design:** `docs/FFH-P07_DESIGN.md`, **approved by Ryan as recommended** (2026-11-14); C6 then confirmed with
-  its original wording (not available only with no active income AND no expenses).
-- **Built (branch `claude/ffh-p07-ownership-handoff-6ky7io`, draft PR #151):** migration
-  `20261114100000_ffh_p07_goals_and_check_ins.sql` (3 tables, snapshot trigger, 2 invoker RPCs), RLS matrix
-  1208 assertions (+3 families, +43 P07 probes), `lib/calculations/goal-tracker.ts` (engine-parity tested),
-  `lib/calculations/check-in-snapshot.ts`, `/goals`, `/goals/check-in`, `/goals/check-in/[id]`, QA rows Q27–Q31,
-  `/goals` added to the e2e isolation pages. CI green at `9571ac7` (run 43559892101: `fast` pass, `rls-matrix`
-  1208/1208, parity MATCH with the new fingerprint in `scripts/rls-local/parity.expected.txt`).
-- **Hosted migration APPLIED (Ryan, 2026-11-14):** `20261114100000` applied, CRLF fixed, hosted parity **9/9**
-  (migrations 20). Procedure and result: `docs/workflow/FFH-P07_HOSTED_MIGRATION.md`. Preview domain pointed at the
-  P07 phase branch by Ryan.
-- **Preview QA PASS (ChatGPT Work mode, 2026-11-14):** Q1–Q8, Q23–Q25, Q27–Q31 all PASS, no `qa-finding` issues, at
-  Preview commit `b361463`. Accepted for the head `6370380`: the only user-visible change after `b361463` is the
-  "Not available" wording on a check-in (shown only with no income and no expenses, not TestA's case); the C6 rule
-  itself is covered by 9 RLS matrix probes, and `e2e-isolation` passed at `6370380` (run 43564007082).
-- **Independent review (ChatGPT):** FAIL at `d64b2439` (F01 HIGH; F03/F04 MEDIUM; F05 LOW; F02 MEDIUM), fixed in
-  PR #156; **re-review PASS at code head `6e4e712f633c7c447d25e62e73c0edef294e8230`** (CI run 43566044631 green).
-  F02 and the engine's rounding-tie flaw are in the backlog (`.ai/DECISIONS.md`). Commits after `6e4e712f` are
-  docs only.
-- **F02 fixed before release (Ryan's request):** migration `20261114120000` (check-in writes only through the two
-  definer functions, complete line sets, audited edits). Applied to hosted by Ryan (parity 9/9, migrations 22). Re-review
-  PASS at `b9c182eb` with two LOW findings, fixed before release at Ryan's request: N01 (edit deadlock; migration
-  `20261114130000` + CI two-session race test) and N02 (active-member matrix probes; 1126 assertions). Applied to
-  hosted by Ryan (parity 9/9, migrations 23). **Re-review PASS at code head `34fa4093`**; commits after it are
-  docs only.
-- **Waiting on Ryan:** the
-  separate Production release decision for draft PR #155 at its exact head and the Production smoke test (12/12).
-- **Backlog:** N01 raw onboarding error message, moderate npm advisories, and items in `.ai/DECISIONS.md`.
-- **Repository bookkeeping:** `main`'s P06-era `.ai/CURRENT_PHASE.md` remains a historical/stale snapshot
-  until an Owner-approved production release (merging docs to `main` would also deploy Production). The
-  active P07 branch is the current phase source of truth. Do not merge directly to `main` for bookkeeping.
+- **Production:** FFH-P07 RELEASED/CLOSED; PR #155 merged the exact authorized head
+  `ae97e90e7d463be62243b22ece50c7b84b2f7b5a` into protected `main` as
+  `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`.
+  Ryan reported Production Ready and smoke PASS **12/12**; GitHub post-merge `fast`/`rls-matrix` green.
+  The Owner's public Production `/api/build-info` commit check was not independently confirmed.
+- **P07 closure evidence:** Owner-approved standalone goals and immutable planned-cash-flow monthly
+  check-ins, owner/member write and viewer read-only, 4 authorized hosted P07 migrations,
+  reported hosted parity **9/9 / 23 migrations**, three rounds of independent review,
+  and Preview QA **16/16 selected checks PASS**. P07's design remains in `docs/FFH-P07_DESIGN.md`.
+  Close-out originated in PR #161; this P08 branch carries its documentation without
+  a separate merge into Production.
+- **Active phase:** FFH-P08 — Account settings and security, HIGH risk; `phase/ffh-p08-account-security`.
+  **PLANNED / scope and R1–R8 approved as recommended (Ryan, 2026-11-18) / implementation not started**.
+  Email change deferred (R1). **Threat-model review round 1 FAILED** at `5c87b119` (TM-01 CRITICAL, TM-02–06 HIGH,
+  TM-07/08 MEDIUM; `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`). Design **Revision 1** is proposal §10 (binding).
+  Round 2 FAILED at `9af92874` (N01/N02 HIGH, N03/N04 MEDIUM). **Revision 2 = proposal §11 (binding)**.
+  Waiting on: round 3 re-review (prompt "Round 3") at `86ba9fa8`. R9–R11 approved as recommended (2026-11-18). Then the CI-only spike. No P08 code yet.
+- **Next roadmap item:** password change, email change, account deletion/test-account cleanup,
+  authenticator-app 2FA. See `docs/FFH-P08_PROPOSAL.md` as an UNAPPROVED proposal.
+  Ryan must choose proposal decisions **R1–R8** before implementation.
+- **First P08 Builder action:** Start a **fresh Claude Code chat for this phase**. Verify current
+  refs and approvals; read `AGENTS.md`, `docs/WORKFLOW.md`, `.ai/CURRENT_PHASE.md`,
+  `.ai/DECISIONS.md`, `docs/FFH-P08_PROPOSAL.md`; present R1–R8 and review the threat model.
+  No P08 code, hosted configuration, migration, real-data change or Production merge is authorized.
+- **CI blocker:** PR #161 source head `80278f2e5a0e73e41b87ffac5ab6e5712ff8a79b`
+  passed `rls-matrix` but its `fast` job failed the high-severity dependency audit
+  (9 HIGH / 6 MODERATE), [run 44216093879](https://github.com/Ryan42062001/Family-Finance-Hub/actions/runs/44216093879).
+  The new phase must triage/remediate through a reviewed change; no CI bypass or severity reduction.
+- **Preview:** still associated with P07. Ryan approves any reassignment to the P08 phase branch.
+- **Deferred:** P07 financial add-ons stay deferred. Separate LOW Money Priority Engine
+  half-cent rounding issue retained in `.ai/DECISIONS.md`, not folded into P08 auth work.
+- **Workflow:** Each completed phase gets a clear **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**
+  Manager notice. Each `main` merge independently requires Ryan's exact-SHA release approval.
+- **Audit gate (2026-11-18):** PR #163 fixed the 6 MODERATE advisories and added `scripts/audit-gate.mjs` with one
+  Ryan-approved exception (GHSA-fc5q-39xc-vjpf, picomatch, dev-only, review by **2027-01-18**). Remove the exception
+  when picomatch ships a fix. The CI blocker notes above are historical.
+- **P08 build (2026-11-18):** migration `20261118100000_ffh_p08_account_security.sql` (generated by
+  `scripts/p08/build-migration.py`; NOT applied to hosted). App: `/account` (change password), `/account/two-factor`,
+  `/account/delete`, `/account/deleted`, `/auth/two-factor`; proxy sign-in gate; throw-away re-authentication in
+  `lib/auth/account-security.ts`. Tests: matrix 1184, coverage probe + 9 mutations, lock-order race, real-provider
+  suite (`scripts/rls-ci/p08-auth-provider.mjs`). Spike facts: `docs/workflow/FFH-P08_SPIKE_RESULTS.md`.
+- **Known item for the P08 audit (not new in P08):** sign-ins (login and P08's throw-away re-authentication) reach
+  Supabase Auth from Vercel server IPs, so Auth's per-IP rate limits apply per server address, not per visitor.
+- **Hosted steps for Ryan:** `docs/workflow/FFH-P08_HOSTED_CHANGES.md` (read-only check, Auth settings incl. R9,
+  migration + parity, Preview + TestC, Owner reset R11). None done yet.
+- **Builder setup:** start each chat on the cloud environment **Family-Finance-Hub**; database work runs locally first with
+  `scripts/rls-local/local-harness/run.sh all` (rules in `AGENTS.md` → Builder efficiency).
