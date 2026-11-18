@@ -1467,12 +1467,14 @@ BEGIN
   PERFORM pg_temp.ffh_p08_expect('aal1-with-approved-factor-cannot-create-household', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
     format('INSERT INTO public.households(name,created_by) VALUES (''ZZ-P08 y'',%L) RETURNING 1', u_mfa)), 'ERR:42501');
   PERFORM pg_temp.ffh_p08_expect('status-aal1-pending', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
-    'SELECT public.my_security_status()::text'), '{"session_ok": false, "two_factor_on": true, "unapproved_factor": true}');
+    'SELECT concat_ws('','', s->>''session_ok'', s->>''two_factor_on'', s->>''unapproved_factor'', jsonb_array_length(s->''approved_factor_ids'')) FROM (SELECT public.my_security_status() s) x'),
+    'false,true,true,1');
   PERFORM pg_temp.ffh_p08_expect('status-dead-session-denied', pg_temp.ffh_p08_run(u_mfa, gen_random_uuid()::text, 'aal2', fresh_both,
     'SELECT public.my_security_status()::text'), 'ERR:42501');
   -- A verified factor that FFH never approved does not turn FFH 2FA on (and cannot lock the person out).
   PERFORM pg_temp.ffh_p08_expect('unapproved-factor-only-not-required', pg_temp.ffh_p08_run(u_new, s_new_wrong::text, 'aal1', fresh_pw,
-    'SELECT public.my_security_status()::text'), '{"session_ok": true, "two_factor_on": false, "unapproved_factor": true}');
+    'SELECT concat_ws('','', s->>''session_ok'', s->>''two_factor_on'', s->>''unapproved_factor'', jsonb_array_length(s->''approved_factor_ids'')) FROM (SELECT public.my_security_status() s) x'),
+    'true,false,true,0');
 
   -- 3. Re-authentication proof (TM-01) on delete_my_account; household locks and R3.
   PERFORM pg_temp.ffh_p08_expect('delete-wrong-confirmation', pg_temp.ffh_p08_run(u_mem, s_mem::text, 'aal1', fresh_pw,
@@ -1517,12 +1519,16 @@ BEGIN
     format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), '');
   PERFORM pg_temp.ffh_p08_expect('approve-ends-every-session', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_new), '0');
   PERFORM pg_temp.ffh_p08_expect('approve-registered', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_new), '1');
-  PERFORM pg_temp.ffh_p08_expect('revoke-first-ok', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
-    format('SELECT public.revoke_my_mfa_approval(%L)::text', f_two_b)), '');
-  PERFORM pg_temp.ffh_p08_expect('revoke-keeps-acting-session', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_two), '1');
-  PERFORM pg_temp.ffh_p08_expect('revoke-replayed-proof-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
-    format('SELECT public.revoke_my_mfa_approval(%L)::text', f_two_a)), 'ERR:42501');
-  PERFORM pg_temp.ffh_p08_expect('revoke-replay-left-approval', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_two), '1');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-stale-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', stale_pw,
+    'SELECT public.turn_off_my_two_factor()::text'), 'ERR:42501');
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES (gen_random_uuid(),u_two,'aal1',NULL);
+  PERFORM pg_temp.ffh_p08_expect('turn-off-ok', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
+    'SELECT public.turn_off_my_two_factor()::text'), '');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-removes-all-approvals', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_two), '0');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-keeps-only-acting-session', (SELECT string_agg(id::text, ',') FROM auth.sessions WHERE user_id = u_two), s_two::text);
+  INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_two_a,u_two);
+  PERFORM pg_temp.ffh_p08_expect('turn-off-replayed-proof-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
+    'SELECT public.turn_off_my_two_factor()::text'), 'ERR:42501');
 
   -- 5. Password-change finish ends every session of that person only.
   INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES (gen_random_uuid(),u_two,'aal1',NULL);

@@ -16,6 +16,10 @@ export async function login(formData: FormData) {
     redirect(`/auth/login?error=${encodeURIComponent(error.message)}`);
   }
 
+  // FFH-P08: with two-factor sign-in on, the new session needs its code before anything else.
+  const { data: status } = await supabase.rpc("my_security_status");
+  if (status?.two_factor_on === true && status?.session_ok !== true) redirect("/auth/two-factor");
+
   redirect("/dashboard");
 }
 

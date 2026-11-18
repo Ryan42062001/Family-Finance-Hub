@@ -34,6 +34,18 @@ Claude Code Builder chat; continuity lives in `.ai/HANDOFF.md`, `.ai/DECISIONS.m
 Carry phase close-out documentation forward to the next authorized phase release;
 do not merge docs alone into `main` merely to update status, because that deploys Production.
 
+**Standing efficiency rules (Ryan, 2026-11-18):**
+1. Work autonomously within the approved phase: build, test, fix CI and merge green phase-branch work without
+   routine Manager checkpoints.
+2. Minimise PR overhead: bundle related changes and their documentation; no standalone documentation PRs unless
+   genuinely necessary.
+3. Don't idle during CI: continue independent work, but never merge before the required checks pass.
+4. Batch Owner decisions with recommended options; interrupt Ryan only for essential decisions, blockers, hosted
+   changes or Production authorization.
+5. Coordinate targeted Browser QA on stable features plus a final exact-head QA, preserving isolation and
+   regression coverage.
+6. Keep documentation concise and current alongside development, with a clear final phase handoff.
+
 ## Approval levels
 
 | Action | Approval |

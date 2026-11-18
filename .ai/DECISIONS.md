@@ -601,3 +601,11 @@
   Production release; synthetic data only; TestA/TestB isolation preserved; serious vulnerabilities found mid-build
   are fixed immediately. Phase close-out still announces PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT.
 - FFH-P08 proceeds on proposal §11 (with §10/§3–§8 where not overridden) and R1–R11.
+
+## 2026-11-18 — Six standing efficiency rules (Ryan)
+
+Autonomous phase work; bundled PRs (no standalone docs PRs); keep working during CI but never merge before green;
+batched Owner decisions with recommendations; targeted plus final exact-head Browser QA; concise docs kept current.
+Recorded in `docs/WORKFLOW.md`. One comprehensive different-model HIGH-risk audit at the end of P08, targeted
+re-reviews for serious fixes; all CI, RLS, isolation and release protections unchanged. P09 is being planned
+separately by ChatGPT Work; the P08 Builder does not touch it.

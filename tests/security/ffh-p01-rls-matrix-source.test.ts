@@ -207,7 +207,7 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
   assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=24 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1183/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1184/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -277,9 +277,9 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   assert.equal(1217 - 2 * 65 - 43 + 78, 1122);
   // FFH-P07 re-review N02 adds 4 successful active-member create/update probes.
   assert.equal(1122 + 4, 1126);
-  // FFH-P08 adds 57 account-security probes (session liveness, approved-factor binding, re-authentication,
+  // FFH-P08 adds 58 account-security probes (session liveness, approved-factor binding, re-authentication,
   // deletion, factor approval/revocation, password-change session ending, grants, Owner reset).
-  assert.equal(1126 + 57, 1183);
+  assert.equal(1126 + 58, 1184);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {

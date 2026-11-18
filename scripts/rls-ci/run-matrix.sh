@@ -12,7 +12,7 @@ set -euo pipefail
 
 CLI="supabase@2.122.0"
 EXPECTED_MIGRATIONS=24
-EXPECTED_ASSERTIONS=1183
+EXPECTED_ASSERTIONS=1184
 # Unique per CI run and attempt, so it can never match a pre-existing project.
 PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
 CONTAINER="supabase_db_${PROJECT_ID}"
@@ -223,5 +223,5 @@ bash scripts/rls-ci/test-check-in-concurrency.sh "$CONTAINER" "$work"
 # FFH-P08 review N03: account deletion racing an invitation acceptance (household lock first).
 bash scripts/rls-ci/test-household-lock-order.sh "$CONTAINER" "$work"
 
-# FFH-P08 spike (proposal §11.6): facts about the REAL local Auth server; prints no tokens, keys or secrets.
-bash scripts/rls-ci/p08-auth-spike.sh "$CONTAINER" "$work" "$CLI" "$PROJECT_ID"
+# FFH-P08 real-provider tests: REAL local Auth tokens through PostgREST; prints no tokens, keys or secrets.
+bash scripts/rls-ci/p08-auth-provider.sh "$CONTAINER" "$work" "$CLI" "$PROJECT_ID"

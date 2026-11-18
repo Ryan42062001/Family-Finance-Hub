@@ -54,7 +54,7 @@ revoke all on function private.amr_age(jsonb, text), private.recent_reauth(text)
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Status for the app's sign-in gate. The ONE allowlisted function that does not require session_ok(): it needs a
--- live session (so a revoked token learns nothing) and returns only the caller's own three booleans.
+-- live session (so a revoked token learns nothing) and returns only the caller's own status and approved factor ids.
 -- ---------------------------------------------------------------------------------------------------------------
 create or replace function public.my_security_status()
 returns jsonb
@@ -80,6 +80,8 @@ begin
   return jsonb_build_object(
     'two_factor_on', private.has_approved_factor(v_user),
     'session_ok', private.session_ok(),
+    'approved_factor_ids', coalesce((select jsonb_agg(a.factor_id order by a.approved_at)
+                                     from private.mfa_approved_factors a where a.user_id = v_user), '[]'::jsonb),
     'unapproved_factor', exists (
       select 1 from auth.mfa_factors f
       where f.user_id = v_user and f.status::text = 'verified'
@@ -164,9 +166,10 @@ begin
 end;
 $$;
 
--- Turning an authenticator off: fresh password + code (recent_reauth). Ends every OTHER session; the acting session
--- then unenrolls the factor with the provider and signs out.
-create or replace function public.revoke_my_mfa_approval(p_factor_id uuid)
+-- Turning two-factor sign-in off: fresh password + code (recent_reauth). Removes EVERY approval at once (a proof is
+-- single-use per operation). Ends every OTHER session; the acting session then unenrolls the factors with the
+-- provider and signs out.
+create or replace function public.turn_off_my_two_factor()
 returns void
 language plpgsql
 volatile
@@ -177,9 +180,9 @@ declare
   v_user uuid := auth.uid();
 begin
   perform private.recent_reauth('mfa_revoke');
-  delete from private.mfa_approved_factors a where a.factor_id = p_factor_id and a.user_id = v_user;
+  delete from private.mfa_approved_factors a where a.user_id = v_user;
   if not found then
-    raise exception 'permission denied: that authenticator is not on' using errcode = '42501';
+    raise exception 'permission denied: two-factor sign-in is not on' using errcode = '42501';
   end if;
   insert into private.security_events (user_id, event) values (v_user, 'mfa_revoked');
   perform private.end_sessions(v_user, (auth.jwt() ->> 'session_id')::uuid);
@@ -264,10 +267,10 @@ $$;
 revoke all on function private.owner_reset_mfa(uuid, text) from public, anon, authenticated;
 
 revoke all on function public.my_security_status(), public.finish_password_change(),
-  public.approve_my_mfa_factor(uuid), public.revoke_my_mfa_approval(uuid), public.delete_my_account(text)
+  public.approve_my_mfa_factor(uuid), public.turn_off_my_two_factor(), public.delete_my_account(text)
   from public, anon, authenticated;
 grant execute on function public.my_security_status(), public.finish_password_change(),
-  public.approve_my_mfa_factor(uuid), public.revoke_my_mfa_approval(uuid), public.delete_my_account(text)
+  public.approve_my_mfa_factor(uuid), public.turn_off_my_two_factor(), public.delete_my_account(text)
   to authenticated;
 
 -- New functions in public are not callable by PUBLIC/anon/authenticated until a migration grants it explicitly
