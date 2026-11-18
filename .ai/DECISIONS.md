@@ -533,3 +533,18 @@
 - **Production smoke test 12/12** (`DEPLOYED_AUTH_SMOKE PASS 12/12`, run by Ryan on 2026-11-18; the Builder's
   container cannot reach `vercel.app`). FFH-P07 is **CLOSED**.
 - Open backlog from P07: the Money Priority Engine's float rounding-tie flaw (LOW, own reviewed engine change).
+
+## 2026-11-17 — FFH-P07 closure carry and FFH-P08 planning continuity
+
+- **Owner instruction:** announce each completed phase explicitly as **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**.
+  Claude Code Builder starts a fresh chat for each new phase; the repository handoff is the source of continuity.
+- **P07 CLOSED:** PR #155 merged to Production `main` at `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`;
+  Ryan reported Production smoke 12/12. P07 closure documentation was prepared in draft PR #161,
+  then carried into the non-Production P08 phase branch to avoid a docs-only Production deployment.
+- **P08 scope status:** roadmap account-security item is next, but the detailed proposal at
+  `docs/FFH-P08_PROPOSAL.md` and decisions R1–R8 are **NOT APPROVED**. No implementation, auth
+  provider changes, hosted SQL, real-data cleanup or Production merge authorized by this cleanup.
+- **CI blocker to address before implementation merge:** [run 44216093879](https://github.com/Ryan42062001/Family-Finance-Hub/actions/runs/44216093879)
+  on the P07 close-out/proposal head had `rls-matrix` SUCCESS and `fast` FAILURE at high-severity
+  `npm audit` (9 HIGH, 6 MODERATE advisories reported). Triage with package/dependency evidence;
+  do not reduce the audit gate, misstate CI as green, or assume production exploitability.
