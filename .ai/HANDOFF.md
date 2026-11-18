@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-18 — Claude Code P08 Builder, BUILDING (build-first; all three parts implemented on the builder branch).
+Updated: 2026-11-18 — P08 built, hosted (migration 1 applied, parity 9/9), QA 34/0/3, audit 1 FAIL → F01–F03 fixed; awaiting re-review + hosted migration 2.
 
 - **Production:** FFH-P07 RELEASED/CLOSED; PR #155 merged the exact authorized head
   `ae97e90e7d463be62243b22ece50c7b84b2f7b5a` into protected `main` as
