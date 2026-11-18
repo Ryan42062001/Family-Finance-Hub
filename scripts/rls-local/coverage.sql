@@ -26,10 +26,12 @@ CREATE FUNCTION pg_temp.ffh_coverage() RETURNS SETOF text LANGUAGE sql STABLE AS
   JOIN ns ON ns.oid = c.relnamespace AND ns.nspname = 'public'
   WHERE 0 = ANY(pol.polroles) OR (SELECT oid FROM pg_roles WHERE rolname = 'anon') = ANY(pol.polroles)
   UNION ALL
-  -- Every policy expression goes through the gate.
+  -- Every policy expression goes through the gate, USING and WITH CHECK each on its own (audit F03: a gate in one
+  -- clause must not hide an ungated other clause, e.g. USING (true) WITH CHECK (private.session_ok())).
   SELECT 'policy-ungated:' || pol.polname FROM pg_policy pol JOIN pg_class c ON c.oid = pol.polrelid
   JOIN ns ON ns.oid = c.relnamespace AND ns.nspname = 'public', gate
-  WHERE NOT (coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || ' ' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '')) ~ gate.re
+  WHERE (pol.polqual IS NOT NULL AND pg_get_expr(pol.polqual, pol.polrelid) !~ gate.re)
+     OR (pol.polwithcheck IS NOT NULL AND pg_get_expr(pol.polwithcheck, pol.polrelid) !~ gate.re)
   UNION ALL
   -- The four helpers themselves call session_ok().
   SELECT 'helper-ungated:' || f.label FROM fns f
@@ -50,6 +52,14 @@ CREATE FUNCTION pg_temp.ffh_coverage() RETURNS SETOF text LANGUAGE sql STABLE AS
   WHERE has_function_privilege('authenticated', f.oid, 'EXECUTE')
     AND f.sig NOT IN (SELECT sig FROM allow_fn)
     AND f.prosrc !~ 'private\.(session_ok\(\)|recent_reauth\()'
+  UNION ALL
+  -- Our migrations (run as postgres) never put objects in the other API-exposed schemas (audit F03); the checks above
+  -- cover public/private, where all FFH objects live.
+  SELECT 'object-in-exposed-schema:' || n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname IN ('graphql_public', 'storage') AND pg_get_userbyid(c.relowner) = 'postgres'
+  UNION ALL
+  SELECT 'object-in-exposed-schema:' || n.nspname || '.' || p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname IN ('graphql_public', 'storage') AND pg_get_userbyid(p.proowner) = 'postgres'
   UNION ALL
   -- New functions that our migrations create in public (as postgres) must not be executable by
   -- PUBLIC/anon/authenticated by default. Supabase's internal supabase_admin defaults are outside our control and
@@ -111,6 +121,10 @@ SELECT pg_temp.ffh_coverage_mutation('ungated-policy',
   'CREATE POLICY ffh_mut_policy ON public.accounts FOR SELECT TO authenticated USING (true)', 'policy-ungated:ffh_mut_policy');
 ROLLBACK;
 BEGIN;
+SELECT pg_temp.ffh_coverage_mutation('gate-in-one-clause-only',
+  'CREATE POLICY ffh_mut_half_policy ON public.accounts FOR ALL TO authenticated USING (true) WITH CHECK (private.session_ok())', 'policy-ungated:ffh_mut_half_policy');
+ROLLBACK;
+BEGIN;
 SELECT pg_temp.ffh_coverage_mutation('anon-policy',
   'CREATE POLICY ffh_mut_anon_policy ON public.accounts FOR SELECT TO anon USING (private.can_read_household(household_id))', 'policy-for-anon:ffh_mut_anon_policy');
 ROLLBACK;
@@ -137,4 +151,4 @@ BEGIN
   END IF;
 END
 $after$;
-\echo COVERAGE_PASS MUTATIONS=9
+\echo COVERAGE_PASS MUTATIONS=10

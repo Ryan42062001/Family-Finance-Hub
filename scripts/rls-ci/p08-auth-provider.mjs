@@ -118,8 +118,16 @@ async function main() {
   const factorA = await enroll(b1.access_token);
   const b1v = await verify(b1.access_token, factorA);
   check('first-factor-verified', !!b1v);
-  check('approve-first-factor', ok2xx((await rpc(b1v.access_token, 'approve_my_mfa_factor', { p_factor_id: factorA.id }))));
-  check('approve-ended-the-approving-session', (await households(b1v.access_token)) === 0);
+  // Audit F01: the session that existed BEFORE the authenticator was enrolled (a stolen recent token) enrolls,
+  // verifies and tries to approve it. Must be refused, and nothing approved.
+  check('stolen-pre-enrolment-session-cannot-approve', (await rpc(b1v.access_token, 'approve_my_mfa_factor', { p_factor_id: factorA.id })).status >= 400);
+  check('stolen-pre-enrolment-session-approved-nothing', sql(`select count(*) from private.mfa_approved_factors where user_id = '${b.id}'`) === '0');
+  // FFH's real flow: a NEW password sign-in after enrolment, verified with that authenticator, approves it.
+  const b1fresh = await signIn(b);
+  await nextWindow();
+  const b1freshV = await verify(b1fresh.access_token, factorA);
+  check('approve-first-factor-from-new-session', !!b1freshV && ok2xx(await rpc(b1freshV.access_token, 'approve_my_mfa_factor', { p_factor_id: factorA.id })));
+  check('approve-ended-the-approving-session', (await households(b1freshV.access_token)) === 0);
   const b2 = await signIn(b);
   check('aal1-with-approved-factor-sees-nothing', (await households(b2.access_token)) === 0);
   const pending = await rpc(b2.access_token, 'my_security_status');
@@ -140,9 +148,11 @@ async function main() {
   const b3 = await signIn(b);
   const b3v = await verify(b3.access_token, factorA);
   check('turn-off-proof-session', !!b3v);
-  check('turn-off-ok', ok2xx((await rpc(b3v.access_token, 'turn_off_my_two_factor'))));
+  check('turn-off-ok', ok2xx(await rpc(b3v.access_token, 'turn_off_my_two_factor')));
   check('turn-off-ended-other-sessions', (await households(b2v.access_token)) === 0);
-  for (const f of [rogue, factorA]) await call('DELETE', `/auth/v1/factors/${f.id}`, { token: b3v.access_token });
+  // Audit F02: every authenticator (approved and rogue) removed in the same transaction; acting session ended too.
+  check('turn-off-removed-every-authenticator', sql(`select count(*) from auth.mfa_factors where user_id = '${b.id}'`) === '0');
+  check('turn-off-ended-acting-session', (await households(b3v.access_token)) === 0);
   const b4 = await signIn(b);
   check('after-turn-off-password-alone-works', (await households(b4.access_token)) === 1);
 
@@ -163,8 +173,11 @@ async function main() {
   const d = await newUser('d');
   const d1 = await signIn(d);
   const dFactor = await enroll(d1.access_token);
-  const d1v = await verify(d1.access_token, dFactor);
-  await rpc(d1v.access_token, 'approve_my_mfa_factor', { p_factor_id: dFactor.id });
+  await verify(d1.access_token, dFactor);
+  const d1fresh = await signIn(d);
+  await nextWindow();
+  const d1v = await verify(d1fresh.access_token, dFactor);
+  check('owner-reset-fixture-approved', !!d1v && ok2xx(await rpc(d1v.access_token, 'approve_my_mfa_factor', { p_factor_id: dFactor.id })));
   const d2 = await signIn(d);
   sql(`select private.owner_reset_mfa('${d.id}', 'P08 provider synthetic reset')`);
   check('owner-reset-ends-sessions', (await rpc(d2.access_token, 'my_security_status')).status >= 400);

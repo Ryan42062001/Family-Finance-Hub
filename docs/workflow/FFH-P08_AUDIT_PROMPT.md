@@ -45,3 +45,18 @@ verify from the repository as UNVERIFIED. End with `AUDIT RESULT: PASS` (no BLOC
 
 The Builder fixes BLOCKER/CRITICAL/HIGH and asks for a targeted re-review of those fixes only; MEDIUM/LOW/NIT follow
 the release policy (`docs/WORKFLOW.md`).
+
+## Targeted re-review after audit 1 (F01–F03 only)
+
+Same reviewer model. Replace the placeholder with the fix commit the Builder names.
+
+---
+
+You audited FFH-P08 at `ed915d419cd4e9e827bd1734e203e8d92f11c542` and returned FAIL (F01 HIGH; F02, F03 MEDIUM;
+F04 LOW). Re-check ONLY those fixes at commit <40-character SHA> on `phase/ffh-p08-account-security`:
+`supabase/migrations/20261118110000_ffh_p08_audit_fixes.sql`, `app/account/security-actions.ts` (turnOffTwoFactor),
+`scripts/rls-local/coverage.sql`, the new matrix probes in `scripts/rls-local/matrix.sql` (section 4) and
+`scripts/rls-ci/p08-auth-provider.mjs` (F01 negative/positive, F02). Dispositions: `docs/workflow/FFH-P08_AUDIT.md`.
+For F01 confirm a pre-enrolment session can no longer approve and FFH's fresh-sign-in flow still can; say whether
+the fix introduces any new BLOCKER/CRITICAL/HIGH. Give RESOLVED / NOT RESOLVED per item and end with
+`RE-REVIEW RESULT: PASS` or `FAIL` and the SHA reviewed.

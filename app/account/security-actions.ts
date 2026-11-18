@@ -139,8 +139,9 @@ export async function confirmTwoFactorEnrollment(_previous: FormState, formData:
   redirect("/auth/login?message=Two-factor%20sign-in%20is%20on.%20Sign%20in%20again%20with%20your%20password%20and%20a%20code.");
 }
 
-// Turn two-factor sign-in off: password + current code. Approvals removed in the database first (other sessions
-// end), then every authenticator on the account is removed with the provider; the one just used goes last.
+// Turn two-factor sign-in off: password + current code. The database removes every FFH approval and every
+// authenticator of the person and ends every session in ONE transaction (audit F02), so there is no separate
+// provider step that could fail after approvals are gone.
 export async function turnOffTwoFactor(_previous: FormState, formData: FormData): Promise<FormState> {
   const real = await signedIn();
   const proof = await reauthenticate(real, field(formData, "password"), field(formData, "code", 6) || null);
@@ -149,15 +150,8 @@ export async function turnOffTwoFactor(_previous: FormState, formData: FormData)
     return { error: GENERIC_FAILURE };
   }
   const { error } = await proof.client.rpc("turn_off_my_two_factor");
-  if (error) {
-    await endThrowaway(proof.client);
-    return { error: GENERIC_FAILURE };
-  }
-  const { data: factors } = await proof.client.auth.mfa.listFactors();
-  const all = (factors?.all ?? []).map((f) => f.id);
-  const ordered = [...all.filter((id) => id !== proof.verifiedFactorId), ...all.filter((id) => id === proof.verifiedFactorId)];
-  for (const id of ordered) await proof.client.auth.mfa.unenroll({ factorId: id }).catch(() => undefined);
   await endThrowaway(proof.client);
+  if (error) return { error: GENERIC_FAILURE };
   await real.auth.signOut({ scope: "local" }).catch(() => undefined);
   redirect("/auth/login?message=Two-factor%20sign-in%20is%20off.%20Sign%20in%20again%20with%20your%20password.");
 }

@@ -9,7 +9,7 @@ create schema auth;
 grant usage on schema auth to anon, authenticated, service_role;
 create type auth.aal_level as enum ('aal1','aal2','aal3');
 create table auth.users (id uuid primary key, instance_id uuid, aud text, role text, email text, encrypted_password text, created_at timestamptz default now(), updated_at timestamptz);
-create table auth.sessions (id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz default now(), updated_at timestamptz, factor_id uuid, aal auth.aal_level, not_after timestamptz, refreshed_at timestamp);
+create table auth.sessions (id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz, updated_at timestamptz, factor_id uuid, aal auth.aal_level, not_after timestamptz, refreshed_at timestamp);
 create table auth.mfa_factors (id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade, friendly_name text, factor_type text, status text, created_at timestamptz not null, updated_at timestamptz not null, secret text);
 create table auth.refresh_tokens (id bigserial primary key, token text, user_id text, session_id uuid references auth.sessions(id) on delete cascade, revoked boolean);
 create table auth.identities (id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade);

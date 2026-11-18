@@ -614,3 +614,14 @@ separately by ChatGPT Work; the P08 Builder does not touch it.
 
 Ryan chose 8 characters instead of the recommended 12 (Supabase's recommended minimum; no forced character classes).
 App validation, CI stack config, tests, QA rows and the hosted-settings procedure updated to match.
+
+## 2026-11-18 — FFH-P08 Browser QA and independent audit 1
+
+- **Browser QA** (ChatGPT Work mode, Preview `43b5e1d`): 34 PASS / 0 FAIL / 3 NOT RUN (Q9 widths, Q11 device dark mode:
+  unchanged by P08; Q24's final cancelled-link reopen: covered by the matrix/P06 tests). TestC completed Q36 and was
+  deleted. No `qa-finding` issues. Results: PR #168 comment.
+- **Audit 1 FAIL** at `ed915d41`: F01 HIGH fixed (session must postdate the authenticator), F02/F03 MEDIUM fixed;
+  receipt `docs/workflow/FFH-P08_AUDIT.md`. Targeted re-review pending.
+- **Backlog (LOW, F04):** invitation create/cancel are still direct owner-only RLS writes rather than household-locked
+  RPCs as proposal §11.4 states. RLS limits them to the owner's own household; no cross-household effect or deletion
+  race was shown. Suggested fix: move both into RPCs that lock the household row first; revoke direct writes.

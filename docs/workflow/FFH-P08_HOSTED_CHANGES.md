@@ -48,6 +48,14 @@ Then report each as on/off. The Builder's CI proves the provider behaviour; Prev
 4. Run `scripts/rls-local/parity.sql` and compare with `scripts/rls-local/parity.expected.txt` (must be 9/9 MATCH,
    migrations 24). Report the rows. If a function body differs only by `\r` characters, re-paste from the raw file.
 
+## 3b. Apply audit-fix migration `20261118110000` (authorize: "apply migration 20261118110000")
+
+Same as step 3 with `supabase/migrations/20261118110000_ffh_p08_audit_fixes.sql` at the commit the Builder names
+(it starts with `begin;` and ends with `commit;`), record it with
+`insert into supabase_migrations.schema_migrations(version, name) values ('20261118110000', 'ffh_p08_audit_fixes');`,
+check `has_cr` is false for `approve_my_mfa_factor` and `turn_off_my_two_factor` (re-run the step 3 `\r` fix if not),
+and run `parity.sql` (must match `scripts/rls-local/parity.expected.txt`, migrations 25).
+
 ## 4. Preview and test accounts (authorize: "P08 preview")
 
 - Vercel → Settings → Domains: point `family-finance-hub-preview.vercel.app` at `phase/ffh-p08-account-security`,

@@ -78,6 +78,8 @@ test("FFH-P08 actions: password change requires the current password at the prov
   assert.match(actions, /rpc\("delete_my_account", \{ p_confirm: "DELETE" \}\)/);
   assert.match(actions, /rpc\("approve_my_mfa_factor", \{ p_factor_id: factorId \}\)/);
   assert.match(actions, /rpc\("turn_off_my_two_factor"\)/);
+  // Audit F02: authenticators are removed by the database in one transaction, never by best-effort provider calls.
+  assert.doesNotMatch(actions, /mfa\.unenroll\(\{ factorId: id \}\)\.catch/);
   // Every sensitive database call is made with the throw-away proof session, never the browser session.
   for (const fn of ["finish_password_change", "delete_my_account", "approve_my_mfa_factor", "turn_off_my_two_factor"]) {
     assert.doesNotMatch(actions, new RegExp(`real\\.rpc\\("${fn}"`), fn);

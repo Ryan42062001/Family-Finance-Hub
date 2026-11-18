@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 24 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 25 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -1408,7 +1408,7 @@ DECLARE
   s_plain uuid := gen_random_uuid(); s_mfa1 uuid := gen_random_uuid(); s_mfa2 uuid := gen_random_uuid();
   s_mfa_rogue uuid := gen_random_uuid(); s_own2 uuid := gen_random_uuid(); s_mem uuid := gen_random_uuid();
   s_mem_other uuid := gen_random_uuid(); s_new uuid := gen_random_uuid(); s_new_wrong uuid := gen_random_uuid();
-  s_two uuid := gen_random_uuid();
+  s_two uuid := gen_random_uuid(); s_new_old uuid := gen_random_uuid();
   now_s bigint := extract(epoch from now())::bigint;
   fresh_pw jsonb; fresh_both jsonb; stale_pw jsonb;
   read_own text := 'SELECT count(*)::text FROM public.households';
@@ -1431,13 +1431,16 @@ BEGIN
   INSERT INTO public.household_members(household_id,user_id,role) VALUES (h_shared,u_mem,'member');
   INSERT INTO public.accounts(household_id,name,account_type,balance) VALUES (h_plain,'ZZ-P08 cash','checking',100),(h_shared,'ZZ-P08 shared cash','checking',200);
   INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
-    SELECT x.id, x.uid, x.nm, 'totp', 'verified', now(), now() FROM (VALUES
+    SELECT x.id, x.uid, x.nm, 'totp', 'verified', now() - interval '1 hour', now() - interval '1 hour' FROM (VALUES
       (f_ok,u_mfa,'ok'),(f_rogue,u_mfa,'rogue'),(f_new,u_new,'new'),(f_two_a,u_two,'a'),(f_two_b,u_two,'b')) x(id,uid,nm);
   INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_ok,u_mfa),(f_two_a,u_two),(f_two_b,u_two);
-  INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES
-    (s_plain,u_plain,'aal1',NULL),(s_mfa1,u_mfa,'aal1',NULL),(s_mfa2,u_mfa,'aal2',f_ok),(s_mfa_rogue,u_mfa,'aal2',f_rogue),
-    (s_own2,u_own2,'aal1',NULL),(s_mem,u_mem,'aal1',NULL),(s_mem_other,u_mem,'aal1',NULL),
-    (s_new,u_new,'aal2',f_new),(s_new_wrong,u_new,'aal2',NULL),(s_two,u_two,'aal2',f_two_a);
+  -- Sessions are created now (authenticators were enrolled an hour ago), except s_new_old, which started BEFORE f_new
+  -- was enrolled (F01: it must not be able to approve f_new).
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id,created_at) VALUES
+    (s_plain,u_plain,'aal1',NULL,now()),(s_mfa1,u_mfa,'aal1',NULL,now()),(s_mfa2,u_mfa,'aal2',f_ok,now()),
+    (s_mfa_rogue,u_mfa,'aal2',f_rogue,now()),(s_own2,u_own2,'aal1',NULL,now()),(s_mem,u_mem,'aal1',NULL,now()),
+    (s_mem_other,u_mem,'aal1',NULL,now()),(s_new,u_new,'aal2',f_new,now()),(s_new_wrong,u_new,'aal2',NULL,now()),
+    (s_new_old,u_new,'aal2',f_new,now() - interval '2 hours'),(s_two,u_two,'aal2',f_two_a,now());
 
   -- 1. Session liveness (N02/TM-06): only a live session row of this person counts.
   PERFORM pg_temp.ffh_p08_expect('live-session-reads', pg_temp.ffh_p08_run(u_plain, s_plain::text, 'aal1', fresh_pw, read_own), '1');
@@ -1515,6 +1518,9 @@ BEGIN
   PERFORM pg_temp.ffh_p08_expect('approve-stale-password-refused', pg_temp.ffh_p08_run(u_new, s_new::text, 'aal2',
     jsonb_build_array(jsonb_build_object('method','totp','timestamp',now_s - 5), jsonb_build_object('method','password','timestamp',now_s - 900)),
     format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), 'ERR:42501');
+  -- F01: a session that existed before the authenticator was enrolled (a stolen pre-enrolment token) can't approve it.
+  PERFORM pg_temp.ffh_p08_expect('approve-from-session-older-than-factor-refused', pg_temp.ffh_p08_run(u_new, s_new_old::text, 'aal2', fresh_both,
+    format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), 'ERR:42501');
   PERFORM pg_temp.ffh_p08_expect('approve-first-factor-ok', pg_temp.ffh_p08_run(u_new, s_new::text, 'aal2', fresh_both,
     format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), '');
   PERFORM pg_temp.ffh_p08_expect('approve-ends-every-session', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_new), '0');
@@ -1525,8 +1531,14 @@ BEGIN
   PERFORM pg_temp.ffh_p08_expect('turn-off-ok', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
     'SELECT public.turn_off_my_two_factor()::text'), '');
   PERFORM pg_temp.ffh_p08_expect('turn-off-removes-all-approvals', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_two), '0');
-  PERFORM pg_temp.ffh_p08_expect('turn-off-keeps-only-acting-session', (SELECT string_agg(id::text, ',') FROM auth.sessions WHERE user_id = u_two), s_two::text);
+  -- F02: authenticators removed in the same transaction; every session (including the acting one) ends.
+  PERFORM pg_temp.ffh_p08_expect('turn-off-removes-provider-factors', (SELECT count(*)::text FROM auth.mfa_factors WHERE user_id = u_two), '0');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-ends-every-session', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_two), '0');
+  -- Replay: the same session id with 2FA set up again must not reuse its spent proof.
+  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+    VALUES (f_two_a,u_two,'a','totp','verified',now() - interval '1 hour',now() - interval '1 hour');
   INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_two_a,u_two);
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id,created_at) VALUES (s_two,u_two,'aal2',f_two_a,now());
   PERFORM pg_temp.ffh_p08_expect('turn-off-replayed-proof-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
     'SELECT public.turn_off_my_two_factor()::text'), 'ERR:42501');
 
