@@ -98,3 +98,12 @@ test("FFH-P09 navigation: account-menu entry, no new bottom-mobile tab", () => {
   assert.match(header, /href="\/bills">Bills &amp; due dates/);
   assert.doesNotMatch(mobileNav, /\/bills/);
 });
+
+test("FFH-P09 hosted paste repair: strips CR from FFH functions only, via their own definitions, no table data", () => {
+  const strip = read("scripts/rls-local/strip-cr.sql");
+  assert.match(strip, /n\.nspname in \('public', 'private'\)/);
+  assert.match(strip, /deptype = 'e'/);
+  assert.match(strip, /execute replace\(pg_get_functiondef\(f\.oid\), E'\\r', ''\)/);
+  assert.doesNotMatch(strip, /\b(insert|update|delete|truncate|drop|grant|revoke)\b/i);
+  assert.match(read("docs/workflow/FFH-P09_HOSTED_CHANGES.md"), /Always, before parity/);
+});
