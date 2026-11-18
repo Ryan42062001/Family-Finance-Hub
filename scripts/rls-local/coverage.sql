@@ -51,9 +51,12 @@ CREATE FUNCTION pg_temp.ffh_coverage() RETURNS SETOF text LANGUAGE sql STABLE AS
     AND f.sig NOT IN (SELECT sig FROM allow_fn)
     AND f.prosrc !~ 'private\.(session_ok\(\)|recent_reauth\()'
   UNION ALL
-  -- New functions in public must not be executable by PUBLIC/anon/authenticated by default.
+  -- New functions that our migrations create in public (as postgres) must not be executable by
+  -- PUBLIC/anon/authenticated by default. Supabase's internal supabase_admin defaults are outside our control and
+  -- only apply to platform-created objects, which the function checks above still cover.
   SELECT 'default-execute-grant:' || coalesce(r.rolname, 'PUBLIC') FROM pg_default_acl d
   JOIN ns ON ns.oid = d.defaclnamespace AND ns.nspname = 'public'
+  JOIN pg_roles owner_role ON owner_role.oid = d.defaclrole AND owner_role.rolname = 'postgres'
   CROSS JOIN LATERAL aclexplode(d.defaclacl) a LEFT JOIN pg_roles r ON r.oid = a.grantee
   WHERE d.defaclobjtype = 'f' AND a.privilege_type = 'EXECUTE'
     AND (a.grantee = 0 OR r.rolname IN ('anon', 'authenticated'));
