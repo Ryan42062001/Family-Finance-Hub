@@ -2,8 +2,8 @@
 
 FFH-P08 — Account settings and security
 
-State: FREEZE_READY — built, hosted, QA'd and independently audited (audit 1 FAIL → fixes → re-review PASS at
-`ce854b7`); waiting on Ryan's separate exact-SHA Production release decision
+State: CLOSED — released to Production (Ryan's explicit authorization, 2026-11-18) via PR #176, merge
+`2a62022b5e5ae9d60a32fd7ac6745ffb4366e904` from phase head `1aaa96cd89f1e35b49d61c23731f2a37e23ed632`; Production smoke 12/12
 Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
 Phase branch: `phase/ffh-p08-account-security`

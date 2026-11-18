@@ -34,6 +34,9 @@ historical evidence only.
   `docs/workflow/FFH-P08_SPIKE_RESULTS.md` (fixtures must set NOT NULL columns such as `mfa_factors.created_at`).
 - **Never push without a passing `npm run verify`.** New migrations change `scripts/rls-local/parity.expected.txt`:
   take the new fingerprint from the first CI run's parity diff.
+- **Smoke tests:** the environment allows the Production and Preview sites, so run
+  `NODE_USE_ENV_PROXY=1 node scripts/smoke/deployed-auth-smoke.mjs <site>` yourself (Node's fetch needs that variable to
+  use the proxy); only the merge into `main` needs Ryan.
 - **Ask Ryan for pasted text** (SQL rows, PASS/FAIL lists, finding IDs) rather than screenshots, and ask only for what
   the next step needs. Never copy real emails, ids or amounts from his evidence into the repo.
 

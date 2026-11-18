@@ -631,3 +631,11 @@ App validation, CI stack config, tests, QA rows and the hosted-settings procedur
 - Targeted re-review PASS at `ce854b7cf95691f9fed46cbc228323c24220326d` (F01–F03 resolved, F04 LOW backlog).
 - Ryan applied `20261118110000` to hosted (CRLF fixed), parity 9/9, migrations 25.
 - Production release of P08 still needs Ryan's separate exact-SHA authorization and a 12/12 Production smoke.
+
+## 2026-11-18 — FFH-P08 released to Production and closed
+
+- Ryan authorized "Release FFH-P08 at 1aaa96cd89f1e35b49d61c23731f2a37e23ed632"; PR #176 merged as
+  `2a62022b5e5ae9d60a32fd7ac6745ffb4366e904` after exact-head CI green (fast, rls-matrix, e2e-isolation).
+- Production smoke **12/12** at `https://family-finance-hub-taupe.vercel.app` serving `2a62022` (run by the Builder after
+  Ryan approved adding the Production and Preview hosts to the Family-Finance-Hub environment); signed-out `/account*`
+  and `/auth/two-factor` redirect to sign-in. FFH-P08 is **CLOSED**.
