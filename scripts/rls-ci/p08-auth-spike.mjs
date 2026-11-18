@@ -94,7 +94,7 @@ async function main() {
   for (const t of ['users', 'sessions', 'refresh_tokens', 'mfa_factors', 'identities', 'mfa_challenges']) {
     fact(`priv.postgres.${t}`, sql(`select json_build_object('select', has_table_privilege('postgres','auth.${t}','SELECT'), 'delete', has_table_privilege('postgres','auth.${t}','DELETE'))::text;`));
   }
-  fact('auth.fk_cascades', sql(`select string_agg(conrelid::regclass || '->' || confrelid::regclass || ':' || confdeltype, ',' order by 1) from pg_constraint where contype='f' and connamespace='auth'::regnamespace;`));
+  fact('auth.fk_cascades', sqlTry(`select string_agg(conrelid::regclass || '->' || confrelid::regclass || ':' || confdeltype::text, ',' order by 1) from pg_constraint where contype='f' and connamespace='auth'::regnamespace;`).out);
   fact('auth.users.owner', sql(`select tableowner from pg_tables where schemaname='auth' and tablename='users';`));
 
   // Claims reach PostgREST.
