@@ -18,7 +18,7 @@ Updated: 2026-11-18 — Claude Code P08 Builder: audit gate fixed (#163), #162 m
   Email change deferred (R1). **Threat-model review round 1 FAILED** at `5c87b119` (TM-01 CRITICAL, TM-02–06 HIGH,
   TM-07/08 MEDIUM; `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`). Design **Revision 1** is proposal §10 (binding).
   Round 2 FAILED at `9af92874` (N01/N02 HIGH, N03/N04 MEDIUM). **Revision 2 = proposal §11 (binding)**.
-  Waiting on: round 3 re-review (prompt "Round 3") and Ryan's R9–R11 (pending). Then the CI-only spike. No P08 code yet.
+  Waiting on: round 3 re-review (prompt "Round 3") at `86ba9fa8`. R9–R11 approved as recommended (2026-11-18). Then the CI-only spike. No P08 code yet.
 - **Next roadmap item:** password change, email change, account deletion/test-account cleanup,
   authenticator-app 2FA. See `docs/FFH-P08_PROPOSAL.md` as an UNAPPROVED proposal.
   Ryan must choose proposal decisions **R1–R8** before implementation.

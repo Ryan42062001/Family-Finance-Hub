@@ -579,3 +579,13 @@
   (01/04 conditional on the spike).
 - Builder response: proposal §11 (binding). The `iat` epoch is withdrawn in favour of `auth.sessions` liveness; no
   clock fallback. R9–R11 remain pending Ryan. Implementation still blocked.
+
+## 2026-11-18 — FFH-P08 R9–R11 approved (Ryan, as recommended)
+
+- **R9:** turn on the Supabase Auth setting requiring the current password for every password update (applied to
+  hosted Auth later, only with Ryan's per-change authorization).
+- **R10:** accept the Auth-level residual that a stolen `aal1` session of a person without 2FA may enroll a first
+  factor; FFH's database never honours an unapproved factor (proposal §11.2).
+- **R11:** Owner-assisted 2FA reset only after identity is confirmed in person or by a call Ryan places to a number he
+  already had; never an inbound message alone.
+- Implementation still waits for the round 3 threat-model re-review; then the CI-only spike (§11.6).
