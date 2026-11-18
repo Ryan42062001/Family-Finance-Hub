@@ -2,7 +2,7 @@
 
 FFH-P08 — Account settings and security
 
-State: PLANNED — scope and R1–R8 approved (2026-11-18); **pre-build threat-model review FAILED** (TM-01 CRITICAL, TM-02–06 HIGH); design **Revision 1** (proposal §10) awaiting targeted re-review and Ryan's R9–R11
+State: PLANNED — scope and R1–R8 approved (2026-11-18); **pre-build threat-model review FAILED** (TM-01 CRITICAL, TM-02–06 HIGH); round 2 re-review **FAILED** (N01/N02 HIGH, N03/N04 MEDIUM); design **Revision 2** (proposal §11) awaiting round 3 re-review and Ryan's R9–R11
 Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
 Owner: Ryan
 Phase branch: `phase/ffh-p08-account-security`
@@ -37,7 +37,10 @@ is unchanged; bills/due dates and plan export follow this item.
   `session_ok()` predicate on every authorization path with a CI coverage probe, database-verified recent
   re-authentication inside `delete_my_account` and other sensitive RPCs, household-row lock protocol, Owner reset
   procedure. **Next gates:** targeted re-review (prompt "Round 2"), Ryan's **R9–R11** (§10.10), then the CI-only spike
-  (§10.9 step 2). **No P08 feature code before the re-review passes.**
+  (§10.9 step 2). **Round 2 FAILED** at `9af92874`; **Revision 2 = proposal §11 (binding, overrides §10)**: session-row
+  liveness instead of the clock epoch, `aal2` bound to an approved factor via `auth.sessions.factor_id` (fail-closed
+  fallback), one household→invitation→membership lock order, view/privilege coverage probe with mutation tests,
+  spike pass/fail table §11.6. Next: round 3 re-review. **No P08 feature code before a re-review passes.**
 - Any provider capabilities, SQL privileges, auth-schema cascades, or MFA assumptions must be
   proven in disposable/local tests and separately authorized hosted checks before use.
 

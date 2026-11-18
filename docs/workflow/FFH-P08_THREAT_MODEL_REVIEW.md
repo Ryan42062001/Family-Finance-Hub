@@ -17,4 +17,19 @@ Result: `THREAT-MODEL REVIEW RESULT: FAIL` — 1 CRITICAL, 5 HIGH, 2 MEDIUM. No 
 | TM-07 | MEDIUM | Throw-away re-auth client: identity match and local sign-out not specified | 10.2 (fresh `getUser`, `sub` equality, `scope: 'local'`, no cookie writes, tests) |
 | TM-08 | MEDIUM | Owner-assisted MFA recovery lacks identity proofing | 10.7 procedure + `private.owner_reset_mfa`; identity rule → R11 |
 
-Reviewer-listed UNVERIFIED items are the §10.9 step 2 spike. Next: targeted re-review of §10 at a frozen SHA.
+Reviewer-listed UNVERIFIED items are the §10.9 step 2 spike.
+
+## Round 2 — FAIL (2026-11-18)
+
+Same reviewer model. Reviewed SHA: `9af9287412fc04bb9e4264cbe336c82741daf375` (Revision 1, §10).
+TM-01 RESOLVED (conditional on spike); TM-04 RESOLVED (conditional on provider); TM-07, TM-08 RESOLVED;
+TM-02, TM-03, TM-05, TM-06 PARTIALLY RESOLVED. New findings:
+
+| ID | Severity | Finding (short) | Disposition in proposal §11 |
+|---|---|---|---|
+| N01 | HIGH | `aal2` not bound to an approved factor; a rogue factor could satisfy FFH | 11.2: live `auth.sessions` row must be `aal2` with `factor_id` in the registry; fail-closed fallback refuses the person while an unapproved verified factor exists |
+| N02 | HIGH | `iat` vs database-time epoch unsafe under clock skew / precision | 11.1: epoch withdrawn; revocation by deleting `auth.sessions` rows and requiring the token's `session_id` to be live |
+| N03 | MEDIUM | Invitation-then-household lock order can deadlock with deletion | 11.4: household → invitation → membership everywhere; acceptance re-validates under the household lock; deadlock reproduction test |
+| N04 | MEDIUM | CI probe omits views/materialized views/default privileges | 11.5: probe covers views, matviews, grants and default privileges, with rollback mutation tests |
+
+Round 2 also required spike pass/fail conditions (now §11.6) and noted R9–R11 are pending, not approved.

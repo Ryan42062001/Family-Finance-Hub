@@ -79,3 +79,24 @@ a new BLOCKER/CRITICAL/HIGH problem. Pay particular attention to:
 Mark anything that depends on Supabase behaviour UNVERIFIED with what the spike (§10.9 step 2) must prove. For each
 TM item say RESOLVED / PARTIALLY RESOLVED / NOT RESOLVED. Report any new problem with severity, section, scenario
 and suggested change. End with `THREAT-MODEL RE-REVIEW RESULT: PASS` or `FAIL` and the SHA reviewed.
+
+## Round 3 — targeted re-review (after Revision 2)
+
+Use the same reviewer model. Replace the placeholder with the commit that contains Revision 2.
+
+---
+
+You returned FAIL on FFH-P08 Revision 1 at `9af9287412fc04bb9e4264cbe336c82741daf375` (N01, N02 HIGH; N03, N04
+MEDIUM; TM-02/03/05/06 partially resolved). The Builder revised the design again.
+
+- Repository: Ryan42062001/Family-Finance-Hub, branch `phase/ffh-p08-account-security`
+- Exact commit: <40-character SHA>
+- Read: `docs/FFH-P08_PROPOSAL.md` **§11** (binding; overrides §10) and the round 2 table in
+  `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`.
+
+Re-check **only**: N01–N04 and the partially resolved TM-02, TM-03, TM-05, TM-06, and whether §11 introduces a new
+BLOCKER/CRITICAL/HIGH problem. In particular: session-row liveness as the revocation mechanism; binding `aal2` to an
+approved factor through `auth.sessions.factor_id` and the fail-closed fallback; the single lock order; the probe and
+its mutation tests; and whether §11.6's pass/fail conditions are sufficient. Mark Supabase-dependent points
+UNVERIFIED with what the spike must show. Give RESOLVED / PARTIALLY RESOLVED / NOT RESOLVED per item and end with
+`THREAT-MODEL RE-REVIEW RESULT: PASS` or `FAIL` and the SHA reviewed.
