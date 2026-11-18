@@ -1,0 +1,10 @@
+{
+  "exceptions": [
+    {
+      "ghsa": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "expires": "2027-01-18",
+      "reason": "picomatch ReDoS (<= 4.0.7), no patched release; dev-only ESLint toolchain, attacker must supply the glob pattern. Approved by Ryan 2026-11-18 (option 2, docs/workflow/FFH-P08_DEPENDENCY_AUDIT.md)."
+    }
+  ]
+}

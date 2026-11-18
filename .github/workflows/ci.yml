@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
       - run: node --test scripts/validate-release-candidate.test.mjs
       - run: npm run verify
-      - run: npm audit --audit-level=high
+      - run: node scripts/audit-gate.mjs
 
   rls-matrix:
     # Disposable Linux runner: fresh local Supabase DB, 23 migrations,
@@ -91,7 +91,7 @@ jobs:
       - run: npm ci
       - run: node --test scripts/validate-release-candidate.test.mjs
       - run: npm run verify
-      - run: npm audit --audit-level=high
+      - run: node scripts/audit-gate.mjs
 
   e2e-isolation:
     # FFH-P04: on phase branches only. Waits for Vercel's successful Preview build of this exact commit, then signs in

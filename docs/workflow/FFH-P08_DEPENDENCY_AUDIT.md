@@ -26,7 +26,7 @@ change for this Next 16 project that would still not remove picomatch (no patche
 
 After this PR `npm audit` reports **14 HIGH, 0 MODERATE**: the same single picomatch advisory, now also attributed to
 the `typescript-eslint` 8.73.0 packages (they depend on `tinyglobby`). The HIGH count rises because of how npm attributes
-one advisory to every dependent; no new advisory was introduced. **`fast` will still fail at the audit gate.**
+one advisory to every dependent; no new advisory was introduced. With the bare `npm audit` gate, `fast` still failed; see the decision below.
 
 ## Exposure assessment for the HIGH advisory
 
@@ -40,9 +40,16 @@ one advisory to every dependent; no new advisory was introduced. **`fast` will s
 - Conclusion: not exploitable in Production or Preview; residual risk is a slow lint run on a crafted config, which
   only a committer could introduce.
 
-## Options for the remaining HIGH gate failure (Ryan's decision)
+## Decision: option 2 approved by Ryan (2026-11-18)
 
-The workflow forbids weakening CI to get a green result, so the Builder has **not** changed the audit gate.
+Implemented in `scripts/audit-gate.mjs` (CI `fast` and `full-phase`, replacing the bare `npm audit --audit-level=high`)
+with the single entry in `scripts/audit-exceptions.json`: `GHSA-fc5q-39xc-vjpf`, package `picomatch`, **review date
+2027-01-18**. The gate still fails on any other HIGH/CRITICAL advisory, on this advisory if it becomes CRITICAL,
+reaches a production dependency (at any severity) or appears on another package, after the review date, and on any
+unreadable npm output. Tests: `tests/security/ffh-p08-audit-gate.test.ts`. When picomatch ships a fix, update the
+lockfile and delete the exception; the gate prints a note when an exception no longer matches anything.
+
+## Options that were considered
 
 1. **Wait for an upstream picomatch release** (recommended to track regardless). Every phase-branch `fast` run stays
    red until then, which blocks phase-branch merges, including docs PR #162.

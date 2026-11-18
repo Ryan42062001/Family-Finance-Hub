@@ -90,7 +90,10 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 ## Continuous checks (`.github/workflows/ci.yml`)
 
 - **`fast`** (every push): validator, calculation tests, security tests, typecheck, lint, production build and
-  `npm audit --audit-level=high` (`npm run verify` plus audit).
+  the audit gate `scripts/audit-gate.mjs` (`npm run verify` plus audit). The gate fails on any HIGH/CRITICAL
+  advisory like `npm audit --audit-level=high`, except one listed in `scripts/audit-exceptions.json` that is HIGH (not
+  critical), dev-only (absent from `npm audit --omit=dev`) and before its review date (Ryan, 2026-11-18). Each new
+  exception needs Ryan's approval.
 - **`rls-matrix`** (every push): builds a disposable local Supabase database on the CI runner, applies all migrations,
   runs `scripts/rls-local/preflight.sql` and the 961-assertion two-household `scripts/rls-local/matrix.sql`, requires
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
