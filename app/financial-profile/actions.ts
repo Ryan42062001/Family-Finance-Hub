@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { amount, percent } from "@/lib/forms/validate";
+import { expensePaymentInput, type ExpensePaymentInput } from "@/lib/bills/form";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACCOUNT_TYPES = ["checking", "savings", "cash", "brokerage", "other_asset"] as const;
@@ -184,7 +185,8 @@ export async function addExpense(formData: FormData) {
     household_id: householdId,
     name: requiredText(formData, "name"),
     category,
-    monthly_amount: amount(formData, "monthly_amount"),
+    // FFH-P09: the actual payment and how often; the database derives monthly_amount (rounded up to the cent).
+    ...expensePaymentInput(formData),
     is_essential: formData.get("is_essential") === "on",
   });
   if (error) throw new Error(error.message);
@@ -233,13 +235,23 @@ export async function updateIncome(formData: FormData) {
   done("Income source updated.");
 }
 
+// FFH-P09: changing how often an expense is paid keeps the entered payment and changes its monthly planning amount,
+// so it needs the person's confirmation. The update only applies if the saved recurrence is still the one this
+// check read (no lost update between the read and the write).
 export async function updateExpense(formData: FormData) {
   const { supabase, householdId } = await context();
   const id = recordId(formData);
   const category = allowed(requiredText(formData, "category", 30), EXPENSE_CATEGORIES, "expense category");
-  const { data, error } = await supabase.from("expenses").update({ name: requiredText(formData, "name"), category, monthly_amount: amount(formData, "monthly_amount"), is_essential: formData.get("is_essential") === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).select("id").maybeSingle();
+  const payment: ExpensePaymentInput = expensePaymentInput(formData);
+  const { data: current, error: readError } = await supabase.from("expenses").select("recurrence").eq("id", id).eq("household_id", householdId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!current) throw new Error("Record not found");
+  if (current.recurrence !== payment.recurrence && formData.get("confirm_recurrence") !== "on") {
+    redirect("/financial-profile?error=confirm_recurrence#expenses");
+  }
+  const { data, error } = await supabase.from("expenses").update({ name: requiredText(formData, "name"), category, ...payment, is_essential: formData.get("is_essential") === "on", updated_at: new Date().toISOString() }).eq("id", id).eq("household_id", householdId).eq("recurrence", current.recurrence).select("id").maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Record not found");
+  if (!data) redirect("/financial-profile?error=changed#expenses");
   done("Expense updated.");
 }
 

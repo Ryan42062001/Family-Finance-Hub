@@ -1,5 +1,7 @@
 import NumberField from "@/components/forms/NumberField";
 import { Choice, TextField, Toggle, type ChoiceOption } from "@/components/forms/Controls";
+import PaymentAmountFields from "@/components/bills/PaymentAmountFields";
+import { isRecurrence } from "@/lib/bills/schedule";
 
 // Field groups for each Financial profile record. Field names and values are exactly those the server actions in
 // app/financial-profile/actions.ts validate; only the presentation is friendlier. Blank optional amounts mean
@@ -64,10 +66,14 @@ export function IncomeFields({ d = {} }: { d?: Defaults }) {
   </>;
 }
 
+// FFH-P09: the actual payment and how often (monthly / every 3 months / yearly); the monthly planning amount is
+// derived by the database. A saved expense without payment_amount (never after the P09 migration) falls back to its
+// monthly amount.
 export function ExpenseFields({ d = {} }: { d?: Defaults }) {
+  const editing = d.id !== undefined;
   return <>
     <TextField name="name" label="What is it?" example="Groceries" defaultValue={text(d.name)} required />
-    <NumberField name="monthly_amount" label="How much each month?" period="month" defaultValue={num(d.monthly_amount)} required />
+    <PaymentAmountFields defaultAmount={num(d.payment_amount) ?? num(d.monthly_amount)} defaultRecurrence={isRecurrence(d.recurrence) ? d.recurrence : "monthly"} editing={editing} />
     <Choice name="category" legend="Pick a category" options={EXPENSE_CATEGORIES} defaultValue={text(d.category) ?? "groceries"} />
     <Toggle name="is_essential" label="Essential" hint="You'd still pay this in a tight month" defaultChecked={d.is_essential === undefined ? true : d.is_essential === true} />
   </>;
