@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 23 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 24 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -161,6 +161,7 @@ BEGIN
   END IF;
   EXECUTE format('SET LOCAL ROLE %I', role_name);
   PERFORM set_config('request.jwt.claim.sub',COALESCE(who::text,''),true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(COALESCE(who::text,''),'') IS NULL THEN '' ELSE json_build_object('sub',COALESCE(who::text,''),'session_id',COALESCE(who::text,''),'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> role_name OR
      (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) OR
      auth.uid() IS DISTINCT FROM who THEN
@@ -207,6 +208,7 @@ BEGIN
   END;
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   IF mode IN ('COUNT','ROWS') THEN
     IF denied OR observed IS DISTINCT FROM expected THEN
       RAISE EXCEPTION 'MATRIX_EXPECTED_ROWCOUNT category=% family=%',probe_category,probe_family;
@@ -246,6 +248,7 @@ BEGIN
   END IF;
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',who::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(who::text,'') IS NULL THEN '' ELSE json_build_object('sub',who::text,'session_id',who::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM who OR
      (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
     RAISE EXCEPTION 'MATRIX_POSITIVE_ROLE_BYPASS';
@@ -265,6 +268,7 @@ BEGIN
   IF n <> 1 THEN RAISE EXCEPTION 'MATRIX_POSITIVE_DELETE_FAIL family=%',tab; END IF;
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   INSERT INTO pg_temp.ffh_rls_receipts(category,family)
     VALUES('positive-select-insert-update-delete',tab);
 END
@@ -353,10 +357,13 @@ BEGIN
     (a_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (b_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (outsider,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+    WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
   -- RLS-03: actual creator bootstrap as non-bypass authenticated caller,
   -- not a privileged INSERT whose trigger alone checks auth.uid().
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',a_owner::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(a_owner::text,'') IS NULL THEN '' ELSE json_build_object('sub',a_owner::text,'session_id',a_owner::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR session_user <> 'postgres'
      OR auth.uid() IS DISTINCT FROM a_owner
      OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
@@ -372,9 +379,11 @@ BEGIN
   END IF;
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
 
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',b_owner::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(b_owner::text,'') IS NULL THEN '' ELSE json_build_object('sub',b_owner::text,'session_id',b_owner::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR session_user <> 'postgres'
      OR auth.uid() IS DISTINCT FROM b_owner
      OR (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN
@@ -390,6 +399,7 @@ BEGIN
   END IF;
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'postgres' OR auth.uid() IS NOT NULL THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_ROLE_RESTORE_FAIL';
   END IF;
@@ -707,14 +717,18 @@ BEGIN
     (c_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (c_viewer,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (c_member,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+    WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',c_owner::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(c_owner::text,'') IS NULL THEN '' ELSE json_build_object('sub',c_owner::text,'session_id',c_owner::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM c_owner THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_C_FAIL';
   END IF;
   INSERT INTO public.households(id,name,created_by) VALUES(c,'ffh-local-household-c',c_owner);
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   INSERT INTO public.household_members(household_id,user_id,role) VALUES(c,c_viewer,'viewer'),(c,c_member,'member');
   -- Signed-out callers cannot execute it at all.
   PERFORM pg_temp.ffh_probe(NULL,
@@ -763,14 +777,18 @@ BEGIN
     (d_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (e_joiner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
     (f_joiner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+    WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',d_owner::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(d_owner::text,'') IS NULL THEN '' ELSE json_build_object('sub',d_owner::text,'session_id',d_owner::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM d_owner THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_D_FAIL';
   END IF;
   INSERT INTO public.households(id,name,created_by) VALUES(d,'ffh-local-household-d',d_owner);
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   -- Schema-backed one-household invariant: checked before invitation probes.
   IF NOT EXISTS (SELECT 1 FROM pg_constraint
       WHERE conrelid='public.household_members'::regclass
@@ -1261,14 +1279,18 @@ BEGIN
   -- no expenses. Fresh empty household G; expense-only and income-only profiles are available.
   INSERT INTO auth.users(id,instance_id,aud,role) VALUES
     (g_owner,'00000000-0000-0000-0000-000000000000','authenticated','authenticated');
+  INSERT INTO auth.sessions(id,user_id,aal) SELECT u.id,u.id,'aal1' FROM auth.users u
+    WHERE NOT EXISTS (SELECT 1 FROM auth.sessions s WHERE s.id=u.id);
   EXECUTE 'SET LOCAL ROLE authenticated';
   PERFORM set_config('request.jwt.claim.sub',g_owner::text,true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF(g_owner::text,'') IS NULL THEN '' ELSE json_build_object('sub',g_owner::text,'session_id',g_owner::text,'aal','aal1','role','authenticated')::text END,true);
   IF current_user <> 'authenticated' OR auth.uid() IS DISTINCT FROM g_owner THEN
     RAISE EXCEPTION 'MATRIX_AUTH_BOOTSTRAP_CONTEXT_G_FAIL';
   END IF;
   INSERT INTO public.households(id,name,created_by) VALUES(g,'ffh-local-household-g',g_owner);
   EXECUTE 'RESET ROLE';
   PERFORM set_config('request.jwt.claim.sub','',true);
+  PERFORM set_config('request.jwt.claims',CASE WHEN NULLIF('','') IS NULL THEN '' ELSE json_build_object('sub','','session_id','','aal','aal1','role','authenticated')::text END,true);
   PERFORM pg_temp.ffh_probe(g_owner,
     'SELECT (public.create_monthly_check_in(DATE ''2026-01-01'',true,''[]''::jsonb) IS NOT NULL)::int',
     'COUNT',1,'p07-c6-empty-profile-insert','monthly_check_ins');
@@ -1329,6 +1351,208 @@ BEGIN
   END IF;
 END
 $matrix$;
+
+-- ===============================================================================================================
+-- FFH-P08 account security (proposal §11). Own synthetic fixtures in this same uncommitted transaction.
+-- Claims are set as postgres, then the statement runs as the non-bypass authenticated role.
+-- ===============================================================================================================
+CREATE FUNCTION pg_temp.ffh_p08_claims(who uuid, sid text, aal text, amr jsonb) RETURNS void
+LANGUAGE plpgsql AS $c$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', COALESCE(who::text,''), true);
+  PERFORM set_config('request.jwt.claims', CASE WHEN who IS NULL THEN '' ELSE
+    jsonb_strip_nulls(jsonb_build_object('sub',who,'session_id',sid,'aal',aal,'amr',amr,'role','authenticated'))::text END, true);
+END $c$;
+
+-- Runs stmt as authenticated with the given claims; returns the scalar result, or 'ERR:<sqlstate>'.
+CREATE FUNCTION pg_temp.ffh_p08_run(who uuid, sid text, aal text, amr jsonb, stmt text) RETURNS text
+LANGUAGE plpgsql AS $r$
+DECLARE res text; st text;
+BEGIN
+  IF current_user <> 'postgres' THEN RAISE EXCEPTION 'P08_RUN_NOT_PRIVILEGED'; END IF;
+  PERFORM pg_temp.ffh_p08_claims(who, sid, aal, amr);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  IF (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname=current_user) THEN RAISE EXCEPTION 'P08_ROLE_BYPASS'; END IF;
+  BEGIN
+    EXECUTE stmt INTO res;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS st = RETURNED_SQLSTATE;
+    res := 'ERR:' || st;
+  END;
+  EXECUTE 'RESET ROLE';
+  PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
+  RETURN res;
+END $r$;
+
+CREATE FUNCTION pg_temp.ffh_p08_expect(label text, got text, want text) RETURNS void
+LANGUAGE plpgsql AS $e$
+BEGIN
+  IF got IS DISTINCT FROM want THEN
+    RAISE EXCEPTION 'P08_ASSERTION_FAILED %: got % want %', label, got, want;
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p08-account-security', label);
+END $e$;
+
+DO $p08$
+DECLARE
+  inst constant uuid := '00000000-0000-0000-0000-000000000000';
+  u_plain uuid := gen_random_uuid();   -- sole owner of h_plain, no 2FA
+  u_mfa uuid := gen_random_uuid();     -- sole owner of h_mfa, approved factor f_ok, rogue verified factor f_rogue
+  u_own2 uuid := gen_random_uuid();    -- owner of h_shared, which also has u_mem
+  u_mem uuid := gen_random_uuid();
+  u_new uuid := gen_random_uuid();     -- has a verified factor not yet approved
+  u_two uuid := gen_random_uuid();     -- two approved factors (replay test)
+  h_plain uuid := gen_random_uuid(); h_mfa uuid := gen_random_uuid(); h_shared uuid := gen_random_uuid();
+  f_ok uuid := gen_random_uuid(); f_rogue uuid := gen_random_uuid(); f_new uuid := gen_random_uuid();
+  f_two_a uuid := gen_random_uuid(); f_two_b uuid := gen_random_uuid();
+  s_plain uuid := gen_random_uuid(); s_mfa1 uuid := gen_random_uuid(); s_mfa2 uuid := gen_random_uuid();
+  s_mfa_rogue uuid := gen_random_uuid(); s_own2 uuid := gen_random_uuid(); s_mem uuid := gen_random_uuid();
+  s_mem_other uuid := gen_random_uuid(); s_new uuid := gen_random_uuid(); s_new_wrong uuid := gen_random_uuid();
+  s_two uuid := gen_random_uuid();
+  now_s bigint := extract(epoch from now())::bigint;
+  fresh_pw jsonb; fresh_both jsonb; stale_pw jsonb;
+  read_own text := 'SELECT count(*)::text FROM public.households';
+  digest_before text; digest_after text;
+BEGIN
+  fresh_pw := jsonb_build_array(jsonb_build_object('method','password','timestamp',now_s - 10));
+  fresh_both := jsonb_build_array(jsonb_build_object('method','totp','timestamp',now_s - 5), jsonb_build_object('method','password','timestamp',now_s - 10));
+  stale_pw := jsonb_build_array(jsonb_build_object('method','password','timestamp',now_s - 400));
+
+  INSERT INTO auth.users(id,instance_id,aud,role) SELECT x, inst, 'authenticated', 'authenticated'
+    FROM unnest(ARRAY[u_plain,u_mfa,u_own2,u_mem,u_new,u_two]) x;
+  -- The creator trigger requires auth.uid() = created_by; the owner membership is added by that trigger.
+  PERFORM pg_temp.ffh_p08_claims(u_plain, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h_plain,'ZZ-P08 plain',u_plain);
+  PERFORM pg_temp.ffh_p08_claims(u_mfa, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h_mfa,'ZZ-P08 mfa',u_mfa);
+  PERFORM pg_temp.ffh_p08_claims(u_own2, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h_shared,'ZZ-P08 shared',u_own2);
+  PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES (h_shared,u_mem,'member');
+  INSERT INTO public.accounts(household_id,name,account_type,balance) VALUES (h_plain,'ZZ-P08 cash','checking',100),(h_shared,'ZZ-P08 shared cash','checking',200);
+  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+    SELECT x.id, x.uid, x.nm, 'totp', 'verified', now(), now() FROM (VALUES
+      (f_ok,u_mfa,'ok'),(f_rogue,u_mfa,'rogue'),(f_new,u_new,'new'),(f_two_a,u_two,'a'),(f_two_b,u_two,'b')) x(id,uid,nm);
+  INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_ok,u_mfa),(f_two_a,u_two),(f_two_b,u_two);
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES
+    (s_plain,u_plain,'aal1',NULL),(s_mfa1,u_mfa,'aal1',NULL),(s_mfa2,u_mfa,'aal2',f_ok),(s_mfa_rogue,u_mfa,'aal2',f_rogue),
+    (s_own2,u_own2,'aal1',NULL),(s_mem,u_mem,'aal1',NULL),(s_mem_other,u_mem,'aal1',NULL),
+    (s_new,u_new,'aal2',f_new),(s_new_wrong,u_new,'aal2',NULL),(s_two,u_two,'aal2',f_two_a);
+
+  -- 1. Session liveness (N02/TM-06): only a live session row of this person counts.
+  PERFORM pg_temp.ffh_p08_expect('live-session-reads', pg_temp.ffh_p08_run(u_plain, s_plain::text, 'aal1', fresh_pw, read_own), '1');
+  PERFORM pg_temp.ffh_p08_expect('unknown-session-reads-nothing', pg_temp.ffh_p08_run(u_plain, gen_random_uuid()::text, 'aal1', fresh_pw, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('missing-session-claim-reads-nothing', pg_temp.ffh_p08_run(u_plain, NULL, 'aal1', fresh_pw, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('malformed-session-claim-reads-nothing', pg_temp.ffh_p08_run(u_plain, 'not-a-uuid', 'aal1', fresh_pw, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('other-persons-session-reads-nothing', pg_temp.ffh_p08_run(u_plain, s_own2::text, 'aal1', fresh_pw, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('dead-session-profile-hidden', pg_temp.ffh_p08_run(u_plain, gen_random_uuid()::text, 'aal1', fresh_pw,
+    format('SELECT count(*)::text FROM public.profiles WHERE id = %L', u_plain)), '0');
+  PERFORM pg_temp.ffh_p08_expect('dead-session-household-insert-denied', pg_temp.ffh_p08_run(u_plain, gen_random_uuid()::text, 'aal1', fresh_pw,
+    format('INSERT INTO public.households(name,created_by) VALUES (''ZZ-P08 x'',%L) RETURNING 1', u_plain)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('dead-session-accept-invitation-denied', pg_temp.ffh_p08_run(u_plain, gen_random_uuid()::text, 'aal1', fresh_pw,
+    'SELECT public.accept_household_invitation(repeat(''a'',43))::text'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('dead-session-check-in-denied', pg_temp.ffh_p08_run(u_plain, gen_random_uuid()::text, 'aal1', fresh_pw,
+    'SELECT public.create_monthly_check_in(date_trunc(''month'', now())::date, true, ''[]''::jsonb)::text'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('dead-session-setup-denied', pg_temp.ffh_p08_run(u_new, gen_random_uuid()::text, 'aal1', fresh_pw,
+    'SELECT public.complete_household_setup(1,1,1,NULL,NULL,NULL,NULL,NULL,false)'), 'ERR:42501');
+
+  -- 2. Approved-factor binding (N01/TM-02/TM-03).
+  PERFORM pg_temp.ffh_p08_expect('approved-factor-aal1-reads-nothing', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('approved-factor-aal1-profile-hidden', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
+    format('SELECT count(*)::text FROM public.profiles WHERE id = %L', u_mfa)), '0');
+  PERFORM pg_temp.ffh_p08_expect('forged-aal2-claim-on-aal1-row-reads-nothing', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal2', fresh_both, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('aal2-row-with-aal1-claim-reads-nothing', pg_temp.ffh_p08_run(u_mfa, s_mfa2::text, 'aal1', fresh_both, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('aal2-approved-factor-reads', pg_temp.ffh_p08_run(u_mfa, s_mfa2::text, 'aal2', fresh_both, read_own), '1');
+  PERFORM pg_temp.ffh_p08_expect('aal2-rogue-factor-reads-nothing', pg_temp.ffh_p08_run(u_mfa, s_mfa_rogue::text, 'aal2', fresh_both, read_own), '0');
+  PERFORM pg_temp.ffh_p08_expect('aal1-with-approved-factor-cannot-create-household', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
+    format('INSERT INTO public.households(name,created_by) VALUES (''ZZ-P08 y'',%L) RETURNING 1', u_mfa)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('status-aal1-pending', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
+    'SELECT concat_ws('','', s->>''session_ok'', s->>''two_factor_on'', s->>''unapproved_factor'', jsonb_array_length(s->''approved_factor_ids'')) FROM (SELECT public.my_security_status() s) x'),
+    'false,true,true,1');
+  PERFORM pg_temp.ffh_p08_expect('status-dead-session-denied', pg_temp.ffh_p08_run(u_mfa, gen_random_uuid()::text, 'aal2', fresh_both,
+    'SELECT public.my_security_status()::text'), 'ERR:42501');
+  -- A verified factor that FFH never approved does not turn FFH 2FA on (and cannot lock the person out).
+  PERFORM pg_temp.ffh_p08_expect('unapproved-factor-only-not-required', pg_temp.ffh_p08_run(u_new, s_new_wrong::text, 'aal1', fresh_pw,
+    'SELECT concat_ws('','', s->>''session_ok'', s->>''two_factor_on'', s->>''unapproved_factor'', jsonb_array_length(s->''approved_factor_ids'')) FROM (SELECT public.my_security_status() s) x'),
+    'true,false,true,0');
+
+  -- 3. Re-authentication proof (TM-01) on delete_my_account; household locks and R3.
+  PERFORM pg_temp.ffh_p08_expect('delete-wrong-confirmation', pg_temp.ffh_p08_run(u_mem, s_mem::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''delete'')'), 'ERR:22023');
+  PERFORM pg_temp.ffh_p08_expect('delete-without-amr-refused', pg_temp.ffh_p08_run(u_mem, s_mem::text, 'aal1', NULL,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('delete-stale-password-refused', pg_temp.ffh_p08_run(u_mem, s_mem::text, 'aal1', stale_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('delete-dead-session-refused', pg_temp.ffh_p08_run(u_mem, gen_random_uuid()::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('delete-owner-with-others-refused', pg_temp.ffh_p08_run(u_own2, s_own2::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('delete-mfa-user-aal1-refused', pg_temp.ffh_p08_run(u_mfa, s_mfa1::text, 'aal1', fresh_both,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('delete-mfa-user-without-fresh-totp-refused', pg_temp.ffh_p08_run(u_mfa, s_mfa2::text, 'aal2', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'ERR:42501');
+  SELECT string_agg(id::text || name || balance::text, ',' ORDER BY id) INTO digest_before FROM public.accounts WHERE household_id = h_shared;
+  PERFORM pg_temp.ffh_p08_expect('delete-member-ok', pg_temp.ffh_p08_run(u_mem, s_mem::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'deleted');
+  SELECT string_agg(id::text || name || balance::text, ',' ORDER BY id) INTO digest_after FROM public.accounts WHERE household_id = h_shared;
+  PERFORM pg_temp.ffh_p08_expect('delete-member-keeps-household-data', (digest_before = digest_after)::text, 'true');
+  PERFORM pg_temp.ffh_p08_expect('delete-member-gone', (SELECT count(*)::text FROM auth.users WHERE id = u_mem), '0');
+  PERFORM pg_temp.ffh_p08_expect('delete-member-sessions-gone', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_mem), '0');
+  PERFORM pg_temp.ffh_p08_expect('delete-sole-owner-ok', pg_temp.ffh_p08_run(u_plain, s_plain::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'deleted');
+  PERFORM pg_temp.ffh_p08_expect('delete-sole-owner-household-gone', (SELECT count(*)::text FROM public.households WHERE id = h_plain), '0');
+  PERFORM pg_temp.ffh_p08_expect('delete-sole-owner-data-gone', (SELECT count(*)::text FROM public.accounts WHERE household_id = h_plain), '0');
+  PERFORM pg_temp.ffh_p08_expect('delete-sole-owner-other-household-intact', (SELECT count(*)::text FROM public.accounts WHERE household_id = h_shared), '1');
+  PERFORM pg_temp.ffh_p08_expect('delete-sole-owner-audited', (SELECT count(*)::text FROM private.security_events WHERE user_id IN (u_plain,u_mem) AND event='account_deleted'), '2');
+  PERFORM pg_temp.ffh_p08_expect('delete-owner-now-alone-ok', pg_temp.ffh_p08_run(u_own2, s_own2::text, 'aal1', fresh_pw,
+    'SELECT public.delete_my_account(''DELETE'')'), 'deleted');
+
+  -- 4. Factor approval (N01 first-factor binding) and single-use proofs.
+  PERFORM pg_temp.ffh_p08_expect('approve-without-factor-session-refused', pg_temp.ffh_p08_run(u_new, s_new_wrong::text, 'aal2', fresh_both,
+    format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('approve-other-persons-factor-refused', pg_temp.ffh_p08_run(u_new, s_new::text, 'aal2', fresh_both,
+    format('SELECT public.approve_my_mfa_factor(%L)::text', f_rogue)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('approve-stale-password-refused', pg_temp.ffh_p08_run(u_new, s_new::text, 'aal2',
+    jsonb_build_array(jsonb_build_object('method','totp','timestamp',now_s - 5), jsonb_build_object('method','password','timestamp',now_s - 900)),
+    format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('approve-first-factor-ok', pg_temp.ffh_p08_run(u_new, s_new::text, 'aal2', fresh_both,
+    format('SELECT public.approve_my_mfa_factor(%L)::text', f_new)), '');
+  PERFORM pg_temp.ffh_p08_expect('approve-ends-every-session', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_new), '0');
+  PERFORM pg_temp.ffh_p08_expect('approve-registered', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_new), '1');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-stale-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', stale_pw,
+    'SELECT public.turn_off_my_two_factor()::text'), 'ERR:42501');
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES (gen_random_uuid(),u_two,'aal1',NULL);
+  PERFORM pg_temp.ffh_p08_expect('turn-off-ok', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
+    'SELECT public.turn_off_my_two_factor()::text'), '');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-removes-all-approvals', (SELECT count(*)::text FROM private.mfa_approved_factors WHERE user_id = u_two), '0');
+  PERFORM pg_temp.ffh_p08_expect('turn-off-keeps-only-acting-session', (SELECT string_agg(id::text, ',') FROM auth.sessions WHERE user_id = u_two), s_two::text);
+  INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_two_a,u_two);
+  PERFORM pg_temp.ffh_p08_expect('turn-off-replayed-proof-refused', pg_temp.ffh_p08_run(u_two, s_two::text, 'aal2', fresh_both,
+    'SELECT public.turn_off_my_two_factor()::text'), 'ERR:42501');
+
+  -- 5. Password-change finish ends every session of that person only.
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id) VALUES (gen_random_uuid(),u_two,'aal1',NULL);
+  PERFORM pg_temp.ffh_p08_expect('finish-password-change-stale-refused', pg_temp.ffh_p08_run(u_mfa, s_mfa2::text, 'aal2', stale_pw,
+    'SELECT public.finish_password_change()::text'), 'ERR:42501');
+  PERFORM pg_temp.ffh_p08_expect('finish-password-change-ok', pg_temp.ffh_p08_run(u_mfa, s_mfa2::text, 'aal2', fresh_both,
+    'SELECT public.finish_password_change()::text'), '');
+  PERFORM pg_temp.ffh_p08_expect('finish-password-change-ended-own', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_mfa), '0');
+  PERFORM pg_temp.ffh_p08_expect('finish-password-change-others-untouched', (SELECT count(*)::text FROM auth.sessions WHERE user_id = u_two), '2');
+
+  -- 6. Grants: owner reset and internals are not callable; the new RPCs are authenticated-only.
+  PERFORM pg_temp.ffh_p08_expect('owner-reset-not-authenticated', has_function_privilege('authenticated','private.owner_reset_mfa(uuid,text)','EXECUTE')::text, 'false');
+  PERFORM pg_temp.ffh_p08_expect('recent-reauth-not-authenticated', has_function_privilege('authenticated','private.recent_reauth(text)','EXECUTE')::text, 'false');
+  PERFORM pg_temp.ffh_p08_expect('end-sessions-not-authenticated', has_function_privilege('authenticated','private.end_sessions(uuid,uuid)','EXECUTE')::text, 'false');
+  PERFORM pg_temp.ffh_p08_expect('delete-not-anon', has_function_privilege('anon','public.delete_my_account(text)','EXECUTE')::text, 'false');
+  PERFORM pg_temp.ffh_p08_expect('registry-not-readable', has_table_privilege('authenticated','private.mfa_approved_factors','SELECT')::text, 'false');
+
+  -- 7. Owner-assisted reset (R11) as postgres: factors, approvals and sessions gone; audited.
+  PERFORM private.owner_reset_mfa(u_two, 'P08 matrix synthetic reset');
+  PERFORM pg_temp.ffh_p08_expect('owner-reset-clears', (SELECT (count(*) FILTER (WHERE true))::text FROM (
+    SELECT 1 FROM auth.mfa_factors WHERE user_id = u_two UNION ALL SELECT 1 FROM private.mfa_approved_factors WHERE user_id = u_two
+    UNION ALL SELECT 1 FROM auth.sessions WHERE user_id = u_two) z), '0');
+END
+$p08$;
 
 -- No raw fixture IDs, SQL values or JWT claims in receipts.
 SELECT 'MATRIX_ASSERTIONS_PASS=' || count(*)::text AS result FROM pg_temp.ffh_rls_receipts;
