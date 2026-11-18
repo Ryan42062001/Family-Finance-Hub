@@ -589,3 +589,15 @@
 - **R11:** Owner-assisted 2FA reset only after identity is confirmed in person or by a call Ryan places to a number he
   already had; never an inbound message alone.
 - Implementation still waits for the round 3 threat-model re-review; then the CI-only spike (§11.6).
+
+## 2026-11-18 — Build-first / audit-at-the-end workflow (Ryan)
+
+- The routine pre-build independent threat-model review is **no longer a required gate** (FFH-P08's round 3 is not
+  needed). The Builder builds the complete approved phase in one chat, merges green PRs into the phase branch without
+  Manager approval, keeps CI/security tests intact, and updates docs alongside code (no standalone docs PRs).
+- After the full phase is built: freeze an exact candidate SHA for **one** fresh independent different-model HIGH-risk
+  audit; fix BLOCKER/CRITICAL/HIGH with targeted re-review of those fixes only; MEDIUM/LOW per release policy.
+- Unchanged: Ryan separately authorizes every hosted Supabase/Auth or Vercel change, secret, real-data operation and
+  Production release; synthetic data only; TestA/TestB isolation preserved; serious vulnerabilities found mid-build
+  are fixed immediately. Phase close-out still announces PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT.
+- FFH-P08 proceeds on proposal §11 (with §10/§3–§8 where not overridden) and R1–R11.

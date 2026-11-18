@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-18 — Claude Code P08 Builder: audit gate fixed (#163), #162 merged, R1–R8 approved.
+Updated: 2026-11-18 — Claude Code P08 Builder, BUILDING (build-first workflow; spike running in CI).
 
 - **Production:** FFH-P07 RELEASED/CLOSED; PR #155 merged the exact authorized head
   `ae97e90e7d463be62243b22ece50c7b84b2f7b5a` into protected `main` as

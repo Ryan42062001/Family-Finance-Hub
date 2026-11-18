@@ -78,6 +78,15 @@ project_id = "${PROJECT_ID}"
 port = 54332
 shadow_port = 54333
 major_version = 17
+# FFH-P08: mirror the approved hosted Auth settings (R6 password rules, TOTP on).
+[auth]
+minimum_password_length = 12
+[auth.email]
+enable_confirmations = false
+secure_password_change = true
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
 TOML
 
 cli_log="$work/cli.log"
@@ -201,3 +210,6 @@ bash scripts/rls-ci/test-invitation-concurrency.sh "$CONTAINER" "$work"
 
 # FFH-P07 review N01: two editors saving the same check-in at once (real parallel sessions).
 bash scripts/rls-ci/test-check-in-concurrency.sh "$CONTAINER" "$work"
+
+# FFH-P08 spike (proposal §11.6): facts about the REAL local Auth server; prints no tokens, keys or secrets.
+bash scripts/rls-ci/p08-auth-spike.sh "$CONTAINER" "$work" "$CLI" "$PROJECT_ID"

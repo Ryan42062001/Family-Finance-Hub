@@ -51,12 +51,15 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 
 1. **Plan.** Ryan states the goal. The Builder writes a short scope in `.ai/CURRENT_PHASE.md` (one branch and one
    draft PR per phase).
-2. **Build.** The Builder works in small commits. Every push runs CI. Green PRs merge into the phase branch.
+2. **Build (build-first, Ryan 2026-11-18).** No pre-build independent design or threat-model review is required. The
+   Builder builds the whole approved phase in one chat: code, disposable spikes, tests and docs updated alongside the
+   code (no standalone documentation PRs). Every push runs CI; green PRs merge into the phase branch without waiting
+   for Manager approval. A serious vulnerability found during the build stops the affected work until it is fixed.
 3. **Preview QA, in parallel.** After a merge, the Preview is deployed and Work mode runs the QA checklist while the
    Builder moves on to the next item. The Builder picks up `qa-finding` issues and fixes them. Ryan only does the
    steps that need his accounts or approval (hosted checks, Production, secrets) and his own look-and-feel review.
-4. **Phase review.** When CI is green and the preview is accepted, the independent reviewer audits the changed scope at
-   the exact PR head (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
+4. **Phase review — one audit at the end.** When the full phase is built, CI is green and the preview is accepted, the
+   Builder freezes an exact candidate SHA and one fresh independent reviewer audits the changed scope there (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
      file and suggested fix, then continue.
