@@ -24,6 +24,8 @@ historical evidence only.
 
 ## Builder efficiency (Ryan, 2026-11-18; each phase is a fresh chat, so these live here)
 
+- **Environment:** start each Claude Code chat on the cloud environment **Family-Finance-Hub** (its setup script installs
+  PostgreSQL and runs `npm ci`; created 2026-11-18). If `psql`/PostgreSQL is missing, the chat is on the wrong one.
 - **CI:** after opening a PR, subscribe to its activity (`subscribe_pr_activity`) so CI results arrive as events; don't
   poll or sleep. Read only the failing job's last lines, not whole logs. Keep working on independent items meanwhile.
 - **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1184+ matrix, coverage in

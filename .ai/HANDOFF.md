@@ -47,3 +47,5 @@ Updated: 2026-11-18 — Claude Code P08 Builder, BUILDING (build-first; all thre
   Supabase Auth from Vercel server IPs, so Auth's per-IP rate limits apply per server address, not per visitor.
 - **Hosted steps for Ryan:** `docs/workflow/FFH-P08_HOSTED_CHANGES.md` (read-only check, Auth settings incl. R9,
   migration + parity, Preview + TestC, Owner reset R11). None done yet.
+- **Builder setup:** start each chat on the cloud environment **Family-Finance-Hub**; database work runs locally first with
+  `scripts/rls-local/local-harness/run.sh all` (rules in `AGENTS.md` → Builder efficiency).
