@@ -43,8 +43,8 @@ export default function PaymentAmountFields({ defaultAmount, defaultRecurrence, 
     {editing ? <label className={`bill-confirm${changed ? " bill-confirm-needed" : ""}`}>
       <input type="checkbox" name="confirm_recurrence" required={changed} />
       <span>{changed && monthly !== null
-        ? <>I&apos;m changing how often this is paid. The payment stays {formatCents(cents!)}; the monthly planning amount becomes {formatCents(monthly)}.</>
-        : "If I change how often this is paid, I confirm the new monthly planning amount."}</span>
+        ? <>I&apos;m changing how often this repeats. The payment stays {formatCents(cents!)}; the monthly planning amount becomes {formatCents(monthly)}.</>
+        : "If I change how often this repeats, I confirm the new monthly planning amount."}</span>
     </label> : null}
   </>;
 }

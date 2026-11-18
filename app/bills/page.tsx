@@ -57,7 +57,7 @@ function ScheduleForm({ bill }: { bill: Bill }) {
         </div>
       </fieldset>
       <button type="submit">Save due date</button>
-      {bill.kind === "expense" ? <p className="field-hint">To change the amount or how often it is paid, edit it in <Link href="/financial-profile#expenses">Financial profile</Link>.</p> : <p className="field-hint">The minimum payment is set in <Link href="/financial-profile#debts">Financial profile</Link>.</p>}
+      {bill.kind === "expense" ? <p className="field-hint">To change the amount or how often it repeats, edit it in <Link href="/financial-profile#expenses">Financial profile</Link>.</p> : <p className="field-hint">The minimum payment is set in <Link href="/financial-profile#debts">Financial profile</Link>.</p>}
     </form>
   </details>;
 }
@@ -145,7 +145,7 @@ export default async function BillsPage({ searchParams }: PageProps) {
         </section>
 
         <Forecast view={view} />
-        <p className="plan-footnote muted">Dates are calendar dates (today is {dateLabel(today)}). Reminders appear only on this page and on Your plan; no emails or notifications are sent. Nothing here records whether a bill was paid.</p>
+        <p className="plan-footnote muted">Dates are calendar dates (today is {dateLabel(today)}). Reminders appear only on this page and on Your plan; no emails or notifications are sent. Due dates are a schedule only: this page does not track payments.</p>
       </>}
     </main>
   );

@@ -659,3 +659,13 @@ for the audit to check:
   Order, Step, Status, Monthly amount (USD), Goes to, Why; UTF-8 BOM, CRLF, every cell quoted, formula neutralisation
   with a leading apostrophe. No step ids or "technical wording".
 - QA rows Q38–Q45 (P08 uses Q32–Q37).
+
+## 2026-11-18 — FFH-P09 hosted steps and Preview QA round 1
+
+- Hosted (Ryan): pre-check `25 | false | false`; migration `20261118120000` applied and recorded; existing rows
+  `0 | 0 | 0`; parity 8/9 (CRLF in the new trigger function) → `strip-cr.sql` → **9/9**, 26 migrations. Preview on
+  the phase branch; smoke 12/12; `e2e-isolation` PASS at `837f383` (first attempt ran before the domain moved).
+- QA at `837f383`: Q39, Q40, Q42, Q44, Q45 PASS. Q41 FAIL (#180, MEDIUM): the footnote said "paid" → reworded with a
+  regression test. Q38 phone width and Q43 native print preview could not be verified in the fixed-width Cloud
+  Browser (not defects): those parts are now Ryan's device checks; the Builder confirmed the deployed print stylesheet
+  hides the header (Playwright, print media, Preview `/demo`).
