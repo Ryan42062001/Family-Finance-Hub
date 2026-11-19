@@ -10,7 +10,9 @@ export async function loadSetAsides(supabase: SupabaseClient, householdId: strin
   const { data, error } = await supabase.from("bill_set_asides")
     .select("id, expense_id, cycle_due_date, cycle_anchor_date, cycle_recurrence, reserved_amount, version")
     .eq("household_id", householdId).order("created_at");
-  if (error) throw new Error(error.message);
+  // Any read failure (including the table not existing yet on a database without the P11 migration) hides only the
+  // set-aside section: the caller shows "can't be shown right now" and the P09 bills stay available.
+  if (error) throw new BillsDataError("Set-asides unavailable");
   return (data ?? []).map((row) => {
     const reservedCents = centsFromDb(row.reserved_amount);
     if (typeof row.id !== "string" || typeof row.expense_id !== "string" || reservedCents === null

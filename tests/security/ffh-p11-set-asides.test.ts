@@ -68,6 +68,9 @@ test("FFH-P11 server actions: server-derived identity, owner/member only, guarde
   assert.match(actions, /bill\.anchor !== expectedAnchor \|\| bill\.recurrence !== expectedRecurrence/);
   // The loader is scoped to the household too.
   assert.match(loader, /\.eq\("household_id", householdId\)/);
+  // A read failure hides only the set-aside section (the page catches BillsDataError), never the P09 bills.
+  assert.match(loader, /if \(error\) throw new BillsDataError\(/);
+  assert.match(page, /setAsides = buildSetAsideSection\(view, await loadSetAsides\(supabase, authority\.householdId\), today\);\n    \} catch \(caught\) \{\n      if \(!\(caught instanceof BillsDataError\) && !\(caught instanceof RangeError\)\) throw caught;/);
 });
 
 test("FFH-P11 guided-input contract on the page: nothing pre-answered, blank is not $0, reported-amount wording", () => {

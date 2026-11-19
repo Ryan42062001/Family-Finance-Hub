@@ -185,7 +185,7 @@ export function SetAsides({ section, canEdit, feedback }: { section: SetAsideSec
   return <section className="bento-card set-asides" aria-labelledby="set-asides-heading">
     <h2 id="set-asides-heading">Saving ahead for yearly and every-3-months bills</h2>
     <p className="muted">Optional. Keep track of what you&apos;ve put aside for a larger bill before it&apos;s due. Amounts here are what you report; they aren&apos;t bank balances, transfers or payments, and they don&apos;t change your plan, budget or the forecast totals.</p>
-    {!section ? <p className="form-error" role="status">Set-asides can&apos;t be shown right now because some saved set-aside details are invalid. Your bills below are unaffected.</p>
+    {!section ? <p className="form-error" role="status">Set-asides can&apos;t be shown right now. Your bills below are unaffected.</p>
       : section.items.length === 0 ? <p className="empty-state">No yearly or every-3-months bills with a due date yet. Add a due date to one below, or set how often it repeats in Financial profile.</p>
       : <ul className="set-aside-list">{section.items.map((item) => item.kind === "tracked"
         ? <TrackedCard key={item.bill.id} item={item} canEdit={canEdit} feedback={feedback} />
