@@ -53,7 +53,7 @@ test("FFH-P05 reading the preference fails safe to the full detailed view", asyn
 });
 
 test("FFH-P05 Simple view keeps Plan, Overview and Profile in both menus and marks detailed tools", () => {
-  assert.deepEqual([...SIMPLE_NAV_PATHS], ["/plan", "/dashboard", "/financial-profile"]);
+  assert.deepEqual([...SIMPLE_NAV_PATHS], ["/plan", "/dashboard", "/financial-profile", "/what-if"]);
   assert.match(header, /const simple = authenticated \? await readSimpleMode\(supabase, data\?\.claims\?\.sub\) : false;/);
   assert.match(header, /\{shown\.map\(\(\[name, href\]\) => <DesktopNavLink/);
   assert.match(header, /<SimpleModeSwitch simple=\{simple\} \/><form action=\{logout\}>/);

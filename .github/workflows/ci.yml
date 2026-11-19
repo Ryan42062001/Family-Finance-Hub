@@ -68,6 +68,8 @@ jobs:
         run: bash scripts/rls-ci/run-matrix.sh
       - name: FFH-P09 legacy upgrade check (audit P09-02)
         run: bash scripts/rls-ci/p09-upgrade.sh
+      - name: One-paste hosted apply rehearsal (newest migration)
+        run: bash scripts/rls-ci/hosted-rehearsal.sh
 
   full-phase:
     # Same checks pinned to an exact candidate SHA, for release candidates.

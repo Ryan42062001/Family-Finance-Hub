@@ -85,7 +85,7 @@ test("shared shell preserves keyboard, responsive, contrast, and reduced-motion 
 });
 
 test("authenticated navigation owns section switching and sign out without dashboard duplication", () => {
-  for (const label of ["Overview", "Financial profile", "Planning", "Scenario Lab", "Sign out"]) {
+  for (const label of ["Overview", "Financial profile", "Planning", "What if?", "Sign out"]) {
     assert.ok(header.includes(label), label);
   }
   // Signed-out pages (sign-in, sign-up) show only the brand: no app tabs, no sign-out.

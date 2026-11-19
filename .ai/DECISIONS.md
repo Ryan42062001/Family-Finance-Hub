@@ -676,3 +676,75 @@ for the audit to check:
   P09-01 MEDIUM (stale Bills form could move a month-end anchor) and P09-02 LOW (upgrade check not in CI) both fixed.
   QA findings #180 and #182 fixed and closed. Receipt: `docs/workflow/FFH-P09_AUDIT.md`.
 - Owner device checks (2026-11-19): Q38 phone layout PASS, Q43 native print preview PASS, Q41 re-check PASS.
+
+## 2026-11-19 — FFH-P09 released to Production and closed
+
+- Ryan authorized "Release FFH-P09 at d4de2a1c9ae91ee92566b42d3f1d3d3faba748bf"; PR #186 merged as
+  `83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` after exact-head CI green (fast, rls-matrix incl. P09 upgrade check,
+  e2e-isolation).
+- Production smoke **12/12** at `https://family-finance-hub-taupe.vercel.app` serving `83979c1`; signed-out
+  `/bills`, `/plan/print`, `/plan/steps-csv` and `/account` redirect to sign-in. FFH-P09 is **CLOSED**.
+
+## 2026-11-19 — FFH-P10 started; Builder interpretations of issue #171
+
+Ryan authorized P10 nonproduction implementation of #171 plus the #188 lessons-learned rule (fresh chat). Phase branch
+`phase/ffh-p10-can-we-afford-it` = fast-forward of #187's close-out (`304d606`) on Production `83979c1`; phase PR #189.
+Builder choices inside the spec, for the audit to check:
+- **Verdict source:** `runHomeScenarioAdapter` / `runVehicleScenarioAdapter` (the Scenario Lab adapters, which call the
+  canonical evaluators unchanged) on a freshly loaded server baseline. Tests assert deep equality with the evaluator
+  and with a Scenario Lab run for the same inputs. No evaluator, engine or policy file changed.
+- **Inputs:** the browser sends only form text (strict keys; no household ID). Money is parsed to exact cents on the
+  server. Blank optional costs stay unknown (null) so the evaluator returns "more information needed". Blank credits
+  and earnest money mean none (the conservative reading: more cash needed). Repairs and down payment must be entered
+  (0 allowed). Refused before evaluation: down payment above price; vehicle cash down above price + known taxes/fees;
+  trade-in value without the loan payoff; a goal not in the server household.
+- **P09 double counting:** "current housing payment that ends" may not exceed the housing the plan already counts
+  (housing-category expense monthly equivalents + mortgage minimums), so the purchase never removes costs the plan never
+  counted. Vehicle ongoing costs are entered as the change from today.
+- **Guided scope:** home sale proceeds and the windfall adapter stay in Scenario Lab (advanced). Two options max, same
+  purchase type. Each option runs independently on the same baseline.
+- **Rules of thumb** (`lib/purchase-check/guidance.ts`), all comparisons in whole cents; exactly at the threshold
+  counts as within:
+  - 28%: P&I + taxes + insurance + HOA + mortgage insurance (the evaluator's figures; maintenance/utilities excluded,
+    as in Fannie Mae's housing-expense definition) ÷ gross monthly income. 36%: that + recorded minimum debt payments.
+    ARM: starting payment, with the lifetime-cap payment shown as a note. An existing mortgage is included with a note
+    when the purchase may replace it (we don't guess it is paid off).
+  - 20/3/8: down = cash down + trade-in equity vs 20% of price (paid in full = within; term not applicable); term ≤ 36
+    months; all vehicle loan payments (new + recorded `auto` debts) ≤ 8% of gross monthly income. If a trade-in payoff
+    exists and auto loans are recorded, which loan closes is unknown → Insufficient information.
+  - Vehicle value: price + user-entered value of other vehicles kept ≤ 50% of gross yearly income; never guessed.
+  - Emergency savings: only `protected_reserve` cash ÷ post-purchase (essential expenses + minimum debt payments),
+    against max(3, the plan's effective emergency months). Protected cash needed for the purchase = outside guideline.
+  - Gross income incomplete (any active source without gross) → every income ratio is Insufficient information.
+- **Sources rechecked 2026-11-19:** Fannie Mae glossary (28/36 "guideline", gross income; Selling Guide allows DTI
+  above 36%), Money Guy 20/3/8 (20% down, ≤ 36 months, all car payments ≤ 8% of gross), Ramsey (total value of
+  vehicles ≤ half of annual income), CFPB (3–6 months of expenses). The cloud environment's network blocks these
+  hosts, so they were checked through web search of the publishers' own pages, not a direct page fetch.
+- **Navigation:** What if? replaces the Scenario Lab tab (desktop and phone); Scenario Lab is under Tools on What if?
+  and stays detailed-only; `/what-if` is in Simple view's menu. QA rows Q46–Q57.
+- **Pre-existing canonical wording (LOW, backlog, not changed in P10):** when the purchase needs protected cash (or
+  data is missing), the evaluators run no post-purchase engine but still emit "cannot preserve employer match / Secure
+  funding / required goal" risks, because `planImpact` booleans default to false. The verdict is unaffected. P10 shows
+  those risks verbatim and explains that the post-purchase plan was not modeled. Suggested fix (a later approved
+  phase): emit those risks only when a post-purchase engine exists. Builder-found in P10 local visual check.
+- Local visual check (2026-11-19): synthetic example household at 390/820/1280 px, light and dark; no horizontal
+  overflow. Found and fixed: vehicle loans are stored as `auto_loan` (not `auto`); unlabeled partial figures when
+  costs are unknown (now flagged); "blank means none" placeholders.
+
+## 2026-11-19 — FFH-P10 Preview QA PASS; frozen for audit
+
+- Ryan moved the fixed Preview domain to `phase/ffh-p10-can-we-afford-it`. At `c8734bd` (#190 merge): CI `fast`,
+  `rls-matrix`, `e2e-isolation` PASS 58/58; Preview smoke 12/12; signed-out `/what-if*` redirect to Sign in.
+- Browser QA (Work mode) Q46–Q57 **PASS**, no `qa-finding` issues; `ZZ-A-Temp` deleted, finished signed out. Phone-width
+  parts of Q46 and Q57 are Ryan's device checks (NOT RUN in the Cloud Browser).
+- Whole-phase `/code-review high` before freezing: 6 findings (1 important: an unhandled action rejection could crash
+  the page; 5 nits), all fixed in #190 before the merge.
+
+## 2026-11-19 — FFH-P10 independent audit FAIL at 865783a; all findings fixed
+
+- Different-model audit: `REVIEW RESULT: FAIL — 865783a`: P10-01 HIGH (pre-selected "payment ends"), P10-02 HIGH
+  (blank maintenance could still give a positive verdict), P10-03 MEDIUM (mortgage insurance defaulted to None), P10-04
+  MEDIUM (36% counted a mortgage that may be replaced), P10-05 MEDIUM (reserve breach asserted when protected cash was
+  needed). Canonical evaluators, isolation and read-only boundaries verified intact. All five fixed in the P10 input
+  contract / advisory layer (no evaluator change). Receipt: `docs/workflow/FFH-P10_AUDIT.md`.
+- Standing rule from P10-01/03: the guided form pre-answers no question (every choice starts at "Choose…").

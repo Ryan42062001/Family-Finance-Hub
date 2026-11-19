@@ -76,11 +76,21 @@ deployment remains a separate Owner authorization.
 
 ## FFH-P09 — Bills, due dates & exports
 
-State: FREEZE_READY. Audit PASS (findings fixed), hosted migration applied (parity 9/9), QA Q38–Q45 PASS. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
+State: CLOSED. Released to Production via PR #186 at `83979c1` (2026-11-19), with Ryan's explicit authorization;
+Production smoke test 12/12. Audit PASS (findings fixed), hosted migration applied (parity 9/9), QA Q38–Q45 PASS. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
 Phase branch: `phase/ffh-p09-bills-exports`, PR #178. Binding spec: GitHub issue #170 (recurring expenses with an
 exact-cent monthly equivalent rounded up, anchored due dates, per-bill household reminders, `/bills`, print/PDF and
 CSV of the current plan). No hosted SQL, Vercel, real-data or Production change is approved; Production deployment
 remains a separate Owner authorization.
+
+## FFH-P10 — Can We Afford It? + financial best-practice warnings
+
+State: REMEDIATING. Risk: HIGH (money calculations and advice presentation, household isolation). Phase branch:
+`phase/ffh-p10-can-we-afford-it`, phase PR #189. Binding spec: GitHub issue #171 (guided Home/Vehicle purchase checks
+on the canonical evaluators, optional two-option comparison, separate source-attributed nonblocking rules of thumb;
+read-only, no persistence). Workflow addition: issue #188 (evidence-based lessons learned). No hosted SQL, Vercel,
+real-data or Production change is approved; Production deployment remains a separate Owner authorization.
+Next (separately Owner-approved, not started): FFH-P11, issue #172.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

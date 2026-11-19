@@ -119,8 +119,8 @@ test("technical recommendation wording is replaced only at display boundary", ()
 });
 
 test("mobile safe area, section anchors and 320-430px layout safeguards exist", () => {
-  for (const href of ["/dashboard","/financial-profile","/planning","/scenario-lab"]) assert.ok(nav.includes(href));
-  for (const name of ["Home","Profile","Planning","Scenarios"]) assert.ok(nav.includes(name));
+  for (const href of ["/dashboard","/financial-profile","/planning","/what-if"]) assert.ok(nav.includes(href));
+  for (const name of ["Home","Profile","Planning","What if?"]) assert.ok(nav.includes(name));
   assert.match(nav, /aria-current=\{active \? "page"/);
   // FFH-P05: the bar also receives the signed-in user's own Simple view preference.
   assert.match(header, /<MobileNavigation simple=\{simple\} \/>/);

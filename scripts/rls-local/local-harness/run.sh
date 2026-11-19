@@ -9,7 +9,8 @@
 #   scripts/rls-local/local-harness/run.sh matrix     # preflight.sql + matrix.sql (reset first)
 #   scripts/rls-local/local-harness/run.sh coverage   # coverage.sql (reset first)
 #   scripts/rls-local/local-harness/run.sh upgrade    # FFH-P09: legacy rows before/after the P09 migration (own database)
-#   scripts/rls-local/local-harness/run.sh all        # start + matrix + coverage + upgrade
+#   scripts/rls-local/local-harness/run.sh hosted-rehearsal [migration]   # one-paste hosted apply file, pasted with CRLF
+#   scripts/rls-local/local-harness/run.sh all        # start + matrix + coverage + upgrade + hosted-rehearsal
 # Untracked new migrations are not applied: `git add` them first.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; repo="$(git -C "$here" rev-parse --show-toplevel)"; cd "$repo"
@@ -70,8 +71,50 @@ upgrade() {
   "${P[@]}" -t -A -f scripts/rls-local/p09-upgrade-after.sql
   psql_local -d template1 -c "drop database $db" >/dev/null
 }
+# Rehearses scripts/hosted/build-apply.mjs for a migration (default: the newest): a throw-away database at the previous
+# migration gets the generated file pasted with CRLF line endings (as a browser paste does) and must end all PASS;
+# then a copy whose expected fingerprint is wrong must fail with FFH_APPLY_FAIL and leave nothing applied.
+hosted_rehearsal() {
+  local mig="${1:-$(git ls-files 'supabase/migrations/*.sql' | sort | tail -n1)}" db=ffh_hosted_rehearsal tmp
+  tmp="$(mktemp -d)"
+  ensure_roles
+  reset >/dev/null
+  psql_local -d postgres -t -A -F '|' -f scripts/rls-local/parity.sql > "$tmp/expected.txt"
+  sed '1s/[0-9a-f]\{32\}$/00000000000000000000000000000000/' "$tmp/expected.txt" > "$tmp/wrong.txt"
+  node scripts/hosted/build-apply.mjs "$mig" --expected "$tmp/expected.txt" | sed 's/$/\r/' > "$tmp/apply.sql"
+  node scripts/hosted/build-apply.mjs "$mig" --expected "$tmp/wrong.txt" | sed 's/$/\r/' > "$tmp/wrong.sql"
+  local before; before="$(git ls-files 'supabase/migrations/*.sql' | sort | awk -v m="$mig" '$0 < m' | wc -l)"
+  base_db() {
+    psql_local -d template1 -c "drop database if exists $db" -c "create database $db" >/dev/null
+    local P=(psql_local -d "$db" -v ON_ERROR_STOP=1)
+    "${P[@]}" -f "$here/auth-stub.sql" >/dev/null
+    "${P[@]}" -c "create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key, name text);" >/dev/null
+    local f
+    for f in $(git ls-files 'supabase/migrations/*.sql' | sort); do
+      [[ "$f" < "$mig" ]] || continue
+      "${P[@]}" -f "$f" >/dev/null
+      "${P[@]}" -c "insert into supabase_migrations.schema_migrations(version) values ('$(basename "$f" | cut -d_ -f1)')" >/dev/null
+    done
+  }
+  local count out
+  base_db
+  out="$(psql_local -d "$db" -v ON_ERROR_STOP=1 -t -A -F '|' -f "$tmp/apply.sql" 2>&1)" || { echo "$out" >&2; echo HOSTED_REHEARSAL_FAIL apply >&2; exit 1; }
+  if grep -q '|FAIL$' <<<"$out" || ! grep -q '|PASS$' <<<"$out"; then echo "$out" >&2; echo HOSTED_REHEARSAL_FAIL result >&2; exit 1; fi
+  count="$(psql_local -d "$db" -t -A -c 'select count(*) from supabase_migrations.schema_migrations')"
+  [[ "$count" == "$((before + 1))" ]] || { echo "HOSTED_REHEARSAL_FAIL count=$count" >&2; exit 1; }
+  echo "HOSTED_REHEARSAL_APPLY_PASS checks=$(grep -c '|PASS$' <<<"$out")"
+  base_db
+  if out="$(psql_local -d "$db" -v ON_ERROR_STOP=1 -t -A -f "$tmp/wrong.sql" 2>&1)"; then echo HOSTED_REHEARSAL_FAIL negative-applied >&2; exit 1; fi
+  grep -q 'FFH_APPLY_FAIL nothing was applied: parity: ' <<<"$out" || { echo "$out" >&2; echo HOSTED_REHEARSAL_FAIL negative-message >&2; exit 1; }
+  count="$(psql_local -d "$db" -t -A -c 'select count(*) from supabase_migrations.schema_migrations')"
+  [[ "$count" == "$before" ]] || { echo "HOSTED_REHEARSAL_FAIL negative-left-changes count=$count" >&2; exit 1; }
+  echo "HOSTED_REHEARSAL_NEGATIVE_PASS (wrong fingerprint refused, nothing applied)"
+  psql_local -d template1 -c "drop database $db" >/dev/null
+  rm -rf "$tmp"
+  echo HOSTED_REHEARSAL_PASS
+}
 case "${1:-all}" in
-  start) start ;; reset) reset ;; matrix) matrix ;; coverage) coverage ;; upgrade) upgrade ;;
-  all) start; matrix; coverage; upgrade ;;
-  *) echo "usage: $0 start|reset|matrix|coverage|upgrade|all" >&2; exit 2 ;;
+  start) start ;; reset) reset ;; matrix) matrix ;; coverage) coverage ;; upgrade) upgrade ;; hosted-rehearsal) hosted_rehearsal "${2:-}" ;;
+  all) start; matrix; coverage; upgrade; hosted_rehearsal ;;
+  *) echo "usage: $0 start|reset|matrix|coverage|upgrade|hosted-rehearsal [migration]|all" >&2; exit 2 ;;
 esac

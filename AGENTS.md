@@ -21,6 +21,8 @@ historical evidence only.
   `docs/workflow/QA_CHECKLIST.md` current when screens change.
 - At the end of a phase, an independent reviewer (a different AI session) audits the changed scope. Fix
   BLOCKER/CRITICAL/HIGH before merge; record MEDIUM/LOW/NIT in the final-audit backlog.
+- After each release and smoke test, run the short evidence-based lessons-learned review (`docs/WORKFLOW.md`, phase
+  loop step 6; issue #188): zero to three real improvements, or "no actionable process improvements identified".
 
 ## Builder efficiency (Ryan, 2026-11-18; each phase is a fresh chat, so these live here)
 
@@ -28,12 +30,20 @@ historical evidence only.
   PostgreSQL and runs `npm ci`; created 2026-11-18). If `psql`/PostgreSQL is missing, the chat is on the wrong one.
 - **CI:** after opening a PR, subscribe to its activity (`subscribe_pr_activity`) so CI results arrive as events; don't
   poll or sleep. Read only the failing job's last lines, not whole logs. Keep working on independent items meanwhile.
-- **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1184+ matrix, coverage in
-  seconds; needs `apt-get install -y postgresql`, which the environment setup script does). CI stays the source of
+- **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1235+ matrix, coverage,
+  P09 upgrade check and the one-paste hosted-apply rehearsal in seconds; needs `apt-get install -y postgresql`, which the environment setup script does). CI stays the source of
   truth; race tests and the real-provider suite run only in CI. Real `auth.*` table shapes:
   `docs/workflow/FFH-P08_SPIKE_RESULTS.md` (fixtures must set NOT NULL columns such as `mfa_factors.created_at`).
 - **Never push without a passing `npm run verify`.** New migrations change `scripts/rls-local/parity.expected.txt`:
-  take the new fingerprint from the first CI run's parity diff.
+  compute it locally (`run.sh reset`, then `psql ... -F '|' -f scripts/rls-local/parity.sql`). Every section matches CI
+  except `table_grants`, which the local auth stub can't reproduce: keep the committed `table_grants` row unless the
+  migration changes table grants (then take that row from the first CI run's parity diff).
+- **Hosted migrations are one paste** (`docs/WORKFLOW.md` → Release checklist): generate and commit
+  `scripts/hosted/apply-<version>.sql` with `scripts/hosted/build-apply.mjs`, add any data checks to
+  `scripts/hosted/checks/<version>.sql`, rehearse with `run.sh hosted-rehearsal`, then give Ryan the raw link.
+- **Phase start:** open the phase PR (phase → `main`, draft) at once and ask Ryan to move the Preview domain the same
+  day. **Before freezing:** run `/code-review high` on the whole phase diff. **Release:** evidence goes in the phase PR
+  description, not a separate docs PR.
 - **Smoke tests:** the environment allows the Production and Preview sites, so run
   `NODE_USE_ENV_PROXY=1 node scripts/smoke/deployed-auth-smoke.mjs <site>` yourself (Node's fetch needs that variable to
   use the proxy); only the merge into `main` needs Ryan.

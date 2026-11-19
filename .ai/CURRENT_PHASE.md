@@ -1,42 +1,39 @@
 # Current phase
 
-FFH-P09 — Bills, due dates & exports
+FFH-P10 — Can We Afford It? + financial best-practice warnings
 
-State: FREEZE_READY — built, hosted, QA'd and independently audited (audit PASS at `6bd5c70`, both findings fixed);
-waiting on Ryan's separate exact-SHA Production release decision
-Risk: HIGH (money input representation, schema change on financial tables, household RLS, data export)
+State: REMEDIATING
+Risk: HIGH (money calculations and advice presentation, household isolation, read-only scenario surface)
 Owner: Ryan
-Spec (binding): GitHub issue #170 (Owner-approved product decisions and invariants)
-Phase branch: `phase/ffh-p09-bills-exports` (from Production `2a62022b5e5ae9d60a32fd7ac6745ffb4366e904`)
-Phase PR: #178 (draft, into the phase branch)
-Previous phase: FFH-P08 RELEASED / CLOSED (PR #176, Production smoke 12/12); its close-out (draft #177) is carried here.
+Spec (binding): GitHub issue #171 (Owner-approved design); workflow addition: issue #188 (lessons learned)
+Phase branch: `phase/ffh-p10-can-we-afford-it`, started at `304d60648b900c9909396776da0c1cf9ae139c53` (Production
+`83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` plus the P09 close-out carried forward from draft #187)
+Phase PR: #189 (phase → `main`, draft; collects QA, audit and release evidence)
+Previous phase: FFH-P09 RELEASED / CLOSED (PR #186, Production smoke 12/12).
 
 **Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
-Ryan's explicit exact-SHA authorization. Hosted SQL, Supabase Auth, Vercel, secrets and real data need Ryan's
-approval per action.
+Ryan's explicit exact-SHA authorization. Hosted SQL, Supabase Auth, Vercel (including moving the fixed Preview
+domain), secrets and real data need Ryan's approval per action.
 
-## What P09 builds
+## What P10 builds
 
-- Expenses: actual payment + recurrence (monthly / quarterly / yearly); `monthly_amount` (the engine's only input) is
-  derived in the database in exact cents, rounded up. Debts: monthly minimum payments unchanged.
-- Optional due-date anchor and household-wide reminder (Off / due day / 1 / 3 / 7 days) on expenses and debts.
-- `/bills`: Upcoming 30 days, All bills, Unscheduled, Due soon, collapsed current+11-month forecast of actual payments.
-- Your plan: upcoming-bills summary; `/plan/print` (browser Save as PDF); `/plan/steps-csv` (formula-safe CSV).
-- Account-menu entry "Bills & due dates"; no new bottom tab. Payment tracking is out of scope.
+- **What if?** (`/what-if`) replaces the Scenario Lab tab; Scenario Lab stays under **Tools** on that page (detailed
+  view). Your plan gets **Can we afford a home? / a vehicle?** buttons. Simple view keeps What if? in its menu.
+- **Guided purchase check** (`/what-if/purchase?type=home|vehicle`): one option, or two side by side, each with its
+  own entries and result. The verdict is the canonical evaluator's, unchanged (`runHomeScenarioAdapter` /
+  `runVehicleScenarioAdapter` on a freshly loaded server baseline). Blank costs stay unknown. Read-only: nothing saved.
+- **Financial rules of thumb** (`lib/purchase-check/guidance.ts`): 28% housing, 36% debt (Fannie Mae), 20/3/8 (Money
+  Guy), vehicle value ≤ half of income (Ramsey), 3–6 months of emergency savings (CFPB). Separate, educational,
+  nonblocking; "Insufficient information" when an input is missing.
+- No migration, no new table, no hosted change expected. No hypothetical PDF/CSV export.
+- QA rows Q46–Q57.
 
-## Release readiness (2026-11-19)
+## Status (2026-11-19)
 
-- **Candidate:** phase head after this release-prep PR (the release PR names the exact SHA). App code last changed at
-  `dceba8db0deaef7c7794f8218af5509365ab21bb` (audit fixes, PR #184); commits after it are docs only.
-- **CI:** exact-head green required on the candidate (`fast`; `rls-matrix` 1235 assertions, coverage 10/10, race and
-  real-provider suites, P09 upgrade check; `e2e-isolation` TestA/TestB on the Preview incl. `/bills` and `/plan/print`).
-- **Hosted (Ryan):** pre-check `25 | false | false`; migration `20261118120000` applied and recorded; existing rows
-  `0 | 0 | 0`; `strip-cr.sql` then parity **9/9**, 26 migrations. Preview on the phase branch; smoke 12/12.
-- **Browser QA:** Q38–Q45 PASS (Q38/Q43 device parts by Ryan; Q41 re-checked after #180). Findings #180 and #182
-  fixed and closed; no open `qa-finding` issues.
-- **Independent audit (different model):** `REVIEW RESULT: PASS` at `6bd5c708e16b9d9fabaa86f2258cd0a50736d669`;
-  P09-01 MEDIUM and P09-02 LOW fixed in #184. Receipt: `docs/workflow/FFH-P09_AUDIT.md`.
-- **Release checklist:** no new environment variables in P09 (Production variables unchanged since P08); hosted parity
-  matches the candidate (no migration after `20261118120000`); after the merge, Production smoke
-  `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12, plus the
-  signed-out `/bills`, `/plan/print`, `/plan/steps-csv` redirects.
+- Built and merged into the phase branch via #190 (`c8734bd`); whole-phase `/code-review high`: 6 findings, all fixed.
+- `c8734bd`: CI `fast`, `rls-matrix`, `e2e-isolation` PASS 58/58 (incl. `/what-if`, `/what-if/purchase`); Preview
+  serves it; Preview smoke 12/12; signed-out `/what-if*` → Sign in.
+- Browser QA Q46–Q57 PASS on `c8734bd` (no findings); phone-width parts of Q46/Q57 are Ryan's device checks (NOT RUN).
+- Independent different-model audit at `865783a`: **FAIL** (P10-01 HIGH, P10-02 HIGH, P10-03–05 MEDIUM; guided-input
+  contract, not the canonical evaluators). All five fixed; receipt `docs/workflow/FFH-P10_AUDIT.md`. Next: new frozen
+  candidate, targeted re-check of P10-01/P10-02, re-QA of the changed rows (Q48–Q50).
