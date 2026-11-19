@@ -471,7 +471,7 @@ test("FFH-P10 emergency reserve counts only protected reserve cash, never earmar
   assert.equal(richerItem.status, item.status);
 });
 
-test("FFH-P10 emergency reserve: protected cash needed for the purchase is flagged; an evaluation without a post-purchase plan is insufficient", async () => {
+test("FFH-P10 emergency reserve: protected cash needed for the purchase is insufficient information, never a definitive breach (audit P10-05)", async () => {
   const source = raw();
   source.accounts = source.accounts!.filter((account) => account.id !== "cash");
   const engine = baseline(source);
@@ -479,7 +479,11 @@ test("FFH-P10 emergency reserve: protected cash needed for the purchase is flagg
   const option = result.options[0] as Extract<PurchaseOptionResult, { kind: "home" }>;
   assert.ok(option.canonical.cashToClose.protectedCashRequired > 0);
   assert.equal(option.canonical.overallAffordability, "not_recommended");
-  assert.equal(check(option.guidance, "emergency_reserve").status, "exceeds");
+  // Audit P10-05: needing protected money does not establish the reserve left, so the months comparison is unknown.
+  const reserve = check(option.guidance, "emergency_reserve");
+  assert.equal(reserve.status, "insufficient_information");
+  assert.equal(reserve.actual, null);
+  assert.match(reserve.explanation, /money your plan protects/);
 });
 
 test("FFH-P10 a guideline PASS never upgrades a canonical not-recommended verdict", async () => {
@@ -517,4 +521,69 @@ test("FFH-P10 invalid saved numbers return a structured invalid answer instead o
     loadSnapshot: async () => { throw new Error("database unavailable"); },
     asOfDate: () => AS_OF,
   }));
+});
+
+// ---- Independent audit (865783a) regressions --------------------------------------------------------------------------
+
+test("FFH-P10 audit P10-01: an unanswered 'would that payment end?' is refused; explicitly No keeps the current payment", async () => {
+  const engine = baseline();
+  const blank = await executePurchaseCheck(request(engine, "home", [homeFields({ currentHousingEnds: "" })]), deps(engine.snapshot));
+  assert.equal(blank.status, "invalid");
+  assert.deepEqual(blank.options, []);
+  assert.ok(blank.issues.some((issue) => issue.path.endsWith(".currentHousingEnds")));
+  const keeps = await executePurchaseCheck(request(engine, "home", [homeFields({ currentHousingEnds: "no", currentHousingMonthlyCost: "2000" })]), deps(engine.snapshot));
+  const option = keeps.options[0] as Extract<PurchaseOptionResult, { kind: "home" }>;
+  assert.equal(option.canonical.monthly.incrementalHousingImpact, option.canonical.monthly.allInHousingCost);
+  const ends = await executePurchaseCheck(request(engine, "home", [homeFields({ currentHousingEnds: "yes", currentHousingMonthlyCost: "2000" })]), deps(engine.snapshot));
+  const endsOption = ends.options[0] as Extract<PurchaseOptionResult, { kind: "home" }>;
+  assert.equal(endsOption.canonical.monthly.incrementalHousingImpact, Math.round((endsOption.canonical.monthly.allInHousingCost - 2000) * 100) / 100);
+});
+
+test("FFH-P10 audit P10-01/P10-03: no choice is ever defaulted; every blank choice is refused", async () => {
+  const engine = baseline();
+  for (const field of ["rateType", "hasBalloonPayment", "allowsNegativeAmortization", "mortgageInsuranceType", "currentHousingEnds"]) {
+    const result = await executePurchaseCheck(request(engine, "home", [homeFields({ [field]: "" })]), deps(engine.snapshot));
+    assert.equal(result.status, "invalid", field);
+    assert.ok(result.issues.some((issue) => issue.path.endsWith(`.${field}`)), field);
+  }
+  const vehicle = await executePurchaseCheck(request(engine, "vehicle", [vehicleFields({ needType: "" })]), deps(engine.snapshot));
+  assert.equal(vehicle.status, "invalid");
+});
+
+test("FFH-P10 audit P10-02: blank maintenance is refused even when the household has ample room", async () => {
+  const engine = baseline();
+  const option = parsedHome(engine);
+  // Proof the scenario matters: the unchanged evaluator alone gives a positive verdict with maintenance unknown.
+  const unguarded = evaluateHomeAffordability(engine, { ...option.scenario, monthlyMaintenancePlanningAmount: null });
+  assert.ok(["comfortably_affordable", "affordable", "stretch"].includes(unguarded.overallAffordability), unguarded.overallAffordability);
+  assert.ok(!unguarded.missingData.includes("monthlyMaintenancePlanningAmount"));
+  const result = await executePurchaseCheck(request(engine, "home", [homeFields({ maintenanceMonthly: "" })]), deps(engine.snapshot));
+  assert.equal(result.status, "invalid");
+  assert.deepEqual(result.options, []);
+  assert.ok(result.issues.some((issue) => issue.path.endsWith(".maintenanceMonthly")));
+  const zero = await executePurchaseCheck(request(engine, "home", [homeFields({ maintenanceMonthly: "0" })]), deps(engine.snapshot));
+  assert.equal(zero.status, "ok");
+});
+
+test("FFH-P10 audit P10-03: 'Not sure yet' mortgage insurance stays unknown and blocks a verdict", async () => {
+  const engine = baseline();
+  const result = await executePurchaseCheck(request(engine, "home", [homeFields({ mortgageInsuranceType: "unsure", mortgageInsuranceMonthly: "0" })]), deps(engine.snapshot));
+  assert.equal(result.status, "ok");
+  const option = result.options[0] as Extract<PurchaseOptionResult, { kind: "home" }>;
+  assert.equal(option.canonical.overallAffordability, "more_information_needed");
+  assert.ok(option.canonical.missingData.includes("mortgageInsurance.monthlyAmount"));
+  assert.equal(check(option.guidance, "housing_28").status, "insufficient_information");
+});
+
+test("FFH-P10 audit P10-04: 36% is insufficient information when a recorded mortgage may be replaced", async () => {
+  const source = raw();
+  source.debts!.push({ id: "old-mortgage", name: "Current mortgage", debt_type: "mortgage", current_balance: 150000, interest_rate: 3, minimum_payment: 1000 });
+  const engine = baseline(source);
+  const replaced = await executePurchaseCheck(request(engine, "home", [homeFields({ currentHousingEnds: "yes", currentHousingMonthlyCost: "2000" })]), deps(engine.snapshot));
+  const debt = check(replaced.options[0].guidance, "debt_36");
+  assert.equal(debt.status, "insufficient_information");
+  assert.equal(debt.actual, null);
+  assert.ok(debt.missing.some((item) => item.includes("pays off your current mortgage")));
+  const kept = await executePurchaseCheck(request(engine, "home", [homeFields({ currentHousingEnds: "no", currentHousingMonthlyCost: "2000" })]), deps(engine.snapshot));
+  assert.ok(["meets", "exceeds"].includes(check(kept.options[0].guidance, "debt_36").status));
 });

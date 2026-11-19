@@ -46,23 +46,23 @@ const HOME_SECTIONS: Section[] = [
     fields: [
       { name: "interestRate", label: "Interest rate", unit: "percent", hint: "The note rate, for example 6.5." },
       { name: "termYears", label: "Loan length", unit: "years" },
-      { name: "rateType", label: "Rate type", choices: [["fixed", "Fixed"], ["adjustable", "Adjustable (ARM)"]] },
-      { name: "mortgageInsuranceType", label: "Mortgage insurance", choices: [["none", "None"], ["conventional_pmi", "PMI (conventional)"], ["fha_mip", "FHA MIP"], ["other", "Other"]] },
+      { name: "rateType", label: "Rate type", required: true, choices: [["", "Choose…"], ["fixed", "Fixed"], ["adjustable", "Adjustable (ARM)"]] },
+      { name: "hasBalloonPayment", label: "Balloon payment at the end?", required: true, choices: [["", "Choose…"], ["no", "No"], ["yes", "Yes"]] },
+      { name: "allowsNegativeAmortization", label: "Can the loan balance grow?", required: true, choices: [["", "Choose…"], ["no", "No"], ["yes", "Yes"]] },
+      { name: "mortgageInsuranceType", label: "Mortgage insurance", required: true, choices: [["", "Choose…"], ["none", "None required"], ["conventional_pmi", "PMI (conventional)"], ["fha_mip", "FHA MIP"], ["other", "Other"], ["unsure", "Not sure yet"]] },
       { name: "mortgageInsuranceMonthly", label: "Monthly mortgage insurance", unit: "money", hint: "Needed if you have mortgage insurance." },
     ],
   },
   {
     title: "More loan details",
     advanced: true,
-    intro: "Only for adjustable-rate or unusual loans.",
+    intro: "Only for adjustable-rate loans.",
     fields: [
       { name: "armInitialFixedMonths", label: "Months before the rate first changes", unit: "months" },
       { name: "armAdjustmentFrequencyMonths", label: "Months between rate changes", unit: "months" },
       { name: "armInitialCap", label: "First change cap", unit: "percent" },
       { name: "armSubsequentCap", label: "Later change cap", unit: "percent" },
       { name: "armLifetimeCap", label: "Lifetime cap", unit: "percent" },
-      { name: "hasBalloonPayment", label: "Balloon payment at the end?", choices: [["no", "No"], ["yes", "Yes"]] },
-      { name: "allowsNegativeAmortization", label: "Can the balance grow?", choices: [["no", "No"], ["yes", "Yes"]] },
     ],
   },
   {
@@ -89,7 +89,7 @@ const HOME_SECTIONS: Section[] = [
       { name: "floodInsuranceAnnual", label: "Flood insurance per year", unit: "money", hint: "Enter 0 if not required." },
       { name: "otherInsuranceAnnual", label: "Other required insurance per year", unit: "money", hint: "Enter 0 if none." },
       { name: "hoaMonthly", label: "HOA dues per month", unit: "money", hint: "Enter 0 if none." },
-      { name: "maintenanceMonthly", label: "Maintenance set-aside per month", unit: "money" },
+      { name: "maintenanceMonthly", label: "Maintenance set-aside per month", unit: "money", required: true, hint: "Required: homes need upkeep. Enter 0 only if you deliberately plan none." },
       { name: "utilityChangeMonthly", label: "Change in utilities per month", unit: "money", hint: "Use a minus sign if they'd go down; 0 if about the same." },
       { name: "otherPropertyCostsMonthly", label: "Other property costs per month", unit: "money", hint: "Enter 0 if none." },
     ],
@@ -98,7 +98,7 @@ const HOME_SECTIONS: Section[] = [
     title: "Your current housing",
     fields: [
       { name: "currentHousingMonthlyCost", label: "Current housing payment per month", unit: "money", hint: "Rent or mortgage, plus housing bills that would stop. Needed even if you keep paying it (then it stays in your plan)." },
-      { name: "currentHousingEnds", label: "Would that payment end?", choices: [["yes", "Yes, it ends"], ["no", "No, we keep paying it"]] },
+      { name: "currentHousingEnds", label: "Would that payment end?", required: true, choices: [["", "Choose…"], ["yes", "Yes, it ends"], ["no", "No, we keep paying it"]] },
     ],
   },
 ];
@@ -149,8 +149,8 @@ const VEHICLE_SECTIONS: Section[] = [
 function initialFields(kind: Kind): Fields {
   const sections = kind === "home" ? HOME_SECTIONS : VEHICLE_SECTIONS;
   const fields: Fields = {};
-  for (const section of sections) for (const field of section.fields) fields[field.name] = field.choices ? field.choices[0][0] : "";
-  if (kind === "home") fields.termYears = "30";
+  // FFH-P10 audit P10-01/P10-03: nothing is pre-answered; every choice starts unanswered and must be chosen.
+  for (const section of sections) for (const field of section.fields) fields[field.name] = "";
   return fields;
 }
 

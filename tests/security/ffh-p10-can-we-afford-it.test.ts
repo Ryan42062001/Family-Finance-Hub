@@ -113,3 +113,13 @@ test("FFH-P10 a failed or redirected action shows a fixed message (no crash) and
   assert.match(workspace, /const outdated = response\?\.status === "ok" && checkedEntries !== null && checkedEntries !== JSON\.stringify\(options\)/);
   assert.match(execution, /instanceof MoneyPrioritySnapshotValidationError\)\) throw error/);
 });
+
+test("FFH-P10 audit P10-01/P10-03: the guided form pre-answers nothing", () => {
+  assert.match(workspace, /for \(const field of section\.fields\) fields\[field\.name\] = "";/);
+  assert.doesNotMatch(workspace, /fields\.termYears = "30"/);
+  for (const name of ["rateType", "hasBalloonPayment", "allowsNegativeAmortization", "mortgageInsuranceType", "currentHousingEnds", "needType"]) {
+    assert.match(workspace, new RegExp(`name: "${name}"[^\\n]*required: true[^\\n]*\\["", "Choose…"\\]`), name);
+  }
+  assert.match(workspace, /\["unsure", "Not sure yet"\]/);
+  assert.match(input, /requiredMoney\("maintenanceMonthly"/);
+});

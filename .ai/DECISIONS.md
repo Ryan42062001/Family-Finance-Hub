@@ -739,3 +739,12 @@ Builder choices inside the spec, for the audit to check:
   parts of Q46 and Q57 are Ryan's device checks (NOT RUN in the Cloud Browser).
 - Whole-phase `/code-review high` before freezing: 6 findings (1 important: an unhandled action rejection could crash
   the page; 5 nits), all fixed in #190 before the merge.
+
+## 2026-11-19 — FFH-P10 independent audit FAIL at 865783a; all findings fixed
+
+- Different-model audit: `REVIEW RESULT: FAIL — 865783a`: P10-01 HIGH (pre-selected "payment ends"), P10-02 HIGH
+  (blank maintenance could still give a positive verdict), P10-03 MEDIUM (mortgage insurance defaulted to None), P10-04
+  MEDIUM (36% counted a mortgage that may be replaced), P10-05 MEDIUM (reserve breach asserted when protected cash was
+  needed). Canonical evaluators, isolation and read-only boundaries verified intact. All five fixed in the P10 input
+  contract / advisory layer (no evaluator change). Receipt: `docs/workflow/FFH-P10_AUDIT.md`.
+- Standing rule from P10-01/03: the guided form pre-answers no question (every choice starts at "Choose…").

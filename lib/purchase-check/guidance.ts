@@ -199,11 +199,15 @@ export function homeGuidance({ baseline, postEngine, scenario, result }: HomeGui
     const debtOk = atOrBelowPercent(totalCents, grossCents, 36);
     const debtNotes = [`Adds your recorded minimum debt payments (${money(otherDebtCents)}/month) to the new housing payment.`];
     const existingMortgages = baseline.snapshot.debts.filter((debt) => debt.type === "mortgage");
+    // Audit P10-04: when the purchase may replace a recorded mortgage we can't tell whether that loan is paid off, so the
+    // projected ratio is not established; say so instead of a definitive within/outside.
     if (existingMortgages.length && (scenario.currentHousingCostDisappears || scenario.homeSale)) {
       const mortgageCents = existingMortgages.reduce((sum, debt) => sum + toCents(debt.minimumPayment), 0);
-      debtNotes.push(`Includes your current mortgage payment (${money(mortgageCents)}/month). If this purchase pays that mortgage off, the real ratio would be lower.`);
-    }
-    checks.push({
+      checks.push(insufficient(debtBase,
+        ["Whether this purchase pays off your current mortgage (we don't assume either way)"],
+        `Your current mortgage payment (${money(mortgageCents)}/month) may end with this purchase, so your total debt payments afterwards aren't known.`,
+        [`With it: ${percent(totalCents, grossCents)}; without it: ${percent(totalCents - mortgageCents, grossCents)} of gross monthly income. Shown for context only.`]));
+    } else checks.push({
       ...debtBase,
       status: debtOk ? "meets" : "exceeds",
       actual: `${percent(totalCents, grossCents)} of gross monthly income (${money(totalCents)} of ${money(grossCents)})`,
@@ -382,14 +386,11 @@ function emergencyReserveCheck(
   }
 
   if (protectedCashRequiredCents > 0) {
-    return {
-      ...base,
-      status: "exceeds",
-      actual: `Needs ${money(protectedCashRequiredCents)} more than the cash available for a purchase`,
-      explanation: "Paying this would mean dipping into money your plan protects (emergency reserve, goal savings or required cushion).",
-      missing: [],
-      notes,
-    };
+    // Audit P10-05: needing protected money (reserve, goal savings or the required cushion) does not establish how much
+    // emergency reserve would remain, so the months comparison is not known. The verdict above already reflects it.
+    return insufficient(base, ["Where the extra money would come from, and the reserve left afterwards"],
+      `This purchase needs ${money(protectedCashRequiredCents)} more than the cash available for a purchase, so it would draw on money your plan protects (emergency reserve, goal savings or required cushion). We can't tell how much emergency reserve would remain.`,
+      notes);
   }
   if (!postEngine) {
     return insufficient(base, ["The purchase details marked as missing in the result above"],
