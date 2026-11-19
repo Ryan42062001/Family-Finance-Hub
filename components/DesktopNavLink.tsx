@@ -9,12 +9,14 @@ const icons: Record<string, React.ReactNode> = {
   "/financial-profile": <><path d="M4 5h16v14H4z" /><path d="M4 9h16" /><path d="M8 13h4M8 16h7" /></>,
   "/goals": <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></>,
   "/planning": <><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></>,
-  "/scenario-lab": <><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3" /><path d="M7.5 14h9" /></>,
+  "/what-if": <><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3" /><path d="M7.5 14h9" /></>,
 };
 
 export default function DesktopNavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
-  const selected = pathname === href || ((href === "/planning" || href === "/goals") && pathname.startsWith(`${href}/`));
+  // FFH-P10: What if? stays selected on its guided checks and on the advanced Scenario Lab it links to (Tools).
+  const selected = pathname === href || ((href === "/planning" || href === "/goals" || href === "/what-if") && pathname.startsWith(`${href}/`))
+    || (href === "/what-if" && pathname === "/scenario-lab");
   return <Link href={href} aria-current={selected ? "page" : undefined}>
     <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{icons[href]}</svg>
     <span>{label}</span>

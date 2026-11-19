@@ -13,7 +13,7 @@ const links = [
   ["Financial profile", "/financial-profile"],
   ["Goals", "/goals"],
   ["Planning", "/planning"],
-  ["Scenario Lab", "/scenario-lab"],
+  ["What if?", "/what-if"],
 ] as const;
 
 export default async function AppHeader() {

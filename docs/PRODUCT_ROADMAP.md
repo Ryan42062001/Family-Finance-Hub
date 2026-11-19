@@ -83,6 +83,15 @@ exact-cent monthly equivalent rounded up, anchored due dates, per-bill household
 CSV of the current plan). No hosted SQL, Vercel, real-data or Production change is approved; Production deployment
 remains a separate Owner authorization.
 
+## FFH-P10 — Can We Afford It? + financial best-practice warnings
+
+State: BUILDING. Risk: HIGH (money calculations and advice presentation, household isolation). Phase branch:
+`phase/ffh-p10-can-we-afford-it`, phase PR #189. Binding spec: GitHub issue #171 (guided Home/Vehicle purchase checks
+on the canonical evaluators, optional two-option comparison, separate source-attributed nonblocking rules of thumb;
+read-only, no persistence). Workflow addition: issue #188 (evidence-based lessons learned). No hosted SQL, Vercel,
+real-data or Production change is approved; Production deployment remains a separate Owner authorization.
+Next (separately Owner-approved, not started): FFH-P11, issue #172.
+
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
 1. **Your money plan as the home screen.** Surface the existing Money Priority Engine as a plain, ordered list of

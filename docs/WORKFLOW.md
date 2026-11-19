@@ -86,7 +86,17 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
    release decision. Before asking, the Builder runs the release checklist below and writes the release evidence in
    the phase PR description (no separate release-prep documentation PR: it costs a CI cycle and changes the SHA). The
    phase state in `.ai/CURRENT_PHASE.md` stays as it is until the close-out records CLOSED.
-6. **Private Beta / wider release.** Before inviting anyone outside the household, one comprehensive independent
+6. **Lessons learned (Ryan, issue #188).** After the Production release and smoke test, before announcing
+   **PHASE COMPLETE**, the Builder reviews the phase's real evidence: CI and test failures, bottlenecks, QA and audit
+   findings, Owner manual steps, environment/tool limits, and whether the previous phase's improvements actually
+   helped (retire any that added friction). It proposes **zero to three** improvements; zero is a good outcome. Each
+   one gives the evidence (PR/issue/run), the demonstrated root cause, the smallest fix, the benefit, the cost/risk,
+   how the next phase will measure it, and ADOPT / DEFER / REJECT. Never invent a lesson, repeat a fixed one or add
+   overhead for its own sake; if nothing qualifies, write "Lessons learned: no actionable process improvements
+   identified; workflow unchanged." Record it in the phase close-out and `.ai/HANDOFF.md` (no separate report or
+   issue). Anything needing new permissions, hosted access, financial-policy or security changes, or a material
+   workflow change waits for Ryan.
+7. **Private Beta / wider release.** Before inviting anyone outside the household, one comprehensive independent
    whole-product audit runs on a frozen candidate, findings are fixed and re-checked, and Ryan separately authorizes it.
 
 ## Release checklist (every merge into `main`)
@@ -139,7 +149,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
   Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
   address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
-  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning, Scenario Lab, Account, Bills and the plan print view
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning, Scenario Lab, Account, Bills, the plan print view, What if? and the purchase check
   load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
   renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
   control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.
