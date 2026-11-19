@@ -676,3 +676,11 @@ for the audit to check:
   P09-01 MEDIUM (stale Bills form could move a month-end anchor) and P09-02 LOW (upgrade check not in CI) both fixed.
   QA findings #180 and #182 fixed and closed. Receipt: `docs/workflow/FFH-P09_AUDIT.md`.
 - Owner device checks (2026-11-19): Q38 phone layout PASS, Q43 native print preview PASS, Q41 re-check PASS.
+
+## 2026-11-19 — FFH-P09 released to Production and closed
+
+- Ryan authorized "Release FFH-P09 at d4de2a1c9ae91ee92566b42d3f1d3d3faba748bf"; PR #186 merged as
+  `83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` after exact-head CI green (fast, rls-matrix incl. P09 upgrade check,
+  e2e-isolation).
+- Production smoke **12/12** at `https://family-finance-hub-taupe.vercel.app` serving `83979c1`; signed-out
+  `/bills`, `/plan/print`, `/plan/steps-csv` and `/account` redirect to sign-in. FFH-P09 is **CLOSED**.

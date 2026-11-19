@@ -76,7 +76,8 @@ deployment remains a separate Owner authorization.
 
 ## FFH-P09 — Bills, due dates & exports
 
-State: FREEZE_READY. Audit PASS (findings fixed), hosted migration applied (parity 9/9), QA Q38–Q45 PASS. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
+State: CLOSED. Released to Production via PR #186 at `83979c1` (2026-11-19), with Ryan's explicit authorization;
+Production smoke test 12/12. Audit PASS (findings fixed), hosted migration applied (parity 9/9), QA Q38–Q45 PASS. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
 Phase branch: `phase/ffh-p09-bills-exports`, PR #178. Binding spec: GitHub issue #170 (recurring expenses with an
 exact-cent monthly equivalent rounded up, anchored due dates, per-bill household reminders, `/bills`, print/PDF and
 CSV of the current plan). No hosted SQL, Vercel, real-data or Production change is approved; Production deployment

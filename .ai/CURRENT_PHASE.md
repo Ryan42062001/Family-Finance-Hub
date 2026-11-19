@@ -2,8 +2,8 @@
 
 FFH-P09 — Bills, due dates & exports
 
-State: FREEZE_READY — built, hosted, QA'd and independently audited (audit PASS at `6bd5c70`, both findings fixed);
-waiting on Ryan's separate exact-SHA Production release decision
+State: CLOSED — released to Production (Ryan's explicit authorization, 2026-11-19) via PR #186, merge
+`83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` from phase head `d4de2a1c9ae91ee92566b42d3f1d3d3faba748bf`; Production smoke 12/12
 Risk: HIGH (money input representation, schema change on financial tables, household RLS, data export)
 Owner: Ryan
 Spec (binding): GitHub issue #170 (Owner-approved product decisions and invariants)
