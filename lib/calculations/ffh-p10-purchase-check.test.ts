@@ -500,3 +500,21 @@ test("FFH-P10 goal effects use names only and mark the goal used for the purchas
   assert.equal(used?.name, "House");
   assert.ok(!JSON.stringify(result.options[0].goalEffects).includes("house-goal"));
 });
+
+test("FFH-P10 invalid saved numbers return a structured invalid answer instead of throwing; other errors still fail closed", async () => {
+  const engine = baseline();
+  const { MoneyPrioritySnapshotValidationError } = await import("./money-priority-snapshot.ts");
+  const invalid = await executePurchaseCheck(request(engine, "home", [homeFields()]), {
+    resolveAuthority: async () => ({ authenticated: true, householdId: "server-household" }),
+    loadSnapshot: async () => { throw new MoneyPrioritySnapshotValidationError([]); },
+    asOfDate: () => AS_OF,
+  });
+  assert.equal(invalid.status, "invalid");
+  assert.equal(invalid.baselineFingerprint, null);
+  assert.deepEqual(invalid.options, []);
+  await assert.rejects(executePurchaseCheck(request(engine, "home", [homeFields()]), {
+    resolveAuthority: async () => ({ authenticated: true, householdId: "server-household" }),
+    loadSnapshot: async () => { throw new Error("database unavailable"); },
+    asOfDate: () => AS_OF,
+  }));
+});

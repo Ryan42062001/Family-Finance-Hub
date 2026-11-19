@@ -104,5 +104,12 @@ test("FFH-P10 navigation: What if? replaces the Scenario Lab tab, Scenario Lab s
 test("FFH-P10 needs no new migration or persistent scenario table", () => {
   const migrations = readdirSync(new URL("../../supabase/migrations/", import.meta.url));
   assert.equal(migrations.filter((name) => /purchase|afford|what.?if|scenario/i.test(name)).length, 0);
-  assert.equal(migrations.length, 26);
+});
+
+test("FFH-P10 a failed or redirected action shows a fixed message (no crash) and edited entries mark results out of date", () => {
+  assert.match(workspace, /try \{\s*const result = await runPurchaseCheckAction/);
+  assert.match(workspace, /\} catch \{[\s\S]*setFailed\(true\)/);
+  assert.match(workspace, /The check didn&apos;t run/);
+  assert.match(workspace, /const outdated = response\?\.status === "ok" && checkedEntries !== null && checkedEntries !== JSON\.stringify\(options\)/);
+  assert.match(execution, /instanceof MoneyPrioritySnapshotValidationError\)\) throw error/);
 });

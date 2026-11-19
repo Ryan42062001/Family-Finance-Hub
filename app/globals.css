@@ -1145,7 +1145,8 @@ button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
 .purchase-actions{display:flex;flex-wrap:wrap;gap:.6rem;grid-column:1/-1}
 .purchase-status{outline:none;color:var(--muted);font-weight:700;min-height:1.5rem}
 .purchase-status .dashboard-notice{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;justify-content:space-between}
-.form-error{color:var(--danger)}
+.field-error{color:var(--danger);font-size:.8rem;font-weight:600}
+.purchase-results-outdated{opacity:.55}
 .purchase-results{display:grid;gap:1rem}.purchase-results-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .purchase-result-card,.purchase-guidance{min-width:0;padding:1.15rem;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);overflow-wrap:anywhere}
 .purchase-result-card{border-top:5px solid var(--line-strong)}

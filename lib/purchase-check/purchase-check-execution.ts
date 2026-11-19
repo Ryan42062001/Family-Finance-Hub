@@ -5,6 +5,7 @@
 // the canonical Scenario Lab adapters (runHomeScenarioAdapter / runVehicleScenarioAdapter), which call the canonical
 // evaluators unchanged. Everything here is read-only and in memory: nothing is saved, applied or written.
 import { runMoneyPriorityEngine, type MoneyPriorityEngineResult } from "../calculations/money-priority-engine.ts";
+import { MoneyPrioritySnapshotValidationError } from "../calculations/money-priority-snapshot.ts";
 import { moneyPrioritySnapshotToRaw } from "../calculations/money-priority-raw-adapter.ts";
 import type { HomeAffordabilityResult } from "../calculations/home-affordability.ts";
 import type { VehicleAffordabilityResult } from "../calculations/vehicle-affordability.ts";
@@ -108,7 +109,14 @@ export async function loadPurchaseCheckBaseline(dependencies: ScenarioExecutionD
 }
 
 export async function executePurchaseCheck(input: unknown, dependencies: ScenarioExecutionDependencies): Promise<PurchaseCheckResponse> {
-  const engine = await loadPurchaseCheckBaseline(dependencies);
+  let engine: MoneyPriorityEngineResult | null;
+  try {
+    engine = await loadPurchaseCheckBaseline(dependencies);
+  } catch (error) {
+    // Invalid saved numbers: same honest answer as Your plan. Anything else (database/auth) still fails closed by throwing.
+    if (!(error instanceof MoneyPrioritySnapshotValidationError)) throw error;
+    return empty("invalid", null, [{ path: "request.baseline", message: "Some saved numbers are invalid, so there is no plan to check against. Review your Financial profile." }]);
+  }
   if (!engine) return empty("unauthorized", null, [{ path: "request.auth", message: "Please sign in again." }]);
   const fingerprint = scenarioBaselineDescriptor(engine).fingerprint;
 
@@ -126,35 +134,40 @@ export async function executePurchaseCheck(input: unknown, dependencies: Scenari
   }
 
   const options: PurchaseOptionResult[] = [];
-  parsed.options.forEach((option, index) => {
-    // Each option is evaluated independently against the same immutable server baseline (deep-cloned inputs).
-    const eventId = `purchase-check-option-${index + 1}`;
-    if (option.kind === "home") {
-      const adapter = runHomeScenarioAdapter(engine, { type: "home", eventId, scenario: structuredClone(option.scenario) });
-      options.push({
-        kind: "home",
-        label: option.label,
-        canonical: adapter.result,
-        missing: describeMissing("home", adapter.result.missingData),
-        goalEffects: goalEffects(engine, adapter.postEngine, option.scenario.relatedGoalId ?? null),
-        retirementMonthlyBefore: retirementMonthly(engine),
-        retirementMonthlyAfter: adapter.postEngine ? retirementMonthly(adapter.postEngine) : null,
-        guidance: homeGuidance({ baseline: engine, postEngine: adapter.postEngine, scenario: option.scenario, result: adapter.result }),
-      });
-    } else {
-      const adapter = runVehicleScenarioAdapter(engine, { type: "vehicle", eventId, scenario: structuredClone(option.scenario) });
-      options.push({
-        kind: "vehicle",
-        label: option.label,
-        canonical: adapter.result,
-        missing: describeMissing("vehicle", adapter.result.missingData),
-        goalEffects: goalEffects(engine, adapter.postEngine, option.scenario.relatedGoalId ?? null),
-        retirementMonthlyBefore: retirementMonthly(engine),
-        retirementMonthlyAfter: adapter.postEngine ? retirementMonthly(adapter.postEngine) : null,
-        guidance: vehicleGuidance({ baseline: engine, postEngine: adapter.postEngine, scenario: option.scenario, result: adapter.result, otherVehiclesValue: option.otherVehiclesValue }),
-      });
-    }
-  });
+  try {
+    parsed.options.forEach((option, index) => {
+      // Each option is evaluated independently against the same immutable server baseline (deep-cloned inputs).
+      const eventId = `purchase-check-option-${index + 1}`;
+      if (option.kind === "home") {
+        const adapter = runHomeScenarioAdapter(engine, { type: "home", eventId, scenario: structuredClone(option.scenario) });
+        options.push({
+          kind: "home",
+          label: option.label,
+          canonical: adapter.result,
+          missing: describeMissing("home", adapter.result.missingData),
+          goalEffects: goalEffects(engine, adapter.postEngine, option.scenario.relatedGoalId ?? null),
+          retirementMonthlyBefore: retirementMonthly(engine),
+          retirementMonthlyAfter: adapter.postEngine ? retirementMonthly(adapter.postEngine) : null,
+          guidance: homeGuidance({ baseline: engine, postEngine: adapter.postEngine, scenario: option.scenario, result: adapter.result }),
+        });
+      } else {
+        const adapter = runVehicleScenarioAdapter(engine, { type: "vehicle", eventId, scenario: structuredClone(option.scenario) });
+        options.push({
+          kind: "vehicle",
+          label: option.label,
+          canonical: adapter.result,
+          missing: describeMissing("vehicle", adapter.result.missingData),
+          goalEffects: goalEffects(engine, adapter.postEngine, option.scenario.relatedGoalId ?? null),
+          retirementMonthlyBefore: retirementMonthly(engine),
+          retirementMonthlyAfter: adapter.postEngine ? retirementMonthly(adapter.postEngine) : null,
+          guidance: vehicleGuidance({ baseline: engine, postEngine: adapter.postEngine, scenario: option.scenario, result: adapter.result, otherVehiclesValue: option.otherVehiclesValue }),
+        });
+      }
+    });
+  } catch {
+    // Same structured answer as Scenario Lab's specialized execution when an adapter cannot evaluate the payload.
+    return empty("invalid", fingerprint, [{ path: "request.options", message: "This check could not be worked out. Review the entries and try again." }]);
+  }
 
   return { status: "ok", baselineFingerprint: fingerprint, issues: [], options, hypothetical: true };
 }

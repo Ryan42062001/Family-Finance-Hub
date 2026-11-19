@@ -97,7 +97,7 @@ const HOME_SECTIONS: Section[] = [
   {
     title: "Your current housing",
     fields: [
-      { name: "currentHousingMonthlyCost", label: "Current housing payment per month", unit: "money" },
+      { name: "currentHousingMonthlyCost", label: "Current housing payment per month", unit: "money", hint: "Rent or mortgage, plus housing bills that would stop. Needed even if you keep paying it (then it stays in your plan)." },
       { name: "currentHousingEnds", label: "Would that payment end?", choices: [["yes", "Yes, it ends"], ["no", "No, we keep paying it"]] },
     ],
   },
@@ -183,14 +183,18 @@ function Field({ spec, value, onChange, id, goals, error }: { spec: FieldSpec; v
     <label className="field-label" htmlFor={id}>{spec.label}{spec.required ? <span aria-hidden="true"> *</span> : null}</label>
     {control}
     {spec.hint ? <small id={hintId} className="field-hint">{spec.hint}</small> : null}
-    {error ? <small id={errorId} className="form-error">{error}</small> : null}
+    {error ? <small id={errorId} className="field-error">{error}</small> : null}
   </div>;
 }
 
-function OptionForm({ kind, option, index, onChange, goals, errors }: { kind: Kind; option: Option; index: number; onChange: (option: Option) => void; goals: PurchaseCheckBootstrap["goals"]; errors: Map<string, string> }) {
+function OptionForm({ kind, option, index, onChange, goals, errors, recordedHousing }: { kind: Kind; option: Option; index: number; onChange: (option: Option) => void; goals: PurchaseCheckBootstrap["goals"]; errors: Map<string, string>; recordedHousing: number }) {
   const sections = kind === "home" ? HOME_SECTIONS : VEHICLE_SECTIONS;
   const set = (name: string, value: string) => onChange({ ...option, fields: { ...option.fields, [name]: value } });
   const prefix = `opt${index}`;
+  // Display-only reminder (the server decides): an amount below what the plan counts leaves the rest in the plan.
+  const enteredHousing = Number((option.fields.currentHousingMonthlyCost ?? "").replace(/[$,\s]/g, ""));
+  const housingShort = kind === "home" && option.fields.currentHousingEnds === "yes" && option.fields.currentHousingMonthlyCost?.trim()
+    && Number.isFinite(enteredHousing) && enteredHousing >= 0 && Math.round(enteredHousing * 100) < Math.round(recordedHousing * 100);
   return <fieldset className="purchase-option-form">
     <legend>{option.label}</legend>
     <div className="field">
@@ -202,6 +206,9 @@ function OptionForm({ kind, option, index, onChange, goals, errors }: { kind: Ki
         {section.intro ? <p className="muted purchase-section-intro">{section.intro}</p> : null}
         {section.fields.map((spec) => <Field key={spec.name} spec={spec} id={`${prefix}-${spec.name}`} value={option.fields[spec.name] ?? ""}
           onChange={(value) => set(spec.name, value)} goals={goals} error={errors.get(`options[${index}].fields.${spec.name}`)} />)}
+        {section.fields.some((spec) => spec.name === "currentHousingMonthlyCost") && housingShort
+          ? <p className="muted purchase-section-intro" role="note">This is less than the {money(recordedHousing)} your plan counts for housing. The difference stays in your plan after the purchase, which is right only for housing bills that would continue.</p>
+          : null}
       </div>;
       const hasError = section.fields.some((spec) => errors.has(`options[${index}].fields.${spec.name}`));
       return section.advanced
@@ -333,6 +340,8 @@ export default function PurchaseCheckWorkspace({ kind, bootstrap, simple }: { ki
   const [options, setOptions] = useState<Option[]>([{ label: "Option A", fields: initialFields(kind) }]);
   const [response, setResponse] = useState<PurchaseCheckResponse | null>(null);
   const [pending, startTransition] = useTransition();
+  const [checkedEntries, setCheckedEntries] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
 
   const errors = new Map<string, string>((response?.status === "invalid" ? response.issues : []).map((issue) => [issue.path, issue.message]));
@@ -343,16 +352,27 @@ export default function PurchaseCheckWorkspace({ kind, bootstrap, simple }: { ki
   const removeSecond = () => { setOptions((current) => current.slice(0, 1)); setResponse(null); };
 
   const run = () => {
+    const entries = JSON.stringify(options);
     startTransition(async () => {
-      const result = await runPurchaseCheckAction({
-        kind,
-        baselineFingerprint: bootstrap.baselineFingerprint,
-        options: options.map((option) => ({ label: option.label, fields: option.fields })),
-      });
-      setResponse(result);
+      try {
+        const result = await runPurchaseCheckAction({
+          kind,
+          baselineFingerprint: bootstrap.baselineFingerprint,
+          options: options.map((option) => ({ label: option.label, fields: option.fields })),
+        });
+        setFailed(false);
+        setResponse(result);
+        setCheckedEntries(entries);
+      } catch {
+        // A redirected action (session ended or two-factor now needed), a network error or a server error:
+        // keep the entries and show a fixed message; nothing from the error is displayed.
+        setResponse(null);
+        setFailed(true);
+      }
       requestAnimationFrame(() => statusRef.current?.focus());
     });
   };
+  const outdated = response?.status === "ok" && checkedEntries !== null && checkedEntries !== JSON.stringify(options);
 
   const results = response?.status === "ok" ? response.options : [];
 
@@ -362,7 +382,7 @@ export default function PurchaseCheckWorkspace({ kind, bootstrap, simple }: { ki
       : bootstrap.recordedVehicleLoanPaymentsMonthly > 0 ? <p className="muted">Your plan has {money(bootstrap.recordedVehicleLoanPaymentsMonthly)} a month of vehicle loan payments.</p> : null}
 
     <form className={`purchase-forms purchase-forms-${options.length}`} onSubmit={(event) => { event.preventDefault(); run(); }} noValidate>
-      {options.map((option, index) => <OptionForm key={index} kind={kind} option={option} index={index} onChange={(next) => change(index, next)} goals={bootstrap.goals} errors={errors} />)}
+      {options.map((option, index) => <OptionForm key={index} kind={kind} option={option} index={index} onChange={(next) => change(index, next)} goals={bootstrap.goals} errors={errors} recordedHousing={bootstrap.recordedHousingMonthly} />)}
       <div className="purchase-actions">
         <button type="submit" disabled={pending}>{pending ? "Checking…" : options.length === 2 ? "Check both options" : "Check this purchase"}</button>
         {options.length === 1
@@ -376,14 +396,16 @@ export default function PurchaseCheckWorkspace({ kind, bootstrap, simple }: { ki
       {!pending && response?.status === "invalid" ? <div className="form-error"><strong>Please fix the highlighted entries.</strong>{generalErrors.length ? <ul>{generalErrors.map((issue) => <li key={issue.path}>{issue.message}</li>)}</ul> : null}</div> : null}
       {!pending && response?.status === "stale_baseline" ? <div className="dashboard-notice"><div><strong>Your numbers changed</strong><p>{response.issues[0]?.message}</p></div><button type="button" className="secondary-button" onClick={() => { setResponse(null); router.refresh(); }}>Refresh my numbers</button></div> : null}
       {!pending && response?.status === "unauthorized" ? <p className="form-error">Your session ended. Please sign in again.</p> : null}
+      {!pending && failed ? <p className="form-error">The check didn&apos;t run. Your session may have ended or need your two-factor code: reload the page (sign in again if asked). Your entries here are not saved.</p> : null}
+      {!pending && outdated ? <p className="purchase-incomplete-note">You changed the entries since this check. The results below are for the previous entries — press Check again.</p> : null}
       {!pending && results.length ? `Checked ${results.length === 2 ? "both options" : "this purchase"}. Results below.` : null}
     </div>
 
     {results.length ? <>
-      <section className={`purchase-results purchase-results-${results.length}`} aria-label="Affordability results">
+      <section className={`purchase-results${outdated ? " purchase-results-outdated" : ""} purchase-results-${results.length}`} aria-label="Affordability results">
         {results.map((option, index) => <ResultCard key={index} index={index} option={option} simple={simple} />)}
       </section>
-      <section className={`purchase-results purchase-results-${results.length}`} aria-label="Financial rules of thumb">
+      <section className={`purchase-results${outdated ? " purchase-results-outdated" : ""} purchase-results-${results.length}`} aria-label="Financial rules of thumb">
         {results.map((option, index) => <GuidanceSection key={index} index={index} option={option} />)}
       </section>
     </> : null}
