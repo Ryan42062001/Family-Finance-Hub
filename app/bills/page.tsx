@@ -16,6 +16,7 @@ type PageProps = { searchParams: Promise<{ saved?: string; error?: string }> };
 const ERRORS: Record<string, string> = {
   read_only: "Viewers can see bills and export the plan, but only an owner or member can change due dates.",
   not_saved: "Not saved. The bill may have been removed, or you no longer have permission to change it.",
+  changed: "Not saved: this bill's due date or how often it repeats was changed in the meantime. Review it and save again.",
 };
 
 const dateLabel = (iso: string, withYear = true) =>
@@ -42,6 +43,10 @@ function ScheduleForm({ bill }: { bill: Bill }) {
     <form className="data-form friendly-form" action={saveBillSchedule}>
       <input type="hidden" name="kind" value={bill.kind} />
       <input type="hidden" name="id" value={bill.id} />
+      {/* The schedule this form was rendered from (audit P09-01); the server refuses the save if it has changed. */}
+      <input type="hidden" name="shown_due" value={bill.nextDue ?? ""} />
+      <input type="hidden" name="expected_anchor" value={bill.anchor ?? ""} />
+      <input type="hidden" name="expected_recurrence" value={bill.recurrence} />
       <label className="field">
         <span className="field-label">Next due date</span>
         <input type="date" name="due_date" min={MIN_DATE} max={MAX_DATE} defaultValue={bill.nextDue ?? ""} />

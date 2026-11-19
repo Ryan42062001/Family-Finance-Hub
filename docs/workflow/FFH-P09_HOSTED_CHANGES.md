@@ -49,7 +49,9 @@ Expected: `25`, `false`, `false`. Anything else: STOP and report the row.
 
 **Result (Ryan, 2026-11-18):** step 1 `25 | false | false`; step 2 applied and recorded, existing rows `0 | 0 | 0`;
 parity 8/9 with `functions` differing because of CRLF in `private.expenses_derive_monthly_amount` (`has_cr = true`).
-Repair: step 5, then parity again.
+Repair: step 5 (`functions_with_cr_left = 0`), then parity again: **9/9 MATCH, 26 migrations**. Step 2 complete.
+
+**Step 3 (Ryan, 2026-11-18):** Preview domain on `phase/ffh-p09-bills-exports`; Builder smoke **12/12**; `e2e-isolation` PASS.
 
 ## 3. Preview (authorize: "P09 preview")
 

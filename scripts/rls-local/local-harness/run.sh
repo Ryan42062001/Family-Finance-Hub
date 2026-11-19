@@ -13,7 +13,7 @@
 # Untracked new migrations are not applied: `git add` them first.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; repo="$(git -C "$here" rev-parse --show-toplevel)"; cd "$repo"
-PORT=55432; DATA=/var/tmp/ffh-local-pg
+PORT=55432; DATA="${FFH_LOCAL_PG_DATA:-/var/tmp/ffh-local-pg}"
 BIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -n1)"
 [[ -n "$BIN" ]] || { echo "LOCAL_HARNESS: install PostgreSQL first (apt-get install -y postgresql)" >&2; exit 1; }
 for name in PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE DATABASE_URL SUPABASE_DB_URL; do
@@ -26,14 +26,18 @@ psql_local() { psql -h /tmp -p "$PORT" -U postgres -X -q "$@"; }
 start() {
   if ! psql_local -d template1 -tAc 'select 1' >/dev/null 2>&1; then
     mkdir -p "$DATA"; [[ "$(id -u)" == 0 ]] && chown postgres "$DATA"
-    [[ -f "$DATA/data/PG_VERSION" ]] || asdb "$BIN/initdb -D $DATA/data -A trust >/dev/null"
+    [[ -f "$DATA/data/PG_VERSION" ]] || asdb "$BIN/initdb -D $DATA/data -A trust -U postgres >/dev/null"
     asdb "$BIN/pg_ctl -D $DATA/data -o '-p $PORT -k /tmp -c listen_addresses=' -l $DATA/log start >/dev/null"
     sleep 2
   fi
   echo "LOCAL_HARNESS=READY port=$PORT"
 }
-reset() {
+# Cluster-wide role the auth stub's default privileges refer to (Supabase has it); needed by reset and upgrade.
+ensure_roles() {
   psql_local -d template1 -tAc "do \$\$ begin if not exists (select 1 from pg_roles where rolname='supabase_admin') then create role supabase_admin; end if; end \$\$;" >/dev/null
+}
+reset() {
+  ensure_roles
   psql_local -d template1 -c "drop database if exists postgres" -c "create database postgres" >/dev/null
   local P=(psql_local -d postgres -v ON_ERROR_STOP=1)
   "${P[@]}" -f "$here/auth-stub.sql" >/dev/null
@@ -55,6 +59,7 @@ coverage() {
 # FFH-P09: apply every migration before P09 to a throw-away database, write legacy rows, apply P09, compare.
 upgrade() {
   local db=ffh_p09_upgrade P09=supabase/migrations/20261118120000_ffh_p09_bills_due_dates.sql
+  ensure_roles
   psql_local -d template1 -c "drop database if exists $db" -c "create database $db" >/dev/null
   local P=(psql_local -d "$db" -v ON_ERROR_STOP=1)
   "${P[@]}" -f "$here/auth-stub.sql" >/dev/null

@@ -1,6 +1,6 @@
 // FFH-P09 form parsing for bill fields, shared by the Financial profile and Bills server actions. Strict: anything
 // unexpected throws (fail closed); nothing is guessed.
-import { isAllowedDueDate, isRecurrence, nextOccurrence, parseCents, type Recurrence, type ReminderDays } from "./schedule.ts";
+import { isAllowedDueDate, isRecurrence, parseCents, type Recurrence, type ReminderDays } from "./schedule.ts";
 
 export type ExpensePaymentInput = { payment_amount: string; recurrence: Recurrence };
 
@@ -25,9 +25,27 @@ export function scheduleInput(formData: FormData): ScheduleInput {
   return { due_anchor_date: rawDate || null, reminder_days: rawDate ? reminder : null };
 }
 
-// The Bills form pre-fills the NEXT due date. Submitting that same date must keep the saved anchor (which may be an
-// earlier, unclamped date such as Jan 31 or Feb 29); any other date becomes the new anchor.
-export function keepAnchorIfUnchanged(input: ScheduleInput, savedAnchor: unknown, recurrence: unknown, today: string): ScheduleInput {
-  if (input.due_anchor_date === null || !isAllowedDueDate(savedAnchor) || !isRecurrence(recurrence)) return input;
-  return nextOccurrence(savedAnchor, recurrence, today) === input.due_anchor_date ? { ...input, due_anchor_date: savedAnchor } : input;
+// The Bills form pre-fills the NEXT due date it computed when the page was rendered, and sends that date back as
+// `shown_due` with the anchor and recurrence it was based on. Audit P09-01: the decision must use what the form SHOWED,
+// not "today" on the server, or a form left open past midnight would turn a Jan 31 anchor into Feb 28.
+export type ScheduleContext = { shownDue: string | null; expectedAnchor: string | null; expectedRecurrence: Recurrence };
+
+export function scheduleContext(formData: FormData): ScheduleContext {
+  const optionalDate = (key: string) => {
+    const value = String(formData.get(key) ?? "").trim();
+    if (!value) return null;
+    if (!isAllowedDueDate(value)) throw new Error(`Invalid ${key}`);
+    return value;
+  };
+  const recurrence = String(formData.get("expected_recurrence") ?? "");
+  if (!isRecurrence(recurrence)) throw new Error("Invalid expected_recurrence");
+  return { shownDue: optionalDate("shown_due"), expectedAnchor: optionalDate("expected_anchor"), expectedRecurrence: recurrence };
+}
+
+// Submitting exactly the date the form showed keeps the saved anchor (which may be an earlier, unclamped date such as
+// Jan 31 or Feb 29); any other date becomes the new anchor. Callers must first confirm the saved anchor and
+// recurrence still equal the form's expected ones (otherwise the shown date no longer belongs to this schedule).
+export function keepAnchorIfUnchanged(input: ScheduleInput, savedAnchor: unknown, shownDue: string | null): ScheduleInput {
+  if (input.due_anchor_date === null || shownDue === null || !isAllowedDueDate(savedAnchor)) return input;
+  return input.due_anchor_date === shownDue ? { ...input, due_anchor_date: savedAnchor } : input;
 }
