@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { centsFromDb, type IsoDate } from "@/lib/bills/schedule";
-import { evaluateSetAside, firstCycleDue, isEligibleBill, isSetAsideRecurrence, nextCycleDue, type SetAsideBill, type SetAsideTracker } from "@/lib/bills/set-aside";
+import { canUpdateReported, evaluateSetAside, firstCycleDue, isEligibleBill, nextCycleDue, type SetAsideBill, type SetAsideTracker } from "@/lib/bills/set-aside";
 import { centsToDecimal, confirmed, formDate, formRecurrence, formUuid, formVersion, reportedAmount, type SetAsideFieldError } from "@/lib/bills/set-aside-form";
 import { todayUtc } from "@/lib/plan/plan-result";
 import { resolveScenarioHouseholdAuthority } from "@/lib/scenarios/scenario-auth";
+import { parseSetAsideRow, SET_ASIDE_COLUMNS } from "@/lib/supabase/set-asides";
 import { createClient } from "@/lib/supabase/server";
 
 // FFH-P11 set-aside trackers (issue #172). Identity and household come from the server, never the form; owner/member
@@ -46,15 +47,15 @@ async function loadBill(supabase: Supabase, householdId: string, expenseId: stri
 }
 
 async function loadTracker(supabase: Supabase, householdId: string, trackerId: string, expenseId: string): Promise<SetAsideTracker | null> {
-  const { data, error } = await supabase.from("bill_set_asides")
-    .select("id, expense_id, cycle_due_date, cycle_anchor_date, cycle_recurrence, reserved_amount, version")
+  const { data, error } = await supabase.from("bill_set_asides").select(SET_ASIDE_COLUMNS)
     .eq("id", trackerId).eq("household_id", householdId).eq("expense_id", expenseId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const reservedCents = centsFromDb(data.reserved_amount);
-  if (reservedCents === null || !isSetAsideRecurrence(data.cycle_recurrence)) throw new Error("Invalid set-aside");
-  return { id: data.id, expenseId: data.expense_id, cycleDue: data.cycle_due_date, cycleAnchor: data.cycle_anchor_date,
-    cycleRecurrence: data.cycle_recurrence, reservedCents, version: data.version };
+  try {
+    return parseSetAsideRow(data);
+  } catch {
+    return null; // an unexpected row is refused as "not saved", never guessed
+  }
 }
 
 // Database refusals mapped to fixed messages; anything unexpected is thrown (fails closed, nothing guessed).
@@ -107,7 +108,12 @@ export async function updateSetAside(formData: FormData) {
   if (!amount.ok) back("update", expenseId, { error: amount.error });
 
   const supabase = await createClient();
-  // Only the reported amount changes; the cycle stays as confirmed. Conditional on the version that was shown.
+  // Pre-freeze review: the tracker's version does not change when the BILL changes or a due date passes, so re-check
+  // the state from the current bill and tracker. A passed, changed or ineligible cycle must be confirmed first.
+  const [bill, tracker] = await Promise.all([loadBill(supabase, householdId, expenseId), loadTracker(supabase, householdId, trackerId, expenseId)]);
+  if (!bill || !tracker) back("update", expenseId, { error: "not_saved" });
+  if (tracker.version !== version || !canUpdateReported(evaluateSetAside(bill, tracker, todayUtc()).status)) back("update", expenseId, { error: "changed" });
+  // Only the reported amount changes; the cycle stays as confirmed. Conditional on the version that was checked.
   const { data, error } = await supabase.from("bill_set_asides")
     .update({ reserved_amount: centsToDecimal(amount.value) })
     .eq("id", trackerId).eq("household_id", householdId).eq("expense_id", expenseId).eq("version", version)

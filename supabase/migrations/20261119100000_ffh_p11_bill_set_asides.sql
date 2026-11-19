@@ -70,6 +70,19 @@ begin
     new.created_by := auth.uid();
     new.created_at := now();
   else
+    -- ON DELETE SET NULL from a deleted account (created_by/updated_by -> auth.users): only an audit column becomes
+    -- NULL and nothing else changes. Let it through as is; re-stamping it would point at the deleted account, fail the
+    -- foreign key and so block that person's account deletion (pre-freeze review). No data or version changes.
+    if (new.created_by is null or new.updated_by is null)
+       and (new.created_by is distinct from old.created_by or new.updated_by is distinct from old.updated_by)
+       and (new.created_by is null or new.created_by = old.created_by)
+       and (new.updated_by is null or new.updated_by = old.updated_by)
+       and (new.id, new.household_id, new.expense_id, new.cycle_due_date, new.cycle_anchor_date, new.cycle_recurrence,
+            new.reserved_amount, new.version, new.created_at, new.updated_at)
+           is not distinct from (old.id, old.household_id, old.expense_id, old.cycle_due_date, old.cycle_anchor_date,
+            old.cycle_recurrence, old.reserved_amount, old.version, old.created_at, old.updated_at) then
+      return new;
+    end if;
     if new.household_id is distinct from old.household_id or new.expense_id is distinct from old.expense_id then
       raise exception 'a set-aside cannot be moved to another bill' using errcode = '22023';
     end if;

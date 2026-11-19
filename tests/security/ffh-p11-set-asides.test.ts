@@ -28,6 +28,9 @@ test("FFH-P11 migration: household-consistent FK, one tracker per bill, RLS thro
   assert.match(migration, /revoke all on function private\.bill_set_aside_before_write\(\) from public, anon, authenticated/);
   // The trigger owns the version and the identity columns, checks eligibility against the CURRENT bill and locks it.
   assert.match(migration, /new\.version := old\.version \+ 1/);
+  // Pre-freeze review: an account's ON DELETE SET NULL on the audit columns passes through unchanged (else the FK
+  // check would block deleting that account); anything else is a normal, version-bumped, re-stamped update.
+  assert.match(migration, /\(new\.created_by is null or new\.updated_by is null\)[\s\S]{0,700}is not distinct from[\s\S]{0,300}then\s+return new;/);
   assert.match(migration, /for share/);
   assert.match(migration, /v_recurrence not in \('quarterly', 'yearly'\) or v_anchor is null or v_payment is null or v_payment <= 0/);
   assert.match(migration, /new\.cycle_due_date < \(now\(\) at time zone 'utc'\)::date/);
@@ -49,6 +52,7 @@ test("FFH-P11 financial noninterference: the plan, its snapshot, the engine and 
   // Nothing here writes a bill or any other table.
   assert.doesNotMatch(actions, /from\("(expenses|debts|goals|savings_goals|accounts)"\)\.(insert|update|delete|upsert)/);
   assert.equal((actions.match(/\.from\("expenses"\)/g) ?? []).length, 1, "the bill is only read (once, in loadBill)");
+  assert.doesNotMatch(actions, /\.from\("expenses"\)\.(insert|update|delete|upsert)/);
 });
 
 test("FFH-P11 server actions: server-derived identity, owner/member only, guarded writes, no forged household", () => {
@@ -62,6 +66,10 @@ test("FFH-P11 server actions: server-derived identity, owner/member only, guarde
   for (const w of writes) assert.match(w.slice(0, 600), /household_id/, "scoped to household");
   const guarded = actions.match(/\.(update|delete)\([^)]*\)[\s\S]{0,300}?\.eq\("version", version\)/g) ?? [];
   assert.equal(guarded.length, 3, "update, cycle confirmation and stop are all version-guarded");
+  // A reported-amount update re-checks the current bill and tracker state (the version does not change when the bill
+  // changes or a due date passes).
+  assert.match(actions, /canUpdateReported\(evaluateSetAside\(bill, tracker, todayUtc\(\)\)\.status\)/);
+  assert.match(component, /const editable = canUpdateReported\(r\.status\);/);
   // Every date the form showed is recomputed from the bill's current schedule.
   assert.match(actions, /firstCycleDue\(bill, todayUtc\(\)\) !== shownCycle/);
   assert.match(actions, /nextCycleDue\(bill, tracker, today\) !== shownNext/);

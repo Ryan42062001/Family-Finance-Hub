@@ -207,7 +207,7 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
   assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=27 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1298/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1304/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -283,9 +283,10 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   // FFH-P09 adds 49 bills/due-date probes (exact-cent monthly equivalents, legacy writers, owner/member-only due
   // metadata, viewer read-only, household isolation, session gating).
   assert.equal(1186 + 49, 1235);
-  // FFH-P11 adds 63 set-aside probes (eligibility and cycle rules, guarded versions, owner/member write, viewer
-  // read-only, household isolation and forged pairings, dead/expired/pending-2FA sessions, cascade, no bill change).
-  assert.equal(1235 + 63, 1298);
+  // FFH-P11 adds 69 set-aside probes (eligibility and cycle rules, guarded versions, owner/member write, viewer
+  // read-only, household isolation and forged pairings, dead/expired/pending-2FA sessions, cascade, no bill change,
+  // and pre-freeze review: account deletion is not blocked by the audit columns).
+  assert.equal(1235 + 69, 1304);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {

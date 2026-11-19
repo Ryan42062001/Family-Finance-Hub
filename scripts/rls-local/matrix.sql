@@ -1827,6 +1827,17 @@ BEGIN
   PERFORM pg_temp.ffh_p11_expect('owner-deletes-bill', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
     format('WITH r AS (DELETE FROM public.expenses WHERE id = %L RETURNING 1) SELECT count(*)::text FROM r', e_year)), '1');
   PERFORM pg_temp.ffh_p11_expect('bill-delete-cascades-tracker', (SELECT count(*)::text FROM public.bill_set_asides WHERE id = t_year), '0');
+  -- 7. Pre-freeze review: deleting an account that started or edited a tracker works (ON DELETE SET NULL of the audit
+  --    columns is not re-stamped by the trigger); the tracker and its numbers stay; nulling an audit column changes nothing else.
+  PERFORM pg_temp.ffh_p11_expect('member-starts-tracker-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '12.34')), '1');
+  PERFORM pg_temp.ffh_p11_expect('member-edits-tracker-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    format(upd, 'reserved_amount = 12.35', (SELECT id FROM public.bill_set_asides WHERE expense_id = e_q2), '')), '2');
+  DELETE FROM auth.users WHERE id = u_m;
+  PERFORM pg_temp.ffh_p11_expect('account-delete-keeps-tracker', (SELECT concat_ws(',',reserved_amount,version,created_by IS NULL,updated_by IS NULL)
+    FROM public.bill_set_asides WHERE expense_id = e_q2), '12.35,2,t,t');
+  PERFORM pg_temp.ffh_p11_expect('null-audit-column-changes-nothing-else', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL', t_x, '')), '1');
+  PERFORM pg_temp.ffh_p11_expect('null-audit-column-keeps-reserve', (SELECT concat_ws(',',reserved_amount,version) FROM public.bill_set_asides WHERE id = t_x), '50.00,1');
+  PERFORM pg_temp.ffh_p11_expect('null-plus-data-change-is-normal-update', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL, reserved_amount = 60', t_x, '')), '2');
   PERFORM pg_temp.ffh_p11_expect('no-orphan-trackers', (SELECT count(*)::text FROM public.bill_set_asides s
     WHERE NOT EXISTS (SELECT 1 FROM public.expenses e WHERE e.id = s.expense_id AND e.household_id = s.household_id)), '0');
 END

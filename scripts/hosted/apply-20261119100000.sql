@@ -94,6 +94,19 @@ begin
     new.created_by := auth.uid();
     new.created_at := now();
   else
+    -- ON DELETE SET NULL from a deleted account (created_by/updated_by -> auth.users): only an audit column becomes
+    -- NULL and nothing else changes. Let it through as is; re-stamping it would point at the deleted account, fail the
+    -- foreign key and so block that person's account deletion (pre-freeze review). No data or version changes.
+    if (new.created_by is null or new.updated_by is null)
+       and (new.created_by is distinct from old.created_by or new.updated_by is distinct from old.updated_by)
+       and (new.created_by is null or new.created_by = old.created_by)
+       and (new.updated_by is null or new.updated_by = old.updated_by)
+       and (new.id, new.household_id, new.expense_id, new.cycle_due_date, new.cycle_anchor_date, new.cycle_recurrence,
+            new.reserved_amount, new.version, new.created_at, new.updated_at)
+           is not distinct from (old.id, old.household_id, old.expense_id, old.cycle_due_date, old.cycle_anchor_date,
+            old.cycle_recurrence, old.reserved_amount, old.version, old.created_at, old.updated_at) then
+      return new;
+    end if;
     if new.household_id is distinct from old.household_id or new.expense_id is distinct from old.expense_id then
       raise exception 'a set-aside cannot be moved to another bill' using errcode = '22023';
     end if;
@@ -294,7 +307,7 @@ from (values
   ('columns', 275, '7309705e7e48be8309c829fcdf491e3f'),
   ('constraints', 217, '33f580d48524bd3110ef359362413418'),
   ('function_grants', 56, 'fd7a5539898a5f21be983958f865a4a3'),
-  ('functions', 28, '5c2792d03da5742b33ff5b95aaefff81'),
+  ('functions', 28, '71958604cd7f93c234c8dbf9e0f7ee34'),
   ('migrations', 27, 'a5773b418a326649aea8e481f8a354cc'),
   ('policies', 78, '021bbf3fe8922bc7542b07abe672ca02'),
   ('rls', 21, '74b4f28612fb824c6cfb3a53521b1110'),

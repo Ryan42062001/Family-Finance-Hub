@@ -1,6 +1,6 @@
 import { confirmSetAsideCycle, startSetAside, stopSetAside, updateSetAside, type SetAsideError, type SetAsideForm } from "./set-aside-actions";
 import type { EligibleBill, SetAsideSection, TrackedSetAside } from "@/lib/bills/set-aside-view";
-import { SET_ASIDE_STATUS_LABEL } from "@/lib/bills/set-aside";
+import { canUpdateReported, SET_ASIDE_STATUS_LABEL } from "@/lib/bills/set-aside";
 import { formatCents, RECURRENCE_LABEL } from "@/lib/bills/schedule";
 
 // FFH-P11 set-asides on the Bills page (issue #172). Server-rendered, native form controls only. Owner safeguards:
@@ -66,7 +66,7 @@ function Explanation({ item }: { item: TrackedSetAside }) {
     case "in_progress":
       return r.savingPeriods === 1
         ? <p><b>{formatCents(r.remainingCents!)} still needed before {due}</b>; 1 remaining saving period ({r.daysUntilDue} {r.daysUntilDue === 1 ? "day" : "days"} left). This is the whole remaining amount, not a monthly amount.</p>
-        : <p>To reach the bill amount by {due}: about <b>{formatCents(r.catchUpCents!)} per saving period</b> for {periodsLabel(r.savingPeriods!)} (calendar months from this one through the due date). Rounded up to the cent, so it can total a few cents more than needed. A suggestion only: it is not added to your plan or budget.</p>;
+        : <p>To reach the bill amount by {due}: about <b>{formatCents(r.catchUpCents!)} per saving period</b> for {periodsLabel(r.savingPeriods!)} (the months left until the due date, a part month counting as one). Rounded up to the cent, so it can total a few cents more than needed. A suggestion only: it is not added to your plan or budget.</p>;
     case "funded":
       return <p>The amount you&apos;ve reported covers the bill due {due}. Nothing more is suggested.</p>;
     case "due_now":
@@ -83,7 +83,7 @@ function Explanation({ item }: { item: TrackedSetAside }) {
 function TrackedCard({ item, canEdit, feedback }: { item: TrackedSetAside; canEdit: boolean; feedback: SetAsideFeedback }) {
   const { bill, tracker, result: r } = item;
   const base = `set-aside-${bill.id}`;
-  const editable = r.status === "in_progress" || r.status === "funded" || r.status === "due_now";
+  const editable = canUpdateReported(r.status);
   const updateError = errorFor(feedback, "update", bill.id);
   const cycleError = errorFor(feedback, "cycle", bill.id);
   const stopError = errorFor(feedback, "stop", bill.id);

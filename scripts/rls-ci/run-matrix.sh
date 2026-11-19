@@ -12,7 +12,7 @@ set -euo pipefail
 
 CLI="supabase@2.122.0"
 EXPECTED_MIGRATIONS=27
-EXPECTED_ASSERTIONS=1298
+EXPECTED_ASSERTIONS=1304
 # Unique per CI run and attempt, so it can never match a pre-existing project.
 PROJECT_ID="ffh_ci_rls_$(printf '%s_%s' "${GITHUB_RUN_ID:-0}" "${GITHUB_RUN_ATTEMPT:-0}" | tr -c 'a-zA-Z0-9_' '_')"
 CONTAINER="supabase_db_${PROJECT_ID}"
