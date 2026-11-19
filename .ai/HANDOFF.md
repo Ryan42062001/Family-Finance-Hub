@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-18 — FFH-P09 building (PR #178); FFH-P08 released and closed.
+Updated: 2026-11-19 — FFH-P09 FREEZE_READY (audit PASS, QA PASS, hosted parity 9/9); awaiting Ryan's release decision.
 
 - **Production:** FFH-P08 Account settings and security, merged as `2a62022b5e5ae9d60a32fd7ac6745ffb4366e904` from phase
   head `1aaa96cd89f1e35b49d61c23731f2a37e23ed632` (PR #176, Ryan's explicit authorization 2026-11-18). Production
