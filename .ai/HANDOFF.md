@@ -1,14 +1,15 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-19 — FFH-P10 BUILDING.
+Updated: 2026-11-19 — FFH-P10 AUDITING (QA Q46–Q57 PASS at `c8734bd`).
 
 - **Now:** FFH-P10 Can We Afford It? (issue #171) on `phase/ffh-p10-can-we-afford-it`, phase PR #189 (draft into
   `main`). Scope and status: `.ai/CURRENT_PHASE.md`; Builder interpretations: `.ai/DECISIONS.md` (2026-11-19 P10 entry).
 - **Code:** `lib/purchase-check/` (input parser, server execution on the canonical adapters, rules of thumb, wording),
   `app/what-if/` (hub, guided purchase page, read-only server action). Tests:
   `lib/calculations/ffh-p10-purchase-check.test.ts`, `tests/security/ffh-p10-can-we-afford-it.test.ts`.
-- **Owner steps pending:** move the fixed Preview domain to `phase/ffh-p10-can-we-afford-it` (Vercel), then QA
-  Q46–Q57; release authorization later.
+- **Owner steps pending:** run the independent different-model audit on the frozen candidate (prompt in
+  `docs/workflow/REVIEW_PROMPT.md`); phone device checks for Q46/Q57; release authorization later. The fixed Preview
+  now serves `phase/ffh-p10-can-we-afford-it`.
 - **Previous phase (P09):**
   - **Production:** FFH-P09 Bills, due dates & exports, merged as `83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` from phase
   head `d4de2a1c9ae91ee92566b42d3f1d3d3faba748bf` (PR #186, Ryan's explicit authorization 2026-11-19). Production

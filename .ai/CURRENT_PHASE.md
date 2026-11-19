@@ -2,7 +2,7 @@
 
 FFH-P10 — Can We Afford It? + financial best-practice warnings
 
-State: BUILDING
+State: AUDITING
 Risk: HIGH (money calculations and advice presentation, household isolation, read-only scenario surface)
 Owner: Ryan
 Spec (binding): GitHub issue #171 (Owner-approved design); workflow addition: issue #188 (lessons learned)
@@ -27,3 +27,11 @@ domain), secrets and real data need Ryan's approval per action.
   nonblocking; "Insufficient information" when an input is missing.
 - No migration, no new table, no hosted change expected. No hypothetical PDF/CSV export.
 - QA rows Q46–Q57.
+
+## Status (2026-11-19)
+
+- Built and merged into the phase branch via #190 (`c8734bd`); whole-phase `/code-review high`: 6 findings, all fixed.
+- `c8734bd`: CI `fast`, `rls-matrix`, `e2e-isolation` PASS 58/58 (incl. `/what-if`, `/what-if/purchase`); Preview
+  serves it; Preview smoke 12/12; signed-out `/what-if*` → Sign in.
+- Browser QA Q46–Q57 PASS on `c8734bd` (no findings); phone-width parts of Q46/Q57 are Ryan's device checks (NOT RUN).
+- Frozen for the independent different-model audit at the phase head after this docs-only update (app code as QA'd).
