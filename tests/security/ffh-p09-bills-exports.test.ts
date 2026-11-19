@@ -115,3 +115,11 @@ test("FFH-P09 QA #180: bills screens never say paid, unpaid or overdue (no payme
     assert.doesNotMatch(code, /\b(paid|unpaid|overdue)\b/i, file);
   }
 });
+
+test("FFH-P09 QA #182: the mobile account menu's full-width rule targets Sign out only, not the Simple view switch", () => {
+  const css = read("app/globals.css");
+  assert.doesNotMatch(css, /\.mobile-account-menu form button\{width:100%\}/, "an unscoped form-button rule stretches the switch");
+  assert.match(css, /\.mobile-account-menu form button\.nav-sign-out\{width:100%\}/);
+  assert.match(css, /\.mobile-account-menu \.simple-mode-switch span\{margin-bottom:0\}/);
+  assert.match(css, /\.simple-mode-toggle\{position:relative;flex:0 0 auto;width:46px;height:26px/);
+});

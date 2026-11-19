@@ -128,7 +128,8 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
   .mobile-account-menu>summary{min-height:44px;min-width:74px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.35);border-radius:9px;cursor:pointer;font-size:.83rem;font-weight:750}
   .mobile-account-menu>div{position:absolute;right:0;top:calc(100% + .55rem);width:min(260px,85vw);padding:1rem;background:var(--forest-950);border-radius:12px;box-shadow:var(--shadow-md);z-index:30}
   .mobile-account-menu span{font-size:.78rem;display:block;margin-bottom:.5rem}
-  .mobile-account-menu form button{width:100%}
+  .mobile-account-menu form button.nav-sign-out{width:100%}
+  .mobile-account-menu .simple-mode-switch span{margin-bottom:0}
   .mobile-bottom-nav{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:35;grid-template-columns:repeat(4,minmax(0,1fr));padding:.35rem max(.25rem,env(safe-area-inset-right)) calc(.3rem + env(safe-area-inset-bottom)) max(.25rem,env(safe-area-inset-left));background:rgba(255,255,255,.98);border-top:1px solid var(--line);box-shadow:0 -5px 18px rgba(16,42,36,.09)}
   .mobile-bottom-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.06rem;min-width:0;min-height:50px;padding:.28rem .1rem;border-radius:10px;font-size:.71rem;color:var(--muted);font-weight:750}
   .mobile-bottom-nav .mobile-nav-icon{font-size:1.3rem;line-height:1.1}
