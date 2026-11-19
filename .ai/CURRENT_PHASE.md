@@ -1,96 +1,42 @@
 # Current phase
 
-FFH-P08 — Account settings and security
+FFH-P09 — Bills, due dates & exports
 
-State: FREEZE_READY — built, hosted, QA'd and independently audited (audit 1 FAIL → fixes → re-review PASS at
-`ce854b7`); waiting on Ryan's separate exact-SHA Production release decision
-Risk: HIGH (authentication, sessions, account deletion, identity-provider configuration, and household RLS)
+State: FREEZE_READY — built, hosted, QA'd and independently audited (audit PASS at `6bd5c70`, both findings fixed);
+waiting on Ryan's separate exact-SHA Production release decision
+Risk: HIGH (money input representation, schema change on financial tables, household RLS, data export)
 Owner: Ryan
-Phase branch: `phase/ffh-p08-account-security`
-Production baseline: FFH-P07, PR #155, merged into protected `main` as `1c4753dab2e3a9e38fbfbe34ce82397e92047f43`
-Previous phase: FFH-P07 RELEASED / CLOSED (Owner-reported Production smoke PASS 12/12).
+Spec (binding): GitHub issue #170 (Owner-approved product decisions and invariants)
+Phase branch: `phase/ffh-p09-bills-exports` (from Production `2a62022b5e5ae9d60a32fd7ac6745ffb4366e904`)
+Phase PR: #178 (draft, into the phase branch)
+Previous phase: FFH-P08 RELEASED / CLOSED (PR #176, Production smoke 12/12); its close-out (draft #177) is carried here.
 
-**Production deployment is NOT authorized by this planning/documentation cleanup.** Every future merge into
-`main` is a separate Production release requiring Ryan's explicit exact-SHA authorization. Changes to
-Supabase Auth, hosted SQL, Vercel, secrets, user accounts, or real data also require Ryan's specific
-approval per action. Starting a phase branch does not grant any of these permissions.
+**Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
+Ryan's explicit exact-SHA authorization. Hosted SQL, Supabase Auth, Vercel, secrets and real data need Ryan's
+approval per action.
 
-## Release readiness (2026-11-18)
+## What P09 builds
 
-- **Candidate:** phase head after the release-prep PR (the release PR names the exact SHA). App code reviewed at
-  `ce854b7cf95691f9fed46cbc228323c24220326d`; commits after it are docs only.
-- **CI:** exact-head green (`fast`; `rls-matrix` 1186 assertions, coverage 10/10 mutations, three race tests,
-  real-provider 38/38; `e2e-isolation` TestA/TestB on the Preview).
-- **Hosted (Ryan, 2026-11-18):** read-only privilege check as expected; Auth settings on (secure password change,
-  current password required, minimum 8, TOTP); migrations `20261118100000` + `20261118110000` applied, parity 9/9,
-  25 migrations. Preview on the phase branch, smoke 12/12.
-- **Browser QA:** 34 PASS / 0 FAIL / 3 NOT RUN (Q9, Q11 unchanged screens; Q24 last step), TestC lifecycle incl.
-  deletion; no `qa-finding` issues.
-- **Independent audit:** FAIL at `ed915d41` (F01 HIGH, F02/F03 MEDIUM, F04 LOW) → fixed → targeted re-review
-  **PASS** at `ce854b7`. F04 LOW in backlog. Receipt: `docs/workflow/FFH-P08_AUDIT.md`.
-- **Release checklist:** Production env vars unchanged since P07 (no new variables in P08); hosted parity matches;
-  after the merge, Production smoke `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12.
+- Expenses: actual payment + recurrence (monthly / quarterly / yearly); `monthly_amount` (the engine's only input) is
+  derived in the database in exact cents, rounded up. Debts: monthly minimum payments unchanged.
+- Optional due-date anchor and household-wide reminder (Off / due day / 1 / 3 / 7 days) on expenses and debts.
+- `/bills`: Upcoming 30 days, All bills, Unscheduled, Due soon, collapsed current+11-month forecast of actual payments.
+- Your plan: upcoming-bills summary; `/plan/print` (browser Save as PDF); `/plan/steps-csv` (formula-safe CSV).
+- Account-menu entry "Bills & due dates"; no new bottom tab. Payment tracking is out of scope.
 
-## Roadmap goal (item 6)
+## Release readiness (2026-11-19)
 
-Provide account settings for changing a password, changing an email address, deleting an account
-(including safe test-account cleanup), and authenticator-app two-factor sign-in. The roadmap order
-is unchanged; bills/due dates and plan export follow this item.
-
-## Current planning status
-
-- The design is `docs/FFH-P08_PROPOSAL.md`. **Ryan approved its scope and R1–R8 as recommended (2026-11-18):**
-  - R1 email change **deferred** (needs custom SMTP); P08 builds A (change password), B (TOTP 2FA), C (delete account).
-  - R2 deletion through a SECURITY DEFINER SQL function, **only if** the spike and Ryan's read-only hosted check prove
-    it works; otherwise back to Ryan (Admin API + service-role key is not approved).
-  - R3 an owner whose household has other members is **refused**. R4 deletion is **permanent**, with password (+ code
-    if 2FA) re-entry, typed `DELETE` and a list of what is removed.
-  - R5 optional second authenticator; otherwise an Owner-assisted reset by Ryan after he confirms identity himself.
-  - R6 minimum **8** characters (amended by Ryan 2026-11-18 from 12), no forced character classes, Secure password change on.
-  - R7 2FA optional per person, enforced **in the database** for anyone with a verified factor.
-  - R8 TestA/TestB stay password-only; synthetic TestC for 2FA QA; a documented list of removable synthetic accounts.
-- **Threat-model review round 1: FAIL** at `5c87b119` (receipt `docs/workflow/FFH-P08_THREAT_MODEL_REVIEW.md`).
-  The Builder answered with **Revision 1 = proposal §10 (binding)**: security epoch, FFH factor registry, one
-  `session_ok()` predicate on every authorization path with a CI coverage probe, database-verified recent
-  re-authentication inside `delete_my_account` and other sensitive RPCs, household-row lock protocol, Owner reset
-  procedure. **Next gates:** targeted re-review (prompt "Round 2"), Ryan's **R9–R11** (§10.10), then the CI-only spike
-  (§10.9 step 2). **Round 2 FAILED** at `9af92874`; **Revision 2 = proposal §11 (binding, overrides §10)**: session-row
-  liveness instead of the clock epoch, `aal2` bound to an approved factor via `auth.sessions.factor_id` (fail-closed
-  fallback), one household→invitation→membership lock order, view/privilege coverage probe with mutation tests,
-  spike pass/fail table §11.6. Next: round 3 re-review. **No P08 feature code before a re-review passes.**
-- Any provider capabilities, SQL privileges, auth-schema cascades, or MFA assumptions must be
-  proven in disposable/local tests and separately authorized hosted checks before use.
-
-## Scope and permissions boundary
-
-- No new financial calculations or modifications to the Money Priority Engine.
-- Do not reintroduce features deferred from P07 (Can We Afford It, irregular-cost set-asides,
-  per-paycheck view, 30-day balance reminders). Do not pull bills/export forward.
-- Auth, permissions, deletes, identity-provider changes, and recovery paths must fail closed.
-  The one-household-per-account invariant and strict household isolation remain mandatory.
-- Test only with synthetic accounts and records; preserve TestA/TestB for automated isolation.
-  Do not delete real accounts, perform cleanup against hosted data, or collect passwords/TOTP
-  secrets in repository evidence.
-- The fixed Preview URL is still assigned to the **P07** phase branch according to the P07
-  handoff. Ryan must separately authorize any Vercel configuration change for P08.
-
-## CI / security-maintenance gate
-
-- **Resolved (PR #163, merged 2026-11-18):** the inherited 9 HIGH / 6 MODERATE `npm audit` failure. MODERATE fixed
-  by a non-breaking lockfile update. The HIGH findings are one advisory, GHSA-fc5q-39xc-vjpf (picomatch ReDoS), with
-  **no patched release**, reachable only through the dev-only ESLint toolchain. With Ryan's approval (option 2),
-  `scripts/audit-gate.mjs` keeps the HIGH threshold and tolerates only that advisory while it is HIGH, dev-only and
-  before **2027-01-18**. Details: `docs/workflow/FFH-P08_DEPENDENCY_AUDIT.md`. Phase CI is green again
-  (`fast` + `rls-matrix`, run 44219292900 on the #162 head).
-
-## Entry checklist
-
-1. Start a **fresh Claude Code chat dedicated to P08**, using this file, `.ai/HANDOFF.md`,
-   `.ai/DECISIONS.md`, `docs/PRODUCT_ROADMAP.md`, `docs/WORKFLOW.md` and the P08 proposal.
-2. ~~Obtain Ryan's R1–R8 decisions~~ (done 2026-11-18) and get the high-risk threat-model review before source
-   implementation.
-3. ~~Restore exact-head green required CI~~ (done, PR #163).
-4. Implement via one active Claude Builder on its own PRs, owner-only hosted authorizations,
-   independent different-model audit, synthetic Preview QA, exact-SHA Production approval, and 12/12 smoke.
-5. At phase completion, explicitly notify Ryan: **PHASE COMPLETE — START A FRESH CLAUDE CODE CHAT**;
-   record closure in the next phase's docs, not as an unauthorized docs-only Production release.
+- **Candidate:** phase head after this release-prep PR (the release PR names the exact SHA). App code last changed at
+  `dceba8db0deaef7c7794f8218af5509365ab21bb` (audit fixes, PR #184); commits after it are docs only.
+- **CI:** exact-head green required on the candidate (`fast`; `rls-matrix` 1235 assertions, coverage 10/10, race and
+  real-provider suites, P09 upgrade check; `e2e-isolation` TestA/TestB on the Preview incl. `/bills` and `/plan/print`).
+- **Hosted (Ryan):** pre-check `25 | false | false`; migration `20261118120000` applied and recorded; existing rows
+  `0 | 0 | 0`; `strip-cr.sql` then parity **9/9**, 26 migrations. Preview on the phase branch; smoke 12/12.
+- **Browser QA:** Q38–Q45 PASS (Q38/Q43 device parts by Ryan; Q41 re-checked after #180). Findings #180 and #182
+  fixed and closed; no open `qa-finding` issues.
+- **Independent audit (different model):** `REVIEW RESULT: PASS` at `6bd5c708e16b9d9fabaa86f2258cd0a50736d669`;
+  P09-01 MEDIUM and P09-02 LOW fixed in #184. Receipt: `docs/workflow/FFH-P09_AUDIT.md`.
+- **Release checklist:** no new environment variables in P09 (Production variables unchanged since P08); hosted parity
+  matches the candidate (no migration after `20261118120000`); after the merge, Production smoke
+  `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12, plus the
+  signed-out `/bills`, `/plan/print`, `/plan/steps-csv` redirects.

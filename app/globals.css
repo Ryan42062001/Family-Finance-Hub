@@ -128,7 +128,8 @@ button:hover,.secondary-button:hover{transform:translateY(-1px);box-shadow:0 7px
   .mobile-account-menu>summary{min-height:44px;min-width:74px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.35);border-radius:9px;cursor:pointer;font-size:.83rem;font-weight:750}
   .mobile-account-menu>div{position:absolute;right:0;top:calc(100% + .55rem);width:min(260px,85vw);padding:1rem;background:var(--forest-950);border-radius:12px;box-shadow:var(--shadow-md);z-index:30}
   .mobile-account-menu span{font-size:.78rem;display:block;margin-bottom:.5rem}
-  .mobile-account-menu form button{width:100%}
+  .mobile-account-menu form button.nav-sign-out{width:100%}
+  .mobile-account-menu .simple-mode-switch span{margin-bottom:0}
   .mobile-bottom-nav{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:35;grid-template-columns:repeat(4,minmax(0,1fr));padding:.35rem max(.25rem,env(safe-area-inset-right)) calc(.3rem + env(safe-area-inset-bottom)) max(.25rem,env(safe-area-inset-left));background:rgba(255,255,255,.98);border-top:1px solid var(--line);box-shadow:0 -5px 18px rgba(16,42,36,.09)}
   .mobile-bottom-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.06rem;min-width:0;min-height:50px;padding:.28rem .1rem;border-radius:10px;font-size:.71rem;color:var(--muted);font-weight:750}
   .mobile-bottom-nav .mobile-nav-icon{font-size:1.3rem;line-height:1.1}
@@ -1075,3 +1076,45 @@ button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
 .two-factor-steps { padding-left: 1.25rem; display: grid; gap: 0.75rem; }
 .two-factor-qr { display: block; margin-top: 0.5rem; background: #fff; padding: 0.5rem; border-radius: 0.5rem; }
 .two-factor-secret { word-break: break-all; user-select: all; }
+
+/* FFH-P09 bills, due dates & exports */
+.bills-page .bento-card h2 .muted { font-weight: 500; font-size: 0.9em; }
+.bill-list, .bill-occurrences, .bill-forecast-months { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.bill-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.35rem 0.75rem; padding: 0.75rem 0; border-top: 1px solid var(--line, #dfe6e1); }
+.bill-row:first-child { border-top: 0; }
+.bill-row-main { display: grid; gap: 0.2rem; min-width: 0; }
+.bill-row-main strong { overflow-wrap: anywhere; }
+.bill-kind { align-self: start; font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: var(--accent-soft); }
+.bill-row .bill-schedule-edit { grid-column: 1 / -1; }
+.bill-occurrences li { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: baseline; }
+.bill-occurrences li span:nth-child(2) { overflow-wrap: anywhere; }
+.bill-forecast > summary, .bill-forecast-months summary { display: flex; justify-content: space-between; gap: 1rem; cursor: pointer; font-weight: 700; }
+.bill-forecast-months summary { font-weight: 600; padding: 0.4rem 0; }
+.bill-forecast-months details { border-top: 1px solid var(--line, #dfe6e1); }
+.bill-monthly-preview { margin: 0; font-size: 0.92rem; }
+.bill-confirm { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.92rem; }
+.bill-confirm input { margin-top: 0.2rem; min-width: 1.1rem; min-height: 1.1rem; }
+.bill-confirm-needed { padding: 0.6rem; border-radius: 10px; border: 1px solid var(--danger-line, #efc5ca); background: var(--danger-soft, #fdebed); }
+.bill-reminders ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.plan-bills-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.plan-export-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.print-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.print-summary { display: grid; gap: 0.5rem; margin: 0; }
+.print-summary dt { font-weight: 700; }
+.print-summary dd { margin: 0; }
+.print-steps { display: grid; gap: 1rem; padding-left: 1.4rem; }
+.print-steps h3 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+.print-status { font-weight: 500; }
+.print-section { margin-top: 1.5rem; }
+@media (max-width: 640px) {
+  .bill-occurrences li { grid-template-columns: minmax(0, 1fr) auto; }
+  .bill-occurrences li span:first-child { grid-column: 1 / -1; font-size: 0.85rem; }
+}
+@media print {
+  .site-header, .app-sidebar, .mobile-bottom-nav, .no-print { display: none !important; }
+  body, .page-shell { background: #fff !important; color: #000 !important; }
+  .app-sidebar ~ #main-content { margin-left: 0 !important; }
+  .plan-print { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .print-steps li { break-inside: avoid; }
+  a { color: #000; text-decoration: none; }
+}

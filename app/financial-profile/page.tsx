@@ -30,7 +30,13 @@ import {
 } from "./actions";
 
 export const dynamic = "force-dynamic";
-type PageProps = { searchParams: Promise<{ message?: string }> };
+type PageProps = { searchParams: Promise<{ message?: string; error?: string }> };
+
+// FFH-P09: fixed, allowlisted problems after a refused expense edit; the text never comes from the URL.
+const PROFILE_ERRORS: Record<string, string> = {
+  confirm_recurrence: "Not saved: you changed how often the expense repeats. Tick the confirmation to accept the new monthly planning amount, then save again.",
+  changed: "Not saved: this expense was changed somewhere else in the meantime. Review it and save again.",
+};
 
 function DeleteButton({ kind, id }: { kind: string; id: string }) {
   return (
@@ -72,7 +78,8 @@ async function SaveCelebration({ message, householdId }: { message: string; hous
 }
 
 export default async function FinancialProfilePage({ searchParams }: PageProps) {
-  const { message } = await searchParams;
+  const { message, error: errorKey } = await searchParams;
+  const profileError = typeof errorKey === "string" && Object.hasOwn(PROFILE_ERRORS, errorKey) ? PROFILE_ERRORS[errorKey] : null;
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   if (!claimsData?.claims?.sub) redirect("/auth/login");
@@ -94,7 +101,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
   const [accounts, income, expenses, debts, retirement, goals] = await Promise.all([
     supabase.from("accounts").select("id, name, account_type, balance, cash_purpose").eq("household_id", household.id).order("created_at"),
     supabase.from("income_sources").select("id, name, monthly_amount, monthly_gross_amount").eq("household_id", household.id).order("created_at"),
-    supabase.from("expenses").select("id, name, category, monthly_amount, is_essential").eq("household_id", household.id).order("created_at"),
+    supabase.from("expenses").select("id, name, category, monthly_amount, payment_amount, recurrence, is_essential").eq("household_id", household.id).order("created_at"),
     supabase.from("debts").select("id, name, debt_type, current_balance, interest_rate, minimum_payment").eq("household_id", household.id).order("created_at"),
     supabase.from("retirement_accounts").select("id, name, account_type, balance, owner_person_id, monthly_employee_contribution, monthly_employer_contribution, match_status, full_match_employee_contribution_monthly, employer_contribution_type, employee_contributed_ytd, employer_contributed_ytd, plan_eligible_compensation_annual").eq("household_id", household.id).order("created_at"),
     supabase.from("goals").select("id, name, target_amount, current_amount, target_date, priority, goal_class, necessity, deadline_flexibility, consequence_level, planned_monthly_contribution, core_need_amount, underlying_need, desired_solution, goal_nature, underfunding_consequence, borrowing_likelihood, expected_borrowing_amount, expected_borrowing_apr").eq("household_id", household.id).order("created_at"),
@@ -108,6 +115,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
         <div><p className="eyebrow">Your household data</p><h1>Financial profile</h1><p className="muted">The numbers behind your dashboard and planning tools. Changes save only when you submit a section.</p></div>
       </section>
       {message ? <SaveCelebration message={message} householdId={household.id} /> : null}
+      {profileError ? <p className="form-error" role="alert">{profileError}</p> : null}
 
 
 
@@ -132,7 +140,7 @@ export default async function FinancialProfilePage({ searchParams }: PageProps) 
           <details className="profile-add-disclosure"><summary>Add expense</summary><form className="data-form friendly-form" action={addExpense}>
             <ExpenseFields /><button type="submit">Add expense</button>
           </form></details>
-          <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{money(item.monthly_amount)}/mo · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form friendly-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><ExpenseFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
+          <div className="record-list">{expenses.data?.map((item) => <div className="record-row" key={item.id}><span><strong>{item.name}</strong><small>{item.recurrence === "monthly" ? <>{money(item.monthly_amount)}/mo</> : <>{money(item.payment_amount)} {item.recurrence === "yearly" ? "yearly" : "every 3 months"} · {money(item.monthly_amount)}/mo for planning</>} · {item.category}</small></span><RecordActions kind="expense" id={item.id}><form className="data-form edit-form friendly-form" action={updateExpense}><input type="hidden" name="id" value={item.id} /><ExpenseFields d={item} /><button type="submit">Save changes</button></form></RecordActions></div>)}</div>
           {(expenses.data?.length ?? 0) === 0 ? <p className="empty-state">No expenses yet. Start with rent or mortgage, groceries and utilities.</p> : null}
         </ProfileSection>
 

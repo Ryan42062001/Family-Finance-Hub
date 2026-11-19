@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 25 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 26 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -1565,6 +1565,113 @@ BEGIN
     UNION ALL SELECT 1 FROM auth.sessions WHERE user_id = u_two) z), '0');
 END
 $p08$;
+
+-- ===============================================================================================================
+-- FFH-P09 bills & due dates (issue #170). Own synthetic fixtures in this same uncommitted transaction.
+-- Exact-cent monthly equivalents rounded up, legacy monthly writers preserved, due/reminder metadata writable by
+-- owner/member only, readable by viewers, isolated per household, and gated by session_ok().
+-- ===============================================================================================================
+CREATE FUNCTION pg_temp.ffh_p09_expect(label text, got text, want text) RETURNS void
+LANGUAGE plpgsql AS $e$
+BEGIN
+  IF got IS DISTINCT FROM want THEN
+    RAISE EXCEPTION 'P09_ASSERTION_FAILED %: got % want %', label, got, want;
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p09-bills', label);
+END $e$;
+
+DO $p09$
+DECLARE
+  inst constant uuid := '00000000-0000-0000-0000-000000000000';
+  u_o uuid := gen_random_uuid(); u_m uuid := gen_random_uuid(); u_v uuid := gen_random_uuid(); u_x uuid := gen_random_uuid();
+  s_o uuid := gen_random_uuid(); s_m uuid := gen_random_uuid(); s_v uuid := gen_random_uuid(); s_x uuid := gen_random_uuid();
+  h1 uuid := gen_random_uuid(); h2 uuid := gen_random_uuid();
+  e_legacy uuid := gen_random_uuid(); e_x uuid := gen_random_uuid(); d1 uuid := gen_random_uuid();
+  pw jsonb := jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint - 10));
+  ins text := 'WITH r AS (INSERT INTO public.expenses(household_id,name,category,payment_amount,recurrence,monthly_amount) VALUES (%L,''ZZ-P09 bill'',''other'',%s,%L,%s) RETURNING monthly_amount) SELECT monthly_amount::text FROM r';
+  upd_e text := 'WITH r AS (UPDATE public.expenses SET %s WHERE id = %L RETURNING 1) SELECT count(*)::text FROM r';
+  upd_d text := 'WITH r AS (UPDATE public.debts SET %s WHERE id = %L RETURNING 1) SELECT count(*)::text FROM r';
+BEGIN
+  INSERT INTO auth.users(id,instance_id,aud,role) SELECT x, inst, 'authenticated', 'authenticated' FROM unnest(ARRAY[u_o,u_m,u_v,u_x]) x;
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id,created_at) VALUES
+    (s_o,u_o,'aal1',NULL,now()),(s_m,u_m,'aal1',NULL,now()),(s_v,u_v,'aal1',NULL,now()),(s_x,u_x,'aal1',NULL,now());
+  PERFORM pg_temp.ffh_p08_claims(u_o, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h1,'ZZ-P09 one',u_o);
+  PERFORM pg_temp.ffh_p08_claims(u_x, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h2,'ZZ-P09 two',u_x);
+  PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES (h1,u_m,'member'),(h1,u_v,'viewer');
+  -- Legacy writer shape (guided setup RPC): monthly_amount only.
+  INSERT INTO public.expenses(id,household_id,name,category,monthly_amount) VALUES (e_legacy,h1,'ZZ-P09 legacy','housing',33.33);
+  INSERT INTO public.expenses(id,household_id,name,category,monthly_amount) VALUES (e_x,h2,'ZZ-P09 other house','housing',10);
+  INSERT INTO public.debts(id,household_id,name,debt_type,current_balance,minimum_payment) VALUES (d1,h1,'ZZ-P09 card','credit_card',500,25);
+
+  -- 1. Legacy rows keep their monthly figure; payment is back-filled as monthly.
+  PERFORM pg_temp.ffh_p09_expect('legacy-insert-keeps-monthly', (SELECT concat_ws(',',payment_amount,recurrence,monthly_amount) FROM public.expenses WHERE id=e_legacy), '33.33,monthly,33.33');
+  PERFORM pg_temp.ffh_p09_expect('legacy-defaults-unscheduled', (SELECT concat_ws(',',(due_anchor_date IS NULL)::text,(reminder_days IS NULL)::text) FROM public.expenses WHERE id=e_legacy), 'true,true');
+
+  -- 2. Exact-cent monthly equivalent, rounded UP, derived by the database (a sent monthly_amount is ignored).
+  PERFORM pg_temp.ffh_p09_expect('yearly-100-is-8.34', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '100.00', 'yearly', '1')), '8.34');
+  PERFORM pg_temp.ffh_p09_expect('quarterly-100-is-33.34', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, '100.00', 'quarterly', '0')), '33.34');
+  PERFORM pg_temp.ffh_p09_expect('yearly-12.00-is-1.00', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '12.00', 'yearly', '0')), '1.00');
+  PERFORM pg_temp.ffh_p09_expect('yearly-12.01-is-1.01', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '12.01', 'yearly', '0')), '1.01');
+  PERFORM pg_temp.ffh_p09_expect('yearly-0.01-is-0.01', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '0.01', 'yearly', '0')), '0.01');
+  PERFORM pg_temp.ffh_p09_expect('quarterly-0.00-is-0.00', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '0', 'quarterly', '5')), '0.00');
+  PERFORM pg_temp.ffh_p09_expect('monthly-is-payment', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '19.99', 'monthly', '99')), '19.99');
+  PERFORM pg_temp.ffh_p09_expect('yearly-max-amount', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '999999999999.99', 'yearly', '0')), '83333333333.34');
+  PERFORM pg_temp.ffh_p09_expect('unknown-recurrence-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '10', 'weekly', '10')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p09_expect('negative-payment-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, '-1', 'monthly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p09_expect('legacy-shape-yearly-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('INSERT INTO public.expenses(household_id,name,category,monthly_amount,recurrence) VALUES (%L,''ZZ-P09 x'',''other'',5,''yearly'') RETURNING 1', h1)), 'ERR:22023');
+
+  -- 3. Changing recurrence keeps the entered payment; the monthly figure follows. Legacy monthly-only edits.
+  PERFORM pg_temp.ffh_p09_expect('member-change-recurrence', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd_e, 'recurrence = ''yearly''', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('recurrence-change-keeps-payment', (SELECT concat_ws(',',payment_amount,monthly_amount) FROM public.expenses WHERE id=e_legacy), '33.33,2.78');
+  PERFORM pg_temp.ffh_p09_expect('monthly-only-edit-of-yearly-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'monthly_amount = 50', e_legacy)), 'ERR:22023');
+  PERFORM pg_temp.ffh_p09_expect('name-only-edit-keeps-amounts', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'name = ''ZZ-P09 renamed''', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('name-only-edit-amounts', (SELECT concat_ws(',',payment_amount,recurrence,monthly_amount) FROM public.expenses WHERE id=e_legacy), '33.33,yearly,2.78');
+  PERFORM pg_temp.ffh_p09_expect('back-to-monthly', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'recurrence = ''monthly''', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('back-to-monthly-amounts', (SELECT concat_ws(',',payment_amount,monthly_amount) FROM public.expenses WHERE id=e_legacy), '33.33,33.33');
+  PERFORM pg_temp.ffh_p09_expect('legacy-monthly-only-edit-of-monthly-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'monthly_amount = 40.5', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('legacy-monthly-only-edit-follows', (SELECT concat_ws(',',payment_amount,monthly_amount) FROM public.expenses WHERE id=e_legacy), '40.50,40.50');
+  PERFORM pg_temp.ffh_p09_expect('forged-monthly-with-payment-ignored', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'payment_amount = 120, recurrence = ''yearly'', monthly_amount = 1', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('forged-monthly-derived', (SELECT monthly_amount::text FROM public.expenses WHERE id=e_legacy), '10.00');
+
+  -- 4. Due date and reminder metadata: owner/member write; viewer reads only; constraints.
+  PERFORM pg_temp.ffh_p09_expect('member-sets-due-and-reminder', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd_e, 'due_anchor_date = ''2026-01-31'', reminder_days = 3', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('viewer-reads-due-metadata', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw,
+    format('SELECT concat_ws('','',due_anchor_date,reminder_days) FROM public.expenses WHERE id = %L', e_legacy)), '2026-01-31,3');
+  PERFORM pg_temp.ffh_p09_expect('viewer-update-due-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(upd_e, 'reminder_days = 7', e_legacy)), '0');
+  PERFORM pg_temp.ffh_p09_expect('viewer-update-recurrence-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(upd_e, 'recurrence = ''quarterly''', e_legacy)), '0');
+  PERFORM pg_temp.ffh_p09_expect('viewer-insert-denied', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(ins, h1, '5', 'monthly', '5')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p09_expect('viewer-debt-due-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(upd_d, 'due_anchor_date = ''2026-02-15''', d1)), '0');
+  PERFORM pg_temp.ffh_p09_expect('viewer-left-unchanged', (SELECT concat_ws(',',recurrence,reminder_days) FROM public.expenses WHERE id=e_legacy), 'yearly,3');
+  PERFORM pg_temp.ffh_p09_expect('reminder-2-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'reminder_days = 2', e_legacy)), 'ERR:23514');
+  PERFORM pg_temp.ffh_p09_expect('reminder-without-due-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'due_anchor_date = NULL', e_legacy)), 'ERR:23514');
+  PERFORM pg_temp.ffh_p09_expect('due-date-out-of-range-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'due_anchor_date = ''1999-12-31''', e_legacy)), 'ERR:23514');
+  PERFORM pg_temp.ffh_p09_expect('clear-schedule-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_e, 'due_anchor_date = NULL, reminder_days = NULL', e_legacy)), '1');
+  PERFORM pg_temp.ffh_p09_expect('owner-debt-due-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd_d, 'due_anchor_date = ''2024-02-29'', reminder_days = 0', d1)), '1');
+  PERFORM pg_temp.ffh_p09_expect('debt-minimum-unchanged', (SELECT minimum_payment::text FROM public.debts WHERE id=d1), '25.00');
+  PERFORM pg_temp.ffh_p09_expect('debt-reminder-5-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd_d, 'reminder_days = 5', d1)), 'ERR:23514');
+  PERFORM pg_temp.ffh_p09_expect('debt-reminder-without-due-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd_d, 'due_anchor_date = NULL', d1)), 'ERR:23514');
+
+  -- 5. Isolation and session gating.
+  PERFORM pg_temp.ffh_p09_expect('other-household-update-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd_e, 'due_anchor_date = ''2026-03-01''', e_legacy)), '0');
+  PERFORM pg_temp.ffh_p09_expect('other-household-debt-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd_d, 'reminder_days = NULL', d1)), '0');
+  PERFORM pg_temp.ffh_p09_expect('other-household-reads-nothing', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw,
+    format('SELECT count(*)::text FROM public.expenses WHERE household_id = %L', h1)), '0');
+  PERFORM pg_temp.ffh_p09_expect('member-cannot-touch-other-house', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd_e, 'reminder_days = NULL', e_x)), '0');
+  PERFORM pg_temp.ffh_p09_expect('cross-insert-denied', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h2, '5', 'monthly', '5')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p09_expect('dead-session-update-no-rows', pg_temp.ffh_p08_run(u_o, gen_random_uuid()::text, 'aal1', pw, format(upd_e, 'reminder_days = NULL', e_legacy)), '0');
+  PERFORM pg_temp.ffh_p09_expect('dead-session-reads-nothing', pg_temp.ffh_p08_run(u_v, gen_random_uuid()::text, 'aal1', pw,
+    format('SELECT count(*)::text FROM public.expenses WHERE household_id = %L', h1)), '0');
+  PERFORM pg_temp.ffh_p09_expect('anon-reads-nothing', pg_temp.ffh_p08_run(NULL, NULL, NULL, NULL, 'SELECT count(*)::text FROM public.expenses'), '0');
+  PERFORM pg_temp.ffh_p09_expect('trigger-fn-not-callable', has_function_privilege('authenticated','private.expenses_derive_monthly_amount()','EXECUTE')::text, 'false');
+  -- The table invariant holds for every row written above.
+  PERFORM pg_temp.ffh_p09_expect('monthly-equivalent-invariant', (SELECT count(*)::text FROM public.expenses WHERE monthly_amount <> CASE recurrence
+    WHEN 'monthly' THEN payment_amount WHEN 'quarterly' THEN ceil(payment_amount*100/3)/100 ELSE ceil(payment_amount*100/12)/100 END), '0');
+END
+$p09$;
 
 -- No raw fixture IDs, SQL values or JWT claims in receipts.
 SELECT 'MATRIX_ASSERTIONS_PASS=' || count(*)::text AS result FROM pg_temp.ffh_rls_receipts;

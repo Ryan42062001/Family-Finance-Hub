@@ -89,7 +89,8 @@ Before the merge:
   origin; each phase Preview = that branch's Preview URL, branch-scoped), `NEXT_PUBLIC_SUPABASE_URL` and
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Missing `NEXT_PUBLIC_SITE_URL` makes auth fail closed with
   "Authentication origin is not configured".
-- Hosted Supabase parity still matches if migrations changed (`scripts/rls-local/parity.sql`).
+- Hosted Supabase parity still matches if migrations changed: after pasting a migration, always run
+  `scripts/rls-local/strip-cr.sql` (removes paste-introduced CRLF from function bodies), then `scripts/rls-local/parity.sql`.
 
 Right after the merge, once Vercel reports the Production deployment Ready:
 - `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,
@@ -125,7 +126,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - **`E2E isolation (Preview)`** (job `e2e-isolation` in `ci.yml`, every push to a `phase/...` branch; re-run it from the
   Actions tab): waits until Vercel's commit status for that exact commit reports a successful Preview build, then signs in to the fixed Preview
   address as TestA and as TestB with real browsers (`scripts/e2e/isolation.mjs`). For each account it checks the
-  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning, Scenario Lab and Account
+  "Signed in as" email, the household name, that Your plan, Overview, Financial profile, Goals, Planning, Scenario Lab, Account, Bills and the plan print view
   load and show nothing of the other household (its email, household name or `ZZ-` records), that the money plan
   renders, and that sign-out returns to Sign in, clears the session cookie and protects pages again. A negative
   control then confirms that a wrong expected identity is rejected. It only reads; it adds or changes no data.

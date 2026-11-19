@@ -6,6 +6,10 @@ import { resolveScenarioHouseholdAuthority } from "@/lib/scenarios/scenario-auth
 import { loadMoneyPrioritySnapshot } from "@/lib/supabase/money-priority-snapshot";
 import Link from "next/link";
 import { planNotice } from "@/lib/plan/plan-notices";
+import UpcomingBillsSummary from "@/components/bills/UpcomingBillsSummary";
+import { buildBillsView, type BillsView } from "@/lib/bills/bills-view";
+import { BillsDataError, loadBills } from "@/lib/supabase/bills";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +29,14 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
     plan = { ok: false, reason: "Some saved numbers are invalid, so no plan is shown. Review your Financial profile." };
   }
 
+  // FFH-P09: upcoming bills summary (household-shared); a bills problem never hides the plan.
+  let bills: BillsView | null = null;
+  try {
+    bills = buildBillsView(await loadBills(await createClient(), authority.householdId), todayUtc());
+  } catch (error) {
+    if (!(error instanceof BillsDataError) && !(error instanceof RangeError)) throw error;
+  }
+
   // Only a fixed, allowlisted notice key is accepted; its text comes from the code, never the URL.
   const notice = planNotice((await searchParams).notice);
 
@@ -35,6 +47,15 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
       </section>
       {notice ? <aside className="dashboard-notice plan-notice" role="status"><div><strong>{notice.title}</strong><p>{notice.body}</p></div><Link className="secondary-button" href={notice.link.href}>{notice.link.label}</Link></aside> : null}
       <MoneyPlan plan={plan} />
+      <UpcomingBillsSummary view={bills} />
+      {plan.ok ? <section className="bento-card plan-exports" aria-labelledby="plan-exports-heading">
+        <h2 id="plan-exports-heading">Save or share this plan</h2>
+        <p className="muted">Exports show your current plan exactly as above. Nothing is stored on our side.</p>
+        <div className="plan-export-actions">
+          <Link className="secondary-button" href="/plan/print">Print or save as PDF</Link>
+          <a className="secondary-button" href="/plan/steps-csv" download>Download steps (CSV)</a>
+        </div>
+      </section> : null}
     </main>
   );
 }

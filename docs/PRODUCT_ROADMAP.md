@@ -64,13 +64,23 @@ Deferred to later phases: Can We Afford It, irregular-cost monthly set-asides, p
 
 ## FFH-P08 — Account settings and security
 
-State: FREEZE_READY (2026-11-18) — built, hosted, QA'd, audit re-review PASS; awaiting Ryan's Production release decision.
+State: CLOSED. Risk: HIGH. Released to Production via PR #176 at `2a62022` (2026-11-18), with Ryan's explicit
+authorization; Production smoke test 12/12. Two hosted migrations (parity 9/9, 25 migrations). Independent audit FAIL
+(F01 HIGH) → fixed → re-review PASS.
 Risk: HIGH (auth, account deletion, identity-provider settings, household RLS). Phase branch:
 `phase/ffh-p08-account-security`. P08 builds password change, authenticator-app two-factor sign-in and account
 deletion/test-account cleanup (`docs/FFH-P08_PROPOSAL.md`); **email change is deferred** to the email-deliverability
 item (R1).
 No hosted SQL, Supabase Auth, Vercel, real-data or Production change is approved. Production
 deployment remains a separate Owner authorization.
+
+## FFH-P09 — Bills, due dates & exports
+
+State: FREEZE_READY. Audit PASS (findings fixed), hosted migration applied (parity 9/9), QA Q38–Q45 PASS. Risk: HIGH (money input representation, financial-table schema, household RLS, data export).
+Phase branch: `phase/ffh-p09-bills-exports`, PR #178. Binding spec: GitHub issue #170 (recurring expenses with an
+exact-cent monthly equivalent rounded up, anchored due dates, per-bill household reminders, `/bills`, print/PDF and
+CSV of the current plan). No hosted SQL, Vercel, real-data or Production change is approved; Production deployment
+remains a separate Owner authorization.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
