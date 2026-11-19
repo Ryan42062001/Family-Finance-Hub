@@ -194,6 +194,7 @@ function parseHome(fields: Record<HomeField, string>, path: string, context: Par
   const r = new Reader(fields, path, issues);
   const purchasePrice = r.requiredMoney("purchasePrice", "Home price");
   const downPayment = r.requiredMoney("downPayment", "Down payment", "Enter 0 if none.");
+  // Audit P10-01/P10-03: every choice must be answered explicitly; a blank answer is refused (never defaulted).
   const rateType = r.choice("rateType", "Rate type", ["fixed", "adjustable"] as const) ?? "fixed";
   const interestRate = r.rate("interestRate", "Interest rate", 30);
   const termYears = r.whole("termYears", "Loan length (years)", 1, 50);
@@ -215,8 +216,10 @@ function parseHome(fields: Record<HomeField, string>, path: string, context: Par
     : null; // adjustable with any cap unknown -> the evaluator reports the missing ARM terms
   const hasBalloonPayment = r.choice("hasBalloonPayment", "Balloon payment", ["no", "yes"] as const) === "yes";
   const allowsNegativeAmortization = r.choice("allowsNegativeAmortization", "Balance can grow", ["no", "yes"] as const) === "yes";
-  const mortgageInsuranceType = r.choice("mortgageInsuranceType", "Mortgage insurance", ["none", "conventional_pmi", "fha_mip", "other"] as const) ?? "none";
-  const mortgageInsuranceMonthly = r.money("mortgageInsuranceMonthly", "Monthly mortgage insurance");
+  const mortgageInsuranceChoice = r.choice("mortgageInsuranceType", "Mortgage insurance", ["none", "conventional_pmi", "fha_mip", "other", "unsure"] as const);
+  // "Not sure yet" keeps the cost unknown: the evaluator then reports the missing mortgage-insurance amount.
+  const mortgageInsuranceType = mortgageInsuranceChoice === "unsure" ? "other" : mortgageInsuranceChoice ?? "none";
+  const mortgageInsuranceMonthly = mortgageInsuranceChoice === "unsure" ? null : r.money("mortgageInsuranceMonthly", "Monthly mortgage insurance");
   const currentHousingMonthlyCost = r.money("currentHousingMonthlyCost", "Current monthly housing payment");
   const currentHousingEnds = r.choice("currentHousingEnds", "Current housing payment ends", ["yes", "no"] as const) === "yes";
 
@@ -258,7 +261,9 @@ function parseHome(fields: Record<HomeField, string>, path: string, context: Par
     },
     hoaMonthly: r.money("hoaMonthly", "Monthly HOA dues"),
     mortgageInsurance: { type: mortgageInsuranceType, monthlyAmount: mortgageInsuranceMonthly },
-    monthlyMaintenancePlanningAmount: r.money("maintenanceMonthly", "Monthly maintenance"),
+    // Audit P10-02: required in the guided check. The evaluator only flags a blank maintenance amount when the margin
+    // is thin, so a blank could otherwise yield a positive verdict with this cost unknown.
+    monthlyMaintenancePlanningAmount: r.requiredMoney("maintenanceMonthly", "Monthly maintenance set-aside", "Enter 0 only if you deliberately plan none."),
     monthlyUtilityChange: r.money("utilityChangeMonthly", "Change in monthly utilities", true),
     otherMonthlyPropertyCosts: r.money("otherPropertyCostsMonthly", "Other monthly property costs", true),
     immediateRequiredRepairs: r.requiredMoney("immediateRequiredRepairs", "Repairs needed right away", "Enter 0 if none."),

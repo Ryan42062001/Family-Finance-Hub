@@ -1,6 +1,6 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-19 — FFH-P10 AUDITING (QA Q46–Q57 PASS at `c8734bd`).
+Updated: 2026-11-19 — FFH-P10 REMEDIATING (audit FAIL at `865783a`: 2 HIGH + 3 MEDIUM, all fixed; re-check pending).
 
 - **Now:** FFH-P10 Can We Afford It? (issue #171) on `phase/ffh-p10-can-we-afford-it`, phase PR #189 (draft into
   `main`). Scope and status: `.ai/CURRENT_PHASE.md`; Builder interpretations: `.ai/DECISIONS.md` (2026-11-19 P10 entry).
