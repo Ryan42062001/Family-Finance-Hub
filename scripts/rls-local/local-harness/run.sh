@@ -32,8 +32,12 @@ start() {
   fi
   echo "LOCAL_HARNESS=READY port=$PORT"
 }
-reset() {
+# Cluster-wide role the auth stub's default privileges refer to (Supabase has it); needed by reset and upgrade.
+ensure_roles() {
   psql_local -d template1 -tAc "do \$\$ begin if not exists (select 1 from pg_roles where rolname='supabase_admin') then create role supabase_admin; end if; end \$\$;" >/dev/null
+}
+reset() {
+  ensure_roles
   psql_local -d template1 -c "drop database if exists postgres" -c "create database postgres" >/dev/null
   local P=(psql_local -d postgres -v ON_ERROR_STOP=1)
   "${P[@]}" -f "$here/auth-stub.sql" >/dev/null
@@ -55,6 +59,7 @@ coverage() {
 # FFH-P09: apply every migration before P09 to a throw-away database, write legacy rows, apply P09, compare.
 upgrade() {
   local db=ffh_p09_upgrade P09=supabase/migrations/20261118120000_ffh_p09_bills_due_dates.sql
+  ensure_roles
   psql_local -d template1 -c "drop database if exists $db" -c "create database $db" >/dev/null
   local P=(psql_local -d "$db" -v ON_ERROR_STOP=1)
   "${P[@]}" -f "$here/auth-stub.sql" >/dev/null
