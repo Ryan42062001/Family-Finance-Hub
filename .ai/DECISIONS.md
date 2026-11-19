@@ -722,3 +722,11 @@ Builder choices inside the spec, for the audit to check:
   hosts, so they were checked through web search of the publishers' own pages, not a direct page fetch.
 - **Navigation:** What if? replaces the Scenario Lab tab (desktop and phone); Scenario Lab is under Tools on What if?
   and stays detailed-only; `/what-if` is in Simple view's menu. QA rows Q46–Q57.
+- **Pre-existing canonical wording (LOW, backlog, not changed in P10):** when the purchase needs protected cash (or
+  data is missing), the evaluators run no post-purchase engine but still emit "cannot preserve employer match / Secure
+  funding / required goal" risks, because `planImpact` booleans default to false. The verdict is unaffected. P10 shows
+  those risks verbatim and explains that the post-purchase plan was not modeled. Suggested fix (a later approved
+  phase): emit those risks only when a post-purchase engine exists. Builder-found in P10 local visual check.
+- Local visual check (2026-11-19): synthetic example household at 390/820/1280 px, light and dark; no horizontal
+  overflow. Found and fixed: vehicle loans are stored as `auto_loan` (not `auto`); unlabeled partial figures when
+  costs are unknown (now flagged); "blank means none" placeholders.

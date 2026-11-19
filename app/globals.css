@@ -1175,3 +1175,4 @@ button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
 .guidance-source{font-size:.84rem;margin:.5rem 0 0}.guidance-source a{color:var(--accent-text)}
 @media(max-width:900px){.purchase-forms-2,.purchase-results-2{grid-template-columns:1fr}}
 @media(max-width:650px){.what-if-options,.purchase-fields,.guidance-figures{grid-template-columns:1fr}.purchase-actions>*{width:100%}.purchase-figures>div{flex-direction:column;gap:.15rem}.purchase-figures dd{text-align:left}}
+.purchase-incomplete-note{margin:.75rem 0 0;padding:.6rem .8rem;border-left:4px solid var(--warn-text);border-radius:0 10px 10px 0;background:var(--warn-soft);color:var(--warn-text);font-size:.86rem}

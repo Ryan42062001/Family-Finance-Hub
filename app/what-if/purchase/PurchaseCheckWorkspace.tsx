@@ -24,6 +24,8 @@ type FieldSpec = {
   required?: boolean;
   choices?: Array<[string, string]>;
   goal?: boolean;
+  /** Blank means none (credits, amounts already paid, no trade-in), so the placeholder says so instead of "Unknown". */
+  blankMeansNone?: boolean;
 };
 
 type Section = { title: string; intro?: string; fields: FieldSpec[]; advanced?: boolean };
@@ -70,10 +72,10 @@ const HOME_SECTIONS: Section[] = [
       { name: "closingCosts", label: "Closing costs", unit: "money" },
       { name: "prepaidCosts", label: "Prepaid costs", unit: "money", hint: "Prepaid interest, insurance and taxes. Enter 0 if none." },
       { name: "initialEscrowDeposit", label: "Initial escrow deposit", unit: "money", hint: "Enter 0 if none." },
-      { name: "earnestMoneyAlreadyPaid", label: "Earnest money already paid", unit: "money", hint: "Blank means none." },
-      { name: "sellerCredits", label: "Seller credits", unit: "money", hint: "Blank means none." },
-      { name: "lenderCredits", label: "Lender credits", unit: "money", hint: "Blank means none." },
-      { name: "otherCredits", label: "Other credits", unit: "money", hint: "Blank means none." },
+      { name: "earnestMoneyAlreadyPaid", label: "Earnest money already paid", unit: "money", hint: "Blank means none." , blankMeansNone: true },
+      { name: "sellerCredits", label: "Seller credits", unit: "money", hint: "Blank means none." , blankMeansNone: true },
+      { name: "lenderCredits", label: "Lender credits", unit: "money", hint: "Blank means none." , blankMeansNone: true },
+      { name: "otherCredits", label: "Other credits", unit: "money", hint: "Blank means none." , blankMeansNone: true },
       { name: "immediateRequiredRepairs", label: "Repairs needed right away", unit: "money", required: true, hint: "Enter 0 if none." },
       { name: "plannedNearTermRepairs", label: "Repairs planned soon after", unit: "money", required: true, hint: "Enter 0 if none. Shown as a caution, not paid at closing." },
     ],
@@ -115,7 +117,7 @@ const VEHICLE_SECTIONS: Section[] = [
     intro: BLANK_OK,
     fields: [
       { name: "cashDownPayment", label: "Cash you'll put down", unit: "money", required: true, hint: "Enter 0 if none." },
-      { name: "tradeInValue", label: "Trade-in value", unit: "money", hint: "Blank means no trade-in." },
+      { name: "tradeInValue", label: "Trade-in value", unit: "money", hint: "Blank means no trade-in." , blankMeansNone: true },
       { name: "tradeInLoanPayoff", label: "Loan left on the trade-in", unit: "money", hint: "Needed with a trade-in; 0 if it's paid off." },
       { name: "salesTax", label: "Sales tax", unit: "money" },
       { name: "titleRegistrationFees", label: "Title and registration fees", unit: "money" },
@@ -173,7 +175,7 @@ function Field({ spec, value, onChange, id, goals, error }: { spec: FieldSpec; v
     control = <span className={`field-affix field-affix-${spec.unit === "money" ? "money" : spec.unit === "percent" ? "percent" : "unit"}`}>
       {spec.unit === "money" ? <span className="field-prefix" aria-hidden="true">$</span> : null}
       <input id={id} type="text" inputMode="decimal" autoComplete="off" value={value} onChange={(event) => onChange(event.target.value)}
-        placeholder={spec.required ? "Required" : "Unknown"} aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-required={spec.required || undefined} />
+        placeholder={spec.required ? "Required" : spec.blankMeansNone ? "None" : "Unknown"} aria-describedby={describedBy} aria-invalid={error ? true : undefined} aria-required={spec.required || undefined} />
       {suffix ? <span className="field-suffix" aria-hidden="true">{suffix}</span> : null}
     </span>;
   }
@@ -213,11 +215,6 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
   return <div><dt>{label}</dt><dd>{value}{note ? <small>{note}</small> : null}</dd></div>;
 }
 
-function yesNo(value: boolean, checked: boolean): string {
-  if (!checked) return "Not checked yet";
-  return value ? "Yes" : "No";
-}
-
 function GuidanceItem({ item }: { item: GuidelineCheck }) {
   const kindLabel = item.source.kind === "lender_guideline" ? "Mortgage industry guideline" : item.source.kind === "consumer_agency_guidance" ? "Consumer agency guidance" : "Financial educator's recommendation";
   return <li className={`guidance-item guidance-${item.status}`}>
@@ -240,6 +237,7 @@ function ResultCard({ option, index, simple }: { option: PurchaseOptionResult; i
   const state = option.kind === "home" ? option.canonical.overallAffordability : option.canonical.affordability;
   const checked = option.retirementMonthlyAfter !== null;
   const planImpact = option.canonical.planImpact;
+  const protectedCash = option.kind === "home" ? option.canonical.cashToClose.protectedCashRequired : option.canonical.cash.protectedCashRequired;
   return <article className={`purchase-result-card purchase-verdict-${state}`} aria-labelledby={`result-${index}`}>
     <p className="eyebrow">{option.label}</p>
     <h3 id={`result-${index}`} className="purchase-verdict">{VERDICT_LABEL[state]}</h3>
@@ -249,6 +247,8 @@ function ResultCard({ option, index, simple }: { option: PurchaseOptionResult; i
       <h4>Still needed for a verdict</h4>
       <ul>{option.missing.map((text) => <li key={text}>{text}</li>)}</ul>
     </section> : null}
+
+    {option.missing.length ? <p className="purchase-incomplete-note">The figures below leave out the unknown costs listed above, so the real amounts will be higher. They become complete once those are filled in.</p> : null}
 
     <section aria-label="Cash at purchase">
       <h4>Cash at purchase</h4>
@@ -287,14 +287,15 @@ function ResultCard({ option, index, simple }: { option: PurchaseOptionResult; i
 
     <section aria-label="Effect on your plan">
       <h4>Effect on your plan</h4>
-      <dl className="purchase-figures">
-        <Row label="Full employer match still captured" value={yesNo(planImpact.employerMatchPreserved, checked)} />
-        <Row label="Emergency and protected priorities still funded" value={yesNo(planImpact.secureNeedsPreserved, checked)} />
-        <Row label="Required goals still funded" value={yesNo(planImpact.requiredGoalsPreserved, checked)} />
-        <Row label="Retirement saving per month" value={checked ? `${money(option.retirementMonthlyBefore)} → ${money(option.retirementMonthlyAfter as number)}` : "Not checked yet"} />
+      {checked ? <dl className="purchase-figures">
+        <Row label="Full employer match still captured" value={planImpact.employerMatchPreserved ? "Yes" : "No"} />
+        <Row label="Emergency and protected priorities still funded" value={planImpact.secureNeedsPreserved ? "Yes" : "No"} />
+        <Row label="Required goals still funded" value={planImpact.requiredGoalsPreserved ? "Yes" : "No"} />
+        <Row label="Retirement saving per month" value={`${money(option.retirementMonthlyBefore)} → ${money(option.retirementMonthlyAfter as number)}`} />
         {option.goalEffects.map((effect) => <Row key={effect.name} label={`Goal: ${effect.name}`} value={effect.usedForPurchase ? "Used for this purchase" : `${money(effect.beforeMonthly)} → ${money(effect.afterMonthly)} per month`} />)}
-      </dl>
-      {!checked ? <p className="muted">Shown once the details above are filled in.</p> : null}
+      </dl> : <p className="muted">{protectedCash > 0
+        ? "Your plan after the purchase wasn't worked out, because paying for it would need money your plan protects."
+        : "Your plan after the purchase is worked out once the missing details are filled in."}</p>}
     </section>
 
     <section aria-label="Financing and ownership cautions">
