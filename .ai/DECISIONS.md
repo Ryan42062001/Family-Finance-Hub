@@ -792,3 +792,16 @@ Prior (P09) improvements, checked against P10 evidence:
 - Local DB harness: PASS at phase start; P10 had no schema change, so no measurable benefit this phase — keep.
 - One-paste hosted migration generator: **not exercised** (no migration in P10); its hosted effectiveness remains
   unproven until a real authorized hosted migration uses it.
+
+## 2026-11-19 — Ryan approved the FFH-P10 lessons-learned improvement (implement in P11)
+
+Ryan approved item 1 of the P10 lessons learned. Implement it during the next authorized phase (FFH-P11) in that phase's
+normal development branch: no separate documentation PR, no Production change, and do not start P11 until it is
+separately authorized. Keep the `docs/WORKFLOW.md` change minimal (one line in phase step 4). Contract for every guided
+financial form:
+1. Financial questions have no preselected answers that imply information the user hasn't supplied.
+2. Missing required financial amounts never silently become $0 or produce an unsupported positive conclusion.
+3. Missing required information triggers validation or a "More information needed" outcome.
+4. Explicitly entered $0 and legitimate optional inputs keep working where supported.
+5. Each new guided financial form gets focused tests for the above.
+Measure: the P11 independent audit raises no implicit-default or unknown-treated-as-known finding.

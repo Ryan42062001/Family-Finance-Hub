@@ -17,8 +17,10 @@ Updated: 2026-11-19 — FFH-P10 released and closed.
   release evidence on PR #189; decisions in `.ai/DECISIONS.md`.
 - **Backlog:** pre-existing LOW: the canonical evaluators emit plan-impact risks when no post-purchase engine ran
   (`.ai/DECISIONS.md`, P10 entry); P08 F04 LOW, N01, picomatch audit exception review by 2027-01-18.
-- **Lessons learned (P10):** one improvement proposed for Ryan's approval (guided-input contract check before freezing);
-  see `.ai/DECISIONS.md` "FFH-P10 released" entry. Not adopted until Ryan approves.
+- **Lessons learned (P10) — APPROVED by Ryan (2026-11-19), to implement in FFH-P11's normal development branch** (not
+  a separate docs PR; only once P11 is authorized): the guided-financial-input contract check. Requirements are in
+  `.ai/DECISIONS.md` ("Ryan approved the FFH-P10 lessons-learned improvement"). Keep the `docs/WORKFLOW.md` change to
+  one short line.
 - **Next phase:** FFH-P11 (issue #172) is not started and needs Ryan's separate approval. Start it in a fresh chat on
   the cloud environment **Family-Finance-Hub**; rules in `AGENTS.md`. The Preview domain still points at
   `phase/ffh-p10-can-we-afford-it`; move it when the next phase branch starts.
