@@ -2,7 +2,8 @@
 
 FFH-P10 — Can We Afford It? + financial best-practice warnings
 
-State: REMEDIATING
+State: CLOSED — released to Production (Ryan's explicit authorization, 2026-11-19) via PR #189, merge
+`cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` from phase head `eca9d43bb20a642d16b31013005510b609900014`; Production smoke 12/12
 Risk: HIGH (money calculations and advice presentation, household isolation, read-only scenario surface)
 Owner: Ryan
 Spec (binding): GitHub issue #171 (Owner-approved design); workflow addition: issue #188 (lessons learned)
@@ -35,5 +36,7 @@ domain), secrets and real data need Ryan's approval per action.
   serves it; Preview smoke 12/12; signed-out `/what-if*` → Sign in.
 - Browser QA Q46–Q57 PASS on `c8734bd` (no findings); phone-width parts of Q46/Q57 are Ryan's device checks (NOT RUN).
 - Independent different-model audit at `865783a`: **FAIL** (P10-01 HIGH, P10-02 HIGH, P10-03–05 MEDIUM; guided-input
-  contract, not the canonical evaluators). All five fixed; receipt `docs/workflow/FFH-P10_AUDIT.md`. Next: new frozen
-  candidate, targeted re-check of P10-01/P10-02, re-QA of the changed rows (Q48–Q50).
+  contract, not the canonical evaluators). All five fixed in #192; targeted re-review **PASS** at `eca9d43`; receipt
+  `docs/workflow/FFH-P10_AUDIT.md`. Q48–Q50 re-run PASS at `eca9d43`; Owner device checks Q46/Q57 PASS.
+- Released: `main` = `cc7c707`; Production `/api/build-info` = `cc7c707`; Production smoke 12/12; signed-out
+  `/what-if`, `/what-if/purchase?type=home|vehicle` → Sign in.

@@ -748,3 +748,47 @@ Builder choices inside the spec, for the audit to check:
   needed). Canonical evaluators, isolation and read-only boundaries verified intact. All five fixed in the P10 input
   contract / advisory layer (no evaluator change). Receipt: `docs/workflow/FFH-P10_AUDIT.md`.
 - Standing rule from P10-01/03: the guided form pre-answers no question (every choice starts at "Choose…").
+
+## 2026-11-19 — FFH-P10 released to Production and closed
+
+- Ryan authorized "Release FFH-P10 at eca9d43bb20a642d16b31013005510b609900014"; PR #189 merged as
+  `cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` after exact-head CI green (run 44458649330: fast, rls-matrix,
+  e2e-isolation). Production served `cc7c707` within a minute; Production smoke **12/12**; signed-out `/what-if`,
+  `/what-if/purchase?type=home|vehicle`, `/bills`, `/plan`, `/account` redirect to sign-in. FFH-P10 is **CLOSED**.
+- Re-review PASS at `eca9d43` (P10-01–05 resolved); QA Q46–Q57 PASS (Q48–Q50 re-run at `eca9d43`); Owner device checks
+  Q46/Q57 PASS. No hosted Supabase or environment-variable change.
+
+### Lessons learned (issue #188 — first run)
+
+Evidence reviewed: CI runs on the phase (one `e2e-isolation` BLOCKED, otherwise green), `/code-review high` (6 findings),
+the independent audit (FAIL, 2 HIGH + 3 MEDIUM → PASS), Browser QA (no findings), Owner steps (Preview move, audit and
+re-check pastes, QA runs, device checks, release), environment limits (publisher sites blocked by the network policy).
+
+1. **Guided-input contract check before freezing — proposed ADOPT (needs Ryan's approval; not applied).**
+   - *Evidence:* audit `FAIL — 865783a`: P10-01 (form pre-selected "payment ends") and P10-02 (blank maintenance gave a
+     positive verdict) were HIGH. Neither was caught by 1039 calculation tests, the pre-freeze `/code-review high`
+     (6 other findings) or Browser QA (Q48 followed the pre-filled answers).
+   - *Root cause (shown):* every P10 test compared P10 with the evaluator **for the same inputs**, so none could catch
+     inputs the user never gave. Nothing in the pre-freeze step asked which answers the form supplies by default or
+     which evaluator inputs are flagged missing only conditionally (`monthlyMaintenancePlanningAmount`).
+   - *Smallest fix:* one line in `docs/WORKFLOW.md` phase step 4: for a phase with a financial input form, before
+     freezing, add a test that no choice is pre-answered and that every evaluator input left blank is refused or yields
+     "more information needed" (checked against the evaluator's own missing-data rules).
+   - *Benefit:* avoids this phase's extra cycle (fix PR #192, a second CI round, targeted re-review, Q48–Q50 re-run and
+     two extra Owner pastes). *Cost/risk:* one test per form; no new tooling or permissions.
+   - *Measure next phase:* the independent audit raises no implicit-default or unknown-treated-as-known finding.
+2. Considered and **REJECTED** (not actionable): the `e2e-isolation` BLOCKED run on `304d606` (the carry-forward push
+   preceded the same-day Preview move; one comment, green on every P10 code commit); the blocked publisher hosts (a
+   one-off citation check, done via the publishers' own pages in search results).
+
+Prior (P09) improvements, checked against P10 evidence:
+- Day-one phase PR (#189) held QA, audit, device and release evidence; no release-prep docs PR — **helped**.
+- Same-day Preview move: done before the first P10 code merge; `e2e-isolation` 58/58 on every P10 code commit —
+  **helped**.
+- `/code-review high` before freezing: caught 1 important + 5 nits before the audit — **helped**, but missed the input-
+  contract HIGHs (item 1).
+- Event-driven CI notifications: no polling needed — **helped**.
+- Owner device checks: Q46/Q57 phone parts PASS on Ryan's phone, NOT RUN in the Cloud Browser as designed — **helped**.
+- Local DB harness: PASS at phase start; P10 had no schema change, so no measurable benefit this phase — keep.
+- One-paste hosted migration generator: **not exercised** (no migration in P10); its hosted effectiveness remains
+  unproven until a real authorized hosted migration uses it.
