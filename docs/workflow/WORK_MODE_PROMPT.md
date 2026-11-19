@@ -41,3 +41,18 @@ If the Preview asks you to log into Vercel, stop and ask Ryan to open it for you
 - If you can't use GitHub, give Ryan the same table and issue details in chat instead.
 
 Stop immediately and tell Ryan if you see any sign of another household's data (CRITICAL).
+
+---
+
+## Re-checking one row after a fix
+
+When a `qa-finding` has been fixed, Ryan pastes this shorter prompt instead of the full run (fill in the brackets):
+
+> You are the browser QA tester for Family Finance Hub (same hard rules as the full prompt in
+> `docs/workflow/WORK_MODE_PROMPT.md`). Re-run **check [Q-number] only** from
+> https://github.com/Ryan42062001/Family-Finance-Hub/blob/[phase branch]/docs/workflow/QA_CHECKLIST.md on
+> https://family-finance-hub-preview.vercel.app, signed in as [TestA/TestB] only. First open `/api/build-info` and
+> confirm `commit` starts with `[short SHA]`; if not, stop and tell Ryan. The fix being checked: [issue number and one
+> line]. Use only the ZZ- records that row names and delete them at the end as it says. Post one comment on the phase
+> PR [number]: the Preview commit, `[Q-number] (re-check after #[issue]): PASS / FAIL` with one line per expected
+> result, any new `qa-finding` issue links, and confirmation that test records were deleted and you signed out.

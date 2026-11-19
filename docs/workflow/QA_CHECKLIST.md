@@ -9,6 +9,9 @@ screens.
 - **Data:** synthetic data only. Never enter real names, amounts, accounts or personal details.
 - **Isolation of accounts:** sign in to only one account at a time (sign out before switching). Two tabs in one
   browser share a single login.
+- **Device checks:** the Cloud Browser has a fixed width and no real print dialog. Phone-width layouts and the
+  browser's own print preview are **Ryan's device checks**: rows say so, and Work mode marks those parts NOT RUN
+  (never FAIL) and reports the rest of the row normally.
 - **Out of scope:** Supabase, the Vercel settings pages, GitHub settings and the Production site
   (`family-finance-hub-taupe.vercel.app`, or the retired `family-finance-hub-ten-brown.vercel.app`).
 

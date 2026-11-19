@@ -61,8 +61,11 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 
 ## Phase loop
 
-1. **Plan.** Ryan states the goal. The Builder writes a short scope in `.ai/CURRENT_PHASE.md` (one branch and one
-   draft PR per phase).
+1. **Plan and set up (same day; workflow update after FFH-P09).** Ryan states the goal. The Builder writes a short
+   scope in `.ai/CURRENT_PHASE.md`, creates the `phase/...` branch and opens the **phase PR** (phase branch → `main`,
+   draft, "do not merge without release authorization"). That one PR collects the QA result tables, the audit receipt
+   and the release evidence, and becomes the release PR. The same day, Ryan moves the Preview domain to the phase
+   branch (see Preview setup) so every phase commit is QA'd and isolation-tested automatically from the first merge.
 2. **Build (build-first, Ryan 2026-11-18).** No pre-build independent design or threat-model review is required. The
    Builder builds the whole approved phase in one chat: code, disposable spikes, tests and docs updated alongside the
    code (no standalone documentation PRs). Every push runs CI; green PRs merge into the phase branch without waiting
@@ -70,7 +73,9 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 3. **Preview QA, in parallel.** After a merge, the Preview is deployed and Work mode runs the QA checklist while the
    Builder moves on to the next item. The Builder picks up `qa-finding` issues and fixes them. Ryan only does the
    steps that need his accounts or approval (hosted checks, Production, secrets) and his own look-and-feel review.
-4. **Phase review — one audit at the end.** When the full phase is built, CI is green and the preview is accepted, the
+4. **Phase review — one audit at the end.** First the Builder runs `/code-review high` on the whole phase diff
+   (`git diff <production SHA>...<phase head>`) and fixes what it confirms; this cheap pass catches what the audit
+   would otherwise send back. When the full phase is built, CI is green and the preview is accepted, the
    Builder freezes an exact candidate SHA and one fresh independent reviewer audits the changed scope there (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
@@ -78,7 +83,9 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
 5. **Merge = release.** Day-to-day work merges into the phase branch by the Builder once CI is green. Vercel deploys
    every push to `main` to Production automatically (Owner decision, 2026-11-12, "Option 2"), so merging a phase into
    `main` **is** a production deployment and needs explicit Ryan merge authorization for the reviewed head, given as a
-   release decision. Before asking, the Builder runs the release checklist below.
+   release decision. Before asking, the Builder runs the release checklist below and writes the release evidence in
+   the phase PR description (no separate release-prep documentation PR: it costs a CI cycle and changes the SHA). The
+   phase state in `.ai/CURRENT_PHASE.md` stays as it is until the close-out records CLOSED.
 6. **Private Beta / wider release.** Before inviting anyone outside the household, one comprehensive independent
    whole-product audit runs on a frozen candidate, findings are fixed and re-checked, and Ryan separately authorizes it.
 
@@ -89,8 +96,13 @@ Before the merge:
   origin; each phase Preview = that branch's Preview URL, branch-scoped), `NEXT_PUBLIC_SUPABASE_URL` and
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Missing `NEXT_PUBLIC_SITE_URL` makes auth fail closed with
   "Authentication origin is not configured".
-- Hosted Supabase parity still matches if migrations changed: after pasting a migration, always run
-  `scripts/rls-local/strip-cr.sql` (removes paste-introduced CRLF from function bodies), then `scripts/rls-local/parity.sql`.
+- Hosted Supabase parity still matches if migrations changed. Each new migration is applied with ONE paste: the
+  Builder generates `scripts/hosted/apply-<version>.sql` with `node scripts/hosted/build-apply.mjs <migration> --out
+  scripts/hosted/apply-<version>.sql` (optional phase checks in `scripts/hosted/checks/<version>.sql`), commits it,
+  and gives Ryan its raw link at that commit. The file pre-checks, applies, records, repairs paste-introduced CRLF
+  (`scripts/rls-local/strip-cr.sql`), runs the phase checks and compares parity in one transaction; any failure
+  applies nothing and names what failed. Ryan pastes back the PASS table. CI rehearses the newest migration's file
+  on every push (`scripts/rls-ci/hosted-rehearsal.sh`, CRLF paste plus a must-fail control).
 
 Right after the merge, once Vercel reports the Production deployment Ready:
 - `node scripts/smoke/deployed-auth-smoke.mjs https://family-finance-hub-taupe.vercel.app` must be 12/12. If not,
@@ -101,7 +113,8 @@ Right after the merge, once Vercel reports the Production deployment Ready:
 Vercel's automatic branch address for a long phase name does not resolve on this project, so every phase uses one
 fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
 - Vercel → Settings → Domains: that domain is connected to the **Preview** environment and the **current phase
-  branch**. At the start of each phase, Ryan edits it to the new `phase/...` branch.
+  branch**. On the day each phase branch is created, Ryan edits it to the new `phase/...` branch (before the first
+  merge into it, so `e2e-isolation` isn't BLOCKED by an old build).
 - Environment variable `NEXT_PUBLIC_SITE_URL` = that address (Config, Preview, all branches). Supabase Redirect URLs
   include `https://family-finance-hub-preview.vercel.app/**`.
 - The Vercel Toolbar must stay **Off** (Project Settings → General → Vercel Toolbar). It loads from `vercel.live`,
