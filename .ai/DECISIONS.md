@@ -830,7 +830,7 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
   unticked; blank → "Enter an amount. Type 0 if…"; typed 0 accepted. One line added to `docs/WORKFLOW.md` step 4.
 - **Noninterference:** only `/bills` reads the table and only `/bills` is revalidated; the P09 `BillsView` is never mutated
   (forecast notes are a separate map). Tests: calculations (`ffh-p11-set-asides.test.ts`), source checks
-  (`tests/security/ffh-p11-set-asides.test.ts`), matrix P11 section (69 assertions) and the CI race test
+  (`tests/security/ffh-p11-set-asides.test.ts`), matrix P11 section (71 assertions) and the CI race test
   `scripts/rls-ci/test-set-aside-concurrency.sh` (also runnable on the local harness).
 - **Pre-freeze `/code-review high`** (whole phase diff `cc7c707...9656b99`): 2 important + 2 nits, all fixed. (1) The
   trigger re-stamped `created_by`/`updated_by` on the ON DELETE SET NULL cascade, so a member who had started or edited a
@@ -841,4 +841,5 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
 - **Pre-existing, outside P11 (Production since P07):** `private.monthly_check_in_before_write` has the same re-stamping
   pattern, so an invited **member** who has saved a monthly check-in cannot delete their account (reproduced locally:
   `monthly_check_ins_created_by_fkey`). Fails closed (deletion refused; no data exposed or lost); sole owners are not
-  affected (their household is deleted first). Severity MEDIUM. Awaiting Ryan: fix in the P11 migration, or defer.
+  affected (their household is deleted first). Severity MEDIUM. **Ryan: "Fix p07 in p11" (2026-11-19)** — fixed in the
+  P11 migration (same audit-only pass-through; function body otherwise the released one); +2 matrix probes (1306).

@@ -1832,7 +1832,12 @@ BEGIN
   PERFORM pg_temp.ffh_p11_expect('member-starts-tracker-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '12.34')), '1');
   PERFORM pg_temp.ffh_p11_expect('member-edits-tracker-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
     format(upd, 'reserved_amount = 12.35', (SELECT id FROM public.bill_set_asides WHERE expense_id = e_q2), '')), '2');
+  -- The same for a monthly check-in saved by that member (pre-existing P07 defect, fixed in this migration).
+  PERFORM pg_temp.ffh_p11_expect('member-saves-check-in-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    'SELECT (public.create_monthly_check_in(date_trunc(''month'', now())::date, true, ''[]''::jsonb) IS NOT NULL)::text'), 'true');
   DELETE FROM auth.users WHERE id = u_m;
+  PERFORM pg_temp.ffh_p11_expect('account-delete-keeps-check-in', (SELECT concat_ws(',',followed_plan,created_by IS NULL,updated_by IS NULL)
+    FROM public.monthly_check_ins WHERE household_id = h1), 't,t,t');
   PERFORM pg_temp.ffh_p11_expect('account-delete-keeps-tracker', (SELECT concat_ws(',',reserved_amount,version,created_by IS NULL,updated_by IS NULL)
     FROM public.bill_set_asides WHERE expense_id = e_q2), '12.35,2,t,t');
   PERFORM pg_temp.ffh_p11_expect('null-audit-column-changes-nothing-else', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL', t_x, '')), '1');

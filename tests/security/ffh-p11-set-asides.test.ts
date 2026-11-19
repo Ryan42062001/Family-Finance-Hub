@@ -34,8 +34,18 @@ test("FFH-P11 migration: household-consistent FK, one tracker per bill, RLS thro
   assert.match(migration, /for share/);
   assert.match(migration, /v_recurrence not in \('quarterly', 'yearly'\) or v_anchor is null or v_payment is null or v_payment <= 0/);
   assert.match(migration, /new\.cycle_due_date < \(now\(\) at time zone 'utc'\)::date/);
+  // Ryan-approved P07 fix: the check-in trigger gets the same audit-only pass-through, nothing else changes.
+  assert.match(migration, /create or replace function private\.monthly_check_in_before_write\(\)/);
+  assert.match(migration, /\(to_jsonb\(new\) - 'created_by' - 'updated_by'\) = \(to_jsonb\(old\) - 'created_by' - 'updated_by'\) then\s+return new;/);
+  const released = read("supabase/migrations/20261114110000_ffh_p07_cash_flow_availability.sql");
+  const body = (src: string) => src.slice(src.indexOf("create or replace function private.monthly_check_in_before_write()"), src.indexOf("$$;", src.indexOf("create or replace function private.monthly_check_in_before_write()")))
+    .replace(/\n    -- FFH-P11[\s\S]*?end if;\n/, "\n");
+  assert.equal(body(migration), body(released), "only the pass-through is added to the released check-in trigger");
   // No change to any bill amount, recurrence or the P09 derivation.
-  assert.doesNotMatch(migration, /update public\.expenses|alter table public\.expenses (?!add constraint expenses_id_household_key)|monthly_amount|alter table public\.debts/i);
+  // (The released check-in trigger body, proven identical to 20261114110000 apart from the pass-through, is excluded.)
+  const start = migration.indexOf("create or replace function private.monthly_check_in_before_write()");
+  const withoutCheckIn = migration.slice(0, start) + migration.slice(migration.indexOf("$$;", start) + 3);
+  assert.doesNotMatch(withoutCheckIn, /update public\.expenses|alter table public\.expenses (?!add constraint expenses_id_household_key)|monthly_amount|alter table public\.debts/i);
 });
 
 test("FFH-P11 financial noninterference: the plan, its snapshot, the engine and the exports never read set-asides", () => {

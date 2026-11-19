@@ -143,7 +143,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   critical), dev-only (absent from `npm audit --omit=dev`) and before its review date (Ryan, 2026-11-18). Each new
   exception needs Ryan's approval.
 - **`rls-matrix`** (every push): builds a disposable local Supabase database on the CI runner, applies all migrations,
-  runs `scripts/rls-local/preflight.sql` and the 1304-assertion two-household `scripts/rls-local/matrix.sql`, requires
+  runs `scripts/rls-local/preflight.sql` and the 1306-assertion two-household `scripts/rls-local/matrix.sql`, requires
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
 - **`full-phase`** (label `full-phase-ci` or manual dispatch): the same checks pinned to an exact candidate SHA.
 
