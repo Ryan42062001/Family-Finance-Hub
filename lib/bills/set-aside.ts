@@ -145,6 +145,12 @@ export function nextCycleDue(bill: SetAsideBill, tracker: SetAsideTracker, today
   return due <= MAX_DATE ? due : null;
 }
 
+// The reported amount can be changed only for an active, current cycle. A passed cycle, a changed schedule or a bill that
+// is no longer eligible must be confirmed (or stopped) first, so money is never recorded against a stale cycle.
+export function canUpdateReported(status: SetAsideStatus): boolean {
+  return status === "in_progress" || status === "funded" || status === "due_now";
+}
+
 export const SET_ASIDE_STATUS_LABEL: Record<SetAsideStatus, string> = {
   funded: "Fully funded",
   in_progress: "Funding in progress",

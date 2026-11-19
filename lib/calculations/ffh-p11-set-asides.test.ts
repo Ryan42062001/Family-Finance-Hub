@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canUpdateReported,
   ceilDiv,
   evaluateSetAside,
   firstCycleDue,
@@ -262,4 +263,11 @@ test("financial plan noninterference: the plan has no set-aside input and its re
   const before = planFromRaw(exampleHouseholdRaw(), "2026-11-19");
   buildSetAsideSection(buildBillsView(inputs, "2026-11-19"), [tracker({ expenseId: ids.annual, reservedCents: 999999 })], "2026-11-19");
   assert.deepEqual(planFromRaw(exampleHouseholdRaw(), "2026-11-19"), before);
+});
+
+test("the reported amount is editable only for a current cycle (passed, changed or ineligible must be confirmed first)", () => {
+  assert.deepEqual(
+    (["in_progress", "funded", "due_now", "confirmation_needed", "schedule_changed", "not_eligible"] as const).map(canUpdateReported),
+    [true, true, true, false, false, false],
+  );
 });

@@ -42,7 +42,8 @@ $pre$;
 -- private.session_ok() (P08: live session, MFA when enrolled). The trigger function is not executable by API roles.
 --
 -- Safe for the released P10 app on the shared Supabase project: it adds a table it never reads and a unique
--- constraint on expenses(id, household_id), which every existing row already satisfies (id is the primary key).
+-- constraint on expenses(id, household_id), which every existing row already satisfies (id is the primary key). It
+-- also fixes the P07 check-in trigger so account deletion works for invited members (no change to any saved check-in).
 
 
 alter table public.expenses add constraint expenses_id_household_key unique (id, household_id);
@@ -94,6 +95,19 @@ begin
     new.created_by := auth.uid();
     new.created_at := now();
   else
+    -- ON DELETE SET NULL from a deleted account (created_by/updated_by -> auth.users): only an audit column becomes
+    -- NULL and nothing else changes. Let it through as is; re-stamping it would point at the deleted account, fail the
+    -- foreign key and so block that person's account deletion (pre-freeze review). No data or version changes.
+    if (new.created_by is null or new.updated_by is null)
+       and (new.created_by is distinct from old.created_by or new.updated_by is distinct from old.updated_by)
+       and (new.created_by is null or new.created_by = old.created_by)
+       and (new.updated_by is null or new.updated_by = old.updated_by)
+       and (new.id, new.household_id, new.expense_id, new.cycle_due_date, new.cycle_anchor_date, new.cycle_recurrence,
+            new.reserved_amount, new.version, new.created_at, new.updated_at)
+           is not distinct from (old.id, old.household_id, old.expense_id, old.cycle_due_date, old.cycle_anchor_date,
+            old.cycle_recurrence, old.reserved_amount, old.version, old.created_at, old.updated_at) then
+      return new;
+    end if;
     if new.household_id is distinct from old.household_id or new.expense_id is distinct from old.expense_id then
       raise exception 'a set-aside cannot be moved to another bill' using errcode = '22023';
     end if;
@@ -144,6 +158,78 @@ revoke all on function private.bill_set_aside_before_write() from public, anon, 
 create trigger bill_set_aside_before_write_trigger
   before insert or update on public.bill_set_asides
   for each row execute function private.bill_set_aside_before_write();
+
+
+-- Pre-existing P07 defect fixed here (Ryan approved, 2026-11-19): the check-in trigger had the same re-stamping of
+-- created_by/updated_by, blocking account deletion for an invited member who had saved a check-in. The function body
+-- is the released 20261114110000 one with only the pass-through above added; owner, grants and trigger are unchanged.
+create or replace function private.monthly_check_in_before_write()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_income numeric;
+  v_active_income integer;
+  v_expenses numeric;
+  v_expense_rows integer;
+  v_debt_minimums numeric;
+  v_employee_retirement numeric;
+begin
+  if tg_op = 'INSERT' then
+    if new.check_in_month > date_trunc('month', (now() at time zone 'utc'))::date then
+      raise exception 'check-in month cannot be in the future' using errcode = '22023';
+    end if;
+    select coalesce(sum(monthly_amount), 0), count(*) into v_income, v_active_income
+      from public.income_sources where household_id = new.household_id and is_active;
+    select coalesce(sum(monthly_amount), 0), count(*) into v_expenses, v_expense_rows
+      from public.expenses where household_id = new.household_id;
+    select coalesce(sum(minimum_payment), 0) into v_debt_minimums
+      from public.debts where household_id = new.household_id;
+    select coalesce(sum(monthly_employee_contribution), 0) into v_employee_retirement
+      from public.retirement_accounts where household_id = new.household_id;
+    new.planned_monthly_income := v_income;
+    new.planned_monthly_expenses := v_expenses;
+    new.planned_debt_minimums := v_debt_minimums;
+    new.planned_employee_retirement := v_employee_retirement;
+    -- C6 (Ryan, 2026-11-14, original wording): not available only when the profile has no
+    -- active income AND no expenses; otherwise income - expenses - debt minimums - employee
+    -- retirement, which can be negative.
+    new.planned_cash_flow := case
+      when v_active_income > 0 or v_expense_rows > 0
+        then v_income - v_expenses - v_debt_minimums - v_employee_retirement
+      else null
+    end;
+    new.created_by := auth.uid();
+    new.updated_by := auth.uid();
+    new.created_at := now();
+    new.updated_at := now();
+  else
+    -- FFH-P11 (pre-freeze review, Ryan approved 2026-11-19): ON DELETE SET NULL from a deleted account only nulls an
+    -- audit column; let it through as is. Re-stamping it pointed at the deleted account and failed the foreign key,
+    -- so an invited member who had saved a check-in could not delete their account.
+    if (new.created_by is null or new.updated_by is null)
+       and (new.created_by is distinct from old.created_by or new.updated_by is distinct from old.updated_by)
+       and (new.created_by is null or new.created_by = old.created_by)
+       and (new.updated_by is null or new.updated_by = old.updated_by)
+       and (to_jsonb(new) - 'created_by' - 'updated_by') = (to_jsonb(old) - 'created_by' - 'updated_by') then
+      return new;
+    end if;
+    new.check_in_month := old.check_in_month;
+    new.planned_monthly_income := old.planned_monthly_income;
+    new.planned_monthly_expenses := old.planned_monthly_expenses;
+    new.planned_debt_minimums := old.planned_debt_minimums;
+    new.planned_employee_retirement := old.planned_employee_retirement;
+    new.planned_cash_flow := old.planned_cash_flow;
+    new.created_by := old.created_by;
+    new.created_at := old.created_at;
+    new.updated_by := auth.uid();
+    new.updated_at := now();
+  end if;
+  return new;
+end;
+$$;
 
 alter table public.bill_set_asides enable row level security;
 revoke all on public.bill_set_asides from anon;
@@ -294,7 +380,7 @@ from (values
   ('columns', 275, '7309705e7e48be8309c829fcdf491e3f'),
   ('constraints', 217, '33f580d48524bd3110ef359362413418'),
   ('function_grants', 56, 'fd7a5539898a5f21be983958f865a4a3'),
-  ('functions', 28, '5c2792d03da5742b33ff5b95aaefff81'),
+  ('functions', 28, 'e23eafd99a42219f45ad616016587798'),
   ('migrations', 27, 'a5773b418a326649aea8e481f8a354cc'),
   ('policies', 78, '021bbf3fe8922bc7542b07abe672ca02'),
   ('rls', 21, '74b4f28612fb824c6cfb3a53521b1110'),
