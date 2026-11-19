@@ -21,6 +21,8 @@ historical evidence only.
   `docs/workflow/QA_CHECKLIST.md` current when screens change.
 - At the end of a phase, an independent reviewer (a different AI session) audits the changed scope. Fix
   BLOCKER/CRITICAL/HIGH before merge; record MEDIUM/LOW/NIT in the final-audit backlog.
+- After each release and smoke test, run the short evidence-based lessons-learned review (`docs/WORKFLOW.md`, phase
+  loop step 6; issue #188): zero to three real improvements, or "no actionable process improvements identified".
 
 ## Builder efficiency (Ryan, 2026-11-18; each phase is a fresh chat, so these live here)
 

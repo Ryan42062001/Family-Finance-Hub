@@ -44,6 +44,11 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
     <main className="page-shell">
       <section className="hero-card">
         <div><p className="eyebrow">Your money plan</p><h1>What to do with your money</h1><p className="muted">Steps in priority order, worked out from your saved numbers. Nothing here changes your profile.</p></div>
+        {/* FFH-P10: prominent entry to the guided, read-only purchase checks. */}
+        <div className="hero-actions plan-what-if-actions">
+          <Link className="secondary-button" href="/what-if/purchase?type=home">Can we afford a home?</Link>
+          <Link className="secondary-button" href="/what-if/purchase?type=vehicle">Can we afford a vehicle?</Link>
+        </div>
       </section>
       {notice ? <aside className="dashboard-notice plan-notice" role="status"><div><strong>{notice.title}</strong><p>{notice.body}</p></div><Link className="secondary-button" href={notice.link.href}>{notice.link.label}</Link></aside> : null}
       <MoneyPlan plan={plan} />

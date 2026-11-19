@@ -6,7 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Pages kept in the navigation when Simple mode is on. Everything else stays reachable
 // by address but is hidden from the menus.
-export const SIMPLE_NAV_PATHS = ["/plan", "/dashboard", "/financial-profile"] as const;
+// FFH-P10: the guided "What if? / Can we afford it?" checks are part of Simple view; Scenario Lab stays detailed-only.
+export const SIMPLE_NAV_PATHS = ["/plan", "/dashboard", "/financial-profile", "/what-if"] as const;
 
 // Detailed tools: still work in Simple mode, with a note offering the detailed view.
 export const DETAILED_ONLY_PREFIXES = ["/planning", "/scenario-lab", "/financial-profile/hsa", "/financial-profile/simple"] as const;
@@ -17,7 +18,7 @@ export function isDetailedOnlyPath(path: string): boolean {
 
 // Where the switch may send the user back to: only fixed in-app paths (never an
 // arbitrary URL), falling back to Your plan.
-const RETURN_PATHS = new Set(["/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/planning/debt", "/planning/paycheck", "/planning/retirement", "/scenario-lab", "/financial-profile/hsa", "/financial-profile/simple"]);
+const RETURN_PATHS = new Set(["/what-if", "/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/planning/debt", "/planning/paycheck", "/planning/retirement", "/scenario-lab", "/financial-profile/hsa", "/financial-profile/simple"]);
 export function safeReturnPath(raw: unknown): string {
   return typeof raw === "string" && RETURN_PATHS.has(raw) ? raw : "/plan";
 }
