@@ -11,7 +11,7 @@ import type { VehicleAffordabilityResult } from "../calculations/vehicle-afforda
 import { scenarioBaselineDescriptor } from "../scenarios/scenario-fingerprint.ts";
 import type { ScenarioExecutionDependencies } from "../scenarios/scenario-execution.ts";
 import { runHomeScenarioAdapter, runVehicleScenarioAdapter } from "../scenarios/scenario-specialized-runner.ts";
-import { homeGuidance, toCents, vehicleGuidance, type GuidelineCheck } from "./guidance.ts";
+import { homeGuidance, isVehicleLoan, toCents, vehicleGuidance, type GuidelineCheck } from "./guidance.ts";
 import { parsePurchaseCheck, type ParseContext, type PurchaseCheckIssue, type PurchaseKind } from "./purchase-check-input.ts";
 import { describeMissing } from "./purchase-check-presentation.ts";
 
@@ -65,7 +65,7 @@ export function purchaseCheckBootstrap(engine: MoneyPriorityEngineResult): Purch
     asOfDate: engine.asOfDate,
     goals: engine.snapshot.goals.map((goal) => ({ id: goal.id, name: goal.name })),
     recordedHousingMonthly: recordedHousingCents(engine) / 100,
-    recordedVehicleLoanPaymentsMonthly: engine.snapshot.debts.filter((item) => item.type === "auto").reduce((sum, item) => sum + toCents(item.minimumPayment), 0) / 100,
+    recordedVehicleLoanPaymentsMonthly: engine.snapshot.debts.filter(isVehicleLoan).reduce((sum, item) => sum + toCents(item.minimumPayment), 0) / 100,
     grossIncomeComplete: !engine.snapshot.aggregates.hasIncompleteGrossIncome && engine.snapshot.aggregates.monthlyGrossIncomeKnown > 0,
   };
 }

@@ -434,7 +434,9 @@ test("FFH-P10 20/3/8: 20% down exact boundary, 36-month term, and paid-in-full",
 
 test("FFH-P10 20/3/8: all car payments combined vs 8% of gross, exact boundary; trade payoff ambiguity is insufficient", () => {
   const source = raw();
-  source.debts!.push({ id: "car-loan", name: "Car loan", debt_type: "auto", current_balance: 8000, interest_rate: 4, minimum_payment: 200 });
+  // The database stores vehicle loans as `auto_loan` (debts.debt_type CHECK).
+  source.debts!.push({ id: "car-loan", name: "Car loan", debt_type: "auto_loan", current_balance: 8000, interest_rate: 4, minimum_payment: 200 });
+  assert.equal(purchaseCheckBootstrap(baseline(source)).recordedVehicleLoanPaymentsMonthly, 200);
   const engine = baseline(source); // 8% of $15,000 = $1,200; existing car loan $200
   assert.equal(check(vehicleCase(engine, vehicleFields(), 1000), "vehicle_payments_8").status, "meets");
   assert.equal(check(vehicleCase(engine, vehicleFields(), 1000.01), "vehicle_payments_8").status, "exceeds");

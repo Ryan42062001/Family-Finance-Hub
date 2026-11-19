@@ -66,6 +66,14 @@ export const GUIDELINE_DISCLAIMER =
   "These are general rules of thumb from a mortgage company, a consumer agency and financial educators. They are not "
   + "laws or lending requirements, and lenders often approve higher ratios. They never change your affordability result above.";
 
+/**
+ * Recorded vehicle loans. The database stores `auto_loan` (debts.debt_type CHECK); `auto` is the evaluator's own
+ * hypothetical-loan type, accepted here so a post-purchase snapshot is read the same way.
+ */
+export function isVehicleLoan(debt: { type: string }): boolean {
+  return debt.type === "auto_loan" || debt.type === "auto";
+}
+
 // ---- exact-cent helpers ------------------------------------------------------------------------------------------
 
 /** Converts an engine dollar amount to whole cents (engine amounts are already rounded to cents). */
@@ -280,7 +288,7 @@ export function vehicleGuidance({ baseline, postEngine, scenario, result, otherV
   // 8% of gross income, all vehicle payments combined
   const paymentBase = { id: "vehicle_payments_8" as const, title: "20/3/8: all car payments under 8% of gross income", threshold: "All vehicle loan payments combined at 8% or less of gross monthly household income", source: GUIDELINE_SOURCES.moneyGuy2038 };
   const gross = grossIncome(baseline);
-  const autoDebts = baseline.snapshot.debts.filter((debt) => debt.type === "auto");
+  const autoDebts = baseline.snapshot.debts.filter(isVehicleLoan);
   const paymentMissing: string[] = [];
   if (!priceKnown) paymentMissing.push("Purchase price");
   paymentMissing.push(...acquisitionMissing);
