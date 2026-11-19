@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { expensePaymentInput, keepAnchorIfUnchanged, scheduleInput } from "../../lib/bills/form.ts";
+import { expensePaymentInput, keepAnchorIfUnchanged, scheduleContext, scheduleInput } from "../../lib/bills/form.ts";
 
 const read = (p: string) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
 const migration = read("supabase/migrations/20261118120000_ffh_p09_bills_due_dates.sql");
@@ -65,11 +65,27 @@ test("FFH-P09 schedule parsing: allowed dates and reminders only; a reminder nee
   for (const bad of [{ due_date: "2026-02-30", reminder: "off" }, { due_date: "1999-12-31", reminder: "off" }, { due_date: "2026-01-31", reminder: "2" }, { due_date: "2026-01-31T00:00", reminder: "off" }]) {
     assert.throws(() => scheduleInput(form(bad)), JSON.stringify(bad));
   }
-  // The form shows Feb 28 for a Jan 31 monthly anchor; saving it unchanged keeps Jan 31.
-  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-28", reminder_days: 1 }, "2026-01-31", "monthly", "2026-02-10"), { due_anchor_date: "2026-01-31", reminder_days: 1 });
-  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2027-02-28", reminder_days: null }, "2024-02-29", "yearly", "2026-03-01"), { due_anchor_date: "2024-02-29", reminder_days: null });
-  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-27", reminder_days: null }, "2026-01-31", "monthly", "2026-02-10"), { due_anchor_date: "2026-02-27", reminder_days: null });
-  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-28", reminder_days: null }, null, "monthly", "2026-02-10"), { due_anchor_date: "2026-02-28", reminder_days: null });
+  // The form showed Feb 28 for a Jan 31 monthly anchor; saving it unchanged keeps Jan 31.
+  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-28", reminder_days: 1 }, "2026-01-31", "2026-02-28"), { due_anchor_date: "2026-01-31", reminder_days: 1 });
+  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2027-02-28", reminder_days: null }, "2024-02-29", "2027-02-28"), { due_anchor_date: "2024-02-29", reminder_days: null });
+  // A genuinely different date becomes the new anchor.
+  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-27", reminder_days: null }, "2026-01-31", "2026-02-28"), { due_anchor_date: "2026-02-27", reminder_days: null });
+  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-28", reminder_days: null }, null, null), { due_anchor_date: "2026-02-28", reminder_days: null });
+  // Audit P09-01: the decision uses the date the form SHOWED, not the server's "today". A form rendered on Feb 28
+  // (showing Feb 28) and submitted on Mar 1 still keeps Jan 31; nothing here depends on the submission day.
+  assert.deepEqual(keepAnchorIfUnchanged({ due_anchor_date: "2026-02-28", reminder_days: 0 }, "2026-01-31", "2026-02-28"), { due_anchor_date: "2026-01-31", reminder_days: 0 });
+  assert.equal(keepAnchorIfUnchanged.length, 3, "no 'today' parameter");
+  assert.deepEqual(scheduleContext(form({ shown_due: "2026-02-28", expected_anchor: "2026-01-31", expected_recurrence: "monthly" })), { shownDue: "2026-02-28", expectedAnchor: "2026-01-31", expectedRecurrence: "monthly" });
+  assert.deepEqual(scheduleContext(form({ shown_due: "", expected_anchor: "", expected_recurrence: "yearly" })), { shownDue: null, expectedAnchor: null, expectedRecurrence: "yearly" });
+  for (const bad of [{ shown_due: "2026-02-30", expected_anchor: "", expected_recurrence: "monthly" }, { shown_due: "", expected_anchor: "x", expected_recurrence: "monthly" }, { shown_due: "", expected_anchor: "", expected_recurrence: "weekly" }]) {
+    assert.throws(() => scheduleContext(form(bad)), JSON.stringify(bad));
+  }
+  // The action refuses a stale form and makes the write conditional on both anchor and recurrence.
+  const action = read("app/bills/actions.ts");
+  assert.match(action, /current\.due_anchor_date !== context\.expectedAnchor \|\| recurrence !== context\.expectedRecurrence\) redirect\("\/bills\?error=changed"\)/);
+  assert.match(action, /if \(table === "expenses"\) update = update\.eq\("recurrence", recurrence\)/);
+  assert.doesNotMatch(action, /todayUtc/);
+  for (const field of ["shown_due", "expected_anchor", "expected_recurrence"]) assert.match(read("app/bills/page.tsx"), new RegExp(`name="${field}"`));
 });
 
 test("FFH-P09 Bills action: server-side identity and household, owner/member only, no amounts written", () => {
@@ -122,4 +138,17 @@ test("FFH-P09 QA #182: the mobile account menu's full-width rule targets Sign ou
   assert.match(css, /\.mobile-account-menu form button\.nav-sign-out\{width:100%\}/);
   assert.match(css, /\.mobile-account-menu \.simple-mode-switch span\{margin-bottom:0\}/);
   assert.match(css, /\.simple-mode-toggle\{position:relative;flex:0 0 auto;width:46px;height:26px/);
+});
+
+test("FFH-P09 audit P09-02: the legacy upgrade check is a required CI step with a receipt and zero residue", () => {
+  const ci = read(".github/workflows/ci.yml");
+  const job = ci.slice(ci.indexOf("  rls-matrix:"), ci.indexOf("  full-phase:"));
+  assert.match(job, /run: bash scripts\/rls-ci\/run-matrix\.sh\n\s+- name: FFH-P09 legacy upgrade check \(audit P09-02\)\n\s+run: bash scripts\/rls-ci\/p09-upgrade\.sh/);
+  const script = read("scripts/rls-ci/p09-upgrade.sh");
+  assert.match(script, /GITHUB_ACTIONS:-\}" == "true"/);
+  assert.match(script, /== "P09_UPGRADE_PASS" \]\] \|\| \{ echo 'P09_UPGRADE_FAIL'/);
+  assert.match(script, /datname = 'ffh_p09_upgrade'/);
+  assert.match(script, /trap cleanup EXIT/);
+  assert.doesNotMatch(script, /supabase (link|db push)|--linked|--db-url/);
+  assert.match(read("scripts/rls-local/local-harness/run.sh"), /initdb -D \$DATA\/data -A trust -U postgres/);
 });

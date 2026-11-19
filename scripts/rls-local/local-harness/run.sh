@@ -13,7 +13,7 @@
 # Untracked new migrations are not applied: `git add` them first.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; repo="$(git -C "$here" rev-parse --show-toplevel)"; cd "$repo"
-PORT=55432; DATA=/var/tmp/ffh-local-pg
+PORT=55432; DATA="${FFH_LOCAL_PG_DATA:-/var/tmp/ffh-local-pg}"
 BIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -n1)"
 [[ -n "$BIN" ]] || { echo "LOCAL_HARNESS: install PostgreSQL first (apt-get install -y postgresql)" >&2; exit 1; }
 for name in PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE DATABASE_URL SUPABASE_DB_URL; do
@@ -26,7 +26,7 @@ psql_local() { psql -h /tmp -p "$PORT" -U postgres -X -q "$@"; }
 start() {
   if ! psql_local -d template1 -tAc 'select 1' >/dev/null 2>&1; then
     mkdir -p "$DATA"; [[ "$(id -u)" == 0 ]] && chown postgres "$DATA"
-    [[ -f "$DATA/data/PG_VERSION" ]] || asdb "$BIN/initdb -D $DATA/data -A trust >/dev/null"
+    [[ -f "$DATA/data/PG_VERSION" ]] || asdb "$BIN/initdb -D $DATA/data -A trust -U postgres >/dev/null"
     asdb "$BIN/pg_ctl -D $DATA/data -o '-p $PORT -k /tmp -c listen_addresses=' -l $DATA/log start >/dev/null"
     sleep 2
   fi

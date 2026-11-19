@@ -1,5 +1,6 @@
 -- Local-only stub of the Supabase auth schema, shaped like the real one (columns and NOT NULLs from the FFH-P08
--- spike, docs/workflow/FFH-P08_SPIKE_RESULTS.md). Used ONLY by scripts/rls-local/local-harness/run.sh; never in CI.
+-- spike, docs/workflow/FFH-P08_SPIKE_RESULTS.md). Used ONLY by scripts/rls-local/local-harness/run.sh (locally, and in CI only for the P09 upgrade check on the
+-- runner's own throw-away PostgreSQL via scripts/rls-ci/p09-upgrade.sh); never against Supabase.
 do $$ begin
   if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin; end if;
   if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if;

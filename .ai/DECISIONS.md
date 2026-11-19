@@ -669,3 +669,10 @@ for the audit to check:
   regression test. Q38 phone width and Q43 native print preview could not be verified in the fixed-width Cloud
   Browser (not defects): those parts are now Ryan's device checks; the Builder confirmed the deployed print stylesheet
   hides the header (Playwright, print media, Preview `/demo`).
+
+## 2026-11-19 — FFH-P09 independent audit PASS; both findings fixed
+
+- Different-model end-of-phase audit at `6bd5c708e16b9d9fabaa86f2258cd0a50736d669`: **PASS** (0 BLOCKER/CRITICAL/HIGH).
+  P09-01 MEDIUM (stale Bills form could move a month-end anchor) and P09-02 LOW (upgrade check not in CI) both fixed.
+  QA findings #180 and #182 fixed and closed. Receipt: `docs/workflow/FFH-P09_AUDIT.md`.
+- Owner device checks (2026-11-19): Q38 phone layout PASS, Q43 native print preview PASS, Q41 re-check PASS.
