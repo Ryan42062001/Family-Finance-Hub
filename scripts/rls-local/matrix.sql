@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 26 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 27 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -1673,6 +1673,165 @@ BEGIN
 END
 $p09$;
 
+-- ===============================================================================================================
+-- FFH-P11 irregular-expense set-asides (issue #172). Own synthetic fixtures in this same uncommitted transaction.
+-- One tracker per quarterly/yearly expense, same household by composite FK, cycle bound to the bill's current schedule
+-- (a real, non-past occurrence), nonnegative exact-cent reserve, version bumped by the trigger (guarded updates),
+-- owner/member write, viewer read-only, other households/outsiders denied, gated by session_ok() (dead, expired and
+-- pending-2FA sessions denied), cascade on bill delete, and no effect on any expense amount.
+-- ===============================================================================================================
+CREATE FUNCTION pg_temp.ffh_p11_expect(label text, got text, want text) RETURNS void
+LANGUAGE plpgsql AS $e$
+BEGIN
+  IF got IS DISTINCT FROM want THEN
+    RAISE EXCEPTION 'P11_ASSERTION_FAILED %: got % want %', label, got, want;
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p11-set-asides', label);
+END $e$;
+
+DO $p11$
+DECLARE
+  inst constant uuid := '00000000-0000-0000-0000-000000000000';
+  u_o uuid := gen_random_uuid(); u_m uuid := gen_random_uuid(); u_v uuid := gen_random_uuid();
+  u_x uuid := gen_random_uuid(); u_f uuid := gen_random_uuid();
+  s_o uuid := gen_random_uuid(); s_m uuid := gen_random_uuid(); s_v uuid := gen_random_uuid(); s_x uuid := gen_random_uuid();
+  s_exp uuid := gen_random_uuid(); s_f1 uuid := gen_random_uuid(); s_f2 uuid := gen_random_uuid(); f_ok uuid := gen_random_uuid();
+  h1 uuid := gen_random_uuid(); h2 uuid := gen_random_uuid();
+  e_year uuid := gen_random_uuid(); e_q uuid := gen_random_uuid(); e_q2 uuid := gen_random_uuid(); e_month uuid := gen_random_uuid();
+  e_unsched uuid := gen_random_uuid(); e_zero uuid := gen_random_uuid(); e_past uuid := gen_random_uuid(); e_x uuid := gen_random_uuid();
+  t_year uuid; t_q uuid; t_x uuid;
+  today date := (now() at time zone 'utc')::date;
+  a_year date; a_q date; a_past date; q_next date;
+  pw jsonb := jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint - 10));
+  pw2 jsonb := jsonb_build_array(jsonb_build_object('method','totp','timestamp',extract(epoch from now())::bigint - 5),
+                                  jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint - 10));
+  ins text := 'WITH r AS (INSERT INTO public.bill_set_asides(household_id,expense_id,cycle_due_date,cycle_anchor_date,cycle_recurrence,reserved_amount) VALUES (%L,%L,%L,%L,%L,%s) RETURNING version) SELECT version::text FROM r';
+  upd text := 'WITH r AS (UPDATE public.bill_set_asides SET %s WHERE id = %L%s RETURNING version) SELECT coalesce(max(version)::text, ''none'') FROM r';
+  del text := 'WITH r AS (DELETE FROM public.bill_set_asides WHERE id = %L%s RETURNING 1) SELECT count(*)::text FROM r';
+  cnt text := 'SELECT count(*)::text FROM public.bill_set_asides WHERE household_id = %L';
+  digest_sql text := 'SELECT md5(string_agg(concat_ws('','',id,payment_amount,monthly_amount,recurrence,due_anchor_date,reminder_days), '';'' ORDER BY id)) FROM public.expenses WHERE household_id IN (%L,%L)';
+  expenses_digest text; now_digest text;
+BEGIN
+  a_year := today + 40; a_q := today + 10; a_past := today - 400; q_next := (a_q + interval '3 months')::date;
+  INSERT INTO auth.users(id,instance_id,aud,role) SELECT x, inst, 'authenticated', 'authenticated' FROM unnest(ARRAY[u_o,u_m,u_v,u_x,u_f]) x;
+  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+    VALUES (f_ok,u_f,'ok','totp','verified',now() - interval '1 hour',now() - interval '1 hour');
+  INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_ok,u_f);
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id,created_at,not_after) VALUES
+    (s_o,u_o,'aal1',NULL,now(),NULL),(s_m,u_m,'aal1',NULL,now(),NULL),(s_v,u_v,'aal1',NULL,now(),NULL),(s_x,u_x,'aal1',NULL,now(),NULL),
+    (s_exp,u_o,'aal1',NULL,now() - interval '2 hours',now() - interval '1 minute'),
+    (s_f1,u_f,'aal1',NULL,now(),NULL),(s_f2,u_f,'aal2',f_ok,now(),NULL);
+  PERFORM pg_temp.ffh_p08_claims(u_o, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h1,'ZZ-P11 one',u_o);
+  PERFORM pg_temp.ffh_p08_claims(u_x, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h2,'ZZ-P11 two',u_x);
+  PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES (h1,u_m,'member'),(h1,u_v,'viewer'),(h1,u_f,'member');
+  INSERT INTO public.expenses(id,household_id,name,category,payment_amount,recurrence,due_anchor_date) VALUES
+    (e_year,h1,'ZZ-P11 insurance','insurance',1200,'yearly',a_year),
+    (e_q,h1,'ZZ-P11 water','utilities',300,'quarterly',a_q),
+    (e_q2,h1,'ZZ-P11 trash','utilities',90,'quarterly',a_q),
+    (e_month,h1,'ZZ-P11 rent','housing',1500,'monthly',a_q),
+    (e_unsched,h1,'ZZ-P11 taxes','other',900,'yearly',NULL),
+    (e_zero,h1,'ZZ-P11 zero','other',0,'yearly',a_year),
+    (e_past,h1,'ZZ-P11 old','other',100,'yearly',a_past),
+    (e_x,h2,'ZZ-P11 other house','insurance',600,'yearly',a_year);
+  EXECUTE format(digest_sql, h1, h2) INTO expenses_digest;
+
+  -- 1. Owner/member create; one tracker per bill; viewer and other households cannot; forged pairings refused.
+  PERFORM pg_temp.ffh_p11_expect('owner-starts-yearly', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_year, a_year, a_year, 'yearly', '300.00')), '1');
+  PERFORM pg_temp.ffh_p11_expect('second-tracker-same-bill-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, e_year, a_year, a_year, 'yearly', '0')), 'ERR:23505');
+  PERFORM pg_temp.ffh_p11_expect('member-starts-quarterly', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, e_q, a_q, a_q, 'quarterly', '0')), '1');
+  PERFORM pg_temp.ffh_p11_expect('viewer-start-denied', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '0')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('other-house-start-on-a-bill-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '0')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('forged-household-for-foreign-bill-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h2, e_q2, a_q, a_q, 'quarterly', '0')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('forged-foreign-bill-in-own-house-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_x, a_year, a_year, 'yearly', '0')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('other-house-own-tracker-ok', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h2, e_x, a_year, a_year, 'yearly', '50')), '1');
+  SELECT id INTO t_year FROM public.bill_set_asides WHERE expense_id = e_year;
+  SELECT id INTO t_q FROM public.bill_set_asides WHERE expense_id = e_q;
+  SELECT id INTO t_x FROM public.bill_set_asides WHERE expense_id = e_x;
+  PERFORM pg_temp.ffh_p11_expect('stamped-creator', (SELECT concat_ws(',',created_by = u_o, updated_by = u_o, version) FROM public.bill_set_asides WHERE id = t_year), 't,t,1');
+
+  -- 2. Eligibility and cycle validity are database rules, not just UI rules.
+  PERFORM pg_temp.ffh_p11_expect('monthly-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_month, a_q, a_q, 'quarterly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('unscheduled-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_unsched, a_year, a_year, 'yearly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('zero-amount-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_zero, a_year, a_year, 'yearly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('wrong-anchor-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q + 1, 'quarterly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('wrong-recurrence-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'yearly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('not-a-due-date-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q + 1, a_q, 'quarterly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('one-month-off-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, (a_q + interval '1 month')::date, a_q, 'quarterly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('past-cycle-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_past, a_past, a_past, 'yearly', '0')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('negative-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '-0.01')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('over-max-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '1000000000000')), 'ERR:22003');
+  PERFORM pg_temp.ffh_p11_expect('later-occurrence-and-max-reserve-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_past, (a_past + interval '2 years')::date, a_past, 'yearly', '999999999999.99')), '1');
+
+  -- 3. Guarded updates: the trigger owns the version; a stale version changes nothing; identity columns are fixed.
+  PERFORM pg_temp.ffh_p11_expect('member-updates-reserve', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, 'reserved_amount = 450.25', t_year, ' AND version = 1')), '2');
+  PERFORM pg_temp.ffh_p11_expect('stale-version-changes-nothing', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_year, ' AND version = 1')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('reserve-kept-after-stale', (SELECT concat_ws(',',reserved_amount,version,updated_by = u_m) FROM public.bill_set_asides WHERE id = t_year), '450.25,2,t');
+  PERFORM pg_temp.ffh_p11_expect('client-version-ignored', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'version = 99', t_year, '')), '3');
+  PERFORM pg_temp.ffh_p11_expect('move-to-other-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('expense_id = %L', e_q2), t_year, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('move-to-other-house-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('household_id = %L', h2), t_year, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('forged-creator-ignored', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, format('created_by = %L, created_at = now() - interval %L', u_x, '9 years'), t_year, '')), '4');
+  PERFORM pg_temp.ffh_p11_expect('creator-unchanged', (SELECT (created_by = u_o AND created_at > now() - interval '1 day')::text FROM public.bill_set_asides WHERE id = t_year), 'true');
+  PERFORM pg_temp.ffh_p11_expect('negative-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = -1', t_year, '')), 'ERR:23514');
+
+  -- 4. Explicit next cycle: only a real future due date of the CURRENT schedule.
+  PERFORM pg_temp.ffh_p11_expect('member-confirms-next-quarter', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L, reserved_amount = 25', q_next), t_q, ' AND version = 1')), '2');
+  PERFORM pg_temp.ffh_p11_expect('cycle-not-a-due-date-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L', q_next + 1), t_q, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('cycle-into-past-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L, cycle_anchor_date = %L', a_past, a_past), t_q, '')), 'ERR:22023');
+  -- The bill's schedule changes (P09 edit): the tracker and its reserve stay; the old schedule can't be confirmed again;
+  -- a reserve-only edit still works; the new schedule's due date can be confirmed explicitly.
+  UPDATE public.expenses SET due_anchor_date = a_year + 5 WHERE id = e_year;
+  PERFORM pg_temp.ffh_p11_expect('schedule-change-keeps-reserve', (SELECT concat_ws(',',reserved_amount,cycle_due_date = a_year) FROM public.bill_set_asides WHERE id = t_year), '450.25,t');
+  PERFORM pg_temp.ffh_p11_expect('reserve-edit-after-schedule-change-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 500', t_year, '')), '5');
+  PERFORM pg_temp.ffh_p11_expect('stale-schedule-cycle-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L', (a_year + interval '1 year')::date), t_year, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('new-schedule-cycle-confirmed', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L, cycle_anchor_date = %L', a_year + 5, a_year + 5), t_year, '')), '6');
+  UPDATE public.expenses SET recurrence = 'monthly' WHERE id = e_q2;
+  PERFORM pg_temp.ffh_p11_expect('bill-to-monthly-keeps-trackers', (SELECT count(*)::text FROM public.bill_set_asides WHERE household_id = h1), '3');
+
+  -- 5. Viewer read-only; other households, outsiders and dead/expired/pending-2FA sessions see and change nothing.
+  PERFORM pg_temp.ffh_p11_expect('viewer-reads', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(cnt, h1)), '3');
+  PERFORM pg_temp.ffh_p11_expect('viewer-update-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_year, '')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('viewer-delete-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(del, t_year, '')), '0');
+  PERFORM pg_temp.ffh_p11_expect('other-house-reads-nothing', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p11_expect('other-house-update-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_year, '')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('other-house-delete-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(del, t_year, '')), '0');
+  PERFORM pg_temp.ffh_p11_expect('member-cannot-touch-other-house', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_x, '')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('member-reads-no-other-house', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(cnt, h2)), '0');
+  PERFORM pg_temp.ffh_p11_expect('dead-session-reads-nothing', pg_temp.ffh_p08_run(u_o, gen_random_uuid()::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p11_expect('dead-session-update-no-rows', pg_temp.ffh_p08_run(u_o, gen_random_uuid()::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_year, '')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('expired-session-reads-nothing', pg_temp.ffh_p08_run(u_o, s_exp::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p11_expect('expired-session-start-denied', pg_temp.ffh_p08_run(u_o, s_exp::text, 'aal1', pw, format(ins, h1, e_unsched, a_year, a_year, 'yearly', '0')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('pending-2fa-reads-nothing', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal1', pw2, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p11_expect('pending-2fa-update-no-rows', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal1', pw2, format(upd, 'reserved_amount = 1', t_year, '')), 'none');
+  PERFORM pg_temp.ffh_p11_expect('forged-aal2-on-aal1-session-reads-nothing', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal2', pw2, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p11_expect('verified-2fa-reads', pg_temp.ffh_p08_run(u_f, s_f2::text, 'aal2', pw2, format(cnt, h1)), '3');
+  PERFORM pg_temp.ffh_p11_expect('no-claims-reads-nothing', pg_temp.ffh_p08_run(NULL, NULL, NULL, NULL, 'SELECT count(*)::text FROM public.bill_set_asides'), '0');
+  PERFORM pg_temp.ffh_p11_expect('anon-has-no-table-grant', (has_table_privilege('anon','public.bill_set_asides','SELECT') OR has_table_privilege('anon','public.bill_set_asides','INSERT'))::text, 'false');
+  PERFORM pg_temp.ffh_p11_expect('trigger-fn-not-callable', has_function_privilege('authenticated','private.bill_set_aside_before_write()','EXECUTE')::text, 'false');
+
+  -- 6. Tracker writes never change a bill; stopping keeps the bill; deleting the bill removes its tracker.
+  UPDATE public.expenses SET due_anchor_date = a_year WHERE id = e_year;
+  UPDATE public.expenses SET recurrence = 'quarterly' WHERE id = e_q2;
+  EXECUTE format(digest_sql, h1, h2) INTO now_digest;
+  PERFORM pg_temp.ffh_p11_expect('expenses-unchanged-by-trackers', now_digest, expenses_digest);
+  PERFORM pg_temp.ffh_p11_expect('stop-with-stale-version-no-rows', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(del, t_q, ' AND version = 1')), '0');
+  PERFORM pg_temp.ffh_p11_expect('member-stops-tracking', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(del, t_q, ' AND version = 2')), '1');
+  PERFORM pg_temp.ffh_p11_expect('stop-keeps-bill', (SELECT count(*)::text FROM public.expenses WHERE id = e_q), '1');
+  PERFORM pg_temp.ffh_p11_expect('owner-deletes-bill', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('WITH r AS (DELETE FROM public.expenses WHERE id = %L RETURNING 1) SELECT count(*)::text FROM r', e_year)), '1');
+  PERFORM pg_temp.ffh_p11_expect('bill-delete-cascades-tracker', (SELECT count(*)::text FROM public.bill_set_asides WHERE id = t_year), '0');
+  PERFORM pg_temp.ffh_p11_expect('no-orphan-trackers', (SELECT count(*)::text FROM public.bill_set_asides s
+    WHERE NOT EXISTS (SELECT 1 FROM public.expenses e WHERE e.id = s.expense_id AND e.household_id = s.household_id)), '0');
+END
+$p11$;
+
 -- No raw fixture IDs, SQL values or JWT claims in receipts.
 SELECT 'MATRIX_ASSERTIONS_PASS=' || count(*)::text AS result FROM pg_temp.ffh_rls_receipts;
 SELECT 'MATRIX_FINANCIAL_FAMILIES=' || count(DISTINCT family)::text AS result
@@ -1698,7 +1857,7 @@ BEGIN
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
     'household_hsa_legal_spouse_authorities',
-    'savings_goals','monthly_check_ins','monthly_check_in_balances'
+    'savings_goals','monthly_check_ins','monthly_check_in_balances','bill_set_asides'
   ] LOOP
     EXECUTE format('SELECT count(*) FROM public.%I',t) INTO n;
     IF n<>0 THEN RAISE EXCEPTION 'MATRIX_ROLLBACK_RESIDUE_FOUND family=%',t; END IF;

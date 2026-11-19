@@ -805,3 +805,30 @@ financial form:
 4. Explicitly entered $0 and legitimate optional inputs keep working where supported.
 5. Each new guided financial form gets focused tests for the above.
 Measure: the P11 independent audit raises no implicit-default or unknown-treated-as-known finding.
+
+## 2026-11-19 — FFH-P11 started (Irregular Expense Set-Asides, issue #172)
+
+Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-irregular-expense-set-asides` from
+`cc7c707` + P10 close-out #193 (`d41e926`); phase PR #194. Builder choices inside the spec, for the audit to check:
+- **Schema (released P09 has no bills table):** `public.bill_set_asides` references `public.expenses` through a composite
+  FK `(expense_id, household_id)` (new `expenses_id_household_key`), `on delete cascade`, `unique (expense_id)`. It stores
+  only the active cycle (`cycle_due_date` plus the P09 anchor/recurrence it was confirmed against), the reported
+  `reserved_amount` (numeric(14,2) ≥ 0) and a trigger-owned `version`. Amount/recurrence/dates stay in `expenses`.
+- **Database rules (trigger, SECURITY INVOKER):** a new or changed cycle needs a scheduled quarterly/yearly expense with
+  amount > 0 whose current anchor/recurrence equal the confirmed ones, on a real occurrence (P09 clamp rule), not before
+  the UTC date; the bill row is held `FOR SHARE` so a concurrent schedule change or delete can't slip in. Version,
+  creator and timestamps are server-set; expense/household can't be changed. Reserve-only edits skip the cycle check.
+- **Disable = delete the tracker** (no ledger, decision 10). Bill edits never move the reported amount: an amount change
+  recomputes the gap; a schedule change shows "Cycle confirmation needed"; a bill that is no longer eligible shows
+  "Review needed" with no calculation.
+- **Saving periods:** the released P07 `fundingMonths` rule (decision 3). One period → "$X still needed before DATE; 1
+  remaining saving period", never "per month". Due today → amount still needed, no periods. Passed → confirmation.
+- **Next cycle:** offered on/after the due date or after a schedule change; it is the first due date after the old cycle
+  and not before today (unchanged schedule), else the new schedule's next due date. Carryover is typed (blank refused,
+  0 allowed); nothing carries over by default. Progress % is rounded down.
+- **Guided-input contract (P10 lesson, implemented):** amount fields start blank and required; confirmation boxes start
+  unticked; blank → "Enter an amount. Type 0 if…"; typed 0 accepted. One line added to `docs/WORKFLOW.md` step 4.
+- **Noninterference:** only `/bills` reads the table and only `/bills` is revalidated; the P09 `BillsView` is never mutated
+  (forecast notes are a separate map). Tests: calculations (`ffh-p11-set-asides.test.ts`), source checks
+  (`tests/security/ffh-p11-set-asides.test.ts`), matrix P11 section (63 assertions) and the CI race test
+  `scripts/rls-ci/test-set-aside-concurrency.sh` (also runnable on the local harness).
