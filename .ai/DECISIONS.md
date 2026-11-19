@@ -843,3 +843,9 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
   `monthly_check_ins_created_by_fkey`). Fails closed (deletion refused; no data exposed or lost); sole owners are not
   affected (their household is deleted first). Severity MEDIUM. **Ryan: "Fix p07 in p11" (2026-11-19)** — fixed in the
   P11 migration (same audit-only pass-through; function body otherwise the released one); +2 matrix probes (1306).
+- **Hosted migration applied (2026-11-19):** Ryan authorized "Apply scripts/hosted/apply-20261119100000.sql at 8fd21ab
+  to hosted Supabase" and ran the one-paste file (sha256 `04ce8104…c075`): **17/17 PASS** (pre-check 26, applied and
+  recorded, paste repair, 5 phase checks, parity 9/9). Hosted Supabase is at 27 migrations. Production smoke right after:
+  12/12 (Production and Preview share the database; the released P10 app does not read the new table).
+- **Preview:** Ryan moved the fixed Preview domain to the P11 phase branch; `/api/build-info` = `8fd21ab` (preview);
+  Preview smoke 12/12.

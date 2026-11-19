@@ -30,3 +30,11 @@ the fixed Preview domain), secrets and real data need Ryan's approval per action
   helpers. One-paste hosted file `scripts/hosted/apply-20261119100000.sql` (needs Ryan's authorization).
 - Never read by the plan, its snapshot, the Money Priority Engine or the exports.
 - QA rows Q58–Q69.
+
+## Status (2026-11-19)
+
+- Built and merged into the phase branch: #195 (build), #196 (pre-migration compatibility), #197 (pre-freeze
+  `/code-review high` fixes + the Ryan-approved P07 check-in account-deletion fix). `fast` + `rls-matrix` green on each.
+- Hosted migration applied by Ryan: 17/17 PASS (27 migrations, parity 9/9). Production smoke 12/12 afterwards.
+- Fixed Preview serves the phase branch; Preview smoke 12/12. Next: `e2e-isolation` on the exact head, Browser QA
+  Q58–Q69, freeze a candidate, one independent different-model HIGH-risk audit.
