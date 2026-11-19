@@ -730,3 +730,12 @@ Builder choices inside the spec, for the audit to check:
 - Local visual check (2026-11-19): synthetic example household at 390/820/1280 px, light and dark; no horizontal
   overflow. Found and fixed: vehicle loans are stored as `auto_loan` (not `auto`); unlabeled partial figures when
   costs are unknown (now flagged); "blank means none" placeholders.
+
+## 2026-11-19 — FFH-P10 Preview QA PASS; frozen for audit
+
+- Ryan moved the fixed Preview domain to `phase/ffh-p10-can-we-afford-it`. At `c8734bd` (#190 merge): CI `fast`,
+  `rls-matrix`, `e2e-isolation` PASS 58/58; Preview smoke 12/12; signed-out `/what-if*` redirect to Sign in.
+- Browser QA (Work mode) Q46–Q57 **PASS**, no `qa-finding` issues; `ZZ-A-Temp` deleted, finished signed out. Phone-width
+  parts of Q46 and Q57 are Ryan's device checks (NOT RUN in the Cloud Browser).
+- Whole-phase `/code-review high` before freezing: 6 findings (1 important: an unhandled action rejection could crash
+  the page; 5 nits), all fixed in #190 before the merge.
