@@ -926,3 +926,24 @@ contract. Verified before branching: `main` = `8842f607432db2b07705e19c53542d000
 CI run 44652290057 success); #202 draft/unmerged at `458b45a6aee5a1ef4e36a341a55331658dc06052`; no P12 branch existed.
 Phase branch `phase/ffh-p12-per-paycheck-planning` = Production + #202 (fast-forward to `458b45a`). Still separately
 required: hosted migration apply, fixed Preview domain move, the exact-SHA Production merge. P13 not started.
+
+## 2026-11-20 — FFH-P12 Builder implementation choices (flagged for Ryan; none changes the engine's policy)
+
+Issue #203 leaves these unspecified; each was implemented in the most conservative (fail-closed) form and is disclosed
+in the app. Ryan may confirm or ask for a change:
+1. **Income-mismatch materiality: zero threshold.** Any difference of $0.01 or more between a fixed schedule's monthly
+   equivalent (rounded to the cent) and `income_sources.monthly_amount` is shown and blocks every "Estimated left over"
+   conclusion ("not confirmed" instead). #203 forbids inventing a threshold. A weekly paycheck can almost never equal
+   a round monthly amount exactly (e.g. $1,153.85/wk = $5,000.02/mo), so households will often need to set the
+   monthly amount to the shown equivalent. Alternative, if Ryan prefers: treat differences under a stated amount
+   (e.g. $1.00/mo) as matching.
+2. **Month apportionment counts every known deposit of the calendar month**, including ones earlier in the month than
+   today (from the schedule's anchor onward); they absorb their share and are not shown. Deposits before a schedule's
+   anchor are unknown, so a schedule entered mid-month spreads that month's amounts over the remaining deposits
+   (conservative). Each card says how many deposits share the month and how many already happened.
+3. **Allowances use the same deposit-size weighting** as plan steps (unscheduled expenses and debt minimums).
+4. **Editing a schedule re-asks every field** (blank form, current values shown as text), following the P11
+   set-aside precedent of never pre-filling an amount.
+5. **Schedules only for active incomes**; pausing an income keeps its schedule but excludes it (and refuses edits)
+   until it is active again. Next expected date must be from yesterday (UTC) to 366 days ahead when set or changed.
+6. **Twice-a-month anchors that clamp to the same day** (30th and 31st in February) stay two deposits on that date.

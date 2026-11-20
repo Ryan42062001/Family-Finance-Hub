@@ -29,3 +29,11 @@ secrets and real data need Ryan's approval per action. P13 is not started.
 - New table `public.income_pay_schedules` (one per income source), built to the P11 database-boundary contract.
 - Nothing else is written: no allocations, balances, completions or history; monthly income stays authoritative.
 - QA rows Q70–Q84.
+
+## Status (2026-11-20)
+
+- Build PR #205 (dev → phase): migration `20261120200000` (`income_pay_schedules`, P11 DB-boundary contract), matrix
+  1403 (+84), races 4/4 (CI), one-paste `scripts/hosted/apply-20261120200000.sql` (+ checks), `lib/paychecks/*`,
+  `/plan/paychecks` (detailed + Simple), entry button on Your plan, QA rows Q70–Q84.
+- Hosted migration: NOT applied (needs Ryan's separate approval). Preview domain: still on P11 (needs Ryan).
+- Builder choices flagged for Ryan: `.ai/DECISIONS.md` ("FFH-P12 Builder implementation choices").

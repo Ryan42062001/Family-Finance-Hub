@@ -112,7 +112,7 @@ export const WEBRTC_TRAP = `(() => {
 // another host and would be blocked).
 export const CONTEXT_OPTIONS = { serviceWorkers: "block", extraHTTPHeaders: { "x-vercel-skip-toolbar": "1" } };
 
-export const PAGES = ["/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/scenario-lab", "/account", "/bills", "/plan/print", "/what-if", "/what-if/purchase"];
+export const PAGES = ["/plan", "/dashboard", "/financial-profile", "/goals", "/planning", "/scenario-lab", "/account", "/bills", "/plan/print", "/what-if", "/what-if/purchase", "/plan/paychecks"];
 
 const results = [];
 function record(name, ok, detail = "") {
