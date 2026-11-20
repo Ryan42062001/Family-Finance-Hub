@@ -30,3 +30,15 @@ the fixed Preview domain), secrets and real data need Ryan's approval per action
   helpers. One-paste hosted file `scripts/hosted/apply-20261119100000.sql` (needs Ryan's authorization).
 - Never read by the plan, its snapshot, the Money Priority Engine or the exports.
 - QA rows Q58–Q69.
+
+## Status (2026-11-19)
+
+- Built and merged into the phase branch: #195 (build), #196 (pre-migration compatibility), #197 (pre-freeze
+  `/code-review high` fixes + the Ryan-approved P07 check-in account-deletion fix). `fast` + `rls-matrix` green on each.
+- Hosted migration applied by Ryan: 17/17 PASS (27 migrations, parity 9/9). Production smoke 12/12 afterwards.
+- Fixed Preview serves the phase branch; Preview smoke 12/12; `e2e-isolation` PASS on `8fd21ab`.
+- Browser QA at `8fd21ab` (Work mode, PR #194): Q38, Q40, Q44, Q45, Q58–Q68 PASS. Q69 failed on #198 (`ZZ-A-Rent`
+  missing from Bills); Ryan's fresh-tab re-check at `8fd21ab` passed, so #198 was closed as not reproducible (no code
+  change). Q69's desktop dark-mode and keyboard parts PASS. Ryan's device checks still open: Q43 native print dialog,
+  Q69 tablet/phone width.
+- Next: freeze a candidate, then one independent different-model HIGH-risk audit.
