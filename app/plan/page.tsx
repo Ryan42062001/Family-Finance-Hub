@@ -46,6 +46,8 @@ export default async function PlanPage({ searchParams }: PlanPageProps) {
         <div><p className="eyebrow">Your money plan</p><h1>What to do with your money</h1><p className="muted">Steps in priority order, worked out from your saved numbers. Nothing here changes your profile.</p></div>
         {/* FFH-P10: prominent entry to the guided, read-only purchase checks. */}
         <div className="hero-actions plan-what-if-actions">
+          {/* FFH-P12: per-paycheck view of this same plan (no new navigation item). */}
+          <Link className="secondary-button" href="/plan/paychecks">Plan the next paycheck</Link>
           <Link className="secondary-button" href="/what-if/purchase?type=home">Can we afford a home?</Link>
           <Link className="secondary-button" href="/what-if/purchase?type=vehicle">Can we afford a vehicle?</Link>
         </div>

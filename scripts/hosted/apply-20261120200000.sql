@@ -344,7 +344,7 @@ from (values
   ('migrations', 29, '42f6dc0eaab03dd2e0e49e721447e6b4'),
   ('policies', 82, 'f0706249f3b78c15e6d8f417d070f755'),
   ('rls', 22, 'ebcf5248b360169933514fcb0cd80bf6'),
-  ('table_grants', 235, '690ef64eaf4320dedbeb994531fac4c9'),
+  ('table_grants', 237, '0125c41ed30677b66b29e199d7f8c0d1'),
   ('triggers', 7, '6bc18d772f324fef8924440f6d7f88c1')
 ) e(section, items, fp)
 left join ffh_apply_parity p on p.section = e.section;

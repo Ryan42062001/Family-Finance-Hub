@@ -9,6 +9,8 @@ import { apportionCents } from "../paychecks/apportion.ts";
 import { depositDates, monthlyEquivalentOfDeposit, scheduleShapeError, type PaySchedule } from "../paychecks/schedule.ts";
 import { buildPaycheckPlan, PaycheckDataError, type IncomeFact, type PaycheckPlanInput, type PlanStepFact } from "../paychecks/plan.ts";
 import { parseScheduleForm } from "../paychecks/form.ts";
+import { dollarsToCents, incomeFacts, incomeFingerprint, planSteps, expenseTreatments, assemblePaycheckInput } from "../paychecks/inputs.ts";
+import { buildMoneyPrioritySnapshot } from "./money-priority-snapshot.ts";
 import { buildBillsView, type BillInput } from "../bills/bills-view.ts";
 import { MAX_CENTS } from "../bills/schedule.ts";
 import { planFromRaw } from "../plan/plan-result.ts";
@@ -391,4 +393,40 @@ test("building a paycheck plan never changes the Money Priority Engine result or
   assert.equal(JSON.stringify(planFromRaw(raw, "2026-11-20")), before);
   assert.equal(JSON.stringify(buildBillsView(bills, "2026-11-20")), billsBefore);
   assert.equal(JSON.stringify(inputs, (_, v) => (v instanceof Map ? [...v] : v)), frozen, "inputs not mutated");
+});
+
+// ---- Inputs come from the engine and snapshot unchanged ------------------------------------------------------------
+
+test("plan steps passed to the paycheck plan are exactly Your plan's steps: same ids, order and cent amounts", () => {
+  const plan = planFromRaw(exampleHouseholdRaw(), "2026-11-20");
+  assert.ok(plan.ok);
+  const steps = planSteps(plan)!;
+  const expected = plan.view.steps.filter((s) => (s.monthlyAmount ?? 0) > 0);
+  assert.ok(steps.length > 0);
+  assert.deepEqual(steps.map((s) => [s.id, s.rank, s.monthlyCents]), expected.map((s) => [s.id, s.rank, Math.round(s.monthlyAmount! * 100)]));
+  assert.ok(steps.every((s, i) => i === 0 || steps[i - 1].rank < s.rank), "engine rank order");
+  assert.equal(planSteps({ ok: false, reason: "x" }), null);
+});
+
+test("income facts and spending treatments are copied from the snapshot without changing it", () => {
+  const snapshot = buildMoneyPrioritySnapshot(exampleHouseholdRaw());
+  const before = JSON.stringify(snapshot);
+  const facts = incomeFacts(snapshot);
+  assert.deepEqual(facts.map((f) => f.monthlyCents), snapshot.income.map((i) => Math.round(i.monthlyTakeHomeAmount * 100)));
+  const treatments = expenseTreatments(snapshot);
+  for (const e of snapshot.expenses) assert.equal(treatments.get(e.id), e.cashFlowTreatment === "required" ? "required" : "discretionary");
+  const plan = planFromRaw(exampleHouseholdRaw(), "2026-11-20");
+  const input = assemblePaycheckInput({ today: "2026-11-20", snapshot, plan, bills: [], schedules: [], setAsides: [] });
+  assert.equal(input.incomes.length, snapshot.income.length);
+  assert.equal(JSON.stringify(snapshot), before, "snapshot untouched");
+});
+
+test("engine dollars -> cents is exact and fails closed; income fingerprint changes with any income fact", () => {
+  assert.equal(dollarsToCents(1234.56), 123_456);
+  assert.equal(dollarsToCents(0.1 + 0.2), 30);
+  for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, 1.005, 1e13]) assert.throws(() => dollarsToCents(bad), PaycheckDataError, String(bad));
+  const base = income();
+  const fp = incomeFingerprint(base);
+  assert.match(fp, /^[0-9a-f]{32}$/);
+  for (const changed of [{ monthlyCents: 433_334 }, { isActive: false }, { isVariable: true }, { name: "ZZ-Other" }]) assert.notEqual(incomeFingerprint({ ...base, ...changed }), fp);
 });
