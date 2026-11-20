@@ -864,7 +864,7 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
 - Ryan authorized "Release FFH-P11 at d8bd83804c43c9099efb55ad53dd6aebc11283a9" (confirmed "approved"); PR #194 merged
   as `8842f607432db2b07705e19c53542d0006b5df82` after exact-head CI green (run 44651404099: fast, rls-matrix 1319,
   e2e-isolation). Production served `8842f60` within a minute; Production smoke **12/12**; signed-out `/bills`, `/plan`,
-  `/what-if`, `/account` redirect to sign-in. FFH-P11 is **CLOSED**.
+  `/what-if`, `/account` redirect to sign-in; post-merge Production CI run 44652290057 **success**. FFH-P11 is **CLOSED**.
 
 ### Lessons learned (issue #188)
 
@@ -903,3 +903,17 @@ Prior improvements, checked against P11 evidence:
   day but after three BLOCKED e2e runs (expected, reported once) — **helped**, keep.
 - `/code-review high` before freezing: caught 2 important (account deletion, stale reserve update) — **helped**.
 - Event-driven CI notifications: no polling — **helped**. Owner device checks: Q43/Q69 PASS — **helped**.
+
+## 2026-11-20 — Ryan approved the FFH-P11 lessons-learned improvement (implement in the next phase)
+
+Ryan: "approve lesson". Implement item 1 (database-boundary contract for a new household-scoped table) during the next
+authorized phase, in that phase's normal development branch: no separate documentation PR, no Production change, and do
+not start the next phase until it is separately authorized. Keep the `docs/WORKFLOW.md` change to one line in phase
+step 4. Contract for every new household-scoped table, in its FIRST migration:
+1. Clients get INSERT/UPDATE only on the columns a person supplies (ids, versions, audit columns and timestamps stay
+   with the database).
+2. Money columns use unconstrained `numeric` with a CHECK matching the form's rules (finite, not NaN, bounds, whole
+   cents), so direct API writes are refused, never rounded.
+3. Every insert and update path is revalidated in the trigger against the authoritative row it depends on (locked).
+4. Each of the above has a direct authenticated write probe in the RLS matrix.
+Measure: the next independent audit of a phase with a new table raises no direct-write / database-boundary finding.
