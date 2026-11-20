@@ -196,7 +196,7 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   }
   // Fresh isolated temp project with exactly the 23 tracked migrations (FFH-P05, both FFH-P06 and the four FFH-P07 migrations).
   assert.match(runner, /git ls-files -- 'supabase\/migrations\/\*\.sql'/);
-  assert.match(runner, /EXPECTED_MIGRATIONS=28/);
+  assert.match(runner, /EXPECTED_MIGRATIONS=29/);
   assert.match(runner, /mktemp -d/);
   assert.match(runner, /supabase@2\.122\.0/);
   assert.doesNotMatch(runner, /supabase (link|db push)|--linked|--db-url/);
@@ -206,8 +206,8 @@ test("FFH-P01 CI runner is disposable, local-only and requires the exact success
   // Unchanged SQL piped in; exact markers required.
   assert.match(runner, /< scripts\/rls-local\/preflight\.sql/);
   assert.match(runner, /< scripts\/rls-local\/matrix\.sql/);
-  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=28 ROLES=2 NO_FIXTURES=1/);
-  assert.match(runner, /EXPECTED_ASSERTIONS=1319/);
+  assert.match(runner, /PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=29 ROLES=2 NO_FIXTURES=1/);
+  assert.match(runner, /EXPECTED_ASSERTIONS=1403/);
   assert.match(runner, /MATRIX_ROLLBACK_COMPLETE/);
   assert.match(runner, /"MATRIX_ZERO_RESIDUE_PASS"/);
   // Independent review findings 1, 2 and 4.
@@ -290,6 +290,11 @@ test("FFH-P01 RLS-02 checks both person-two constraints in both directions witho
   // FFH-P11 audit remediation (P11-01..03) adds 13: NaN/sub-cent/infinite amounts, column-limited client writes,
   // reserve edits revalidated against the bill (schedule change, ineligible bill, passed cycle).
   assert.equal(1306 + 13, 1319);
+  // FFH-P12 adds 84 pay-schedule probes built to the P11 database-boundary contract: exact-cent/NaN/infinite amounts,
+  // frequencies, semimonthly anchors and payday, date window, column-limited writes, guarded versions, parent income
+  // locked and revalidated on every write (inactive, forged, foreign), owner/member write, viewer read-only, household
+  // isolation, dead/expired/pending-2FA sessions, cascade, account deletion and no change to other financial rows.
+  assert.equal(1319 + 84, 1403);
 });
 
 test("FFH-P01 RLS-03 tests authenticated creator inserts, owner trigger cardinality, and role restoration", () => {
