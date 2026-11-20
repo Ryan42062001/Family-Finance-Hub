@@ -23,5 +23,15 @@
 
 Evidence for the fixes: +13 matrix probes (1319); a new real two-session race (reserve edit vs schedule change: waits,
 then refused), shown to FAIL against the pre-fix trigger and PASS with the fix; source checks in
-`tests/security/ffh-p11-set-asides.test.ts`. The fixes need a targeted re-check by the reviewer and Ryan's separate
-hosted authorization for `scripts/hosted/apply-20261120100000.sql`.
+`tests/security/ffh-p11-set-asides.test.ts`. Merged via #200 (phase head `005f312`).
+
+## Targeted re-check
+
+- **Reviewer:** the same different-model reviewer (ChatGPT), on the fix range `694df32...005f312` (pasted by Ryan,
+  2026-11-20).
+- **Result:** `RE-CHECK RESULT: PASS — 005f312`. P11-01, P11-02 and P11-03 RESOLVED; no new BLOCKER/CRITICAL/HIGH/MEDIUM.
+  The reviewer confirmed the column grants, the account-deletion SET NULL path, the app's writes using only granted
+  columns, revalidation under the bill row lock on every write, and RLS/session/viewer protections unchanged.
+  Exact-head CI 44648090298 green (matrix 1319, coverage 10/10, races 5/5, provider 38, hosted rehearsal, e2e).
+- **Hosted:** Ryan authorized and applied `scripts/hosted/apply-20261120100000.sql` at `005f312`: 17/17 PASS (hosted at
+  28 migrations). Production and Preview smoke 12/12 afterwards. Q64 re-check at `005f312`: PASS.
