@@ -25,9 +25,10 @@ the fixed Preview domain), secrets and real data need Ryan's approval per action
   due now, cycle confirmation needed. Explicit next-cycle confirmation with a typed carryover; stop tracking keeps the
   bill. Non-mutating notes on the 12-month forecast.
 - Code: `lib/bills/set-aside*.ts`, `lib/supabase/set-asides.ts`, `app/bills/SetAsides.tsx`, `app/bills/set-aside-actions.ts`.
-- **Migration** `20261119100000_ffh_p11_bill_set_asides.sql`: table `public.bill_set_asides` (composite FK to
+- **Migrations** `20261119100000_ffh_p11_bill_set_asides.sql` and `20261120100000_ffh_p11_set_aside_integrity.sql`
+  (audit fixes; both applied to hosted Supabase by Ryan). First: table `public.bill_set_asides` (composite FK to
   `expenses(id, household_id)` on delete cascade, one per expense, version-guarded), RLS via the session-gated household
-  helpers. One-paste hosted file `scripts/hosted/apply-20261119100000.sql` (needs Ryan's authorization).
+  helpers. One-paste hosted files `scripts/hosted/apply-20261119100000.sql` and `apply-20261120100000.sql` (both 17/17 PASS).
 - Never read by the plan, its snapshot, the Money Priority Engine or the exports.
 - QA rows Q58–Q69.
 
@@ -41,4 +42,7 @@ the fixed Preview domain), secrets and real data need Ryan's approval per action
   missing from Bills); Ryan's fresh-tab re-check at `8fd21ab` passed, so #198 was closed as not reproducible (no code
   change). Q69's desktop dark-mode and keyboard parts PASS. Ryan's device checks still open: Q43 native print dialog,
   Q69 tablet/phone width.
-- Next: freeze a candidate, then one independent different-model HIGH-risk audit.
+- Independent audit (ChatGPT) at `694df32`: PASS with 3 MEDIUM; all fixed in #200 (migration `20261120100000`);
+  targeted re-check PASS at `005f312`. Hosted migration #2 applied by Ryan: 17/17 PASS (28 migrations). Q64 re-check PASS.
+  Receipt: `docs/workflow/FFH-P11_AUDIT.md`.
+- Next: release candidate = the phase head after this record; Ryan's exact-SHA release authorization.

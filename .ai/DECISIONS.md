@@ -855,3 +855,6 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
   before release ("fix all of them now"): migration `20261120100000_ffh_p11_set_aside_integrity.sql` (exact-cent CHECK
   incl. NaN; column-limited client writes + immutable id; every write revalidated against the locked bill). Receipt:
   `docs/workflow/FFH-P11_AUDIT.md`.
+- **Audit closed (2026-11-20):** targeted re-check `RE-CHECK RESULT: PASS — 005f312` (P11-01..03 RESOLVED, nothing new).
+  Ryan authorized and applied `apply-20261120100000.sql` at `005f312`: 17/17 PASS, hosted at 28 migrations; Production
+  and Preview smoke 12/12. Q64 re-check PASS at `005f312`. Final-audit backlog for P11: none open (all three MEDIUM fixed).
