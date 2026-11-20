@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 27 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 28 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -1762,17 +1762,31 @@ BEGIN
   PERFORM pg_temp.ffh_p11_expect('one-month-off-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, (a_q + interval '1 month')::date, a_q, 'quarterly', '0')), 'ERR:22023');
   PERFORM pg_temp.ffh_p11_expect('past-cycle-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_past, a_past, a_past, 'yearly', '0')), 'ERR:22023');
   PERFORM pg_temp.ffh_p11_expect('negative-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '-0.01')), 'ERR:23514');
-  PERFORM pg_temp.ffh_p11_expect('over-max-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '1000000000000')), 'ERR:22003');
+  PERFORM pg_temp.ffh_p11_expect('over-max-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '1000000000000')), 'ERR:23514');
+  -- Audit P11-01: NaN, sub-cent and infinite amounts are refused by the database itself (no silent rounding).
+  PERFORM pg_temp.ffh_p11_expect('nan-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '''NaN''::numeric')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('sub-cent-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '100.005')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('negative-sub-cent-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '-0.001')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('infinite-reserve-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_q2, a_q, a_q, 'quarterly', '''Infinity''::numeric')), 'ERR:23514');
+  -- Audit P11-02: clients supply only the input columns; id, version and audit columns are the database's.
+  PERFORM pg_temp.ffh_p11_expect('client-id-on-insert-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('INSERT INTO public.bill_set_asides(id,household_id,expense_id,cycle_due_date,cycle_anchor_date,cycle_recurrence,reserved_amount) VALUES (gen_random_uuid(),%L,%L,%L,%L,''quarterly'',0) RETURNING 1', h1, e_q2, a_q, a_q)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('client-audit-on-insert-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('INSERT INTO public.bill_set_asides(household_id,expense_id,cycle_due_date,cycle_anchor_date,cycle_recurrence,reserved_amount,created_by,version) VALUES (%L,%L,%L,%L,''quarterly'',0,%L,7) RETURNING 1', h1, e_q2, a_q, a_q, u_x)), 'ERR:42501');
   PERFORM pg_temp.ffh_p11_expect('later-occurrence-and-max-reserve-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, e_past, (a_past + interval '2 years')::date, a_past, 'yearly', '999999999999.99')), '1');
 
   -- 3. Guarded updates: the trigger owns the version; a stale version changes nothing; identity columns are fixed.
   PERFORM pg_temp.ffh_p11_expect('member-updates-reserve', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, 'reserved_amount = 450.25', t_year, ' AND version = 1')), '2');
   PERFORM pg_temp.ffh_p11_expect('stale-version-changes-nothing', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 1', t_year, ' AND version = 1')), 'none');
   PERFORM pg_temp.ffh_p11_expect('reserve-kept-after-stale', (SELECT concat_ws(',',reserved_amount,version,updated_by = u_m) FROM public.bill_set_asides WHERE id = t_year), '450.25,2,t');
-  PERFORM pg_temp.ffh_p11_expect('client-version-ignored', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'version = 99', t_year, '')), '3');
-  PERFORM pg_temp.ffh_p11_expect('move-to-other-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('expense_id = %L', e_q2), t_year, '')), 'ERR:22023');
-  PERFORM pg_temp.ffh_p11_expect('move-to-other-house-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('household_id = %L', h2), t_year, '')), 'ERR:22023');
-  PERFORM pg_temp.ffh_p11_expect('forged-creator-ignored', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, format('created_by = %L, created_at = now() - interval %L', u_x, '9 years'), t_year, '')), '4');
+  PERFORM pg_temp.ffh_p11_expect('client-version-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'version = 99', t_year, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('move-to-other-bill-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('expense_id = %L', e_q2), t_year, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('move-to-other-house-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('household_id = %L', h2), t_year, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('client-id-change-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'id = gen_random_uuid()', t_year, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('forged-creator-denied', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, format('created_by = %L, created_at = now() - interval %L', u_x, '9 years'), t_year, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('nan-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = ''NaN''::numeric', t_year, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('sub-cent-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 450.255', t_year, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p11_expect('version-after-denied-writes', (SELECT version::text FROM public.bill_set_asides WHERE id = t_year), '2');
   PERFORM pg_temp.ffh_p11_expect('creator-unchanged', (SELECT (created_by = u_o AND created_at > now() - interval '1 day')::text FROM public.bill_set_asides WHERE id = t_year), 'true');
   PERFORM pg_temp.ffh_p11_expect('negative-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = -1', t_year, '')), 'ERR:23514');
 
@@ -1787,12 +1801,18 @@ BEGIN
   -- a reserve-only edit still works; the new schedule's due date can be confirmed explicitly.
   UPDATE public.expenses SET due_anchor_date = a_year + 5 WHERE id = e_year;
   PERFORM pg_temp.ffh_p11_expect('schedule-change-keeps-reserve', (SELECT concat_ws(',',reserved_amount,cycle_due_date = a_year) FROM public.bill_set_asides WHERE id = t_year), '450.25,t');
-  PERFORM pg_temp.ffh_p11_expect('reserve-edit-after-schedule-change-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 500', t_year, '')), '5');
+  -- Audit P11-03: a reserve-only edit is also checked against the bill as it is now.
+  PERFORM pg_temp.ffh_p11_expect('reserve-edit-after-schedule-change-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 500', t_year, '')), 'ERR:22023');
   PERFORM pg_temp.ffh_p11_expect('stale-schedule-cycle-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
     format(upd, format('cycle_due_date = %L', (a_year + interval '1 year')::date), t_year, '')), 'ERR:22023');
   PERFORM pg_temp.ffh_p11_expect('new-schedule-cycle-confirmed', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
-    format(upd, format('cycle_due_date = %L, cycle_anchor_date = %L', a_year + 5, a_year + 5), t_year, '')), '6');
+    format(upd, format('cycle_due_date = %L, cycle_anchor_date = %L, reserved_amount = 500', a_year + 5, a_year + 5), t_year, '')), '3');
+  PERFORM pg_temp.ffh_p11_expect('reserve-edit-after-confirmation-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'reserved_amount = 510.10', t_year, '')), '4');
   UPDATE public.expenses SET recurrence = 'monthly' WHERE id = e_q2;
+  UPDATE public.expenses SET recurrence = 'monthly' WHERE id = e_past;
+  PERFORM pg_temp.ffh_p11_expect('reserve-edit-on-ineligible-bill-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, 'reserved_amount = 1', (SELECT id FROM public.bill_set_asides WHERE expense_id = e_past), '')), 'ERR:22023');
+  UPDATE public.expenses SET recurrence = 'yearly' WHERE id = e_past;
   PERFORM pg_temp.ffh_p11_expect('bill-to-monthly-keeps-trackers', (SELECT count(*)::text FROM public.bill_set_asides WHERE household_id = h1), '3');
 
   -- 5. Viewer read-only; other households, outsiders and dead/expired/pending-2FA sessions see and change nothing.
@@ -1840,9 +1860,20 @@ BEGIN
     FROM public.monthly_check_ins WHERE household_id = h1), 't,t,t');
   PERFORM pg_temp.ffh_p11_expect('account-delete-keeps-tracker', (SELECT concat_ws(',',reserved_amount,version,created_by IS NULL,updated_by IS NULL)
     FROM public.bill_set_asides WHERE expense_id = e_q2), '12.35,2,t,t');
-  PERFORM pg_temp.ffh_p11_expect('null-audit-column-changes-nothing-else', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL', t_x, '')), '1');
-  PERFORM pg_temp.ffh_p11_expect('null-audit-column-keeps-reserve', (SELECT concat_ws(',',reserved_amount,version) FROM public.bill_set_asides WHERE id = t_x), '50.00,1');
-  PERFORM pg_temp.ffh_p11_expect('null-plus-data-change-is-normal-update', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL, reserved_amount = 60', t_x, '')), '2');
+  -- Audit P11-02: clients can no longer touch the audit columns at all (only the account-deletion cascade can).
+  PERFORM pg_temp.ffh_p11_expect('client-null-audit-column-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL', t_x, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p11_expect('client-null-audit-keeps-row', (SELECT concat_ws(',',reserved_amount,version,created_by = u_x) FROM public.bill_set_asides WHERE id = t_x), '50,1,t');
+  -- Audit P11-03: a cycle whose due date has passed accepts no reserve edit until the next cycle is confirmed.
+  -- (Fixture only: a passed cycle can't be created through the trigger, so the privileged builder skips triggers.)
+  SET LOCAL session_replication_role = replica;
+  UPDATE public.expenses SET due_anchor_date = today - 30 WHERE id = e_q;
+  INSERT INTO public.bill_set_asides(household_id,expense_id,cycle_due_date,cycle_anchor_date,cycle_recurrence,reserved_amount,version)
+    VALUES (h1, e_q, today - 30, today - 30, 'quarterly', 5, 1);
+  SET LOCAL session_replication_role = origin;
+  PERFORM pg_temp.ffh_p11_expect('passed-cycle-reserve-edit-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, 'reserved_amount = 6', (SELECT id FROM public.bill_set_asides WHERE expense_id = e_q), '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p11_expect('passed-cycle-next-confirmed', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, format('cycle_due_date = %L, reserved_amount = 0', (today - 30 + interval '3 months')::date), (SELECT id FROM public.bill_set_asides WHERE expense_id = e_q), '')), '2');
   PERFORM pg_temp.ffh_p11_expect('no-orphan-trackers', (SELECT count(*)::text FROM public.bill_set_asides s
     WHERE NOT EXISTS (SELECT 1 FROM public.expenses e WHERE e.id = s.expense_id AND e.household_id = s.household_id)), '0');
 END

@@ -851,3 +851,7 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
   Preview smoke 12/12.
 - **Browser QA (8fd21ab):** 16 of 17 PASS. The one FAIL, Q69/#198, was not reproducible on Ryan's fresh-tab re-check
   (closed, no code change). NOT RUN: Q43 native print dialog, Q69 tablet/phone width (Ryan's device checks).
+- **Independent audit (ChatGPT) at `694df32`: PASS** (no BLOCKER/CRITICAL/HIGH), 3 MEDIUM. Ryan chose to fix all three
+  before release ("fix all of them now"): migration `20261120100000_ffh_p11_set_aside_integrity.sql` (exact-cent CHECK
+  incl. NaN; column-limited client writes + immutable id; every write revalidated against the locked bill). Receipt:
+  `docs/workflow/FFH-P11_AUDIT.md`.
