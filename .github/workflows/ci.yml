@@ -48,8 +48,8 @@ jobs:
       - run: node scripts/audit-gate.mjs
 
   rls-matrix:
-    # Disposable Linux runner: fresh local Supabase DB, 27 migrations,
-    # preflight.sql + 1306-assertion matrix.sql, automatic teardown; then the
+    # Disposable Linux runner: fresh local Supabase DB, 28 migrations,
+    # preflight.sql + 1319-assertion matrix.sql, automatic teardown; then the
     # P09 legacy-row upgrade check on the runner's own throw-away PostgreSQL.
     # Synthetic data only; no hosted Supabase or secrets.
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-phase-ci') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')

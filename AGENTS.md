@@ -30,7 +30,7 @@ historical evidence only.
   PostgreSQL and runs `npm ci`; created 2026-11-18). If `psql`/PostgreSQL is missing, the chat is on the wrong one.
 - **CI:** after opening a PR, subscribe to its activity (`subscribe_pr_activity`) so CI results arrive as events; don't
   poll or sleep. Read only the failing job's last lines, not whole logs. Keep working on independent items meanwhile.
-- **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1306+ matrix, coverage,
+- **Database work locally first:** `scripts/rls-local/local-harness/run.sh all` (preflight, 1319+ matrix, coverage,
   P09 upgrade check and the one-paste hosted-apply rehearsal in seconds; needs `apt-get install -y postgresql`, which the environment setup script does). CI stays the source of
   truth; race tests and the real-provider suite run only in CI. Real `auth.*` table shapes:
   `docs/workflow/FFH-P08_SPIKE_RESULTS.md` (fixtures must set NOT NULL columns such as `mfa_factors.created_at`).

@@ -8,6 +8,8 @@
 #      bill row), then removes the bill and, by cascade, the tracker; no orphan.
 #   4. A tracker being started while someone changes the bill to monthly: the change waits for the start, so the
 #      eligibility check can never be bypassed by a concurrent edit.
+#   5. Audit P11-03: a reserve-only edit racing a schedule change of its bill: the edit waits for the change and is
+#      then refused (the trigger revalidates every write against the bill row it holds), never saved to a stale cycle.
 # NEVER invoke on an Owner laptop, hosted database or an existing non-CI project. Builder rehearsal on the local harness
 # only: run.sh reset, then FFH_P11_RACE_LOCAL_HARNESS=1 bash scripts/rls-ci/test-set-aside-concurrency.sh local <empty dir>.
 set -euo pipefail
@@ -40,6 +42,7 @@ house='00000000-0000-4000-8000-000000000b11'
 bill_a='00000000-0000-4000-8000-000000000b21'
 bill_b='00000000-0000-4000-8000-000000000b22'
 bill_c='00000000-0000-4000-8000-000000000b23'
+bill_d='00000000-0000-4000-8000-000000000b24'
 
 baseline="$(db <<SQL
 SELECT ((SELECT count(*) FROM auth.users WHERE id IN ('$owner','$member')) = 0
@@ -67,12 +70,14 @@ INSERT INTO public.household_members(household_id,user_id,role) VALUES('$house',
 INSERT INTO public.expenses(id,household_id,name,category,payment_amount,recurrence,due_anchor_date) VALUES
  ('$bill_a','$house','ffh-ci-insurance','insurance',1200,'yearly',(now() at time zone 'utc')::date + 40),
  ('$bill_b','$house','ffh-ci-water','utilities',300,'quarterly',(now() at time zone 'utc')::date + 10),
- ('$bill_c','$house','ffh-ci-taxes','other',900,'yearly',(now() at time zone 'utc')::date + 60);
+ ('$bill_c','$house','ffh-ci-taxes','other',900,'yearly',(now() at time zone 'utc')::date + 60),
+ ('$bill_d','$house','ffh-ci-fees','other',400,'yearly',(now() at time zone 'utc')::date + 80);
 INSERT INTO public.bill_set_asides(household_id,expense_id,cycle_due_date,cycle_anchor_date,cycle_recurrence,reserved_amount)
- SELECT household_id,id,due_anchor_date,due_anchor_date,recurrence,0 FROM public.expenses WHERE id = '$bill_a';
+ SELECT household_id,id,due_anchor_date,due_anchor_date,recurrence,0 FROM public.expenses WHERE id IN ('$bill_a','$bill_d');
 SQL
 tracker="$(db <<<"SELECT id FROM public.bill_set_asides WHERE expense_id = '$bill_a';")" || fail 'FIXTURE_READ'
-[[ -n "$tracker" ]] || fail 'FIXTURE_INCOMPLETE'
+tracker_d="$(db <<<"SELECT id FROM public.bill_set_asides WHERE expense_id = '$bill_d';")" || fail 'FIXTURE_READ'
+[[ -n "$tracker" && -n "$tracker_d" ]] || fail 'FIXTURE_INCOMPLETE'
 echo 'FFH_P11_CONCURRENCY=FIXTURE_CREATED'
 
 # Each statement holds its row lock for 2 s before committing, so the two sessions are guaranteed to overlap.
@@ -124,6 +129,24 @@ elapsed_ms=$(( ($(date +%s%N) - t0) / 1000000 ))
 [[ "$r1" == 1 && "$r2" == 1 ]] || fail "START_VS_MONTHLY ($r1/$r2)"
 [[ "$elapsed_ms" -ge 3500 ]] || fail "START_VS_MONTHLY_DID_NOT_WAIT (${elapsed_ms}ms)"
 echo 'FFH_P11_CONCURRENT_START_VS_SCHEDULE_CHANGE=SERIALIZED'
+
+# 5. Audit P11-03: a reserve edit racing its bill's schedule change. The change holds the bill row; the edit's trigger
+#    waits for it (FOR SHARE), then sees the new schedule and refuses. The tracker keeps its old amount and version.
+log_1="$work/set-aside-reserve-vs-schedule-1.log"; log_2="$work/set-aside-reserve-vs-schedule-2.log"
+t0=$(date +%s%N)
+guarded "$member" "WITH r AS (UPDATE public.expenses SET due_anchor_date = due_anchor_date + 1 WHERE id = '$bill_d' RETURNING 1) SELECT count(*) FROM r;" "$log_1" & p1=$!
+sleep 0.3
+guarded "$owner" "WITH r AS (UPDATE public.bill_set_asides SET reserved_amount = 77.77 WHERE id = '$tracker_d' AND household_id = '$house' AND version = 1 RETURNING 1) SELECT count(*) FROM r;" "$log_2" & p2=$!
+s1=0; s2=0
+wait "$p1" || s1=$?
+wait "$p2" || s2=$?
+elapsed_ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+[[ "$s1" == 0 && "$(grep -E '^[0-9]+$' "$log_1" | head -n1)" == 1 ]] || { cat "$log_1" >&2; fail 'RESERVE_VS_SCHEDULE_CHANGE_NOT_APPLIED'; }
+[[ "$s2" != 0 ]] && grep -q 'the bill schedule changed' "$log_2" || { cat "$log_2" >&2; fail 'RESERVE_EDIT_NOT_REFUSED'; }
+[[ "$elapsed_ms" -ge 2000 ]] || fail "RESERVE_EDIT_DID_NOT_WAIT (${elapsed_ms}ms)"
+result="$(db <<<"SELECT reserved_amount || '|' || version FROM public.bill_set_asides WHERE id = '$tracker_d';")"
+[[ "$result" == "0|1" ]] || fail "RESERVE_VS_SCHEDULE_RESULT ($result)"
+echo 'FFH_P11_CONCURRENT_RESERVE_EDIT_VS_SCHEDULE_CHANGE=WAITED_AND_REFUSED'
 
 db >/dev/null <<SQL
 DELETE FROM public.households WHERE id = '$house';
