@@ -849,3 +849,5 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
   12/12 (Production and Preview share the database; the released P10 app does not read the new table).
 - **Preview:** Ryan moved the fixed Preview domain to the P11 phase branch; `/api/build-info` = `8fd21ab` (preview);
   Preview smoke 12/12.
+- **Browser QA (8fd21ab):** 16 of 17 PASS. The one FAIL, Q69/#198, was not reproducible on Ryan's fresh-tab re-check
+  (closed, no code change). NOT RUN: Q43 native print dialog, Q69 tablet/phone width (Ryan's device checks).
