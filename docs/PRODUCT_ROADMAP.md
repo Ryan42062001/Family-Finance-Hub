@@ -85,12 +85,20 @@ remains a separate Owner authorization.
 
 ## FFH-P10 — Can We Afford It? + financial best-practice warnings
 
-State: REMEDIATING. Risk: HIGH (money calculations and advice presentation, household isolation). Phase branch:
+State: CLOSED. Released to Production via PR #189 at `cc7c707` (2026-11-19), with Ryan's explicit authorization;
+Production smoke test 12/12. Audit PASS after fixes (#192), QA Q46–Q57 PASS. Risk: HIGH (money calculations and advice presentation, household isolation). Phase branch:
 `phase/ffh-p10-can-we-afford-it`, phase PR #189. Binding spec: GitHub issue #171 (guided Home/Vehicle purchase checks
 on the canonical evaluators, optional two-option comparison, separate source-attributed nonblocking rules of thumb;
 read-only, no persistence). Workflow addition: issue #188 (evidence-based lessons learned). No hosted SQL, Vercel,
 real-data or Production change is approved; Production deployment remains a separate Owner authorization.
-Next (separately Owner-approved, not started): FFH-P11, issue #172.
+
+## FFH-P11 — Irregular Expense Set-Asides
+
+State: BUILDING (authorized by Ryan 2026-11-19). Risk: HIGH (money calculations, new household-scoped table, RLS and
+session authorization). Phase branch `phase/ffh-p11-irregular-expense-set-asides` from Production `cc7c707` plus the P10
+close-out (#193); phase PR #194. Binding spec: GitHub issue #172. Optional per-bill tracker on the Bills page for
+quarterly/yearly expenses: the amount the household reports as set aside, the gap, any surplus and an exact-cent
+catch-up suggestion; explicit cycle confirmation; advisory only. One migration (needs Ryan's hosted authorization).
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

@@ -75,7 +75,8 @@ There are no one-time "GO" tokens. A failed disposable run is simply fixed and r
    steps that need his accounts or approval (hosted checks, Production, secrets) and his own look-and-feel review.
 4. **Phase review — one audit at the end.** First the Builder runs `/code-review high` on the whole phase diff
    (`git diff <production SHA>...<phase head>`) and fixes what it confirms; this cheap pass catches what the audit
-   would otherwise send back. When the full phase is built, CI is green and the preview is accepted, the
+   would otherwise send back. For a guided financial input form it also adds tests that no answer is pre-selected and that a blank
+   required amount is refused or gives "More information needed", never $0 (typed 0 still works). When the full phase is built, CI is green and the preview is accepted, the
    Builder freezes an exact candidate SHA and one fresh independent reviewer audits the changed scope there (prompt: `docs/workflow/REVIEW_PROMPT.md`): security and household isolation, money calculations, data handling, regressions.
    - **BLOCKER / CRITICAL / HIGH:** fix before merge, rerun CI, and have the reviewer re-check just that fix.
    - **MEDIUM / LOW / NIT:** record in the final-audit backlog (`.ai/DECISIONS.md` or the phase PR) with severity,
@@ -142,7 +143,7 @@ fixed Preview address: `https://family-finance-hub-preview.vercel.app`.
   critical), dev-only (absent from `npm audit --omit=dev`) and before its review date (Ryan, 2026-11-18). Each new
   exception needs Ryan's approval.
 - **`rls-matrix`** (every push): builds a disposable local Supabase database on the CI runner, applies all migrations,
-  runs `scripts/rls-local/preflight.sql` and the 961-assertion two-household `scripts/rls-local/matrix.sql`, requires
+  runs `scripts/rls-local/preflight.sql` and the 1319-assertion two-household `scripts/rls-local/matrix.sql`, requires
   rollback and zero residue, and tears the database down. Synthetic data only; never connects to hosted Supabase.
 - **`full-phase`** (label `full-phase-ci` or manual dispatch): the same checks pinned to an exact candidate SHA.
 

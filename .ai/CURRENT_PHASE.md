@@ -1,39 +1,48 @@
 # Current phase
 
-FFH-P10 — Can We Afford It? + financial best-practice warnings
+FFH-P11 — Irregular Expense Set-Asides
 
-State: REMEDIATING
-Risk: HIGH (money calculations and advice presentation, household isolation, read-only scenario surface)
+State: BUILDING (authorized by Ryan, 2026-11-19)
+Risk: HIGH (money calculations, new household-scoped persistence, Supabase schema/RLS, session authorization)
 Owner: Ryan
-Spec (binding): GitHub issue #171 (Owner-approved design); workflow addition: issue #188 (lessons learned)
-Phase branch: `phase/ffh-p10-can-we-afford-it`, started at `304d60648b900c9909396776da0c1cf9ae139c53` (Production
-`83979c1c9e3b6f2e6ac1f26f3d5643c8f98061db` plus the P09 close-out carried forward from draft #187)
-Phase PR: #189 (phase → `main`, draft; collects QA, audit and release evidence)
-Previous phase: FFH-P09 RELEASED / CLOSED (PR #186, Production smoke 12/12).
+Spec (binding): GitHub issue #172 (11 Owner decisions + 2 safeguards); P10-approved guided-financial-input contract
+(`.ai/DECISIONS.md`, 2026-11-19).
+Phase branch: `phase/ffh-p11-irregular-expense-set-asides`, started at `d41e92626c9eeb676d0bb8ece6f52be2152d4d3a`
+(Production `cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` plus the P10 close-out carried forward from draft #193)
+Phase PR: #194 (phase → `main`, draft; collects QA, audit and release evidence)
+Previous phase: FFH-P10 RELEASED / CLOSED (PR #189, Production smoke 12/12).
 
 **Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
-Ryan's explicit exact-SHA authorization. Hosted SQL, Supabase Auth, Vercel (including moving the fixed Preview
-domain), secrets and real data need Ryan's approval per action.
+Ryan's explicit exact-SHA authorization. Hosted SQL (this phase's migration), Supabase Auth, Vercel (including moving
+the fixed Preview domain), secrets and real data need Ryan's approval per action.
 
-## What P10 builds
+## What P11 builds
 
-- **What if?** (`/what-if`) replaces the Scenario Lab tab; Scenario Lab stays under **Tools** on that page (detailed
-  view). Your plan gets **Can we afford a home? / a vehicle?** buttons. Simple view keeps What if? in its menu.
-- **Guided purchase check** (`/what-if/purchase?type=home|vehicle`): one option, or two side by side, each with its
-  own entries and result. The verdict is the canonical evaluator's, unchanged (`runHomeScenarioAdapter` /
-  `runVehicleScenarioAdapter` on a freshly loaded server baseline). Blank costs stay unknown. Read-only: nothing saved.
-- **Financial rules of thumb** (`lib/purchase-check/guidance.ts`): 28% housing, 36% debt (Fannie Mae), 20/3/8 (Money
-  Guy), vehicle value ≤ half of income (Ramsey), 3–6 months of emergency savings (CFPB). Separate, educational,
-  nonblocking; "Insufficient information" when an input is missing.
-- No migration, no new table, no hosted change expected. No hypothetical PDF/CSV export.
-- QA rows Q46–Q57.
+- **Set-asides on Bills** (`/bills`, no new menu item): for each scheduled quarterly/yearly expense, an optional tracker
+  of the **amount the household reports as set aside** for the active cycle's due date. Shows the bill amount, the P09
+  monthly planning amount (already budgeted, unchanged), reported amount, still needed, surplus, progress, saving
+  periods and a catch-up suggestion (exact cents, rounded up) only when meaningful. Honest states: funded, in progress,
+  due now, cycle confirmation needed. Explicit next-cycle confirmation with a typed carryover; stop tracking keeps the
+  bill. Non-mutating notes on the 12-month forecast.
+- Code: `lib/bills/set-aside*.ts`, `lib/supabase/set-asides.ts`, `app/bills/SetAsides.tsx`, `app/bills/set-aside-actions.ts`.
+- **Migrations** `20261119100000_ffh_p11_bill_set_asides.sql` and `20261120100000_ffh_p11_set_aside_integrity.sql`
+  (audit fixes; both applied to hosted Supabase by Ryan). First: table `public.bill_set_asides` (composite FK to
+  `expenses(id, household_id)` on delete cascade, one per expense, version-guarded), RLS via the session-gated household
+  helpers. One-paste hosted files `scripts/hosted/apply-20261119100000.sql` and `apply-20261120100000.sql` (both 17/17 PASS).
+- Never read by the plan, its snapshot, the Money Priority Engine or the exports.
+- QA rows Q58–Q69.
 
 ## Status (2026-11-19)
 
-- Built and merged into the phase branch via #190 (`c8734bd`); whole-phase `/code-review high`: 6 findings, all fixed.
-- `c8734bd`: CI `fast`, `rls-matrix`, `e2e-isolation` PASS 58/58 (incl. `/what-if`, `/what-if/purchase`); Preview
-  serves it; Preview smoke 12/12; signed-out `/what-if*` → Sign in.
-- Browser QA Q46–Q57 PASS on `c8734bd` (no findings); phone-width parts of Q46/Q57 are Ryan's device checks (NOT RUN).
-- Independent different-model audit at `865783a`: **FAIL** (P10-01 HIGH, P10-02 HIGH, P10-03–05 MEDIUM; guided-input
-  contract, not the canonical evaluators). All five fixed; receipt `docs/workflow/FFH-P10_AUDIT.md`. Next: new frozen
-  candidate, targeted re-check of P10-01/P10-02, re-QA of the changed rows (Q48–Q50).
+- Built and merged into the phase branch: #195 (build), #196 (pre-migration compatibility), #197 (pre-freeze
+  `/code-review high` fixes + the Ryan-approved P07 check-in account-deletion fix). `fast` + `rls-matrix` green on each.
+- Hosted migration applied by Ryan: 17/17 PASS (27 migrations, parity 9/9). Production smoke 12/12 afterwards.
+- Fixed Preview serves the phase branch; Preview smoke 12/12; `e2e-isolation` PASS on `8fd21ab`.
+- Browser QA at `8fd21ab` (Work mode, PR #194): Q38, Q40, Q44, Q45, Q58–Q68 PASS. Q69 failed on #198 (`ZZ-A-Rent`
+  missing from Bills); Ryan's fresh-tab re-check at `8fd21ab` passed, so #198 was closed as not reproducible (no code
+  change). Q69's desktop dark-mode and keyboard parts PASS. Ryan's device checks still open: Q43 native print dialog,
+  Q69 tablet/phone width.
+- Independent audit (ChatGPT) at `694df32`: PASS with 3 MEDIUM; all fixed in #200 (migration `20261120100000`);
+  targeted re-check PASS at `005f312`. Hosted migration #2 applied by Ryan: 17/17 PASS (28 migrations). Q64 re-check PASS.
+  Receipt: `docs/workflow/FFH-P11_AUDIT.md`.
+- Next: release candidate = the phase head after this record; Ryan's exact-SHA release authorization.

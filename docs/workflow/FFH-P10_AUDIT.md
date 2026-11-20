@@ -25,4 +25,9 @@
 | P10-04 | MEDIUM | 36% counted a recorded mortgage that the purchase may replace and still gave a definitive status. | **Fixed:** Insufficient information in that case, naming the unknown (whether the mortgage is paid off), with both ratios shown for context only. Test added. |
 | P10-05 | MEDIUM | Emergency guideline reported a breach whenever protected cash was needed, without knowing the reserve left. | **Fixed:** Insufficient information, explaining that the purchase draws on protected money; "outside guideline" only when the post-purchase reserve is known to be below the target. Test updated. |
 
-Targeted re-check of P10-01 and P10-02 (and confirmation of P10-03–05) is requested at the new frozen candidate.
+## Targeted re-review (2026-11-19)
+
+`REVIEW RESULT: PASS — eca9d43bb20a642d16b31013005510b609900014`. Scope `865783a...eca9d43` (11 files, #192). P10-01 to
+P10-05 all **RESOLVED**; evaluators (`home-affordability.ts`, `vehicle-affordability.ts`) and adapter execution confirmed
+unchanged; no new BLOCKER/CRITICAL/HIGH. The reviewer marked the exact-head RLS jobs UNVERIFIED while still running; the
+Builder confirmed run 44458649330 at `eca9d43` completed with `fast`, `rls-matrix` and `e2e-isolation` all success.

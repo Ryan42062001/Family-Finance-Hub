@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { saveBillSchedule } from "./actions";
+import { SetAsides, type SetAsideFeedback } from "./SetAsides";
+import type { SetAsideError, SetAsideForm } from "./set-aside-actions";
 import { buildBillsView, UPCOMING_DAYS, type Bill, type BillsView } from "@/lib/bills/bills-view";
 import { formatCents, MAX_DATE, MIN_DATE, RECURRENCE_LABEL, reminderLabel } from "@/lib/bills/schedule";
 import { todayUtc } from "@/lib/plan/plan-result";
 import { resolveScenarioHouseholdAuthority } from "@/lib/scenarios/scenario-auth";
 import { BillsDataError, loadBills } from "@/lib/supabase/bills";
+import { loadSetAsides } from "@/lib/supabase/set-asides";
+import { buildSetAsideSection, occurrenceKey, type ForecastAnnotation, type SetAsideSection } from "@/lib/bills/set-aside-view";
+import { UUID } from "@/lib/bills/set-aside-form";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams: Promise<{ saved?: string; error?: string }> };
+type PageProps = { searchParams: Promise<{ saved?: string; error?: string; sa_notice?: string; sa_form?: string; sa_error?: string; sa_bill?: string }> };
 
 // Fixed, allowlisted messages; the text never comes from the URL.
 const ERRORS: Record<string, string> = {
@@ -18,6 +23,22 @@ const ERRORS: Record<string, string> = {
   not_saved: "Not saved. The bill may have been removed, or you no longer have permission to change it.",
   changed: "Not saved: this bill's due date or how often it repeats was changed in the meantime. Review it and save again.",
 };
+
+// FFH-P11 set-aside outcomes; fixed, allowlisted text (never taken from the URL).
+const SET_ASIDE_NOTICES: Record<string, string> = {
+  started: "Set-aside tracking started.",
+  updated: "Reported set-aside amount saved.",
+  cycle: "Next cycle confirmed.",
+  stopped: "Set-aside tracking stopped. The bill itself is unchanged.",
+};
+const SET_ASIDE_FORMS: readonly SetAsideForm[] = ["start", "update", "cycle", "stop"];
+const SET_ASIDE_ERRORS: readonly SetAsideError[] = ["amount_missing", "amount_invalid", "confirm_missing", "changed", "exists", "not_eligible", "not_saved", "read_only"];
+
+function setAsideFeedback(params: Awaited<PageProps["searchParams"]>): SetAsideFeedback {
+  const form = SET_ASIDE_FORMS.find((f) => f === params.sa_form);
+  const error = SET_ASIDE_ERRORS.find((e) => e === params.sa_error);
+  return form && error && typeof params.sa_bill === "string" && UUID.test(params.sa_bill) ? { form, error, expenseId: params.sa_bill } : null;
+}
 
 const dateLabel = (iso: string, withYear = true) =>
   new Date(`${iso}T00:00:00.000Z`).toLocaleDateString("en-US", { weekday: withYear ? undefined : "short", month: "short", day: "numeric", year: withYear ? "numeric" : undefined, timeZone: "UTC" });
@@ -79,14 +100,21 @@ function BillRow({ bill, canEdit }: { bill: Bill; canEdit: boolean }) {
   </li>;
 }
 
-function Forecast({ view }: { view: BillsView }) {
+function annotationText(a: ForecastAnnotation) {
+  const r = a.item.result;
+  if (a.kind === "needs_confirmation") return "Set-aside: cycle confirmation needed";
+  if (r.status === "funded" || ((r.status === "due_now") && r.remainingCents === 0)) return `Set-aside: fully funded (${formatCents(r.reservedCents)} reported)`;
+  return `Set-aside: ${formatCents(r.reservedCents)} of ${formatCents(r.targetCents!)} reported (${r.progressPercent}%), ${formatCents(r.remainingCents!)} still needed`;
+}
+
+function Forecast({ view, annotations }: { view: BillsView; annotations: Map<string, ForecastAnnotation> }) {
   return <details className="bento-card bill-forecast">
     <summary><span>12-month forecast of actual payments</span><b>{formatCents(view.forecastTotalCents)}</b></summary>
-    <p className="muted">Each scheduled payment on its due date, for the rest of {monthLabel(view.forecast[0].month)} and the next 11 months. These are the actual amounts due, not monthly averages. Bills without a due date are not included.</p>
+    <p className="muted">Each scheduled payment on its due date, for the rest of {monthLabel(view.forecast[0].month)} and the next 11 months. These are the actual amounts due, not monthly averages. Bills without a due date are not included. Set-aside notes are information only and don&apos;t change these amounts.</p>
     <ol className="bill-forecast-months">{view.forecast.map((month) => <li key={month.month}>
       <details>
         <summary><span>{monthLabel(month.month)}{month === view.forecast[0] ? " (from today)" : ""}</span><span>{month.occurrences.length} {month.occurrences.length === 1 ? "payment" : "payments"} · <b>{formatCents(month.totalCents)}</b></span></summary>
-        {month.occurrences.length ? <ul className="bill-occurrences">{month.occurrences.map((o) => <li key={`${o.bill.kind}-${o.bill.id}-${o.date}`}><span>{dateLabel(o.date)}</span><span>{o.bill.name}</span><b>{formatCents(o.bill.paymentCents)}</b></li>)}</ul> : <p className="muted">No scheduled payments.</p>}
+        {month.occurrences.length ? <ul className="bill-occurrences">{month.occurrences.map((o) => <li key={`${o.bill.kind}-${o.bill.id}-${o.date}`}><span>{dateLabel(o.date)}</span><span>{o.bill.name}</span><b>{formatCents(o.bill.paymentCents)}</b>{annotations.has(occurrenceKey(o.bill, o.date)) ? <small className="set-aside-note">{annotationText(annotations.get(occurrenceKey(o.bill, o.date))!)}</small> : null}</li>)}</ul> : <p className="muted">No scheduled payments.</p>}
       </details>
     </li>)}</ol>
   </details>;
@@ -102,11 +130,22 @@ export default async function BillsPage({ searchParams }: PageProps) {
 
   const today = todayUtc();
   let view: BillsView | null = null;
+  const supabase = await createClient();
   try {
-    view = buildBillsView(await loadBills(await createClient(), authority.householdId), today);
+    view = buildBillsView(await loadBills(supabase, authority.householdId), today);
   } catch (caught) {
     if (!(caught instanceof BillsDataError) && !(caught instanceof RangeError)) throw caught;
   }
+  // FFH-P11: a separate model; a problem here hides only the set-aside section, never the P09 bills.
+  let setAsides: SetAsideSection | null = null;
+  if (view) {
+    try {
+      setAsides = buildSetAsideSection(view, await loadSetAsides(supabase, authority.householdId), today);
+    } catch (caught) {
+      if (!(caught instanceof BillsDataError) && !(caught instanceof RangeError)) throw caught;
+    }
+  }
+  const saNotice = typeof params.sa_notice === "string" && Object.hasOwn(SET_ASIDE_NOTICES, params.sa_notice) ? SET_ASIDE_NOTICES[params.sa_notice] : null;
 
   return (
     <main className="page-shell bills-page">
@@ -115,6 +154,7 @@ export default async function BillsPage({ searchParams }: PageProps) {
       </section>
       {params.saved === "1" ? <p className="form-success" role="status">Due date saved.</p> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {saNotice ? <p className="form-success" role="status">{saNotice}</p> : null}
       {!view ? <section className="bento-card plan-unavailable" role="status"><strong>Bills can&apos;t be shown right now</strong><p>Some saved bill details are invalid. Review your expenses and debts in Financial profile.</p><Link className="secondary-button" href="/financial-profile">Open Financial profile</Link></section> : <>
         {view.reminders.length ? <section className="dashboard-notice bill-reminders" role="status" aria-labelledby="bill-reminders-heading">
           <div><strong id="bill-reminders-heading">Due soon</strong>
@@ -149,7 +189,9 @@ export default async function BillsPage({ searchParams }: PageProps) {
           {canEdit ? null : <p className="muted">You can view bills; an owner or member can change due dates.</p>}
         </section>
 
-        <Forecast view={view} />
+        <SetAsides section={setAsides} canEdit={canEdit} feedback={setAsideFeedback(params)} />
+
+        <Forecast view={view} annotations={setAsides?.annotations ?? new Map()} />
         <p className="plan-footnote muted">Dates are calendar dates (today is {dateLabel(today)}). Reminders appear only on this page and on Your plan; no emails or notifications are sent. Due dates are a schedule only: this page does not track payments.</p>
       </>}
     </main>

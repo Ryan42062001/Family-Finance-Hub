@@ -748,3 +748,113 @@ Builder choices inside the spec, for the audit to check:
   needed). Canonical evaluators, isolation and read-only boundaries verified intact. All five fixed in the P10 input
   contract / advisory layer (no evaluator change). Receipt: `docs/workflow/FFH-P10_AUDIT.md`.
 - Standing rule from P10-01/03: the guided form pre-answers no question (every choice starts at "Choose…").
+
+## 2026-11-19 — FFH-P10 released to Production and closed
+
+- Ryan authorized "Release FFH-P10 at eca9d43bb20a642d16b31013005510b609900014"; PR #189 merged as
+  `cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` after exact-head CI green (run 44458649330: fast, rls-matrix,
+  e2e-isolation). Production served `cc7c707` within a minute; Production smoke **12/12**; signed-out `/what-if`,
+  `/what-if/purchase?type=home|vehicle`, `/bills`, `/plan`, `/account` redirect to sign-in. FFH-P10 is **CLOSED**.
+- Re-review PASS at `eca9d43` (P10-01–05 resolved); QA Q46–Q57 PASS (Q48–Q50 re-run at `eca9d43`); Owner device checks
+  Q46/Q57 PASS. No hosted Supabase or environment-variable change.
+
+### Lessons learned (issue #188 — first run)
+
+Evidence reviewed: CI runs on the phase (one `e2e-isolation` BLOCKED, otherwise green), `/code-review high` (6 findings),
+the independent audit (FAIL, 2 HIGH + 3 MEDIUM → PASS), Browser QA (no findings), Owner steps (Preview move, audit and
+re-check pastes, QA runs, device checks, release), environment limits (publisher sites blocked by the network policy).
+
+1. **Guided-input contract check before freezing — proposed ADOPT (needs Ryan's approval; not applied).**
+   - *Evidence:* audit `FAIL — 865783a`: P10-01 (form pre-selected "payment ends") and P10-02 (blank maintenance gave a
+     positive verdict) were HIGH. Neither was caught by 1039 calculation tests, the pre-freeze `/code-review high`
+     (6 other findings) or Browser QA (Q48 followed the pre-filled answers).
+   - *Root cause (shown):* every P10 test compared P10 with the evaluator **for the same inputs**, so none could catch
+     inputs the user never gave. Nothing in the pre-freeze step asked which answers the form supplies by default or
+     which evaluator inputs are flagged missing only conditionally (`monthlyMaintenancePlanningAmount`).
+   - *Smallest fix:* one line in `docs/WORKFLOW.md` phase step 4: for a phase with a financial input form, before
+     freezing, add a test that no choice is pre-answered and that every evaluator input left blank is refused or yields
+     "more information needed" (checked against the evaluator's own missing-data rules).
+   - *Benefit:* avoids this phase's extra cycle (fix PR #192, a second CI round, targeted re-review, Q48–Q50 re-run and
+     two extra Owner pastes). *Cost/risk:* one test per form; no new tooling or permissions.
+   - *Measure next phase:* the independent audit raises no implicit-default or unknown-treated-as-known finding.
+2. Considered and **REJECTED** (not actionable): the `e2e-isolation` BLOCKED run on `304d606` (the carry-forward push
+   preceded the same-day Preview move; one comment, green on every P10 code commit); the blocked publisher hosts (a
+   one-off citation check, done via the publishers' own pages in search results).
+
+Prior (P09) improvements, checked against P10 evidence:
+- Day-one phase PR (#189) held QA, audit, device and release evidence; no release-prep docs PR — **helped**.
+- Same-day Preview move: done before the first P10 code merge; `e2e-isolation` 58/58 on every P10 code commit —
+  **helped**.
+- `/code-review high` before freezing: caught 1 important + 5 nits before the audit — **helped**, but missed the input-
+  contract HIGHs (item 1).
+- Event-driven CI notifications: no polling needed — **helped**.
+- Owner device checks: Q46/Q57 phone parts PASS on Ryan's phone, NOT RUN in the Cloud Browser as designed — **helped**.
+- Local DB harness: PASS at phase start; P10 had no schema change, so no measurable benefit this phase — keep.
+- One-paste hosted migration generator: **not exercised** (no migration in P10); its hosted effectiveness remains
+  unproven until a real authorized hosted migration uses it.
+
+## 2026-11-19 — Ryan approved the FFH-P10 lessons-learned improvement (implement in P11)
+
+Ryan approved item 1 of the P10 lessons learned. Implement it during the next authorized phase (FFH-P11) in that phase's
+normal development branch: no separate documentation PR, no Production change, and do not start P11 until it is
+separately authorized. Keep the `docs/WORKFLOW.md` change minimal (one line in phase step 4). Contract for every guided
+financial form:
+1. Financial questions have no preselected answers that imply information the user hasn't supplied.
+2. Missing required financial amounts never silently become $0 or produce an unsupported positive conclusion.
+3. Missing required information triggers validation or a "More information needed" outcome.
+4. Explicitly entered $0 and legitimate optional inputs keep working where supported.
+5. Each new guided financial form gets focused tests for the above.
+Measure: the P11 independent audit raises no implicit-default or unknown-treated-as-known finding.
+
+## 2026-11-19 — FFH-P11 started (Irregular Expense Set-Asides, issue #172)
+
+Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-irregular-expense-set-asides` from
+`cc7c707` + P10 close-out #193 (`d41e926`); phase PR #194. Builder choices inside the spec, for the audit to check:
+- **Schema (released P09 has no bills table):** `public.bill_set_asides` references `public.expenses` through a composite
+  FK `(expense_id, household_id)` (new `expenses_id_household_key`), `on delete cascade`, `unique (expense_id)`. It stores
+  only the active cycle (`cycle_due_date` plus the P09 anchor/recurrence it was confirmed against), the reported
+  `reserved_amount` (numeric(14,2) ≥ 0) and a trigger-owned `version`. Amount/recurrence/dates stay in `expenses`.
+- **Database rules (trigger, SECURITY INVOKER):** a new or changed cycle needs a scheduled quarterly/yearly expense with
+  amount > 0 whose current anchor/recurrence equal the confirmed ones, on a real occurrence (P09 clamp rule), not before
+  the UTC date; the bill row is held `FOR SHARE` so a concurrent schedule change or delete can't slip in. Version,
+  creator and timestamps are server-set; expense/household can't be changed. Reserve-only edits skip the cycle check.
+- **Disable = delete the tracker** (no ledger, decision 10). Bill edits never move the reported amount: an amount change
+  recomputes the gap; a schedule change shows "Cycle confirmation needed"; a bill that is no longer eligible shows
+  "Review needed" with no calculation.
+- **Saving periods:** the released P07 `fundingMonths` rule (decision 3). One period → "$X still needed before DATE; 1
+  remaining saving period", never "per month". Due today → amount still needed, no periods. Passed → confirmation.
+- **Next cycle:** offered on/after the due date or after a schedule change; it is the first due date after the old cycle
+  and not before today (unchanged schedule), else the new schedule's next due date. Carryover is typed (blank refused,
+  0 allowed); nothing carries over by default. Progress % is rounded down.
+- **Guided-input contract (P10 lesson, implemented):** amount fields start blank and required; confirmation boxes start
+  unticked; blank → "Enter an amount. Type 0 if…"; typed 0 accepted. One line added to `docs/WORKFLOW.md` step 4.
+- **Noninterference:** only `/bills` reads the table and only `/bills` is revalidated; the P09 `BillsView` is never mutated
+  (forecast notes are a separate map). Tests: calculations (`ffh-p11-set-asides.test.ts`), source checks
+  (`tests/security/ffh-p11-set-asides.test.ts`), matrix P11 section (71 assertions) and the CI race test
+  `scripts/rls-ci/test-set-aside-concurrency.sh` (also runnable on the local harness).
+- **Pre-freeze `/code-review high`** (whole phase diff `cc7c707...9656b99`): 2 important + 2 nits, all fixed. (1) The
+  trigger re-stamped `created_by`/`updated_by` on the ON DELETE SET NULL cascade, so a member who had started or edited a
+  tracker could not delete their account (FK 23503, reproduced locally); the audit-only SET NULL now passes through.
+  (2) `updateSetAside` checked only the version, which doesn't change when the bill changes or a due date passes; it now
+  re-checks the current state (`canUpdateReported`). Nits: catch-up period wording now matches `fundingMonths`; the
+  actions use the loader's strict row parser. +6 matrix probes (1304).
+- **Pre-existing, outside P11 (Production since P07):** `private.monthly_check_in_before_write` has the same re-stamping
+  pattern, so an invited **member** who has saved a monthly check-in cannot delete their account (reproduced locally:
+  `monthly_check_ins_created_by_fkey`). Fails closed (deletion refused; no data exposed or lost); sole owners are not
+  affected (their household is deleted first). Severity MEDIUM. **Ryan: "Fix p07 in p11" (2026-11-19)** — fixed in the
+  P11 migration (same audit-only pass-through; function body otherwise the released one); +2 matrix probes (1306).
+- **Hosted migration applied (2026-11-19):** Ryan authorized "Apply scripts/hosted/apply-20261119100000.sql at 8fd21ab
+  to hosted Supabase" and ran the one-paste file (sha256 `04ce8104…c075`): **17/17 PASS** (pre-check 26, applied and
+  recorded, paste repair, 5 phase checks, parity 9/9). Hosted Supabase is at 27 migrations. Production smoke right after:
+  12/12 (Production and Preview share the database; the released P10 app does not read the new table).
+- **Preview:** Ryan moved the fixed Preview domain to the P11 phase branch; `/api/build-info` = `8fd21ab` (preview);
+  Preview smoke 12/12.
+- **Browser QA (8fd21ab):** 16 of 17 PASS. The one FAIL, Q69/#198, was not reproducible on Ryan's fresh-tab re-check
+  (closed, no code change). NOT RUN: Q43 native print dialog, Q69 tablet/phone width (Ryan's device checks).
+- **Independent audit (ChatGPT) at `694df32`: PASS** (no BLOCKER/CRITICAL/HIGH), 3 MEDIUM. Ryan chose to fix all three
+  before release ("fix all of them now"): migration `20261120100000_ffh_p11_set_aside_integrity.sql` (exact-cent CHECK
+  incl. NaN; column-limited client writes + immutable id; every write revalidated against the locked bill). Receipt:
+  `docs/workflow/FFH-P11_AUDIT.md`.
+- **Audit closed (2026-11-20):** targeted re-check `RE-CHECK RESULT: PASS — 005f312` (P11-01..03 RESOLVED, nothing new).
+  Ryan authorized and applied `apply-20261120100000.sql` at `005f312`: 17/17 PASS, hosted at 28 migrations; Production
+  and Preview smoke 12/12. Q64 re-check PASS at `005f312`. Final-audit backlog for P11: none open (all three MEDIUM fixed).
