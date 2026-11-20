@@ -858,3 +858,62 @@ Ryan authorized the full P11 build (nonproduction). Phase branch `phase/ffh-p11-
 - **Audit closed (2026-11-20):** targeted re-check `RE-CHECK RESULT: PASS — 005f312` (P11-01..03 RESOLVED, nothing new).
   Ryan authorized and applied `apply-20261120100000.sql` at `005f312`: 17/17 PASS, hosted at 28 migrations; Production
   and Preview smoke 12/12. Q64 re-check PASS at `005f312`. Final-audit backlog for P11: none open (all three MEDIUM fixed).
+
+## 2026-11-20 — FFH-P11 released to Production and closed
+
+- Ryan authorized "Release FFH-P11 at d8bd83804c43c9099efb55ad53dd6aebc11283a9" (confirmed "approved"); PR #194 merged
+  as `8842f607432db2b07705e19c53542d0006b5df82` after exact-head CI green (run 44651404099: fast, rls-matrix 1319,
+  e2e-isolation). Production served `8842f60` within a minute; Production smoke **12/12**; signed-out `/bills`, `/plan`,
+  `/what-if`, `/account` redirect to sign-in; post-merge Production CI run 44652290057 **success**. FFH-P11 is **CLOSED**.
+
+### Lessons learned (issue #188)
+
+Evidence reviewed: CI on #195–#201 and the phase head (two expected first-run `table_grants` parity diffs, one runner
+port clash re-run once, three e2e BLOCKED runs before the Preview move, otherwise green); `/code-review high` (first run
+on a stale local branch ref, re-run on exact SHAs: 2 important + 2 nits); the independent audit (PASS, 3 MEDIUM, all at
+the database boundary) and its re-check; Browser QA (16/17, #198 not reproducible); Owner steps (Preview move, two
+hosted pastes, a P07 decision, a fix-now decision, QA runs, device checks, release).
+
+1. **Database-boundary contract for a new household table — proposed ADOPT (needs Ryan's approval; not applied).**
+   - *Evidence:* audit at `694df32` raised P11-01 (NaN/sub-cent accepted by `numeric(14,2)`), P11-02 (table-wide client
+     INSERT/UPDATE incl. id/audit columns) and P11-03 (a reserve-only update skipped the trigger's bill check). Fixing
+     them cost a second migration (#200), a second CI parity round, a second hosted paste, a targeted re-check, a Q64
+     re-run and two Owner decisions.
+   - *Root cause (shown):* the app validated input strictly (`lib/bills/set-aside-form.ts`), but the first migration
+     copied the P07 table pattern (`numeric(14,2)` + `>= 0`, table-level grants, checks only on some trigger paths), so
+     direct authenticated API writes were not held to the same rules. Neither the matrix nor `/code-review high` asked
+     "what can a member write directly?".
+   - *Smallest fix:* one line in `docs/WORKFLOW.md` phase step 4: for a new household-scoped table, before freezing, the
+     first migration grants clients only the input columns, puts the form's money rules (incl. NaN and sub-cent) in a
+     CHECK on an unconstrained `numeric`, and revalidates on every write path, each with a direct-write matrix probe.
+   - *Benefit:* avoids this phase's remediation loop. *Cost/risk:* a few lines and probes per new table; no new tooling.
+   - *Measure next phase with a new table:* the independent audit raises no direct-write / DB-boundary finding.
+2. Considered and **REJECTED**: #198 (a QA observation not reproducible on a fresh-tab re-check; no root cause shown);
+   the stale-ref `/code-review` run (a one-off Builder slip: pass exact SHAs, which `docs/WORKFLOW.md` already says);
+   the CI runner port clash (infrastructure, passed on the one allowed re-run).
+
+Prior improvements, checked against P11 evidence:
+- Guided-input contract (P10 lesson, implemented in P11): the audit raised **no implicit-default or unknown-treated-as-
+  known finding** — measure met; **helped**.
+- One-paste hosted migration: **first real use, twice** — both pastes 17/17 PASS first time with CRLF repair and
+  parity; **helped**.
+- Local DB harness: matrix/coverage/rehearsal in seconds and the race test rehearsed locally (incl. red-team against
+  the pre-fix trigger) — **helped**.
+- Early phase PR: held all QA, hosted, audit and release evidence; **helped**. Same-day Preview move: done the same
+  day but after three BLOCKED e2e runs (expected, reported once) — **helped**, keep.
+- `/code-review high` before freezing: caught 2 important (account deletion, stale reserve update) — **helped**.
+- Event-driven CI notifications: no polling — **helped**. Owner device checks: Q43/Q69 PASS — **helped**.
+
+## 2026-11-20 — Ryan approved the FFH-P11 lessons-learned improvement (implement in the next phase)
+
+Ryan: "approve lesson". Implement item 1 (database-boundary contract for a new household-scoped table) during the next
+authorized phase, in that phase's normal development branch: no separate documentation PR, no Production change, and do
+not start the next phase until it is separately authorized. Keep the `docs/WORKFLOW.md` change to one line in phase
+step 4. Contract for every new household-scoped table, in its FIRST migration:
+1. Clients get INSERT/UPDATE only on the columns a person supplies (ids, versions, audit columns and timestamps stay
+   with the database).
+2. Money columns use unconstrained `numeric` with a CHECK matching the form's rules (finite, not NaN, bounds, whole
+   cents), so direct API writes are refused, never rounded.
+3. Every insert and update path is revalidated in the trigger against the authoritative row it depends on (locked).
+4. Each of the above has a direct authenticated write probe in the RLS matrix.
+Measure: the next independent audit of a phase with a new table raises no direct-write / database-boundary finding.

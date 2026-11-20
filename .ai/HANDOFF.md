@@ -1,28 +1,29 @@
 # Handoff (update whenever the builder changes; keep it short)
 
-Updated: 2026-11-19 — FFH-P10 released and closed.
+Updated: 2026-11-20 — FFH-P11 released and closed.
 
-- **Production:** FFH-P10 Can We Afford It? + financial best-practice warnings, merged as
-  `cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` from phase head `eca9d43bb20a642d16b31013005510b609900014` (PR #189,
-  Ryan's explicit authorization 2026-11-19). Production `/api/build-info` = `cc7c707`; Production smoke **12/12** (run by
-  the Builder); signed-out `/what-if`, `/what-if/purchase?type=home|vehicle` redirect to sign-in. P10 **CLOSED**.
-  (P09's close-out, draft #187, shipped inside this release.)
-- **P10 shipped:** `/what-if` (replaces the Scenario Lab tab; Scenario Lab under Tools, detailed view only) and the
-  guided `/what-if/purchase?type=home|vehicle` check, one option or two side by side, read-only. Verdicts come only from
-  the canonical evaluators via the Scenario Lab adapters; separate nonblocking rules of thumb (28/36, 20/3/8, vehicle
-  value ≤ ½ income, 3–6 months reserves). The form pre-answers nothing; blank costs stay unknown. Spec: issue #171.
-  Code: `lib/purchase-check/`, `app/what-if/`.
-- **Hosted Supabase:** no change in P10 (still 26 migrations, parity 9/9 from P09). No new environment variables.
-- **Evidence:** audit receipt `docs/workflow/FFH-P10_AUDIT.md` (FAIL at `865783a` → fixed → PASS at `eca9d43`); QA and
-  release evidence on PR #189; decisions in `.ai/DECISIONS.md`.
-- **Backlog:** pre-existing LOW: the canonical evaluators emit plan-impact risks when no post-purchase engine ran
-  (`.ai/DECISIONS.md`, P10 entry); P08 F04 LOW, N01, picomatch audit exception review by 2027-01-18.
-- **Lessons learned (P10) — APPROVED by Ryan (2026-11-19), to implement in FFH-P11's normal development branch** (not
-  a separate docs PR; only once P11 is authorized): the guided-financial-input contract check. Requirements are in
-  `.ai/DECISIONS.md` ("Ryan approved the FFH-P10 lessons-learned improvement"). Keep the `docs/WORKFLOW.md` change to
-  one short line.
-- **Next phase:** FFH-P11 (issue #172) is not started and needs Ryan's separate approval. Start it in a fresh chat on
-  the cloud environment **Family-Finance-Hub**; rules in `AGENTS.md`. The Preview domain still points at
-  `phase/ffh-p10-can-we-afford-it`; move it when the next phase branch starts.
+- **Production:** FFH-P11 Irregular Expense Set-Asides, merged as `8842f607432db2b07705e19c53542d0006b5df82` from
+  candidate `d8bd83804c43c9099efb55ad53dd6aebc11283a9` (PR #194, Ryan's explicit authorization 2026-11-20). Production
+  `/api/build-info` = `8842f60`; Production smoke **12/12**; signed-out `/bills`, `/plan`, `/what-if`, `/account` →
+  Sign in; post-merge Production CI run 44652290057 success. P11 **CLOSED**. (P10's close-out, draft #193, shipped inside this release.)
+- **P11 shipped:** on `/bills`, an optional per-bill tracker for scheduled quarterly/yearly expenses: the amount the
+  household *reports* as set aside, still needed, surplus, exact-cent catch-up (rounded up, only when meaningful), honest
+  due-now / cycle-confirmation states, explicit next-cycle confirmation with typed carryover, forecast notes. Advisory
+  only (plan, snapshot, engine and exports never read it). Spec: issue #172. Code: `lib/bills/set-aside*.ts`,
+  `lib/supabase/set-asides.ts`, `app/bills/SetAsides.tsx`, `app/bills/set-aside-actions.ts`.
+- **Hosted Supabase:** 28 migrations (P11 added `20261119100000` and `20261120100000`, both applied by Ryan, 17/17 PASS
+  each). No new environment variables.
+- **Also fixed:** pre-existing P07 defect (invited member with a saved check-in could not delete their account).
+- **Evidence:** audit receipt `docs/workflow/FFH-P11_AUDIT.md` (PASS with 3 MEDIUM at `694df32` → fixed → re-check PASS
+  at `005f312`); QA and release evidence on PR #194; decisions in `.ai/DECISIONS.md`.
+- **Backlog:** none open from P11. Carried: P10 LOW (canonical evaluators emit plan-impact risks when no post-purchase
+  engine ran); P08 F04 LOW, N01; picomatch audit exception review by 2027-01-18.
+- **Lessons learned (P11) — APPROVED by Ryan (2026-11-20), to implement in the next phase's normal development branch**
+  (not a separate docs PR; only once that phase is authorized): the database-boundary contract for a new
+  household-scoped table. Requirements are in `.ai/DECISIONS.md` ("Ryan approved the FFH-P11 lessons-learned
+  improvement"). Keep the `docs/WORKFLOW.md` change to one short line.
+- **Next phase:** not started; needs Ryan's separate approval. Start it in a fresh chat on the cloud environment
+  **Family-Finance-Hub**; rules in `AGENTS.md`. The Preview domain still points at
+  `phase/ffh-p11-irregular-expense-set-asides`; move it when the next phase branch starts.
 - **Repository bookkeeping:** this close-out is carried forward to the next authorized release (draft PR into `main`,
   not merged alone, which would deploy Production).

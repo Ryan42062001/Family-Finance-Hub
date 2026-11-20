@@ -2,7 +2,8 @@
 
 FFH-P11 — Irregular Expense Set-Asides
 
-State: BUILDING (authorized by Ryan, 2026-11-19)
+State: CLOSED — released to Production (Ryan's explicit authorization, 2026-11-20) via PR #194, merge
+`8842f607432db2b07705e19c53542d0006b5df82` from candidate `d8bd83804c43c9099efb55ad53dd6aebc11283a9`; Production smoke 12/12
 Risk: HIGH (money calculations, new household-scoped persistence, Supabase schema/RLS, session authorization)
 Owner: Ryan
 Spec (binding): GitHub issue #172 (11 Owner decisions + 2 safeguards); P10-approved guided-financial-input contract
@@ -12,9 +13,10 @@ Phase branch: `phase/ffh-p11-irregular-expense-set-asides`, started at `d41e9262
 Phase PR: #194 (phase → `main`, draft; collects QA, audit and release evidence)
 Previous phase: FFH-P10 RELEASED / CLOSED (PR #189, Production smoke 12/12).
 
-**Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
-Ryan's explicit exact-SHA authorization. Hosted SQL (this phase's migration), Supabase Auth, Vercel (including moving
-the fixed Preview domain), secrets and real data need Ryan's approval per action.
+**Further Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
+Ryan's explicit exact-SHA authorization. Hosted SQL,
+Supabase Auth, Vercel (including moving the fixed Preview domain), secrets and real data need Ryan's approval per action.
+The next phase needs Ryan's separate approval and a fresh Claude Code chat.
 
 ## What P11 builds
 
@@ -45,4 +47,5 @@ the fixed Preview domain), secrets and real data need Ryan's approval per action
 - Independent audit (ChatGPT) at `694df32`: PASS with 3 MEDIUM; all fixed in #200 (migration `20261120100000`);
   targeted re-check PASS at `005f312`. Hosted migration #2 applied by Ryan: 17/17 PASS (28 migrations). Q64 re-check PASS.
   Receipt: `docs/workflow/FFH-P11_AUDIT.md`.
-- Next: release candidate = the phase head after this record; Ryan's exact-SHA release authorization.
+- Released: Ryan authorized "Release FFH-P11 at d8bd838…" (2026-11-20); `main` = `8842f60`; Production
+  `/api/build-info` = `8842f60`; Production smoke 12/12; signed-out `/bills`, `/plan`, `/what-if`, `/account` → Sign in.
