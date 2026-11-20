@@ -94,11 +94,20 @@ real-data or Production change is approved; Production deployment remains a sepa
 
 ## FFH-P11 — Irregular Expense Set-Asides
 
-State: BUILDING (authorized by Ryan 2026-11-19). Risk: HIGH (money calculations, new household-scoped table, RLS and
-session authorization). Phase branch `phase/ffh-p11-irregular-expense-set-asides` from Production `cc7c707` plus the P10
+State: CLOSED. Released to Production via PR #194 at `8842f60` (2026-11-20), with Ryan's explicit authorization;
+Production smoke 12/12. Audit PASS (3 MEDIUM fixed, re-check PASS), QA Q58–Q69 PASS. Risk: HIGH (money calculations,
+new household-scoped table, RLS and session authorization). Phase branch `phase/ffh-p11-irregular-expense-set-asides` from Production `cc7c707` plus the P10
 close-out (#193); phase PR #194. Binding spec: GitHub issue #172. Optional per-bill tracker on the Bills page for
 quarterly/yearly expenses: the amount the household reports as set aside, the gap, any surplus and an exact-cent
-catch-up suggestion; explicit cycle confirmation; advisory only. One migration (needs Ryan's hosted authorization).
+catch-up suggestion; explicit cycle confirmation; advisory only. Two migrations, both applied by Ryan (hosted at 28).
+
+## FFH-P12 — Per-Paycheck Financial Planning
+
+State: BUILDING. Risk: HIGH (money calculations and cash-flow timing, new household-scoped table, RLS, session/MFA).
+Binding spec: GitHub issue #203; activated by Ryan 2026-11-20 (nonproduction). Phase branch
+`phase/ffh-p12-per-paycheck-planning` from Production `8842f60` plus the P11 close-out (#202). Optional paycheck
+schedule facts per income source and a derived 60-day per-paycheck plan on `/plan/paychecks`. Hosted migration,
+Preview reassignment and Production deployment are each separate Owner authorizations, not granted by this phase.
 
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 

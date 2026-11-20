@@ -22,7 +22,7 @@ BEGIN
      OR current_user <> 'postgres' OR pg_is_in_recovery() THEN
     RAISE EXCEPTION 'MATRIX_WRONG_LOCAL_SESSION';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 28 THEN
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 29 THEN
     RAISE EXCEPTION 'MATRIX_MIGRATION_PARITY_UNVERIFIED';
   END IF;
   IF (SELECT count(*) FROM auth.users) <> 0 OR
@@ -1879,6 +1879,207 @@ BEGIN
 END
 $p11$;
 
+-- ===============================================================================================================
+-- FFH-P12 income pay schedules (issue #203), built to the P11-approved database-boundary contract. Own synthetic
+-- fixtures in this same uncommitted transaction. One schedule per active income source, same household by composite
+-- FK; exact-cent finite nonnegative amount refused (never rounded) at the database; supported frequencies; semimonthly
+-- anchors only for semimonthly, ordered, next date on a payday; next date within the allowed window; client writes
+-- limited to the input columns; version, audit columns and parent identity owned by the database; every write locks
+-- and revalidates the parent income; owner/member write, viewer read-only, other households/outsiders and
+-- dead/expired/pending-2FA sessions denied; cascade on income delete; and no change to any other financial row.
+-- ===============================================================================================================
+CREATE FUNCTION pg_temp.ffh_p12_expect(label text, got text, want text) RETURNS void
+LANGUAGE plpgsql AS $e$
+BEGIN
+  IF got IS DISTINCT FROM want THEN
+    RAISE EXCEPTION 'P12_ASSERTION_FAILED %: got % want %', label, got, want;
+  END IF;
+  INSERT INTO pg_temp.ffh_rls_receipts(category,family) VALUES('p12-pay-schedules', label);
+END $e$;
+
+DO $p12$
+DECLARE
+  inst constant uuid := '00000000-0000-0000-0000-000000000000';
+  u_o uuid := gen_random_uuid(); u_m uuid := gen_random_uuid(); u_v uuid := gen_random_uuid();
+  u_x uuid := gen_random_uuid(); u_f uuid := gen_random_uuid();
+  s_o uuid := gen_random_uuid(); s_m uuid := gen_random_uuid(); s_v uuid := gen_random_uuid(); s_x uuid := gen_random_uuid();
+  s_exp uuid := gen_random_uuid(); s_f1 uuid := gen_random_uuid(); s_f2 uuid := gen_random_uuid(); f_ok uuid := gen_random_uuid();
+  h1 uuid := gen_random_uuid(); h2 uuid := gen_random_uuid();
+  i1 uuid := gen_random_uuid(); i2 uuid := gen_random_uuid(); i3 uuid := gen_random_uuid(); i4 uuid := gen_random_uuid();
+  i5 uuid := gen_random_uuid(); ix uuid := gen_random_uuid();
+  p1 uuid; p2 uuid; px uuid;
+  today date := (now() at time zone 'utc')::date;
+  d_next date; d_semi date;
+  pw jsonb := jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint - 10));
+  pw2 jsonb := jsonb_build_array(jsonb_build_object('method','totp','timestamp',extract(epoch from now())::bigint - 5),
+                                  jsonb_build_object('method','password','timestamp',extract(epoch from now())::bigint - 10));
+  ins text := 'WITH r AS (INSERT INTO public.income_pay_schedules(household_id,income_source_id,frequency,expected_deposit_amount,next_expected_deposit_date,semimonthly_day_one,semimonthly_day_two) VALUES (%L,%L,%L,%s,%L,%s,%s) RETURNING version) SELECT version::text FROM r';
+  upd text := 'WITH r AS (UPDATE public.income_pay_schedules SET %s WHERE id = %L%s RETURNING version) SELECT coalesce(max(version)::text, ''none'') FROM r';
+  del text := 'WITH r AS (DELETE FROM public.income_pay_schedules WHERE id = %L%s RETURNING 1) SELECT count(*)::text FROM r';
+  cnt text := 'SELECT count(*)::text FROM public.income_pay_schedules WHERE household_id = %L';
+  -- Every other household financial row, in full: schedule writes must not change any of them.
+  digest_sql text := 'SELECT md5(concat_ws(''#'',
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.income_sources t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.expenses t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.debts t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.accounts t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.goals t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.retirement_accounts t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.bill_set_asides t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.savings_goals t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.monthly_check_ins t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.monthly_check_in_balances t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.household_id) FROM public.household_financial_preferences t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.household_people t WHERE household_id IN (%1$L,%2$L))))';
+  financial_digest text; now_digest text;
+BEGIN
+  d_next := today + 10;
+  d_semi := (date_trunc('month', today) + interval '1 month')::date; -- the 1st of next month (anchors 1 and 15)
+  INSERT INTO auth.users(id,instance_id,aud,role) SELECT x, inst, 'authenticated', 'authenticated' FROM unnest(ARRAY[u_o,u_m,u_v,u_x,u_f]) x;
+  INSERT INTO auth.mfa_factors(id,user_id,friendly_name,factor_type,status,created_at,updated_at)
+    VALUES (f_ok,u_f,'ok','totp','verified',now() - interval '1 hour',now() - interval '1 hour');
+  INSERT INTO private.mfa_approved_factors(factor_id,user_id) VALUES (f_ok,u_f);
+  INSERT INTO auth.sessions(id,user_id,aal,factor_id,created_at,not_after) VALUES
+    (s_o,u_o,'aal1',NULL,now(),NULL),(s_m,u_m,'aal1',NULL,now(),NULL),(s_v,u_v,'aal1',NULL,now(),NULL),(s_x,u_x,'aal1',NULL,now(),NULL),
+    (s_exp,u_o,'aal1',NULL,now() - interval '2 hours',now() - interval '1 minute'),
+    (s_f1,u_f,'aal1',NULL,now(),NULL),(s_f2,u_f,'aal2',f_ok,now(),NULL);
+  PERFORM pg_temp.ffh_p08_claims(u_o, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h1,'ZZ-P12 one',u_o);
+  PERFORM pg_temp.ffh_p08_claims(u_x, NULL, NULL, NULL);
+  INSERT INTO public.households(id,name,created_by) VALUES (h2,'ZZ-P12 two',u_x);
+  PERFORM pg_temp.ffh_p08_claims(NULL, NULL, NULL, NULL);
+  INSERT INTO public.household_members(household_id,user_id,role) VALUES (h1,u_m,'member'),(h1,u_v,'viewer'),(h1,u_f,'member');
+  INSERT INTO public.income_sources(id,household_id,name,monthly_amount,is_active) VALUES
+    (i1,h1,'ZZ-P12 pay A',4333.33,true),(i2,h1,'ZZ-P12 pay B',3000,true),(i3,h1,'ZZ-P12 old job',1000,false),
+    (i4,h1,'ZZ-P12 side',0,true),(i5,h1,'ZZ-P12 spare',500,true),(ix,h2,'ZZ-P12 other pay',2000,true);
+  INSERT INTO public.expenses(household_id,name,category,payment_amount,recurrence,due_anchor_date) VALUES
+    (h1,'ZZ-P12 rent','housing',1500,'monthly',today + 3),(h2,'ZZ-P12 other rent','housing',900,'monthly',today + 3);
+  EXECUTE format(digest_sql, h1, h2) INTO financial_digest;
+
+  -- 1. Owner/member create; one schedule per income; viewer, other households and forged pairings refused.
+  PERFORM pg_temp.ffh_p12_expect('owner-creates-biweekly', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i1, 'biweekly', '2000.00', d_next, 'NULL', 'NULL')), '1');
+  PERFORM pg_temp.ffh_p12_expect('second-schedule-same-income-refused', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, i1, 'weekly', '1', d_next, 'NULL', 'NULL')), 'ERR:23505');
+  PERFORM pg_temp.ffh_p12_expect('member-creates-semimonthly', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, i2, 'semimonthly', '1500', d_semi, '1', '15')), '1');
+  PERFORM pg_temp.ffh_p12_expect('viewer-create-denied', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(ins, h1, i4, 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('other-house-create-on-an-income-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h1, i4, 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('forged-household-for-foreign-income-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h2, i4, 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('forged-foreign-income-in-own-house-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, ix, 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('unknown-income-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, gen_random_uuid(), 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('inactive-income-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i3, 'monthly', '1', d_next, 'NULL', 'NULL')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('zero-amount-is-an-answer', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i4, 'irregular', '0', d_next, 'NULL', 'NULL')), '1');
+  PERFORM pg_temp.ffh_p12_expect('other-house-own-schedule-ok', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(ins, h2, ix, 'monthly', '2000', d_next, 'NULL', 'NULL')), '1');
+  SELECT id INTO p1 FROM public.income_pay_schedules WHERE income_source_id = i1;
+  SELECT id INTO p2 FROM public.income_pay_schedules WHERE income_source_id = i2;
+  SELECT id INTO px FROM public.income_pay_schedules WHERE income_source_id = ix;
+  PERFORM pg_temp.ffh_p12_expect('stamped-creator', (SELECT concat_ws(',',created_by = u_o, updated_by = u_o, version) FROM public.income_pay_schedules WHERE id = p1), 't,t,1');
+
+  -- 2. Database boundary: the form's money rule (no rounding), frequencies, anchors and dates, column-limited writes.
+  PERFORM pg_temp.ffh_p12_expect('negative-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '-0.01', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('over-max-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '1000000000000', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('nan-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '''NaN''::numeric', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('sub-cent-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '100.005', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('negative-sub-cent-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '-0.001', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('infinite-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '''Infinity''::numeric', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('minus-infinite-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '''-Infinity''::numeric', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('null-amount-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', 'NULL', d_next, 'NULL', 'NULL')), 'ERR:23502');
+  PERFORM pg_temp.ffh_p12_expect('unknown-frequency-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'daily', '1', d_next, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('semimonthly-without-days-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'semimonthly', '1', d_semi, 'NULL', 'NULL')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('semimonthly-equal-days-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'semimonthly', '1', d_semi, '1', '1')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('semimonthly-reversed-days-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'semimonthly', '1', d_semi, '15', '1')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('semimonthly-day-32-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'semimonthly', '1', d_semi, '1', '32')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('days-on-weekly-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '1', d_next, '1', '15')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('semimonthly-date-not-a-payday-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'semimonthly', '1', d_semi + 1, '1', '15')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('past-date-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '1', today - 2, 'NULL', 'NULL')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('far-date-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '1', today + 367, 'NULL', 'NULL')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('client-id-on-insert-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('INSERT INTO public.income_pay_schedules(id,household_id,income_source_id,frequency,expected_deposit_amount,next_expected_deposit_date) VALUES (gen_random_uuid(),%L,%L,''weekly'',1,%L) RETURNING 1', h1, i5, d_next)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('client-audit-on-insert-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('INSERT INTO public.income_pay_schedules(household_id,income_source_id,frequency,expected_deposit_amount,next_expected_deposit_date,created_by,version) VALUES (%L,%L,''weekly'',1,%L,%L,7) RETURNING 1', h1, i5, d_next, u_x)), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('yesterday-utc-and-max-amount-ok', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(ins, h1, i5, 'weekly', '999999999999.99', today - 1, 'NULL', 'NULL')), '1');
+  PERFORM pg_temp.ffh_p12_expect('column-privileges-input-only', concat_ws(',',
+    has_column_privilege('authenticated','public.income_pay_schedules','expected_deposit_amount','UPDATE'),
+    has_column_privilege('authenticated','public.income_pay_schedules','household_id','UPDATE'),
+    has_column_privilege('authenticated','public.income_pay_schedules','income_source_id','UPDATE'),
+    has_column_privilege('authenticated','public.income_pay_schedules','version','UPDATE'),
+    has_column_privilege('authenticated','public.income_pay_schedules','created_by','INSERT'),
+    has_column_privilege('authenticated','public.income_pay_schedules','id','INSERT')), 't,f,f,f,f,f');
+
+  -- 3. Guarded updates: the trigger owns the version; a stale version changes nothing; identity columns are fixed;
+  --    every update path is revalidated against the income as it is now.
+  PERFORM pg_temp.ffh_p12_expect('member-updates-amount', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 2100.50', p1, ' AND version = 1')), '2');
+  PERFORM pg_temp.ffh_p12_expect('stale-version-changes-nothing', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 1', p1, ' AND version = 1')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('amount-kept-after-stale', (SELECT concat_ws(',',expected_deposit_amount,version,updated_by = u_m) FROM public.income_pay_schedules WHERE id = p1), '2100.50,2,t');
+  PERFORM pg_temp.ffh_p12_expect('client-version-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'version = 99', p1, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('move-to-other-income-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('income_source_id = %L', i5), p1, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('move-to-other-house-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('household_id = %L', h2), p1, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('client-id-change-denied', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'id = gen_random_uuid()', p1, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('forged-creator-denied', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, format('created_by = %L, created_at = now() - interval %L', u_x, '9 years'), p1, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('nan-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = ''NaN''::numeric', p1, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('sub-cent-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 2100.505', p1, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('negative-update-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = -1', p1, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('to-semimonthly-without-days-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'frequency = ''semimonthly''', p1, '')), 'ERR:23514');
+  PERFORM pg_temp.ffh_p12_expect('to-semimonthly-off-payday-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format(upd, format('frequency = ''semimonthly'', semimonthly_day_one = 2, semimonthly_day_two = 16, next_expected_deposit_date = %L', d_semi), p1, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('date-into-past-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('next_expected_deposit_date = %L', today - 5), p1, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('owner-changes-to-monthly', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, format('frequency = ''monthly'', next_expected_deposit_date = %L', d_next + 1), p1, ' AND version = 2')), '3');
+  PERFORM pg_temp.ffh_p12_expect('version-after-denied-writes', (SELECT concat_ws(',',version,frequency,expected_deposit_amount) FROM public.income_pay_schedules WHERE id = p1), '3,monthly,2100.50');
+  PERFORM pg_temp.ffh_p12_expect('creator-unchanged', (SELECT (created_by = u_o AND created_at > now() - interval '1 day')::text FROM public.income_pay_schedules WHERE id = p1), 'true');
+  -- A paused (inactive) income accepts no schedule edit, not even amount-only; the schedule itself is kept.
+  UPDATE public.income_sources SET is_active = false WHERE id = i1;
+  PERFORM pg_temp.ffh_p12_expect('amount-edit-on-inactive-income-refused', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 5', p1, '')), 'ERR:22023');
+  PERFORM pg_temp.ffh_p12_expect('inactive-income-keeps-schedule', (SELECT count(*)::text FROM public.income_pay_schedules WHERE id = p1), '1');
+  UPDATE public.income_sources SET is_active = true WHERE id = i1;
+  -- An amount-only edit keeps an anchor date that has since passed (fixture: the privileged builder skips triggers).
+  SET LOCAL session_replication_role = replica;
+  UPDATE public.income_pay_schedules SET next_expected_deposit_date = today - 40 WHERE id = p1;
+  SET LOCAL session_replication_role = origin;
+  PERFORM pg_temp.ffh_p12_expect('amount-edit-keeps-old-anchor', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 2100.51', p1, ' AND version = 3')), '4');
+
+  -- 4. Viewer read-only; other households, outsiders and dead/expired/pending-2FA sessions see and change nothing.
+  PERFORM pg_temp.ffh_p12_expect('viewer-reads', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(cnt, h1)), '4');
+  PERFORM pg_temp.ffh_p12_expect('viewer-update-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 1', p1, '')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('viewer-delete-no-rows', pg_temp.ffh_p08_run(u_v, s_v::text, 'aal1', pw, format(del, p1, '')), '0');
+  PERFORM pg_temp.ffh_p12_expect('other-house-reads-nothing', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p12_expect('other-house-update-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 1', p1, '')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('other-house-delete-no-rows', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(del, p1, '')), '0');
+  PERFORM pg_temp.ffh_p12_expect('member-cannot-touch-other-house', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 1', px, '')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('member-reads-no-other-house', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(cnt, h2)), '0');
+  PERFORM pg_temp.ffh_p12_expect('dead-session-reads-nothing', pg_temp.ffh_p08_run(u_o, gen_random_uuid()::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p12_expect('dead-session-update-no-rows', pg_temp.ffh_p08_run(u_o, gen_random_uuid()::text, 'aal1', pw, format(upd, 'expected_deposit_amount = 1', p1, '')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('expired-session-reads-nothing', pg_temp.ffh_p08_run(u_o, s_exp::text, 'aal1', pw, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p12_expect('expired-session-create-denied', pg_temp.ffh_p08_run(u_o, s_exp::text, 'aal1', pw, format(ins, h1, i3, 'weekly', '1', d_next, 'NULL', 'NULL')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('pending-2fa-reads-nothing', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal1', pw2, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p12_expect('pending-2fa-update-no-rows', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal1', pw2, format(upd, 'expected_deposit_amount = 1', p1, '')), 'none');
+  PERFORM pg_temp.ffh_p12_expect('forged-aal2-on-aal1-session-reads-nothing', pg_temp.ffh_p08_run(u_f, s_f1::text, 'aal2', pw2, format(cnt, h1)), '0');
+  PERFORM pg_temp.ffh_p12_expect('verified-2fa-reads', pg_temp.ffh_p08_run(u_f, s_f2::text, 'aal2', pw2, format(cnt, h1)), '4');
+  PERFORM pg_temp.ffh_p12_expect('no-claims-reads-nothing', pg_temp.ffh_p08_run(NULL, NULL, NULL, NULL, 'SELECT count(*)::text FROM public.income_pay_schedules'), '0');
+  PERFORM pg_temp.ffh_p12_expect('anon-has-no-table-grant', (has_table_privilege('anon','public.income_pay_schedules','SELECT') OR has_table_privilege('anon','public.income_pay_schedules','INSERT')
+    OR has_table_privilege('anon','public.income_pay_schedules','UPDATE') OR has_table_privilege('anon','public.income_pay_schedules','DELETE'))::text, 'false');
+  PERFORM pg_temp.ffh_p12_expect('trigger-fn-not-callable', has_function_privilege('authenticated','private.income_pay_schedule_before_write()','EXECUTE')::text, 'false');
+
+  -- 5. Noninterference: no other financial row changed by any schedule write; delete keeps the income; deleting the
+  --    income removes its schedule; account deletion is not blocked and keeps the schedule.
+  EXECUTE format(digest_sql, h1, h2) INTO now_digest;
+  PERFORM pg_temp.ffh_p12_expect('other-financial-rows-unchanged-by-schedules', now_digest, financial_digest);
+  PERFORM pg_temp.ffh_p12_expect('delete-with-stale-version-no-rows', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(del, p2, ' AND version = 9')), '0');
+  PERFORM pg_temp.ffh_p12_expect('member-deletes-schedule', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(del, p2, ' AND version = 1')), '1');
+  PERFORM pg_temp.ffh_p12_expect('delete-keeps-income', (SELECT concat_ws(',',count(*),max(monthly_amount)) FROM public.income_sources WHERE id = i2), '1,3000.00');
+  PERFORM pg_temp.ffh_p12_expect('owner-deletes-income', pg_temp.ffh_p08_run(u_o, s_o::text, 'aal1', pw,
+    format('WITH r AS (DELETE FROM public.income_sources WHERE id = %L RETURNING 1) SELECT count(*)::text FROM r', i1)), '1');
+  PERFORM pg_temp.ffh_p12_expect('income-delete-cascades-schedule', (SELECT count(*)::text FROM public.income_pay_schedules WHERE id = p1), '0');
+  PERFORM pg_temp.ffh_p12_expect('member-creates-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(ins, h1, i2, 'weekly', '12.34', d_next, 'NULL', 'NULL')), '1');
+  PERFORM pg_temp.ffh_p12_expect('member-edits-before-account-delete', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw,
+    format(upd, 'expected_deposit_amount = 12.35', (SELECT id FROM public.income_pay_schedules WHERE income_source_id = i2), '')), '2');
+  DELETE FROM auth.users WHERE id = u_m;
+  PERFORM pg_temp.ffh_p12_expect('account-delete-keeps-schedule', (SELECT concat_ws(',',expected_deposit_amount,version,created_by IS NULL,updated_by IS NULL)
+    FROM public.income_pay_schedules WHERE income_source_id = i2), '12.35,2,t,t');
+  PERFORM pg_temp.ffh_p12_expect('client-null-audit-column-denied', pg_temp.ffh_p08_run(u_x, s_x::text, 'aal1', pw, format(upd, 'created_by = NULL', px, '')), 'ERR:42501');
+  PERFORM pg_temp.ffh_p12_expect('client-null-audit-keeps-row', (SELECT concat_ws(',',expected_deposit_amount,version,created_by = u_x) FROM public.income_pay_schedules WHERE id = px), '2000,1,t');
+  PERFORM pg_temp.ffh_p12_expect('no-orphan-schedules', (SELECT count(*)::text FROM public.income_pay_schedules s
+    WHERE NOT EXISTS (SELECT 1 FROM public.income_sources i WHERE i.id = s.income_source_id AND i.household_id = s.household_id)), '0');
+END
+$p12$;
+
 -- No raw fixture IDs, SQL values or JWT claims in receipts.
 SELECT 'MATRIX_ASSERTIONS_PASS=' || count(*)::text AS result FROM pg_temp.ffh_rls_receipts;
 SELECT 'MATRIX_FINANCIAL_FAMILIES=' || count(DISTINCT family)::text AS result
@@ -1904,7 +2105,8 @@ BEGIN
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
     'household_hsa_legal_spouse_authorities',
-    'savings_goals','monthly_check_ins','monthly_check_in_balances','bill_set_asides'
+    'savings_goals','monthly_check_ins','monthly_check_in_balances','bill_set_asides',
+    'income_pay_schedules'
   ] LOOP
     EXECUTE format('SELECT count(*) FROM public.%I',t) INTO n;
     IF n<>0 THEN RAISE EXCEPTION 'MATRIX_ROLLBACK_RESIDUE_FOUND family=%',t; END IF;

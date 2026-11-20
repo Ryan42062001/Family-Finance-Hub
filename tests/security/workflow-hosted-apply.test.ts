@@ -6,21 +6,21 @@ import test from "node:test";
 import { buildApply } from "../../scripts/hosted/build-apply.mjs";
 
 const read = (p: string) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
-const migrationPath = "supabase/migrations/20261120100000_ffh_p11_set_aside_integrity.sql"; // the newest migration
+const migrationPath = "supabase/migrations/20261120200000_ffh_p12_income_pay_schedules.sql"; // the newest migration
 const inputs = {
   migrationPath,
   migrationSql: read(migrationPath),
   paritySql: read("scripts/rls-local/parity.sql"),
   expectedText: read("scripts/rls-local/parity.expected.txt"),
   stripCrSql: read("scripts/rls-local/strip-cr.sql"),
-  checksSql: read("scripts/hosted/checks/20261120100000.sql"),
+  checksSql: read("scripts/hosted/checks/20261120200000.sql"),
 };
 
 test("one-paste apply: single transaction, pre-check, record, paste repair, checks, parity, all-or-nothing", () => {
   const sql: string = buildApply(inputs);
   assert.equal((sql.match(/^begin;$/gm) ?? []).length, 1, "exactly one begin");
   assert.equal((sql.match(/^commit;$/gm) ?? []).length, 1, "exactly one commit");
-  const order = ["pre-check expected 27 recorded migrations", "alter column reserved_amount type numeric", "insert into supabase_migrations.schema_migrations(version, name) values ('20261120100000', 'ffh_p11_set_aside_integrity')",
+  const order = ["pre-check expected 28 recorded migrations", "create table public.income_pay_schedules", "insert into supabase_migrations.schema_migrations(version, name) values ('20261120200000', 'ffh_p12_income_pay_schedules')",
     "execute replace(pg_get_functiondef(f.oid), E'\\r', '')", "phase check: ", "create temp table ffh_apply_parity as", "FFH_APPLY_FAIL nothing was applied: %", "commit;"];
   let at = -1;
   for (const marker of order) {

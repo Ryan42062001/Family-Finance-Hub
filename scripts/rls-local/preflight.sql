@@ -12,7 +12,7 @@ DECLARE
     '20260909033000','20260911170000','20261113210000','20261113230000','20261114010000','20261114020000',
     '20261114100000','20261114110000','20261114120000',
     '20261114130000','20261118100000','20261118110000','20261118120000',
-    '20261119100000','20261120100000'
+    '20261119100000','20261120100000','20261120200000'
   ];
   financial text[] := ARRAY[
     'accounts','income_sources','expenses','debts','retirement_accounts',
@@ -20,7 +20,8 @@ DECLARE
     'household_financial_preferences','person_hsa_tax_year_profiles',
     'person_hsa_month_statuses','household_hsa_married_allocations',
     'household_hsa_legal_spouse_authorities',
-    'savings_goals','monthly_check_ins','monthly_check_in_balances','bill_set_asides'
+    'savings_goals','monthly_check_ins','monthly_check_in_balances','bill_set_asides',
+    'income_pay_schedules'
   ];
   t text;
   op text;
@@ -33,9 +34,9 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='supabase_migrations') THEN
     RAISE EXCEPTION 'PREFLIGHT_MIGRATION_TRACKING_ABSENT';
   END IF;
-  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 28 OR
-     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 28 THEN
-    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_28_CANONICAL_MIGRATIONS';
+  IF (SELECT count(*) FROM supabase_migrations.schema_migrations) <> 29 OR
+     (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = ANY(expected)) <> 29 THEN
+    RAISE EXCEPTION 'PREFLIGHT_EXPECTED_29_CANONICAL_MIGRATIONS';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') OR
      to_regclass('auth.users') IS NULL OR to_regprocedure('auth.uid()') IS NULL THEN
@@ -134,7 +135,7 @@ BEGIN
      EXISTS(SELECT 1 FROM pg_policies WHERE tablename='household_members' AND cmd='DELETE') THEN
     RAISE EXCEPTION 'PREFLIGHT_UNEXPECTED_HOUSEHOLD_DELETE_POLICY';
   END IF;
-  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=28 FINANCIAL_RLS_TABLES=17 POLICY_CASES=68 FOUNDATION_TABLES=3';
+  RAISE NOTICE 'PREFLIGHT_SOURCE_MIGRATIONS=29 FINANCIAL_RLS_TABLES=18 POLICY_CASES=72 FOUNDATION_TABLES=3';
 END
 $pre$;
 
@@ -162,4 +163,4 @@ BEGIN
 END
 $roles$;
 ROLLBACK;
-\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=28 ROLES=2 NO_FIXTURES=1
+\echo PREFLIGHT_PASS LOCAL_ONLY=1 MIGRATIONS=29 ROLES=2 NO_FIXTURES=1

@@ -1,48 +1,40 @@
 # Current phase
 
-FFH-P11 — Irregular Expense Set-Asides
+FFH-P12 — Per-Paycheck Financial Planning
 
-State: BUILDING (authorized by Ryan, 2026-11-19)
-Risk: HIGH (money calculations, new household-scoped persistence, Supabase schema/RLS, session authorization)
+State: BUILDING
+Risk: HIGH (money calculations and cash-flow timing, new household-scoped table, Supabase schema/RLS, P08 session/MFA,
+financial noninterference)
 Owner: Ryan
-Spec (binding): GitHub issue #172 (11 Owner decisions + 2 safeguards); P10-approved guided-financial-input contract
-(`.ai/DECISIONS.md`, 2026-11-19).
-Phase branch: `phase/ffh-p11-irregular-expense-set-asides`, started at `d41e92626c9eeb676d0bb8ece6f52be2152d4d3a`
-(Production `cc7c70724df7bc3b8e5729cbec1fcd96cf6ef57e` plus the P10 close-out carried forward from draft #193)
-Phase PR: #194 (phase → `main`, draft; collects QA, audit and release evidence)
-Previous phase: FFH-P10 RELEASED / CLOSED (PR #189, Production smoke 12/12).
+Spec (binding): GitHub issue #203 (all Owner-approved defaults + three binding safeguards: cross-month bills, paycheck vs
+monthly income reconciliation, honest unfunded priorities). Also binding: the P10 guided-financial-input contract and
+the P11 database-boundary contract for a new household table (`.ai/DECISIONS.md`, 2026-11-19 and 2026-11-20).
+Activation: Ryan's FFH-P12 Fresh Primary Builder activation (2026-11-20) authorizes nonproduction implementation of all
+of #203. Phase branch: `phase/ffh-p12-per-paycheck-planning`, started at `458b45a6aee5a1ef4e36a341a55331658dc06052`
+(Production `8842f607432db2b07705e19c53542d0006b5df82` plus the P11 close-out carried forward from draft #202).
+Previous phase: FFH-P11 RELEASED / CLOSED (PR #194, Production smoke 12/12).
 
-**Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring
-Ryan's explicit exact-SHA authorization. Hosted SQL (this phase's migration), Supabase Auth, Vercel (including moving
-the fixed Preview domain), secrets and real data need Ryan's approval per action.
+**Production deployment is NOT authorized.** Every merge into `main` is a separate Production release requiring Ryan's
+explicit exact-SHA authorization. Hosted SQL, Supabase Auth, Vercel (including moving the fixed Preview domain),
+secrets and real data need Ryan's approval per action. P13 is not started.
 
-## What P11 builds
+## What P12 builds
 
-- **Set-asides on Bills** (`/bills`, no new menu item): for each scheduled quarterly/yearly expense, an optional tracker
-  of the **amount the household reports as set aside** for the active cycle's due date. Shows the bill amount, the P09
-  monthly planning amount (already budgeted, unchanged), reported amount, still needed, surplus, progress, saving
-  periods and a catch-up suggestion (exact cents, rounded up) only when meaningful. Honest states: funded, in progress,
-  due now, cycle confirmation needed. Explicit next-cycle confirmation with a typed carryover; stop tracking keeps the
-  bill. Non-mutating notes on the 12-month forecast.
-- Code: `lib/bills/set-aside*.ts`, `lib/supabase/set-asides.ts`, `app/bills/SetAsides.tsx`, `app/bills/set-aside-actions.ts`.
-- **Migrations** `20261119100000_ffh_p11_bill_set_asides.sql` and `20261120100000_ffh_p11_set_aside_integrity.sql`
-  (audit fixes; both applied to hosted Supabase by Ryan). First: table `public.bill_set_asides` (composite FK to
-  `expenses(id, household_id)` on delete cascade, one per expense, version-guarded), RLS via the session-gated household
-  helpers. One-paste hosted files `scripts/hosted/apply-20261119100000.sql` and `apply-20261120100000.sql` (both 17/17 PASS).
-- Never read by the plan, its snapshot, the Money Priority Engine or the exports.
-- QA rows Q58–Q69.
+- **Plan upcoming paychecks** (`/plan/paychecks`, entered from Your plan; no new navigation item). Optional per-income
+  schedule facts (frequency, expected net per deposit, next expected date, semimonthly day anchors); everything else is
+  derived on each request from a fresh server snapshot: a 60-day deposit timeline, P09 actual bills per interval
+  (cross-month, pre-payday, due-on-payday caution), monthly-average envelopes for unscheduled spending, the unchanged
+  Money Priority Engine recommendations apportioned to deposits in exact cents, honest shortfalls/unfunded priorities,
+  income mismatch disclosure and P11 reported reserves as context only.
+- New table `public.income_pay_schedules` (one per income source), built to the P11 database-boundary contract.
+- Nothing else is written: no allocations, balances, completions or history; monthly income stays authoritative.
+- QA rows Q70–Q84.
 
-## Status (2026-11-19)
+## Status (2026-11-20)
 
-- Built and merged into the phase branch: #195 (build), #196 (pre-migration compatibility), #197 (pre-freeze
-  `/code-review high` fixes + the Ryan-approved P07 check-in account-deletion fix). `fast` + `rls-matrix` green on each.
-- Hosted migration applied by Ryan: 17/17 PASS (27 migrations, parity 9/9). Production smoke 12/12 afterwards.
-- Fixed Preview serves the phase branch; Preview smoke 12/12; `e2e-isolation` PASS on `8fd21ab`.
-- Browser QA at `8fd21ab` (Work mode, PR #194): Q38, Q40, Q44, Q45, Q58–Q68 PASS. Q69 failed on #198 (`ZZ-A-Rent`
-  missing from Bills); Ryan's fresh-tab re-check at `8fd21ab` passed, so #198 was closed as not reproducible (no code
-  change). Q69's desktop dark-mode and keyboard parts PASS. Ryan's device checks still open: Q43 native print dialog,
-  Q69 tablet/phone width.
-- Independent audit (ChatGPT) at `694df32`: PASS with 3 MEDIUM; all fixed in #200 (migration `20261120100000`);
-  targeted re-check PASS at `005f312`. Hosted migration #2 applied by Ryan: 17/17 PASS (28 migrations). Q64 re-check PASS.
-  Receipt: `docs/workflow/FFH-P11_AUDIT.md`.
-- Next: release candidate = the phase head after this record; Ryan's exact-SHA release authorization.
+- Build PR #205 (dev → phase): migration `20261120200000` (`income_pay_schedules`, P11 DB-boundary contract), matrix
+  1403 (+84), races 4/4 (CI), one-paste `scripts/hosted/apply-20261120200000.sql` (+ checks), `lib/paychecks/*`,
+  `/plan/paychecks` (detailed + Simple), entry button on Your plan, QA rows Q70–Q84.
+- Hosted migration applied by Ryan: 19/19 PASS (hosted at 29); Production and Preview smoke 12/12. Fixed Preview serves
+  the phase branch. `/code-review high` done (2 important + 4 nits fixed, #206). Next: Work-mode QA Q70–Q84, freeze, audit.
+- Builder choices flagged for Ryan: `.ai/DECISIONS.md` ("FFH-P12 Builder implementation choices").

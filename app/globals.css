@@ -1196,3 +1196,48 @@ button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
 @media(max-width:900px){.purchase-forms-2,.purchase-results-2{grid-template-columns:1fr}}
 @media(max-width:650px){.what-if-options,.purchase-fields,.guidance-figures{grid-template-columns:1fr}.purchase-actions>*{width:100%}.purchase-figures>div{flex-direction:column;gap:.15rem}.purchase-figures dd{text-align:left}}
 .purchase-incomplete-note{margin:.75rem 0 0;padding:.6rem .8rem;border-left:4px solid var(--warn-text);border-radius:0 10px 10px 0;background:var(--warn-soft);color:var(--warn-text);font-size:.86rem}
+
+/* FFH-P12 per-paycheck plan (/plan/paychecks). Stacked cards and label/value rows only: no horizontal tables. */
+.paycheck-timeline,.paycheck-steps,.paycheck-lines,.paycheck-warnings,.paycheck-schedules{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}
+.paycheck-card{border-top:1px solid var(--line);padding-top:.7rem;min-width:0}
+.paycheck-card:first-child{border-top:0;padding-top:0}
+.paycheck-card>details>summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem .9rem;cursor:pointer;list-style-position:outside}
+.paycheck-card>details>summary .paycheck-date{margin:0;font-size:1.02rem;font-weight:700}
+.paycheck-card>details>summary::before{content:"\25B8";display:inline-block;width:1em;color:var(--muted)}
+.paycheck-card>details[open]>summary::before{content:"\25BE"}
+.paycheck-card>details>summary::-webkit-details-marker{display:none}
+.paycheck-card-body{display:grid;gap:.55rem;padding-top:.6rem;min-width:0}
+.paycheck-card-body .paycheck-subhead{margin:.35rem 0 0;font-size:.92rem}
+.paycheck-lines li,.paycheck-subtotal,.paycheck-outcome{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .75rem;align-items:baseline;margin:0}
+.paycheck-lines li>span:first-child{overflow-wrap:anywhere;flex:1 1 12rem}
+.paycheck-subtotal{border-top:1px dashed var(--line-strong);padding-top:.45rem}
+.paycheck-step{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15rem .75rem;padding:.45rem .6rem;border-radius:var(--radius-sm);background:var(--surface-soft);border-left:4px solid var(--success-text)}
+.paycheck-step-title{overflow-wrap:anywhere}
+.paycheck-step .paycheck-coverage{grid-column:1/-1}
+.paycheck-step-partly{border-left-color:var(--warn-text)}
+.paycheck-step-not_covered{border-left-color:var(--danger)}
+.paycheck-step-partly .paycheck-coverage{color:var(--warn-text)}
+.paycheck-step-not_covered .paycheck-coverage{color:var(--danger)}
+.paycheck-outcome{padding:.55rem .7rem;border-radius:var(--radius-sm);font-weight:600}
+.paycheck-outcome-left{background:var(--success-soft);color:var(--success-text)}
+.paycheck-outcome-unconfirmed{background:var(--warn-soft);color:var(--warn-text)}
+.paycheck-outcome-shortfall{background:var(--danger-soft);color:var(--danger)}
+.paycheck-badge{font-size:.8rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;border:1px solid var(--line-strong)}
+.paycheck-badge-shortfall{color:var(--danger);border-color:var(--danger-line);background:var(--danger-soft)}
+.paycheck-badge-not_confirmed{color:var(--warn-text);border-color:var(--warn-line);background:var(--warn-soft)}
+.paycheck-badge-estimated_left{color:var(--success-text);border-color:var(--success-line);background:var(--success-soft)}
+.paycheck-result-shortfall{color:var(--danger)}
+.paycheck-result-not_confirmed{color:var(--warn-text)}
+.paycheck-flag{display:block;color:var(--warn-text)}
+.paycheck-warnings li{padding-left:.7rem;border-left:3px solid var(--warn-line);color:var(--warn-text);font-size:.9rem}
+.paycheck-warnings-banner ul{margin:.35rem 0 0;padding-left:1.1rem;display:grid;gap:.3rem}
+.paycheck-how summary{cursor:pointer}
+.paycheck-how ul{margin:.4rem 0 0;padding-left:1.1rem;display:grid;gap:.3rem;font-size:.9rem}
+.paycheck-schedule{display:grid;gap:.55rem;padding:.85rem 0 0;border-top:1px solid var(--line);min-width:0}
+.paycheck-schedule:first-child{border-top:0;padding-top:0}
+.paycheck-schedule:focus-visible,.paycheck-card summary:focus-visible,.paycheck-how summary:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--radius-sm)}
+.paycheck-days{display:flex;flex-wrap:wrap;gap:.6rem 1rem}
+.paycheck-days label{display:grid;gap:.25rem}
+@media(max-width:650px){.paycheck-step{grid-template-columns:1fr}.paycheck-card>details>summary{flex-direction:column;gap:.2rem}.paycheck-page .bill-occurrences li{grid-template-columns:1fr auto}.paycheck-page .bill-occurrences li>span:first-child{grid-column:1/-1}}
+.paycheck-page .bill-occurrences li>small{grid-column:1/-1}
+.paycheck-summary{grid-template-columns:repeat(auto-fit,minmax(13.5rem,1fr))}
