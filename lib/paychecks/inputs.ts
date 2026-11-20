@@ -9,11 +9,15 @@ import { MAX_CENTS } from "../bills/schedule.ts";
 import { PaycheckDataError, type IncomeFact, type PaycheckPlanInput, type PlanStepFact, type SetAsideFact, type SpendingTreatment } from "./plan.ts";
 import type { PaySchedule } from "./schedule.ts";
 
-// An engine dollar figure -> exact cents, refusing anything that is not a whole, finite, in-range cent amount.
+// An engine dollar figure -> exact cents, refusing anything that is not a whole, finite, in-range cent amount. The
+// tolerance is absolute (a thousandth of a cent): enough for binary floating point up to MAX_CENTS (ulp < 0.002 cents
+// there), never enough to round a real sub-cent value. (Pre-freeze review: a relative tolerance let large values with
+// sub-cent fractions through.)
+export const SUB_CENT_TOLERANCE = 1e-3;
 export function dollarsToCents(value: number): number {
   if (!Number.isFinite(value) || value < 0) throw new PaycheckDataError("Invalid amount");
   const cents = Math.round(value * 100);
-  if (Math.abs(cents - value * 100) > 1e-6 * Math.max(1, value * 100) || cents > MAX_CENTS) throw new PaycheckDataError("Invalid amount");
+  if (cents > MAX_CENTS || Math.abs(cents - value * 100) > Math.max(SUB_CENT_TOLERANCE, Number.EPSILON * cents * 4)) throw new PaycheckDataError("Invalid amount");
   return cents;
 }
 

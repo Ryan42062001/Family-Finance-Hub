@@ -1925,7 +1925,12 @@ DECLARE
       (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.accounts t WHERE household_id IN (%1$L,%2$L)),
       (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.goals t WHERE household_id IN (%1$L,%2$L)),
       (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.retirement_accounts t WHERE household_id IN (%1$L,%2$L)),
-      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.bill_set_asides t WHERE household_id IN (%1$L,%2$L))))';
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.bill_set_asides t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.savings_goals t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.monthly_check_ins t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.monthly_check_in_balances t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.household_id) FROM public.household_financial_preferences t WHERE household_id IN (%1$L,%2$L)),
+      (SELECT string_agg(to_jsonb(t)::text, '';'' ORDER BY t.id) FROM public.household_people t WHERE household_id IN (%1$L,%2$L))))';
   financial_digest text; now_digest text;
 BEGIN
   d_next := today + 10;
@@ -2054,7 +2059,6 @@ BEGIN
 
   -- 5. Noninterference: no other financial row changed by any schedule write; delete keeps the income; deleting the
   --    income removes its schedule; account deletion is not blocked and keeps the schedule.
-  UPDATE public.income_sources SET updated_at = (SELECT updated_at FROM public.income_sources WHERE id = i1) WHERE id = i1; -- no-op
   EXECUTE format(digest_sql, h1, h2) INTO now_digest;
   PERFORM pg_temp.ffh_p12_expect('other-financial-rows-unchanged-by-schedules', now_digest, financial_digest);
   PERFORM pg_temp.ffh_p12_expect('delete-with-stale-version-no-rows', pg_temp.ffh_p08_run(u_m, s_m::text, 'aal1', pw, format(del, p2, ' AND version = 9')), '0');
