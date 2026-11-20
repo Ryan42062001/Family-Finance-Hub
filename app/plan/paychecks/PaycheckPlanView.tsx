@@ -62,22 +62,22 @@ function IntervalCard({ interval, open, simple }: { interval: Interval; open: bo
   return <li className="paycheck-card" aria-labelledby={`${id}-heading`}>
     <details open={open}>
       <summary>
-        <h3 id={`${id}-heading`}>{dateLabel(interval.date)}</h3>
+        <span className="paycheck-date" id={`${id}-heading`}>{dateLabel(interval.date)}</span>
         <span>Expected {formatCents(interval.depositsCents)}</span>
         <span className={`paycheck-badge paycheck-badge-${interval.outcome}`}>{interval.outcome === "shortfall" ? `Shortfall ${money(interval.resultCents)}` : interval.outcome === "not_confirmed" ? "Not confirmed" : `About ${formatCents(interval.resultCents)} left`}</span>
       </summary>
       <div className="paycheck-card-body">
         <p className="muted">{interval.endDate ? <>Covers {dateLabel(interval.date)} to {dateLabel(interval.endDate)}, the day before the next expected deposit.</> : <>No following deposit is expected yet.</>}</p>
-        <h4>Expected deposits</h4>
+        <h3 className="paycheck-subhead">Expected deposits</h3>
         <ul className="paycheck-lines">{interval.deposits.map((d) => <li key={d.key}><span>{d.sourceName}{d.ownerName ? ` (${d.ownerName})` : ""}</span><span className="muted">{FREQUENCY_LABEL[d.frequency]}</span><b>{formatCents(d.cents)}</b></li>)}</ul>
-        <h4>Bills due before the next deposit <span className="muted">({formatCents(interval.billsCents)})</span></h4>
+        <h3 className="paycheck-subhead">Bills due before the next deposit <span className="muted">({formatCents(interval.billsCents)})</span></h3>
         {interval.bills.length ? <ul className="bill-occurrences">{interval.bills.map((b) => <BillItem key={`${b.kind}-${b.billId}-${b.date}`} bill={b} />)}</ul> : <p className="muted">No scheduled bills in this period.</p>}
-        <h4>Everyday spending (monthly averages, this paycheck&apos;s share)</h4>
+        <h3 className="paycheck-subhead">Everyday spending (monthly averages, this paycheck&apos;s share)</h3>
         {interval.allowancesCents === null ? <p className="paycheck-flag">Can&apos;t be worked out: no deposit this month can carry it.</p>
           : interval.allowances.length ? <ul className="paycheck-lines">{interval.allowances.map((a) => <li key={a.key}><span>{a.label}</span><b>{formatCents(a.cents)}</b></li>)}</ul>
           : <p className="muted">None: every expense and debt has a due date (counted above).</p>}
         <p className="paycheck-subtotal"><span>After bills and spending</span><b>{money(interval.afterSpendingCents)}</b></p>
-        <h4>Your plan&apos;s steps (this paycheck&apos;s share, in plan order)</h4>
+        <h3 className="paycheck-subhead">Your plan&apos;s steps (this paycheck&apos;s share, in plan order)</h3>
         {interval.stepsCents === null ? <p className="paycheck-flag">Can&apos;t be worked out: no deposit this month can carry them.</p>
           : interval.steps.length ? <Steps steps={interval.steps} max={simple ? 3 : undefined} /> : <p className="muted">No plan step with a monthly amount.</p>}
         <Outcome interval={interval} />

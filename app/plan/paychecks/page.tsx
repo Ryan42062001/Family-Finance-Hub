@@ -94,7 +94,7 @@ export default async function PaychecksPage({ searchParams }: PageProps) {
         <strong>Paycheck planning can&apos;t be shown right now</strong>
         <p>{loaded.reason === "schedules" ? "Pay schedules can't be read at the moment. Your plan, bills and income are not affected." :
           loaded.reason === "plan" ? "Some saved numbers are invalid, so no plan is shown. Review your Financial profile." :
-          "Your numbers changed while this page was loading, or a saved detail is invalid. Reload the page; if this stays, review your Financial profile."}</p>
+          "Either your numbers changed while this page was loading (reload the page), or a saved amount is invalid (review your Financial profile and Bills). Nothing was guessed."}</p>
         <Link className="secondary-button" href="/plan/paychecks">Reload</Link>
       </section> : <PaycheckPlanView plan={loaded.plan} setups={loaded.setups} canEdit={canEdit} simple={simple} feedback={feedback(params)} setAsideNote={loaded.setAsideNote} />}
     </main>

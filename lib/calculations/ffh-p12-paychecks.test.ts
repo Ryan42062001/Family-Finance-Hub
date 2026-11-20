@@ -424,7 +424,8 @@ test("income facts and spending treatments are copied from the snapshot without 
 test("engine dollars -> cents is exact and fails closed; income fingerprint changes with any income fact", () => {
   assert.equal(dollarsToCents(1234.56), 123_456);
   assert.equal(dollarsToCents(0.1 + 0.2), 30);
-  for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, 1.005, 1e13]) assert.throws(() => dollarsToCents(bad), PaycheckDataError, String(bad));
+  assert.equal(dollarsToCents(999_999_999_999.99), MAX_CENTS);
+  for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, 1.005, 1e13, 12_345_678.905, 999_999_999.995]) assert.throws(() => dollarsToCents(bad), PaycheckDataError, String(bad));
   const base = income();
   const fp = incomeFingerprint(base);
   assert.match(fp, /^[0-9a-f]{32}$/);

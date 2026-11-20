@@ -1202,9 +1202,12 @@ button.secondary-button[type=submit]:hover{background:var(--surface-sunken)}
 .paycheck-card{border-top:1px solid var(--line);padding-top:.7rem;min-width:0}
 .paycheck-card:first-child{border-top:0;padding-top:0}
 .paycheck-card>details>summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem .9rem;cursor:pointer;list-style-position:outside}
-.paycheck-card>details>summary h3{margin:0;font-size:1.02rem}
+.paycheck-card>details>summary .paycheck-date{margin:0;font-size:1.02rem;font-weight:700}
+.paycheck-card>details>summary::before{content:"\25B8";display:inline-block;width:1em;color:var(--muted)}
+.paycheck-card>details[open]>summary::before{content:"\25BE"}
+.paycheck-card>details>summary::-webkit-details-marker{display:none}
 .paycheck-card-body{display:grid;gap:.55rem;padding-top:.6rem;min-width:0}
-.paycheck-card-body h4{margin:.35rem 0 0;font-size:.92rem}
+.paycheck-card-body .paycheck-subhead{margin:.35rem 0 0;font-size:.92rem}
 .paycheck-lines li,.paycheck-subtotal,.paycheck-outcome{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem .75rem;align-items:baseline;margin:0}
 .paycheck-lines li>span:first-child{overflow-wrap:anywhere;flex:1 1 12rem}
 .paycheck-subtotal{border-top:1px dashed var(--line-strong);padding-top:.45rem}

@@ -84,7 +84,8 @@ test("actions: session-derived household, owner/member only, version-guarded, wr
   const writes = [...actions.matchAll(/from\("([a-z_]+)"\)\.(insert|update|delete|upsert)/g)].map((m) => m[1]);
   assert.ok(writes.length >= 1 && writes.every((t) => t === "income_pay_schedules"), String(writes));
   assert.match(actions, /from\("income_sources"\)\.select\(/);
-  assert.doesNotMatch(actions, /from\("income_pay_schedules"\)\s*\n?\s*\.update\(facts\)\s*\n?\s*\.eq\("id", scheduleId\)(?![\s\S]{0,120}\.eq\("version")/);
+  assert.match(actions, /\.update\(facts\)[\s\S]{0,200}\.eq\("version", version\)/, "schedule update is version-guarded");
+  assert.match(actions, /\.delete\(\)[\s\S]{0,200}\.eq\("version", version\)/, "schedule removal is version-guarded");
   assert.doesNotMatch(actions + page + loader, /SERVICE_ROLE|service_role|createAdminClient/i);
   // Only the paycheck page is revalidated: nothing the plan reads changed.
   assert.deepEqual([...actions.matchAll(/revalidatePath\("([^"]+)"\)/g)].map((m) => m[1]), ["/plan/paychecks"]);

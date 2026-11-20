@@ -35,5 +35,6 @@ secrets and real data need Ryan's approval per action. P13 is not started.
 - Build PR #205 (dev → phase): migration `20261120200000` (`income_pay_schedules`, P11 DB-boundary contract), matrix
   1403 (+84), races 4/4 (CI), one-paste `scripts/hosted/apply-20261120200000.sql` (+ checks), `lib/paychecks/*`,
   `/plan/paychecks` (detailed + Simple), entry button on Your plan, QA rows Q70–Q84.
-- Hosted migration: NOT applied (needs Ryan's separate approval). Preview domain: still on P11 (needs Ryan).
+- Hosted migration applied by Ryan: 19/19 PASS (hosted at 29); Production and Preview smoke 12/12. Fixed Preview serves
+  the phase branch. `/code-review high` done (2 important + 4 nits fixed, #206). Next: Work-mode QA Q70–Q84, freeze, audit.
 - Builder choices flagged for Ryan: `.ai/DECISIONS.md` ("FFH-P12 Builder implementation choices").
