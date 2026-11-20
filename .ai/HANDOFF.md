@@ -1,5 +1,13 @@
 # Handoff (update whenever the builder changes; keep it short)
 
+Updated: 2026-11-20 — FFH-P12 Per-Paycheck Financial Planning BUILDING (Ryan's activation 2026-11-20).
+
+- **Now:** FFH-P12 on `phase/ffh-p12-per-paycheck-planning` (from Production `8842f60` + P11 close-out #202, carried
+  forward, not merged alone). Spec: issue #203. Scope and status: `.ai/CURRENT_PHASE.md`. Not authorized: hosted SQL,
+  Preview domain move, Vercel/secrets, real data, any merge into `main`, P13.
+
+## FFH-P11 close-out (carried forward)
+
 Updated: 2026-11-20 — FFH-P11 released and closed.
 
 - **Production:** FFH-P11 Irregular Expense Set-Asides, merged as `8842f607432db2b07705e19c53542d0006b5df82` from

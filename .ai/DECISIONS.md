@@ -917,3 +917,12 @@ step 4. Contract for every new household-scoped table, in its FIRST migration:
 3. Every insert and update path is revalidated in the trigger against the authoritative row it depends on (locked).
 4. Each of the above has a direct authenticated write probe in the RLS matrix.
 Measure: the next independent audit of a phase with a new table raises no direct-write / database-boundary finding.
+
+## 2026-11-20 — FFH-P12 activated (nonproduction)
+
+Ryan's "FFH-P12 — Fresh Primary Builder Activation" authorizes nonproduction implementation of the complete
+Owner-approved design in issue #203 (all defaults + the three added safeguards) and the P11-approved database-boundary
+contract. Verified before branching: `main` = `8842f607432db2b07705e19c53542d0006b5df82` (P11, PR #194 merged; post-merge
+CI run 44652290057 success); #202 draft/unmerged at `458b45a6aee5a1ef4e36a341a55331658dc06052`; no P12 branch existed.
+Phase branch `phase/ffh-p12-per-paycheck-planning` = Production + #202 (fast-forward to `458b45a`). Still separately
+required: hosted migration apply, fixed Preview domain move, the exact-SHA Production merge. P13 not started.

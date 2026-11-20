@@ -101,6 +101,14 @@ close-out (#193); phase PR #194. Binding spec: GitHub issue #172. Optional per-b
 quarterly/yearly expenses: the amount the household reports as set aside, the gap, any surplus and an exact-cent
 catch-up suggestion; explicit cycle confirmation; advisory only. Two migrations, both applied by Ryan (hosted at 28).
 
+## FFH-P12 — Per-Paycheck Financial Planning
+
+State: BUILDING. Risk: HIGH (money calculations and cash-flow timing, new household-scoped table, RLS, session/MFA).
+Binding spec: GitHub issue #203; activated by Ryan 2026-11-20 (nonproduction). Phase branch
+`phase/ffh-p12-per-paycheck-planning` from Production `8842f60` plus the P11 close-out (#202). Optional paycheck
+schedule facts per income source and a derived 60-day per-paycheck plan on `/plan/paychecks`. Hosted migration,
+Preview reassignment and Production deployment are each separate Owner authorizations, not granted by this phase.
+
 ## Planned after FFH-P02 (owner-approved order, revised 2026-11-12)
 
 1. **Your money plan as the home screen.** Surface the existing Money Priority Engine as a plain, ordered list of
