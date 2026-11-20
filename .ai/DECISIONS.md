@@ -958,3 +958,12 @@ in the app. Ryan may confirm or ask for a change:
   `/bills`, `/plan/paychecks` → Sign in.
 - `/code-review high` on `8842f60...51ea7c5`: 2 important (relative sub-cent tolerance in `dollarsToCents`;
   noninterference digest missing P07 goals/check-ins/preferences) + 4 nits; all fixed in #206.
+
+## 2026-11-20 — FFH-P12 Preview QA at `706c1cf`
+
+Work mode (Ryan's run, comment on #204): Q70–Q77, Q79–Q84 **PASS** (Q82 viewer/forged/pending-2FA parts and Q84
+tablet/phone parts NOT RUN in the browser, as the rows say). Q78 **FAIL → #207**: Financial profile has no control to
+mark income as variable (`income_sources.is_variable` is set only by Scenario Lab overrides and the example household).
+Triage: checklist error, not a P12 defect — the planner's variable-income handling is unit-tested
+(`ffh-p12-paychecks.test.ts`, "variable income: estimates only"). Q78 corrected to drop that step. Adding a "pay varies"
+profile field is new scope (P03 profile form) and needs Ryan's decision; not done.
