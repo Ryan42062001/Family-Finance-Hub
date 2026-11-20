@@ -947,3 +947,14 @@ in the app. Ryan may confirm or ask for a change:
 5. **Schedules only for active incomes**; pausing an income keeps its schedule but excludes it (and refuses edits)
    until it is active again. Next expected date must be from yesterday (UTC) to 366 days ahead when set or changed.
 6. **Twice-a-month anchors that clamp to the same day** (30th and 31st in February) stay two deposits on that date.
+
+## 2026-11-20 — FFH-P12 hosted migration applied; Preview moved; pre-freeze review
+
+- Ryan moved the fixed Preview domain to `phase/ffh-p12-per-paycheck-planning` (Preview `/api/build-info` = `51ea7c5`,
+  Preview smoke 12/12).
+- Ryan approved ("Approve") and applied `scripts/hosted/apply-20261120200000.sql` at `51ea7c5` (sha256 `aa78c561…4827`):
+  **19/19 PASS** (pre-check, apply + record, paste repair, 7 phase checks, parity 9/9); hosted at 29 migrations.
+  Afterwards Production (`8842f60`) smoke 12/12, Preview (`51ea7c5`) smoke 12/12; signed-out Production `/plan`,
+  `/bills`, `/plan/paychecks` → Sign in.
+- `/code-review high` on `8842f60...51ea7c5`: 2 important (relative sub-cent tolerance in `dollarsToCents`;
+  noninterference digest missing P07 goals/check-ins/preferences) + 4 nits; all fixed in #206.
